@@ -3,6 +3,7 @@ import { defineConfig } from 'electron-vite'
 import vue from '@vitejs/plugin-vue'
 import ui from '@nuxt/ui/vite'
 import VueRouter from 'vue-router/vite'
+import { VueRouterAutoImports } from 'vue-router/unplugin'
 
 export default defineConfig({
   main: {},
@@ -15,10 +16,22 @@ export default defineConfig({
     },
     plugins: [
       VueRouter({
-        routesFolder: 'src/renderer/src/pages',
+        routesFolder: 'src/renderer/src/pages'
       }),
       vue(),
-      ui()
+      ui({
+        autoImport: {
+          imports: [
+            'vue',
+            '@vueuse/core',
+            'pinia',
+            'vee-validate',
+            'vue-i18n',
+            'vue-router',
+            VueRouterAutoImports
+          ]
+        }
+      })
     ]
   }
 })

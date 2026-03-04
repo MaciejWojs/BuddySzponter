@@ -2,6 +2,7 @@
   <div class="home-page">
     <h1>Witaj w mojej aplikacji Electron + Vue!</h1>
     <p>To jest strona główna, wygenerowana automatycznie przez file-based routing.</p>
+    <p> {{ $t('message.hello') }}</p>
 
     <nav>
       <router-link to="/about">Przejdź do About</router-link>
