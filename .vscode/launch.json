@@ -2,6 +2,16 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "Bun: Run dev",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": ["run", "dev"],
+      "console": "integratedTerminal",
+      "env": {}
+    },
+    {
       "name": "Debug Main Process",
       "type": "node",
       "request": "launch",
@@ -33,6 +43,14 @@
       "configurations": ["Debug Main Process", "Debug Renderer Process"],
       "presentation": {
         "order": 1
+      }
+    }
+    ,
+    {
+      "name": "Bun + Debug All",
+      "configurations": ["Bun: Run dev", "Debug Main Process", "Debug Renderer Process"],
+      "presentation": {
+        "order": 2
       }
     }
   ]
