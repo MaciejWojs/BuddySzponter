@@ -8,6 +8,7 @@ on:
 
 jobs:
   build:
+    permissions: write-all
     runs-on: ${{ matrix.os }}
 
     strategy:
@@ -69,13 +70,14 @@ jobs:
       - name: Build & Package
         run: bun run ${{ matrix.build-script }}
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v7
+      - name: Get version
+        shell: bash
+        run: echo "PACKAGE_VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_ENV
+
+      - name: Release the artifacts
+        uses: ncipollo/release-action@v1
         with:
-          name: buddyszponter-${{ matrix.os }}
-          path: |
-            dist/*.exe
-            dist/*.dmg
-            dist/*.AppImage
-            dist/*.deb
-            dist/*.snap
+          artifacts: "dist/*.exe,dist/*.dmg,dist/*.AppImage,dist/*.deb,dist/*.snap"
+          allowUpdates: true
+          tag: "v${{ env.PACKAGE_VERSION }}"
+          commit: "${{ github.sha }}"
