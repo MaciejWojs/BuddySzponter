@@ -24,7 +24,8 @@
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
     "@nuxt/ui": "^4.5.1",
-    "tailwindcss": "^4.2.1"
+    "tailwindcss": "^4.2.1",
+    "unplugin-auto-import": "^21.0.0"
   },
   "devDependencies": {
     "@electron-toolkit/eslint-config-prettier": "3.0.0",
@@ -42,6 +43,7 @@
     "vite": "^7.2.6",
     "vue": "^3.5.25",
     "vue-eslint-parser": "^10.2.0",
+    "vue-router": "^5.0.3",
     "vue-tsc": "^3.1.6"
   }
 }

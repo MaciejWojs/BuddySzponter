@@ -2,6 +2,7 @@ import { resolve } from 'path'
 import { defineConfig } from 'electron-vite'
 import vue from '@vitejs/plugin-vue'
 import ui from '@nuxt/ui/vite'
+import VueRouter from 'vue-router/vite'
 
 export default defineConfig({
   main: {},
@@ -12,6 +13,12 @@ export default defineConfig({
         '@renderer': resolve('src/renderer/src')
       }
     },
-    plugins: [vue(), ui()]
+    plugins: [
+      VueRouter({
+        routesFolder: 'src/renderer/src/pages',
+      }),
+      vue(),
+      ui()
+    ]
   }
 })
