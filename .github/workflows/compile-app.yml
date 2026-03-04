@@ -58,18 +58,6 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Install Linux deps
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libgtk-3-dev \
-            libnss3 \
-            libasound2 \
-            libxss1 \
-            libxtst6 \
-            xvfb
-
       - name: Rebuild native deps
         run: bunx electron-builder install-app-deps
 
