@@ -1,4 +1,8 @@
 @import './base.css';
+/* FROM NUXT UI DOCS - https://ui.nuxt.com/docs/getting-started/installation/vue */
+@import "tailwindcss";
+@import "@nuxt/ui";
+
 
 body {
   display: flex;
