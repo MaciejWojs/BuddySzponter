@@ -28,8 +28,10 @@ export default defineConfig({
             '@vueuse/core',
             'pinia',
             'vee-validate',
+            { from: '@vee-validate/zod', imports: ['toTypedSchema'] },
             'vue-i18n',
             'vue-router',
+            { from: 'zod', imports: ['z'] },
             VueRouterAutoImports
           ]
         }
