@@ -64,6 +64,7 @@
     "typescript": "^5.9.3",
     "vee-validate": "^4.15.1",
     "vite": "^7.2.6",
+    "vite-svg-loader": "^5.1.1",
     "vue": "^3.5.25",
     "vue-eslint-parser": "^10.2.0",
     "vue-i18n": "^11.2.8",

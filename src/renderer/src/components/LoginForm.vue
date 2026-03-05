@@ -4,7 +4,6 @@
       v-model="email"
       type="email"
       :placeholder="$t('login.email')"
-      icon=""
       :error="!!errors.email"
     />
     <div v-if="errors.email" class="error-message text-red-500 text-sm">
@@ -14,9 +13,12 @@
       v-model="password"
       type="password"
       :placeholder="$t('login.password')"
-      icon=""
       :error="!!errors.password"
-    />
+    >
+      <template #icon>
+        <MailIcon class="w-5 h-5 text-white "/>
+      </template>
+    </BuInput>
     <div v-if="errors.password" class="error-message text-red-500 text-sm">
       {{ errors.password }}
     </div>
@@ -35,6 +37,7 @@ import { useForm } from 'vee-validate'
 import { toTypedSchema } from '@vee-validate/zod'
 import { z } from 'zod'
 import { useI18n } from 'vue-i18n'
+import MailIcon from '@renderer/assets/images/components/mail.svg?component'
 
 const { t, locale } = useI18n()
 

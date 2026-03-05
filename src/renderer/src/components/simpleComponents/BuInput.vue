@@ -15,10 +15,6 @@
             type: String,
             default: ''
         },
-        icon: {
-            type: String,
-            default: ''
-        },
         width: {
             type: String,
             default: '200px'
@@ -35,7 +31,6 @@
             class="bu-input-wrapper"
             :class="{ 'bu-input-error': props.error, 'shake': props.error }"
             :style="{ width: props.width }">
-            <div style="margin: 0px 5px 0px 5px; font-size: 25px;">{{ props.icon }}</div>
             <span v-if="$slots.icon" class="bu-input-icon">
                 <slot name="icon" />
             </span>

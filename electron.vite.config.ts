@@ -4,6 +4,7 @@ import vue from '@vitejs/plugin-vue'
 import ui from '@nuxt/ui/vite'
 import VueRouter from 'vue-router/vite'
 import { VueRouterAutoImports } from 'vue-router/unplugin'
+import svgLoader from 'vite-svg-loader'
 
 export default defineConfig({
   main: {},
@@ -18,6 +19,7 @@ export default defineConfig({
       VueRouter({
         routesFolder: 'src/renderer/src/pages'
       }),
+      svgLoader(),
       vue(),
       ui({
         autoImport: {
