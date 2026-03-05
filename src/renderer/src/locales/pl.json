@@ -1,0 +1,9 @@
+{
+  "login": {
+    "title": "Zaloguj się do BuddySzponter",
+    "email": "Adres e-mail",
+    "password": "Hasło",
+    "button": "Wejdź",
+    "loading": "Ładowanie..."
+  }
+}

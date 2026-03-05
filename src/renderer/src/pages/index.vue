@@ -1,12 +1,12 @@
 <template>
   <div class="home-page">
-    <h1>BuddySzponter</h1>
-
-      <!-- <router-link to="/about">Przejdź do About</router-link> -->
+      <LoginForm />
   </div>
+    <!-- <router-link to="/about">Przejdź do About</router-link> -->
 </template>
 
 <script setup lang="ts">
+import LoginForm from '@renderer/components/LoginForm.vue';
 
 </script>
 
@@ -14,6 +14,8 @@
 .home-page {
   display: flex;
   flex-direction: column;
+  justify-content: center;
   align-items: center;
+  height: 100vh;
 }
 </style>
