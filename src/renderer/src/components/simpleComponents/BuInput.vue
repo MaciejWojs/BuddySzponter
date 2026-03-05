@@ -29,7 +29,7 @@
     <div>
         <div
             class="bu-input-wrapper"
-            :class="{ 'bu-input-error': props.error, 'shake': props.error }"
+            :class="{ 'bu-input-error': props.error, 'shake': props.error, 'bu-input-normal': !props.error }"
             :style="{ width: props.width }">
             <span v-if="$slots.icon" class="bu-input-icon">
                 <slot name="icon" />
@@ -69,8 +69,11 @@
     box-shadow: 0 2px 20px rgba(255, 0, 0, 0.3);
     border: 1px solid #ff4d4f;
 }
-.bu-input-wrapper:focus-within {
-    outline: blueviolet 2px solid;
+.bu-input-error:focus-within {
+    outline: red 2px solid;
+}
+.bu-input-normal:focus-within {
+    outline: var(--color-accent) 2px solid;
 }
 .bu-input-icon {
     display: flex;
@@ -90,11 +93,5 @@ input {
 }
 input:focus {
     outline: none;
-}
-.bu-input-error-message {
-    color: #ff4d4f;
-    font-size: 0.9em;
-    margin-top: 4px;
-    margin-left: 4px;
 }
 </style>
