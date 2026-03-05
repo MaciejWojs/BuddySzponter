@@ -40,12 +40,6 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue'
-import { useForm } from 'vee-validate'
-import { toTypedSchema } from '@vee-validate/zod'
-import { z } from 'zod'
-import { useI18n } from 'vue-i18n'
-import { useDebounceFn } from '@vueuse/core'
 import MailIcon from '@renderer/assets/images/components/mail.svg?component'
 import zxcvbn from 'zxcvbn'
 
