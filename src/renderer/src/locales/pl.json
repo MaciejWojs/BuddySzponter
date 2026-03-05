@@ -4,6 +4,19 @@
     "email": "Adres e-mail",
     "password": "Hasło",
     "button": "Wejdź",
-    "loading": "Ładowanie..."
+    "loading": "Ładowanie...",
+    "passwordStrength": "Siła hasła",
+
+    "passwordError": {
+      "minLength": "Hasło musi mieć co najmniej 8 znaków",
+      "required": "Hasło jest wymagane",
+      "weak": "Hasło jest zbyt słabe"
+    },
+
+    "emailError": {
+      "required": "E-mail jest wymagany",
+      "invalid": "Podaj prawidłowy adres e-mail",
+      "maxLength": "E-mail jest za długi"
+    }
   }
 }
