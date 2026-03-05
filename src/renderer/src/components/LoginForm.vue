@@ -24,7 +24,7 @@
     </div>
 
         <div class="flex items-center gap-2 flex-col w-48">
-          Siła hasła:
+          {{ t('login.passwordStrength') }}
           <UProgress v-model="strong" :max="4" :color="strong <= 1 ? 'error' : strong <= 3 ? 'warning' : 'success'" class="w-full" />
         </div>
 
@@ -57,20 +57,19 @@ function toggleLocale() {
   locale.value = locale.value === 'pl-PL' ? 'en-US' : 'pl-PL'
 }
 
-const loginSchema = toTypedSchema(
+const loginSchema = computed(() => toTypedSchema(
   z.object({
     email: z.string()
       .default('')
-      .pipe(z.string().min(1, 'E-mail jest wymagany').email('Podaj prawidłowy adres e-mail').max(100, 'E-mail jest za długi')),
+      .pipe(z.string().min(1, t('login.emailError.required')).email(t('login.emailError.invalid')).max(100, t('login.emailError.maxLength'))),
 
     password: z.string()
-      .min(8, 'Hasło musi mieć co najmniej 8 znaków')
       .default('')
-      .pipe(z.string().nonempty('Hasło jest wymagane').refine((val) => zxcvbn(val).score >= 2, {
-        message: 'Hasło jest zbyt słabe',
+      .pipe(z.string().nonempty(t('login.passwordError.required')).refine((val) => zxcvbn(val).score >= 2, {
+        message: t('login.passwordError.weak'),
       }))
   })
-)
+))
 
 const { errors, defineField, handleSubmit, validateField } = useForm({ validationSchema: loginSchema })
 
