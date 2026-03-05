@@ -22,22 +22,34 @@
     <div v-if="errors.password" class="error-message text-red-500 text-sm">
       {{ errors.password }}
     </div>
+
+        <div class="flex items-center gap-2 flex-col w-48">
+          Siła hasła:
+          <UProgress v-model="strong" :max="4" :color="strong <= 1 ? 'error' : strong <= 3 ? 'warning' : 'success'" class="w-full" />
+        </div>
+
     <button type="submit" :disabled="isLoading" class="login-button">
       {{ t('login.button') }}
     </button>
     <button type="button" @click="toggleLocale" class="lang-button">
       {{ locale === 'pl-PL' ? 'EN' : 'PL' }}
     </button>
+
+
   </form>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { useForm } from 'vee-validate'
 import { toTypedSchema } from '@vee-validate/zod'
 import { z } from 'zod'
 import { useI18n } from 'vue-i18n'
+import { useDebounceFn } from '@vueuse/core'
 import MailIcon from '@renderer/assets/images/components/mail.svg?component'
+import zxcvbn from 'zxcvbn'
+
+const strong = computed(() => zxcvbn(password.value ?? '').score)
 
 const { t, locale } = useI18n()
 
@@ -48,24 +60,28 @@ function toggleLocale() {
 const loginSchema = toTypedSchema(
   z.object({
     email: z.string()
-      .min(1, 'E-mail jest wymagany')
-      .email('Podaj prawidłowy adres e-mail')
-      .max(100, 'E-mail jest za długi'),
+      .default('')
+      .pipe(z.string().min(1, 'E-mail jest wymagany').email('Podaj prawidłowy adres e-mail').max(100, 'E-mail jest za długi')),
 
     password: z.string()
-      .min(1, 'Hasło jest wymagane')
       .min(8, 'Hasło musi mieć co najmniej 8 znaków')
-      .max(50, 'Hasło jest za długie')
-      .regex(/[A-Z]/, 'Hasło musi zawierać wielką literę')
-      .regex(/[0-9]/, 'Hasło musi zawierać cyfrę')
-      .regex(/[^a-zA-Z0-9]/, 'Hasło musi zawierać znak specjalny'),
+      .default('')
+      .pipe(z.string().nonempty('Hasło jest wymagane').refine((val) => zxcvbn(val).score >= 2, {
+        message: 'Hasło jest zbyt słabe',
+      }))
   })
 )
 
-const { errors, defineField, handleSubmit } = useForm({ validationSchema: loginSchema })
+const { errors, defineField, handleSubmit, validateField } = useForm({ validationSchema: loginSchema })
 
 const [email] = defineField('email', { validateOnModelUpdate: false })
 const [password] = defineField('password', { validateOnModelUpdate: false })
+
+const debouncedValidateEmail = useDebounceFn(() => validateField('email'), 300)
+const debouncedValidatePassword = useDebounceFn(() => validateField('password'), 300)
+
+watch(email, debouncedValidateEmail)
+watch(password, debouncedValidatePassword)
 
 const isLoading = ref(false)
 

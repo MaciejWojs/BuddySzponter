@@ -7,6 +7,7 @@ import { createPinia } from 'pinia'
 import { createI18n } from 'vue-i18n'
 import pl from './locales/pl.json'
 import en from './locales/en.json'
+import ui from '@nuxt/ui/vue-plugin'
 import App from './App.vue'
 
 const router = createRouter({
@@ -29,4 +30,5 @@ const app = createApp(App)
 app.use(router)
 app.use(pinia)
 app.use(i18n)
+app.use(ui)
 app.mount('#app')

@@ -36,7 +36,8 @@
     "@fontsource-variable/plus-jakarta-sans": "^5.2.8",
     "@nuxt/ui": "^4.5.1",
     "tailwindcss": "^4.2.1",
-    "unplugin-auto-import": "^21.0.0"
+    "unplugin-auto-import": "^21.0.0",
+    "zxcvbn": "^4.4.2"
   },
   "devDependencies": {
     "@commitlint/cli": "^20.4.3",
@@ -47,6 +48,7 @@
     "@electron-toolkit/eslint-config-ts": "^3.1.0",
     "@electron-toolkit/tsconfig": "^2.0.0",
     "@types/node": "^22.19.1",
+    "@types/zxcvbn": "^4.4.5",
     "@vee-validate/zod": "^4.15.1",
     "@vitejs/plugin-vue": "^6.0.2",
     "@vueuse/core": "^14.2.1",
