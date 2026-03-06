@@ -17,7 +17,7 @@
         },
         width: {
             type: String,
-            default: '200px'
+            default: '250px'
         },
         error: {
             type: Boolean,
@@ -31,15 +31,23 @@
             class="bu-input-wrapper"
             :class="{ 'bu-input-error': props.error, 'shake': props.error, 'bu-input-normal': !props.error }"
             :style="{ width: props.width }">
-            <span v-if="$slots.icon" class="bu-input-icon">
-                <slot name="icon" />
-            </span>
+            <div v-if="$slots.prefix"  class="prefix-wrapper">
+                <span class="bu-input-icon">
+                    <slot name="prefix" />
+                </span>
+
+            </div>
             <input
                 :type="props.type"
                 :placeholder="props.placeholder"
                 :value="props.modelValue"
                 @input="emit('update:modelValue', ($event.target as HTMLInputElement).value)"
             >
+            <div v-if="$slots.suffix" class="suffix-wrapper">
+                <span class="bu-input-icon">
+                    <slot name="suffix" />
+                </span>
+            </div>
         </div>
     </div>
 
@@ -55,6 +63,16 @@
     60% { transform: translateX(-4px); }
     80% { transform: translateX(4px); }
     100% { transform: translateX(0); }
+}
+.prefix-wrapper {
+    display: flex;
+    align-items: center;
+    margin-right: 8px;
+}
+.suffix-wrapper {
+    display: flex;
+    align-items: center;
+    margin-left: 8px;
 }
 .bu-input-wrapper {
     display: flex;
@@ -77,8 +95,7 @@
 }
 .bu-input-icon {
     display: flex;
-    align-items: center;
-    margin-right: 8px;
+    align-items: center;    
     font-size: 1.2em;
 }
 input {

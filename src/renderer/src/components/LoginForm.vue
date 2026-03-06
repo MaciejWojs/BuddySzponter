@@ -5,7 +5,11 @@
       type="email"
       :placeholder="$t('login.email')"
       :error="!!errors.email"
-    />
+    > 
+      <template #prefix>
+        <MailIcon class="w-5 h-5 text-white "/>
+      </template>
+  </BuInput>
     <div v-if="errors.email" class="error-message text-red-500 text-sm">
       {{ errors.email }}
     </div>
@@ -15,8 +19,8 @@
       :placeholder="$t('login.password')"
       :error="!!errors.password"
     >
-      <template #icon>
-        <MailIcon class="w-5 h-5 text-white "/>
+      <template #suffix>
+        <Dice class="w-5 h-5 text-white "/>
       </template>
     </BuInput>
     <div v-if="errors.password" class="error-message text-red-500 text-sm">
@@ -31,6 +35,7 @@
     <button type="submit" :disabled="isLoading" class="login-button">
       {{ t('login.button') }}
     </button>
+    
     <button type="button" @click="toggleLocale" class="lang-button">
       {{ locale === 'pl-PL' ? 'EN' : 'PL' }}
     </button>
@@ -41,6 +46,7 @@
 
 <script setup lang="ts">
 import MailIcon from '@renderer/assets/images/components/mail.svg?component'
+import Dice from '@renderer/assets/images/components/dice.svg?component'
 import zxcvbn from 'zxcvbn'
 
 const strong = computed(() => zxcvbn(password.value ?? '').score)
