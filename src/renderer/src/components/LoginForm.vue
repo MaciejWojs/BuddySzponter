@@ -48,6 +48,8 @@
 import MailIcon from '@renderer/assets/images/components/mail.svg?component'
 import Dice from '@renderer/assets/images/components/dice.svg?component'
 import zxcvbn from 'zxcvbn'
+import SortButton from './simpleComponents/SortButton.vue'
+import HomeButton from './simpleComponents/HomeButton.vue'
 
 const strong = computed(() => zxcvbn(password.value ?? '').score)
 
