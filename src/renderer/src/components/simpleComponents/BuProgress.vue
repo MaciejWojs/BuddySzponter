@@ -1,20 +1,20 @@
 <template>
   <UProgress
     v-if="type === 'progress'"
-    :model-value="value"
+    :model-value="props.modelValue"
     :max="max"
     :ui="{
       indicator: 'bg-[#A749FC]',
-      base: 'bg-[#ffffff]'
+      base: 'bg-[#37363F]'
     }"
     animation="null"
     color="primary"
   />
   <UProgress
     v-if="type === 'strong'"
-    :model-value="value"
+    :model-value="props.modelValue"
     :max="max"
-    :color="value <= 2 ? 'error' : value <= 4 ? 'warning' : 'success'"
+    :color="props.modelValue <= 2 ? 'error' : props.modelValue <= 4 ? 'warning' : 'success'"
     animation="null"
   />
 </template>
@@ -22,12 +22,14 @@
 <script setup lang="ts">
 import { computed, PropType } from 'vue'
 
-const value = defineModel<number>({ default: 0 })
-
 const props = defineProps({
   type: {
     type: String as PropType<'strong' | 'progress'>,
     default: 'progress'
+  },
+  modelValue: {
+    type: Number,
+    default: 0
   },
   steps: {
     type: Number,
