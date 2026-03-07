@@ -1,5 +1,3 @@
-# TODO: Implement pre-commit hook
-
 echo "Running lint-staged..."
 lint-staged
 
