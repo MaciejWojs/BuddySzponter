@@ -9,7 +9,7 @@
     "*.{ts,tsx,mts,vue}": [
       "eslint --fix"
     ],
-    "*.{js,ts,vue,json,css,md}": [
+    "*.{js,jsx,ts,tsx,mts,vue,json,css,md}": [
       "prettier --write"
     ]
   },
