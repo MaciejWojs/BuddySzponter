@@ -33,7 +33,12 @@ export default defineConfig({
             'vue-router',
             { from: 'zod', imports: ['z'] },
             VueRouterAutoImports
-          ]
+          ],
+          eslintrc: {
+            enabled: true,
+            filepath: '.eslintrc-auto-import.json',
+            globalsPropValue: true
+          }
         }
       })
     ]
