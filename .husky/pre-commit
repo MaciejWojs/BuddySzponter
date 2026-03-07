@@ -1,7 +1,7 @@
 # TODO: Implement pre-commit hook
 
-echo "TODO: Implement pre-commit hook"
-
+echo "Running lint-staged..."
 lint-staged
 
+echo "Running typecheck..."
 bun typecheck
