@@ -1,0 +1,2 @@
+echo "Checking for conventional commits with commitlint..."
+bunx commitlint --edit "$1"

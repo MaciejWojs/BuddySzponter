@@ -1,0 +1,5 @@
+echo "Running lint-staged..."
+lint-staged
+
+echo "Running typecheck..."
+bun typecheck
