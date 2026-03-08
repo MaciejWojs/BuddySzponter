@@ -3,14 +3,16 @@ import tseslint from '@electron-toolkit/eslint-config-ts'
 import eslintConfigPrettier from '@electron-toolkit/eslint-config-prettier'
 import eslintPluginVue from 'eslint-plugin-vue'
 import vueParser from 'vue-eslint-parser'
+import autoImportGlobals from './.eslintrc-auto-import.json' with { type: 'json' }
 
 export default defineConfig(
-  { ignores: ['**/node_modules', '**/dist', '**/out'] },
+  { ignores: ['**/node_modules', '**/dist', '**/out', '**/*.d.ts'] },
   tseslint.configs.recommended,
   eslintPluginVue.configs['flat/recommended'],
   {
     files: ['**/*.vue'],
     languageOptions: {
+      globals: autoImportGlobals.globals,
       parser: vueParser,
       parserOptions: {
         ecmaFeatures: {

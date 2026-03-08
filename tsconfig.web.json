@@ -13,6 +13,9 @@
     "paths": {
       "@renderer/*": [
         "src/renderer/src/*"
+      ],
+      "@images/*": [
+        "src/renderer/src/assets/images/*"
       ]
     }
   }

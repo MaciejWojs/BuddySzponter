@@ -1,0 +1,22 @@
+{
+  "login": {
+    "title": "Login to Buddy",
+    "email": "Email Address",
+    "password": "Password",
+    "button": "Sign in",
+    "loading": "Loading...",
+    "passwordStrength": "Password Strength",
+
+    "passwordError": {
+      "minLength": "Password must be at least 8 characters",
+      "required": "Password is required",
+      "weak": "Password is too weak"
+    },
+
+    "emailError": {
+      "required": "Email is required",
+      "invalid": "Please enter a valid email address",
+      "maxLength": "Email is too long"
+    }
+  }
+}

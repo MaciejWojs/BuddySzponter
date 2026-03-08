@@ -1,0 +1,15 @@
+{
+  "login": {
+    "title": "Zaloguj się do BuddySzponter",
+    "email": "Adres e-mail",
+    "password": "Hasło",
+    "button": "Zaloguj się",
+    "loading": "Ładowanie...",
+    "passwordStrength": "Siła hasła"
+  },
+  "validation": {
+    "invalidEmail": "Podaj prawidłowy adres e-mail",
+    "passwordTooShort": "Hasło musi mieć co najmniej 6 znaków",
+    "required": "To pole jest wymagane"
+  }
+}
