@@ -65,6 +65,9 @@ jobs:
       - name: Rebuild native deps
         run: bunx electron-builder install-app-deps
 
+      - name: Addiotional step to fix builds doue to auto-import issues
+        run: bunx electron-vite build
+
       - name: Build & Package
         run: bun run ${{ matrix.build-script }}
 
