@@ -94,11 +94,11 @@ const props = defineProps({
   background-color: #06001f;
   border-radius: 10px;
   padding: 0 10px;
-  box-shadow: 0 2px 20px rgba(167, 73, 252, 0.5);
+  box-shadow: 0 2px 12px rgba(167, 73, 252, 0.5);
 }
 .bu-input-error {
   box-shadow: 0 2px 8px rgba(255, 0, 0, 0.3);
-  box-shadow: 0 2px 20px rgba(255, 0, 0, 0.3);
+  box-shadow: 0 2px 12px rgba(255, 0, 0, 0.3);
   border: 1px solid #ff4d4f;
 }
 .bu-input-error:focus-within {

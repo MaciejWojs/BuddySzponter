@@ -42,6 +42,10 @@ const buttonType = computed(() => props.type as 'button' | 'submit' | 'reset')
 </script>
 
 <style scoped>
+template {
+  font-family: 'plus jakarta sans', sans-serif;
+}
+
 .gray-button {
   display: inline-flex;
   align-items: center;

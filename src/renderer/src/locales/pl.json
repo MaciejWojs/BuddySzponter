@@ -3,20 +3,13 @@
     "title": "Zaloguj się do BuddySzponter",
     "email": "Adres e-mail",
     "password": "Hasło",
-    "button": "Wejdź",
+    "button": "Zaloguj się",
     "loading": "Ładowanie...",
-    "passwordStrength": "Siła hasła",
-
-    "passwordError": {
-      "minLength": "Hasło musi mieć co najmniej 8 znaków",
-      "required": "Hasło jest wymagane",
-      "weak": "Hasło jest zbyt słabe"
-    },
-
-    "emailError": {
-      "required": "E-mail jest wymagany",
-      "invalid": "Podaj prawidłowy adres e-mail",
-      "maxLength": "E-mail jest za długi"
-    }
+    "passwordStrength": "Siła hasła"
+  },
+  "validation": {
+    "invalidEmail": "Podaj prawidłowy adres e-mail",
+    "passwordTooShort": "Hasło musi mieć co najmniej 6 znaków",
+    "required": "To pole jest wymagane"
   }
 }
