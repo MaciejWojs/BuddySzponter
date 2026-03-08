@@ -5,6 +5,7 @@ out
 .eslintcache
 *.log*
 *:Zone.Identifier
+.env
 
 # Auto-generated type declarations
 auto-imports.d.ts
