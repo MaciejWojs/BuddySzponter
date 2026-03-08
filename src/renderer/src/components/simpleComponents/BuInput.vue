@@ -94,7 +94,7 @@ const props = defineProps({
   background-color: #06001f;
   border-radius: 10px;
   padding: 0 10px;
-  box-shadow: 0 2px 12px rgba(167, 73, 252, 0.5);
+  box-shadow: 0 0px 5px rgba(255, 255, 255, 0.158);
 }
 .bu-input-error {
   box-shadow: 0 2px 8px rgba(255, 0, 0, 0.3);
