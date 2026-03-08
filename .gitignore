@@ -4,6 +4,7 @@ out
 .DS_Store
 .eslintcache
 *.log*
+*:Zone.Identifier
 
 # Auto-generated type declarations
 auto-imports.d.ts
