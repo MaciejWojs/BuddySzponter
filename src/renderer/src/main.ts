@@ -1,5 +1,9 @@
 import './assets/main.css'
 
+import { addCollection } from '@iconify/vue'
+import lucideIcons from '@iconify-json/lucide/icons.json'
+addCollection(lucideIcons)
+
 import { createApp } from 'vue'
 import { createRouter, createWebHashHistory } from 'vue-router'
 import { routes } from 'vue-router/auto-routes'
