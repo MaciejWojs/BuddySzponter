@@ -1,6 +1,6 @@
 <template>
   <div class="bu-timer">
-    <span>{{ formatted }}</span>
+    <span :style="{ fontSize: props.size ?? '16px' }">{{ formatted }}</span>
   </div>
 </template>
 
@@ -14,6 +14,7 @@ const emit = defineEmits<{
 }>()
 
 const props = defineProps<{
+  size?: string
   seconds?: number
 }>()
 
