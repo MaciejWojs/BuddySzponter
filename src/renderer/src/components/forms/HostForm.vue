@@ -59,7 +59,7 @@ const { errors, defineField, validateField } = useForm({
 
 const validateSessionPasswordDebounced = useDebounceFn(() => {
   void validateField('sessionPassword')
-}, 300)
+}, 150)
 
 const [sessionPassword, sessionPasswordAttrs] = defineField('sessionPassword', {
   validateOnModelUpdate: false,
