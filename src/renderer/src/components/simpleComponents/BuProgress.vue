@@ -14,9 +14,12 @@
   <UProgress
     v-if="type === 'strong'"
     :model-value="props.modelValue"
-    :max="max"
-    :color="props.modelValue <= 2 ? 'error' : props.modelValue <= 4 ? 'warning' : 'success'"
+    :ui="{}"
+    :steps="4"
+    :max="4"
+    :color="props.modelValue <= 2 ? 'error' : props.modelValue <= 3 ? 'warning' : 'success'"
     animation="null"
+    class="opacity-50"
   />
 </template>
 

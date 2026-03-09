@@ -94,11 +94,10 @@ function randomPassword(): void {
       </BuInput>
     </div>
     <div class="pt-4 pl-6 pr-6">
-      <UProgress
+      <BuProgress
         v-model="strong"
-        :max="4"
+        type="strong"
         :color="strong <= 1 ? 'error' : strong <= 3 ? 'warning' : 'success'"
-        class="w-full"
       />
     </div>
   </div>
