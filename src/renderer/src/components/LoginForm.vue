@@ -33,12 +33,8 @@
     </button>
 
 
-    <HomeButton />
-
-    <button type="button" @click="toggleLocale" class="lang-button">
-      {{ locale === 'pl-PL' ? 'EN' : 'PL' }}
-    </button>
-
+      <SortButton/>
+      
 
   </form>
 </template>
