@@ -169,7 +169,7 @@ function randomPassword(): void {
               color="neutral"
               variant="link"
               class="text-white opacity-50"
-              @click="randomPassword"
+              @click="onRandomPasswordClick"
             />
           </div>
         </template>
