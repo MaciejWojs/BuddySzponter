@@ -37,6 +37,7 @@
     "@fontsource-variable/plus-jakarta-sans": "^5.2.8",
     "@iconify-json/lucide": "^1.2.96",
     "@nuxt/ui": "^4.5.1",
+    "nanoid": "^5.1.6",
     "tailwindcss": "^4.2.1",
     "unplugin-auto-import": "^21.0.0",
     "zxcvbn": "^4.4.2"
