@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, PropType, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-const emit = defineEmits(['update:modelValue', 'copied'])
+const emit = defineEmits(['update:modelValue', 'copied', 'blur'])
 
 const props = defineProps({
   modelValue: {
@@ -87,6 +87,10 @@ function onInput(event: Event): void {
   emit('update:modelValue', (event.target as HTMLInputElement).value)
 }
 
+function onBlur(): void {
+  emit('blur')
+}
+
 async function onClick(): Promise<void> {
   if (!props.copyOnClick || props.disabled) return
 
@@ -161,6 +165,7 @@ onBeforeUnmount(() => {
         :style="inputStyle"
         @input="onInput"
         @click="onClick"
+        @blur="onBlur"
       />
       <div v-if="$slots.suffix" class="suffix-wrapper">
         <span class="bu-input-icon">

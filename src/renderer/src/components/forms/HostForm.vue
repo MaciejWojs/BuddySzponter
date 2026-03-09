@@ -4,6 +4,9 @@ import BuTimer from '../simpleComponents/BuTimer.vue'
 import { customAlphabet } from 'nanoid/non-secure'
 import zxcvbn from 'zxcvbn'
 
+const PASSWORD_MIN_LENGTH = 6
+const PASSWORD_MAX_LETTERS = 24
+
 const nanoid = customAlphabet('1234567890abcdefghijklmnoprstuvxyzABCDEFGHIJKLMNOPRSTUVXYZ', 8)
 const nanoidPassword = customAlphabet(
   '1234567890abcdefghijklmnoprstuvxyzABCDEFGHIJKLMNOPRSTUVXYZ#@!$%',
@@ -11,7 +14,31 @@ const nanoidPassword = customAlphabet(
 )
 
 const sessionCode = ref('')
-const sessionPassword = ref('')
+
+const passwordValidator = computed(() =>
+  toTypedSchema(
+    z.object({
+      sessionPassword: z
+        .string({ message: 'Haslo jest wymagane' })
+        .min(PASSWORD_MIN_LENGTH, {
+          message: `Haslo musi miec minimum ${PASSWORD_MIN_LENGTH} znakow`
+        })
+        .refine((value) => (value.match(/\p{L}/gu) ?? []).length <= PASSWORD_MAX_LETTERS, {
+          message: `Haslo moze zawierac maksymalnie ${PASSWORD_MAX_LETTERS} liter`
+        })
+    })
+  )
+)
+
+const { errors, defineField, validateField } = useForm({
+  validationSchema: passwordValidator
+})
+
+const [sessionPassword, sessionPasswordAttrs] = defineField('sessionPassword', {
+  validateOnModelUpdate: false,
+  validateOnBlur: true
+})
+
 const strong = computed(() => zxcvbn(sessionPassword.value ?? '').score)
 
 const refreshTime = 120
@@ -36,6 +63,16 @@ function onTimerFinish(): void {
 
 function randomPassword(): void {
   sessionPassword.value = nanoidPassword()
+}
+
+function onTogglePasswordVisibility(): void {
+  show.value = !show.value
+  void validateField('sessionPassword')
+}
+
+function onRandomPasswordClick(): void {
+  randomPassword()
+  void validateField('sessionPassword')
 }
 </script>
 
@@ -64,7 +101,9 @@ function randomPassword(): void {
       <h3>{{ $t('HostForm.sessionPassword') }}</h3>
       <BuInput
         v-model="sessionPassword"
+        v-bind="sessionPasswordAttrs"
         :type="show ? 'text' : 'password'"
+        :error="!!errors.sessionPassword"
         text-align="left"
         font-family="mono"
         font-size="20px"
@@ -80,18 +119,19 @@ function randomPassword(): void {
               class="text-white opacity-50"
               :aria-label="show ? 'Hide password' : 'Show password'"
               :aria-pressed="show"
-              @click="show = !show"
+              @click="onTogglePasswordVisibility"
             />
             <UButton
               icon="lucide:dice-1"
               color="neutral"
               variant="link"
               class="text-white opacity-50"
-              @click="randomPassword"
+              @click="onRandomPasswordClick"
             />
           </div>
         </template>
       </BuInput>
+      <div class="text-red-500 text-sm mt-1 mb-1 h-2">{{ errors.sessionPassword }}</div>
     </div>
     <div class="pt-4 pl-6 pr-6">
       <BuProgress
