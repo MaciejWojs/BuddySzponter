@@ -14,7 +14,7 @@
     <span class="select-button__label"
       ><slot>{{ props.label }}</slot></span
     >
-    <span class="select-button__arrow"><slot name="arrow">›</slot></span>
+    <span class="select-button__arrow"><slot name="arrow"></slot></span>
   </button>
 </template>
 
