@@ -1,6 +1,6 @@
 {
   "login": {
-    "title": "Login to Buddy",
+    "title": "Login to BuddySzponter",
     "email": "Email Address",
     "password": "Password",
     "button": "Sign in",
@@ -18,5 +18,24 @@
       "invalid": "Please enter a valid email address",
       "maxLength": "Email is too long"
     }
+  },
+  "validation": {
+    "invalidEmail": "Please enter a valid email address",
+    "passwordTooShort": "Password must be at least 6 characters",
+    "required": "This field is required"
+  },
+  "HostForm": {
+    "title": "Share Control",
+    "description": "Enter the session code to hand over control of your device to another user.",
+    "sessionCode": "Access code",
+    "sessionPassword": "Password",
+    "timeToJoin": "Time left:"
+  },
+  "Alert": {
+    "success": "Success",
+    "error": "Error",
+    "warning": "Warning",
+    "info": "Information",
+    "copy": "Copied"
   }
 }

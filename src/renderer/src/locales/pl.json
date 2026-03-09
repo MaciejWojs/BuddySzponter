@@ -11,5 +11,19 @@
     "invalidEmail": "Podaj prawidłowy adres e-mail",
     "passwordTooShort": "Hasło musi mieć co najmniej 6 znaków",
     "required": "To pole jest wymagane"
+  },
+  "HostForm": {
+    "title": "Oddaj kontrolę",
+    "description": "Wprowadź kod sesji, aby oddać kontrolę nad swoim urządzeniem innemu użytkownikowi.",
+    "sessionCode": "Kod dostępu",
+    "sessionPassword": "Hasło",
+    "timeToJoin": "Pozostało:"
+  },
+  "Alert": {
+    "success": "Sukces",
+    "error": "Błąd",
+    "warning": "Ostrzeżenie",
+    "info": "Informacja",
+    "copy": "Skopiowano"
   }
 }
