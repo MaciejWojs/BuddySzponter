@@ -1,8 +1,16 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, PropType, ref } from 'vue'
+import { computed, onBeforeUnmount, PropType, ref, useAttrs } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-const emit = defineEmits(['update:modelValue', 'copied'])
+defineOptions({
+  inheritAttrs: false
+})
+
+const emit = defineEmits<{
+  (event: 'update:modelValue', value: string): void
+  (event: 'copied', value: string): void
+  (event: 'blur', value: FocusEvent): void
+}>()
 
 const props = defineProps({
   modelValue: {
@@ -64,6 +72,7 @@ const props = defineProps({
 })
 
 const { t } = useI18n()
+const attrs = useAttrs()
 
 const isCopyPopoverOpen = ref(false)
 let copyPopoverTimeout: ReturnType<typeof setTimeout> | null = null
@@ -85,6 +94,10 @@ const resolvedCopyPopoverText = computed(() => props.copyPopoverText || t('Alert
 function onInput(event: Event): void {
   if (props.readonly || props.disabled) return
   emit('update:modelValue', (event.target as HTMLInputElement).value)
+}
+
+function onBlur(event: FocusEvent): void {
+  emit('blur', event)
 }
 
 async function onClick(): Promise<void> {
@@ -153,6 +166,7 @@ onBeforeUnmount(() => {
         </span>
       </div>
       <input
+        v-bind="attrs"
         :type="props.type"
         :placeholder="props.placeholder"
         :value="props.modelValue"
@@ -161,6 +175,7 @@ onBeforeUnmount(() => {
         :style="inputStyle"
         @input="onInput"
         @click="onClick"
+        @blur="onBlur"
       />
       <div v-if="$slots.suffix" class="suffix-wrapper">
         <span class="bu-input-icon">

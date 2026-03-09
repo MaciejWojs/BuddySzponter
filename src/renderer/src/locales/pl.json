@@ -10,7 +10,13 @@
   "validation": {
     "invalidEmail": "Podaj prawidłowy adres e-mail",
     "passwordTooShort": "Hasło musi mieć co najmniej 6 znaków",
-    "required": "To pole jest wymagane"
+    "required": "To pole jest wymagane",
+    "passwordMinLength": "Hasło musi mieć co najmniej {count} znaków",
+    "passwordMaxLetters": "Hasło może zawierać maksymalnie {count} liter",
+    "passwordRequiresLowercase": "Hasło musi zawierać małą literę",
+    "passwordRequiresUppercase": "Hasło musi zawierać wielką literę",
+    "passwordRequiresDigit": "Hasło musi zawierać cyfrę",
+    "passwordRequiresSpecialCharacter": "Hasło musi zawierać znak specjalny"
   },
   "HostForm": {
     "title": "Oddaj kontrolę",
