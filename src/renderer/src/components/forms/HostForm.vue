@@ -62,13 +62,17 @@ const [sessionPassword, sessionPasswordAttrs] = defineField('sessionPassword', {
   validateOnBlur: false
 })
 
-const strong = computed(() => zxcvbn(sessionPassword.value ?? '').score)
 const passwordMeetsRequirements = computed(() => {
   const value = sessionPassword.value ?? ''
   const hasValidLength = value.length >= PASSWORD_MIN_LENGTH
   const hasValidLettersCount = (value.match(/\p{L}/gu) ?? []).length <= PASSWORD_MAX_LETTERS
 
   return hasValidLength && hasValidLettersCount && hasRequiredPasswordCharacters(value)
+})
+const strong = computed(() => {
+  if (!passwordMeetsRequirements.value) return 0
+
+  return zxcvbn(sessionPassword.value ?? '').score
 })
 const strongProgressColor = computed(() => {
   if (!passwordMeetsRequirements.value) return 'error'
