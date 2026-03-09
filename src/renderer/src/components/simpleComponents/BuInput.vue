@@ -2,7 +2,11 @@
 import { computed, onBeforeUnmount, PropType, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-const emit = defineEmits(['update:modelValue', 'copied', 'blur'])
+const emit = defineEmits<{
+  (event: 'update:modelValue', value: string): void
+  (event: 'copied', value: string): void
+  (event: 'blur', value: FocusEvent): void
+}>()
 
 const props = defineProps({
   modelValue: {
@@ -87,8 +91,8 @@ function onInput(event: Event): void {
   emit('update:modelValue', (event.target as HTMLInputElement).value)
 }
 
-function onBlur(): void {
-  emit('blur')
+function onBlur(event: FocusEvent): void {
+  emit('blur', event)
 }
 
 async function onClick(): Promise<void> {

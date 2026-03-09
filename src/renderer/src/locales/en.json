@@ -22,7 +22,9 @@
   "validation": {
     "invalidEmail": "Please enter a valid email address",
     "passwordTooShort": "Password must be at least 6 characters",
-    "required": "This field is required"
+    "required": "This field is required",
+    "passwordMinLength": "Password must be at least {count} characters",
+    "passwordMaxLetters": "Password can contain at most {count} letters"
   },
   "HostForm": {
     "title": "Share Control",

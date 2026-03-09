@@ -4,6 +4,8 @@ import BuTimer from '../simpleComponents/BuTimer.vue'
 import { customAlphabet } from 'nanoid/non-secure'
 import zxcvbn from 'zxcvbn'
 
+const { t } = useI18n()
+
 const PASSWORD_MIN_LENGTH = 6
 const PASSWORD_MAX_LETTERS = 64
 
@@ -19,12 +21,12 @@ const passwordValidator = computed(() =>
   toTypedSchema(
     z.object({
       sessionPassword: z
-        .string({ message: 'Haslo jest wymagane' })
+        .string({ message: t('validation.required') })
         .min(PASSWORD_MIN_LENGTH, {
-          message: `Haslo musi miec minimum ${PASSWORD_MIN_LENGTH} znakow`
+          message: t('validation.passwordMinLength', { count: PASSWORD_MIN_LENGTH })
         })
         .refine((value) => (value.match(/\p{L}/gu) ?? []).length <= PASSWORD_MAX_LETTERS, {
-          message: `Haslo moze zawierac maksymalnie ${PASSWORD_MAX_LETTERS} liter`
+          message: t('validation.passwordMaxLetters', { count: PASSWORD_MAX_LETTERS })
         })
     })
   )
@@ -136,11 +138,11 @@ function onPasswordBlur(): void {
           </div>
         </template>
       </BuInput>
-      <div class="text-red-500 text-sm mt-1 mb-1 h-2">{{ errors.sessionPassword }}</div>
+      <div class="text-red-500 text-sm mt-1 mb-1 min-h-2">{{ errors.sessionPassword }}</div>
     </div>
     <div class="pt-4 pl-6 pr-6">
       <BuProgress
-        v-model="strong"
+        :model-value="strong"
         type="strong"
         :color="strong <= 1 ? 'error' : strong <= 3 ? 'warning' : 'success'"
       />

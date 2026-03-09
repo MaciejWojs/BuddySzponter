@@ -17,7 +17,7 @@
     :ui="{}"
     :steps="4"
     :max="4"
-    :color="props.modelValue <= 2 ? 'error' : props.modelValue <= 3 ? 'warning' : 'success'"
+    :color="strongColor"
     animation="null"
     class="opacity-50"
   />
@@ -35,6 +35,10 @@ const props = defineProps({
     type: Number,
     default: 0
   },
+  color: {
+    type: String as PropType<'primary' | 'error' | 'warning' | 'success'>,
+    default: undefined
+  },
   steps: {
     type: Number,
     default: 100
@@ -42,6 +46,10 @@ const props = defineProps({
 })
 
 const max = computed(() => (props.type === 'strong' ? 5 : props.steps))
+const strongColor = computed(() => {
+  if (props.color) return props.color
+  return props.modelValue <= 2 ? 'error' : props.modelValue <= 3 ? 'warning' : 'success'
+})
 </script>
 
 <style scoped>
