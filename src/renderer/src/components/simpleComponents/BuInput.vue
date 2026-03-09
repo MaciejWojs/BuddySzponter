@@ -1,6 +1,10 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, PropType, ref } from 'vue'
+import { computed, onBeforeUnmount, PropType, ref, useAttrs } from 'vue'
 import { useI18n } from 'vue-i18n'
+
+defineOptions({
+  inheritAttrs: false
+})
 
 const emit = defineEmits<{
   (event: 'update:modelValue', value: string): void
@@ -68,6 +72,7 @@ const props = defineProps({
 })
 
 const { t } = useI18n()
+const attrs = useAttrs()
 
 const isCopyPopoverOpen = ref(false)
 let copyPopoverTimeout: ReturnType<typeof setTimeout> | null = null
@@ -161,6 +166,7 @@ onBeforeUnmount(() => {
         </span>
       </div>
       <input
+        v-bind="attrs"
         :type="props.type"
         :placeholder="props.placeholder"
         :value="props.modelValue"

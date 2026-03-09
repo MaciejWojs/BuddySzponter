@@ -34,16 +34,16 @@ const passwordValidator = computed(() =>
         .refine((value) => (value.match(/\p{L}/gu) ?? []).length <= PASSWORD_MAX_LETTERS, {
           message: t('validation.passwordMaxLetters', { count: PASSWORD_MAX_LETTERS })
         })
-        .refine((value) => hasLowercase(value), {
+        .refine((value) => value.length < PASSWORD_MIN_LENGTH || hasLowercase(value), {
           message: t('validation.passwordRequiresLowercase')
         })
-        .refine((value) => hasUppercase(value), {
+        .refine((value) => value.length < PASSWORD_MIN_LENGTH || hasUppercase(value), {
           message: t('validation.passwordRequiresUppercase')
         })
-        .refine((value) => hasDigit(value), {
+        .refine((value) => value.length < PASSWORD_MIN_LENGTH || hasDigit(value), {
           message: t('validation.passwordRequiresDigit')
         })
-        .refine((value) => hasSpecialCharacter(value), {
+        .refine((value) => value.length < PASSWORD_MIN_LENGTH || hasSpecialCharacter(value), {
           message: t('validation.passwordRequiresSpecialCharacter')
         })
         .min(PASSWORD_MIN_LENGTH, {
