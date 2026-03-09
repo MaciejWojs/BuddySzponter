@@ -2,6 +2,7 @@
   <div class="home-page">
     <HostForm />
   </div>
+    <!-- <router-link to="/about">Przejdź do About</router-link> -->
 </template>
 
 <script setup lang="ts">
