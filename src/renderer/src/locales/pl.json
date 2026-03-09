@@ -7,9 +7,17 @@
     "loading": "Ładowanie...",
     "passwordStrength": "Siła hasła"
   },
+  "register": {
+    "title": "Zarejestruj się w BuddySzponter",
+    "email": "Adres e-mail",
+    "password": "Hasło",
+    "confirmPassword": "Powtórz hasło",
+    "button": "Zarejestruj się"
+  },
   "validation": {
     "invalidEmail": "Podaj prawidłowy adres e-mail",
     "passwordTooShort": "Hasło musi mieć co najmniej 6 znaków",
+    "passwordsMismatch": "Hasła nie są identyczne",
     "required": "To pole jest wymagane"
   },
   "HostForm": {

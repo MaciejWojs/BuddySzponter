@@ -1,6 +1,6 @@
 <template>
   <div class="home-page">
-    <HostForm />
+    <RegisterForm />
   </div>
 </template>
 

@@ -19,9 +19,17 @@
       "maxLength": "Email is too long"
     }
   },
+  "register": {
+    "title": "Register to BuddySzponter",
+    "email": "Email Address",
+    "password": "Password",
+    "confirmPassword": "Confirm password",
+    "button": "Sign up"
+  },
   "validation": {
     "invalidEmail": "Please enter a valid email address",
     "passwordTooShort": "Password must be at least 6 characters",
+    "passwordsMismatch": "Passwords do not match",
     "required": "This field is required"
   },
   "HostForm": {
