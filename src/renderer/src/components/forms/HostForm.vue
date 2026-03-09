@@ -107,7 +107,7 @@ function onTimerFinish(): void {
   sessionCode.value = nanoid()
 }
 
-function randomPassword(): void {
+function onRandomPasswordClick(): void {
   let generatedPassword = nanoidPassword()
 
   while (!hasRequiredPasswordCharacters(generatedPassword)) {
