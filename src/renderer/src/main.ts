@@ -8,24 +8,13 @@ import { createApp } from 'vue'
 import { createRouter, createWebHashHistory } from 'vue-router'
 import { routes } from 'vue-router/auto-routes'
 import { createPinia } from 'pinia'
-import { createI18n } from 'vue-i18n'
-import pl from './locales/pl.json'
-import en from './locales/en.json'
 import ui from '@nuxt/ui/vue-plugin'
 import App from './App.vue'
+import i18n from '@/i18n'
 
 const router = createRouter({
   history: createWebHashHistory(),
   routes
-})
-
-const i18n = createI18n({
-  locale: 'pl-PL',
-  fallbackLocale: 'en-US',
-  messages: {
-    'pl-PL': pl,
-    'en-US': en
-  }
 })
 
 const pinia = createPinia()
