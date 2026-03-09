@@ -24,7 +24,11 @@
     "passwordTooShort": "Password must be at least 6 characters",
     "required": "This field is required",
     "passwordMinLength": "Password must be at least {count} characters",
-    "passwordMaxLetters": "Password can contain at most {count} letters"
+    "passwordMaxLetters": "Password can contain at most {count} letters",
+    "passwordRequiresLowercase": "Password must contain a lowercase letter",
+    "passwordRequiresUppercase": "Password must contain an uppercase letter",
+    "passwordRequiresDigit": "Password must contain a digit",
+    "passwordRequiresSpecialCharacter": "Password must contain a special character"
   },
   "HostForm": {
     "title": "Share Control",
