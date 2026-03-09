@@ -5,7 +5,7 @@ import { customAlphabet } from 'nanoid/non-secure'
 import zxcvbn from 'zxcvbn'
 
 const PASSWORD_MIN_LENGTH = 6
-const PASSWORD_MAX_LETTERS = 24
+const PASSWORD_MAX_LETTERS = 64
 
 const nanoid = customAlphabet('1234567890abcdefghijklmnoprstuvxyzABCDEFGHIJKLMNOPRSTUVXYZ', 8)
 const nanoidPassword = customAlphabet(
@@ -36,7 +36,7 @@ const { errors, defineField, validateField } = useForm({
 
 const [sessionPassword, sessionPasswordAttrs] = defineField('sessionPassword', {
   validateOnModelUpdate: false,
-  validateOnBlur: true
+  validateOnBlur: false
 })
 
 const strong = computed(() => zxcvbn(sessionPassword.value ?? '').score)
@@ -74,6 +74,10 @@ function onRandomPasswordClick(): void {
   randomPassword()
   void validateField('sessionPassword')
 }
+
+function onPasswordBlur(): void {
+  void validateField('sessionPassword')
+}
 </script>
 
 <template>
@@ -109,6 +113,7 @@ function onRandomPasswordClick(): void {
         font-size="20px"
         :copy-on-click="true"
         :show-copy-popover="true"
+        @blur="onPasswordBlur"
       >
         <template #suffix>
           <div class="flex flex-row items-center">
