@@ -2,6 +2,7 @@
   <UProgress
     v-if="type === 'progress'"
     :model-value="props.modelValue"
+    :steps="steps"
     :max="max"
     :ui="{
       indicator: 'bg-[#A749FC]',
