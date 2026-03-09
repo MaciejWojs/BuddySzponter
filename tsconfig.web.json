@@ -11,6 +11,9 @@
     "baseUrl": ".",
     "moduleResolution": "bundler",
     "paths": {
+      "@/*": [
+        "src/renderer/src/*"
+      ],
       "@renderer/*": [
         "src/renderer/src/*"
       ],
