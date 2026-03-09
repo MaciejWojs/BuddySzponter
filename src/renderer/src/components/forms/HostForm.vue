@@ -31,9 +31,6 @@ const passwordValidator = computed(() =>
     z.object({
       sessionPassword: z
         .string({ message: t('validation.required') })
-        .min(PASSWORD_MIN_LENGTH, {
-          message: t('validation.passwordMinLength', { count: PASSWORD_MIN_LENGTH })
-        })
         .refine((value) => (value.match(/\p{L}/gu) ?? []).length <= PASSWORD_MAX_LETTERS, {
           message: t('validation.passwordMaxLetters', { count: PASSWORD_MAX_LETTERS })
         })
@@ -49,6 +46,9 @@ const passwordValidator = computed(() =>
         .refine((value) => hasSpecialCharacter(value), {
           message: t('validation.passwordRequiresSpecialCharacter')
         })
+        .min(PASSWORD_MIN_LENGTH, {
+          message: t('validation.passwordMinLength', { count: PASSWORD_MIN_LENGTH })
+        })
     })
   )
 )
@@ -56,6 +56,10 @@ const passwordValidator = computed(() =>
 const { errors, defineField, validateField } = useForm({
   validationSchema: passwordValidator
 })
+
+const validateSessionPasswordDebounced = useDebounceFn(() => {
+  void validateField('sessionPassword')
+}, 300)
 
 const [sessionPassword, sessionPasswordAttrs] = defineField('sessionPassword', {
   validateOnModelUpdate: false,
@@ -90,6 +94,10 @@ onMounted(() => {
   onTimerFinish()
 })
 
+watch(sessionPassword, () => {
+  validateSessionPasswordDebounced()
+})
+
 function onTimerTick(value: number): void {
   time.value = value
 }
@@ -112,16 +120,16 @@ function randomPassword(): void {
 
 function onTogglePasswordVisibility(): void {
   show.value = !show.value
-  void validateField('sessionPassword')
+  validateSessionPasswordDebounced()
 }
 
 function onRandomPasswordClick(): void {
   randomPassword()
-  void validateField('sessionPassword')
+  validateSessionPasswordDebounced()
 }
 
 function onPasswordBlur(): void {
-  void validateField('sessionPassword')
+  validateSessionPasswordDebounced()
 }
 </script>
 
