@@ -5,8 +5,7 @@
 </template>
 
 <script setup lang="ts">
-import { useIntervalFn } from '@vueuse/core'
-import { computed, ref } from 'vue'
+import { useCountdown } from '@vueuse/core'
 
 const emit = defineEmits<{
   finish: []
@@ -18,7 +17,10 @@ const props = defineProps<{
   seconds?: number
 }>()
 
-const remaining = ref(props.seconds ?? 0)
+const { remaining, pause, resume, isActive, start, stop } = useCountdown(props.seconds ?? 0, {
+  onComplete: () => emit('finish'),
+  onTick: () => emit('tick', remaining.value)
+})
 
 const formatted = computed(() => {
   const m = Math.floor(remaining.value / 60)
@@ -28,27 +30,11 @@ const formatted = computed(() => {
   return `${m}:${s}`
 })
 
-const { pause, resume, isActive } = useIntervalFn(
-  () => {
-    if (remaining.value > 0) {
-      remaining.value--
-      emit('tick', remaining.value)
-    } else {
-      pause()
-      emit('finish')
-    }
-  },
-  1000,
-  { immediate: false }
-)
-
 function setTime(seconds: number): void {
-  pause()
-  remaining.value = seconds
-  resume()
+  start(seconds)
 }
 
-defineExpose({ remaining, isActive, pause, resume, setTime })
+defineExpose({ remaining, isActive, pause, resume, setTime, start, stop })
 </script>
 
 <style scoped>
