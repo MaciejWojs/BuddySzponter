@@ -1,5 +1,4 @@
 <script lang="ts" setup>
-import { ref } from 'vue'
 import BuTimer from '../simpleComponents/BuTimer.vue'
 import { customAlphabet } from 'nanoid/non-secure'
 import zxcvbn from 'zxcvbn'
