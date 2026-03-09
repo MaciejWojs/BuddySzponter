@@ -24,7 +24,15 @@
     "email": "Email Address",
     "password": "Password",
     "confirmPassword": "Confirm password",
-    "button": "Sign up"
+    "button": "Sign up",
+    "strength": {
+      "veryWeak": "Very weak",
+      "weak": "Weak",
+      "fair": "Fair",
+      "good": "Good",
+      "strong": "Strong",
+      "veryStrong": "Very strong"
+    }
   },
   "validation": {
     "invalidEmail": "Please enter a valid email address",

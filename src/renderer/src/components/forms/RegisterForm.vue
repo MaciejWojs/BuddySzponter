@@ -6,7 +6,6 @@
           <Mail class="w-6 h-6 opacity-50" />
         </template>
       </BuInput>
-      <div class="text-red-500 text-sm mt-1 h-2">{{ errors.email }}</div>
     </div>
 
     <div class="flex flex-col justify-items-center items-center gap-2">
@@ -28,7 +27,14 @@
           />
         </template>
       </BuInput>
-      <div class="text-red-500 text-sm mt-1 h-2">{{ errors.password }}</div>
+      <div class="w-full pt-4 pl-6 pr-6">
+        <UProgress
+          v-model="strong"
+          :max="4"
+          :color="strong <= 1 ? 'error' : strong <= 3 ? 'warning' : 'success'"
+          class="w-full"
+        />
+      </div>
     </div>
 
     <div class="flex flex-col justify-items-center items-center gap-2">
@@ -50,7 +56,6 @@
           />
         </template>
       </BuInput>
-      <div class="text-red-500 text-sm mt-1 h-2">{{ errors.confirmPassword }}</div>
     </div>
 
     <GrayButton @click="handleRegister">
@@ -60,10 +65,6 @@
         <UIcon v-if="isLoading" name="i-lucide-loader-circle" class="animate-spin w-6 h-6" />
       </template>
     </GrayButton>
-
-    <div>
-      <div class="text-red-500 text-sm mt-1 h-2">{{ genericError }}</div>
-    </div>
   </div>
 </template>
 
@@ -74,6 +75,7 @@ const { t } = useI18n()
 // Custom svg components
 import Mail from '@images/components/mail.svg?component'
 import { useAppToast } from '@renderer/composables/useAppToast'
+import zxcvbn from 'zxcvbn'
 
 const { custom: toastCustom } = useAppToast()
 
@@ -103,12 +105,19 @@ const registerValidator = computed(() =>
 )
 
 const { errors, defineField, handleSubmit } = useForm({
-  validationSchema: registerValidator
+  validationSchema: registerValidator,
+  initialValues: {
+    email: '',
+    password: '',
+    confirmPassword: ''
+  }
 })
 
-const [email] = defineField('email', { validateOnModelUpdate: false })
-const [password] = defineField('password', { validateOnModelUpdate: false })
-const [confirmPassword] = defineField('confirmPassword', { validateOnModelUpdate: false })
+const [email] = defineField('email')
+const [password] = defineField('password')
+const [confirmPassword] = defineField('confirmPassword')
+
+const strong = computed(() => zxcvbn(password.value ?? '').score)
 
 // Generic error state for register failures
 const genericError = ref<string | null>(null)

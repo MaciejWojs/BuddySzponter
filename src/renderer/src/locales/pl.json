@@ -12,7 +12,15 @@
     "email": "Adres e-mail",
     "password": "Hasło",
     "confirmPassword": "Powtórz hasło",
-    "button": "Zarejestruj się"
+    "button": "Zarejestruj się",
+    "strength": {
+      "veryWeak": "Bardzo słabe",
+      "weak": "Słabe",
+      "fair": "Przeciętne",
+      "good": "Dobre",
+      "strong": "Silne",
+      "veryStrong": "Bardzo silne"
+    }
   },
   "validation": {
     "invalidEmail": "Podaj prawidłowy adres e-mail",
