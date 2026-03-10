@@ -43,7 +43,8 @@
       <div class="text-red-500 text-sm mt-1 h-2">{{ genericError }}</div>
     </div>
   </div>
-  <SettingButton />
+  <SettingsButton />
+  <DeviceButton />
 </template>
 
 <script setup lang="ts">
