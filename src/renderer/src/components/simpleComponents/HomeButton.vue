@@ -8,7 +8,7 @@
       'home-button--loading': props.loading,
       'home-button--active': props.active
     }"
-    :style="{ width: props.width }"
+    :style="{ width: props.size + 'px', height: props.size + 'px' }"
   >
     <span v-if="props.loading" class="home-button__spinner" />
     <slot>
@@ -37,9 +37,9 @@ const props = defineProps({
     type: Boolean,
     default: false
   },
-  width: {
-    type: String,
-    default: 'auto'
+  size: {
+    type: Number,
+    default: 68
   }
 })
 
@@ -51,10 +51,10 @@ const buttonType = computed(() => props.type as 'button' | 'submit' | 'reset')
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 10px 12px;
+  padding: 0;
   background-color: #06001f;
   border: none;
-  border-radius: 10px;
+  border-radius: 16px;
   cursor: pointer;
   transition:
     background-color 0.2s,
@@ -83,8 +83,8 @@ const buttonType = computed(() => props.type as 'button' | 'submit' | 'reset')
   cursor: not-allowed;
 }
 .home-button__icon {
-  width: 20px;
-  height: 20px;
+  width: 50%;
+  height: 50%;
 }
 .home-button__spinner {
   width: 14px;

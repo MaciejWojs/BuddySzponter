@@ -38,17 +38,20 @@
         <UIcon v-if="isLoading" name="i-lucide-loader-circle" class="animate-spin w-6 h-6" />
       </template>
     </GrayButton>
-
+    <NavBar v-model="activeNav" :items="navItems" />
     <div>
       <div class="text-red-500 text-sm mt-1 h-2">{{ genericError }}</div>
     </div>
   </div>
-  <SettingsButton />
-  <DeviceButton />
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import type { NavBarItem } from '@renderer/components/UI/NavBar.vue'
+import SettingsButton from '@renderer/components/simpleComponents/SettingsButton.vue'
+import HomeButton from '@renderer/components/simpleComponents/HomeButton.vue'
+import DeviceButton from '@renderer/components/simpleComponents/DeviceButton.vue'
+
 const { t } = useI18n()
 
 // Custom svg components
@@ -56,6 +59,14 @@ import Mail from '@images/components/mail.svg?component'
 import { useAppToast } from '@renderer/composables/useAppToast'
 
 const { custom: toastCustom } = useAppToast()
+
+// NavBar
+const activeNav = ref('home')
+const navItems: NavBarItem[] = [
+  { name: 'settings', component: SettingsButton, size: 52 },
+  { name: 'home', component: HomeButton, size: 68 },
+  { name: 'device', component: DeviceButton, size: 52 }
+]
 
 // State
 const show = ref(false)
