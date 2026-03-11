@@ -7,6 +7,8 @@ import icon from '../../resources/icon.png?asset'
 // Importujemy nasz centralny agregator handlerów!
 import { registerIpcHandlers } from './ipcHandlers'
 
+console.log('MAIN PROCESS STARTUJE!')
+
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
     width: 900,
@@ -15,9 +17,9 @@ function createWindow(): void {
     autoHideMenuBar: true,
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
-      preload: join(__dirname, '../preload/index.js')
+      preload: join(__dirname, '../preload/index.js'),
       // --- SUPER WAŻNE DLA BEZPIECZEŃSTWA ---
-      // sandbox: true,
+      sandbox: false
       // nodeIntegration: false,
       // contextIsolation: true
     }

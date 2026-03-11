@@ -1,5 +1,7 @@
 // src/main/utils/apiHelper.ts
+
 import type { AxiosResponse, AxiosError } from 'axios'
+import { decryptPayload, type EncryptedPayload } from '../decrypt-payload'
 
 type ApiResult<T = unknown> =
   | { success: true; status: number; data: T }
@@ -19,12 +21,34 @@ export async function handleApiCall<T = unknown>(
       (error as AxiosError).isAxiosError
     ) {
       const axiosError = error as AxiosError
+      let errorData = axiosError.response?.data || {
+        message: axiosError.message || 'Wystąpił nieznany błąd'
+      }
+      // Odszyfrowanie błędu jeśli jest zaszyfrowany
+      type EncryptedErrorPayload = { payload: { iv: string; tag: string; data: string } }
+      if (
+        errorData &&
+        typeof errorData === 'object' &&
+        'payload' in errorData &&
+        typeof (errorData as { payload: unknown }).payload === 'object'
+      ) {
+        const payloadObj = (errorData as EncryptedErrorPayload).payload
+        if (
+          typeof payloadObj.iv === 'string' &&
+          typeof payloadObj.tag === 'string' &&
+          typeof payloadObj.data === 'string'
+        ) {
+          try {
+            errorData = decryptPayload(errorData as EncryptedPayload)
+          } catch {
+            // Jeśli nie uda się odszyfrować, zostawiamy oryginalny payload
+          }
+        }
+      }
       return {
         success: false,
         status: axiosError.response?.status || 500,
-        data: axiosError.response?.data || {
-          message: axiosError.message || 'Wystąpił nieznany błąd'
-        }
+        data: errorData
       }
     } else if (error instanceof Error) {
       return {
