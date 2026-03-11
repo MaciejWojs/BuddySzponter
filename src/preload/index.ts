@@ -1,23 +1,24 @@
-import { contextBridge } from 'electron'
-import { electronAPI } from '@electron-toolkit/preload'
+import { contextBridge, ipcRenderer } from 'electron'
 import type { EncryptedPayload } from '../main/decrypt-payload'
-import { ipcRenderer } from 'electron/renderer'
 
-// Custom APIs for renderer
-const api = {}
-
-const apiUtils = {
-  decryptPayload: (p: EncryptedPayload) => {
-    return ipcRenderer.invoke('decrypt-payload', p)
+// Nasze API do Hono
+const api = {
+  auth: {
+    register: (data: Record<string, unknown>) => ipcRenderer.invoke('auth:register', data),
+    login: (credentials: Record<string, unknown>) => ipcRenderer.invoke('auth:login', credentials),
+    logout: () => ipcRenderer.invoke('auth:logout'),
+    getMe: () => ipcRenderer.invoke('auth:me')
   }
 }
 
-// Use `contextBridge` APIs to expose Electron APIs to
-// renderer only if context isolation is enabled, otherwise
-// just add to the DOM global.
+// Twoje Krypto
+const apiUtils = {
+  decryptPayload: (p: EncryptedPayload) => ipcRenderer.invoke('decrypt-payload', p)
+}
+
 if (process.contextIsolated) {
   try {
-    contextBridge.exposeInMainWorld('electron', electronAPI)
+    // USUNĘLIŚMY electron-toolkit! Wystawiamy tylko nasze 100% bezpieczne obiekty.
     contextBridge.exposeInMainWorld('api', api)
     contextBridge.exposeInMainWorld('apiUtils', apiUtils)
   } catch (error) {
