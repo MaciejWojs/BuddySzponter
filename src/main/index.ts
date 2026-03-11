@@ -52,8 +52,18 @@ app.whenReady().then(() => {
 
   // IPC test
   ipcMain.on('ping', () => console.log('pong'))
-  ipcMain.handle('decrypt-payload', async (_, payload) => {
-    return decryptPayload(payload)
+  ipcMain.handle('decrypt-payload', async (_, payload: unknown) => {
+    try {
+      if (typeof payload !== 'string') {
+        throw new Error('Invalid payload format')
+      }
+
+      return decryptPayload(payload)
+    } catch (error) {
+      // Log detailed error on the main process side, but return a generic error to the renderer.
+      console.error('Failed to decrypt payload:', error)
+      throw new Error('Failed to decrypt payload')
+    }
   })
   createWindow()
 
