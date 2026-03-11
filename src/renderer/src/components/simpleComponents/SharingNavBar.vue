@@ -1,47 +1,53 @@
 <template>
-  <nav v-if="!closed" class="sharing-navbar" :class="{ 'sharing-navbar--minimized': minimized }">
-    <template v-if="!minimized">
-      <div class="sharing-navbar__left">
-        <button
-          class="sharing-navbar__btn"
-          :title="pinned ? 'Odepnij' : 'Przypnij'"
-          @click="togglePin"
-        >
-          <UIcon
-            :name="pinned ? 'i-lucide-pin-off' : 'i-lucide-pin'"
-            class="sharing-navbar__icon"
-          />
-        </button>
-        <button class="sharing-navbar__btn" title="Połączenie">
-          <UIcon name="i-lucide-wifi" class="sharing-navbar__icon" />
-        </button>
-      </div>
+  <div class="sharing-navbar-wrapper" @mouseenter="hovered = true" @mouseleave="hovered = false">
+    <nav
+      v-show="!closed || hovered"
+      class="sharing-navbar"
+      :class="{ 'sharing-navbar--minimized': minimized }"
+    >
+      <template v-if="!minimized">
+        <div class="sharing-navbar__left">
+          <button
+            class="sharing-navbar__btn"
+            :title="pinned ? 'Odepnij' : 'Przypnij'"
+            @click="togglePin"
+          >
+            <UIcon
+              :name="pinned ? 'i-lucide-pin-off' : 'i-lucide-pin'"
+              class="sharing-navbar__icon"
+            />
+          </button>
+          <button class="sharing-navbar__btn" title="Połączenie">
+            <UIcon name="i-lucide-wifi" class="sharing-navbar__icon" />
+          </button>
+        </div>
 
-      <div class="sharing-navbar__center">
-        <UIcon name="i-lucide-users" class="sharing-navbar__icon" />
-        <span class="sharing-navbar__name">{{ hostName }}</span>
-      </div>
+        <div class="sharing-navbar__center">
+          <UIcon name="i-lucide-users" class="sharing-navbar__icon" />
+          <span class="sharing-navbar__name">{{ hostName }}</span>
+        </div>
 
-      <div class="sharing-navbar__right">
-        <button class="sharing-navbar__btn" title="Minimalizuj" @click="minimized = true">
-          <UIcon name="i-lucide-minus" class="sharing-navbar__icon" />
-        </button>
-        <button
-          class="sharing-navbar__btn sharing-navbar__btn--close"
-          title="Zamknij"
-          @click="closed = true"
-        >
-          <UIcon name="i-lucide-x" class="sharing-navbar__icon" />
-        </button>
-      </div>
-    </template>
+        <div class="sharing-navbar__right">
+          <button class="sharing-navbar__btn" title="Minimalizuj" @click="minimized = true">
+            <UIcon name="i-lucide-minus" class="sharing-navbar__icon" />
+          </button>
+          <button
+            class="sharing-navbar__btn sharing-navbar__btn--close"
+            title="Zamknij"
+            @click="closed = true"
+          >
+            <UIcon name="i-lucide-x" class="sharing-navbar__icon" />
+          </button>
+        </div>
+      </template>
 
-    <template v-else>
-      <button class="sharing-navbar__btn" title="Przywróć" @click="minimized = false">
-        <UIcon name="i-lucide-users" class="sharing-navbar__icon" />
-      </button>
-    </template>
-  </nav>
+      <template v-else>
+        <button class="sharing-navbar__btn" title="Przywróć" @click="minimized = false">
+          <UIcon name="i-lucide-users" class="sharing-navbar__icon" />
+        </button>
+      </template>
+    </nav>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -54,6 +60,7 @@ defineProps<{
 const pinned = ref(false)
 const minimized = ref(false)
 const closed = ref(false)
+const hovered = ref(false)
 
 function togglePin(): void {
   pinned.value = !pinned.value
@@ -62,6 +69,12 @@ function togglePin(): void {
 </script>
 
 <style scoped>
+.sharing-navbar-wrapper {
+  width: 33vw;
+  min-height: 30px;
+  margin: 0 auto;
+}
+
 .sharing-navbar {
   display: flex;
   align-items: center;
@@ -70,9 +83,8 @@ function togglePin(): void {
   border-radius: 8px;
   padding: 4px 10px;
   height: 30px;
-  width: 33vw;
-  margin: 0 auto;
   -webkit-app-region: drag;
+  transition: opacity 0.2s;
 }
 
 .sharing-navbar__left,
