@@ -42,7 +42,11 @@
       </template>
 
       <template v-else>
-        <button class="sharing-navbar__btn" title="Przywróć" @click="minimized = false">
+        <button
+          class="sharing-navbar__btn sharing-navbar__btn--restore"
+          title="Przywróć"
+          @click="minimized = false"
+        >
           <UIcon name="i-lucide-users" class="sharing-navbar__icon" />
         </button>
       </template>
@@ -156,17 +160,20 @@ function togglePin(): void {
 }
 
 .sharing-navbar--minimized {
-  width: auto;
-  padding: 4px;
+  width: 30px;
+  height: 30px;
+  padding: 0;
   border-radius: 50%;
   cursor: pointer;
   justify-content: center;
+  margin: 0 auto;
 }
 
-.sharing-navbar--minimized {
-  width: auto;
-  padding: 4px;
+.sharing-navbar__btn--restore {
+  width: 100%;
+  height: 100%;
   border-radius: 50%;
-  cursor: pointer;
+  padding: 0;
+  justify-content: center;
 }
 </style>
