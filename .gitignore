@@ -5,6 +5,8 @@ out
 .eslintcache
 *.log*
 *:Zone.Identifier
+.github/skills
+.agents/skills
 
 # Auto-generated type declarations
 auto-imports.d.ts
