@@ -1,22 +1,32 @@
+import { z } from 'zod'
 import { authManager } from '../authManager'
 import { API_ROUTES } from '../apiRoutes'
 import type { ApiFetchInit, FetchResponse } from '../apiClient'
 
+const tokensSchema = z.object({
+  accessToken: z.string().optional(),
+  refreshToken: z.string().optional()
+})
+
 export function handleAuthTokens(data: unknown, url: string): void {
-  if (
-    typeof data !== 'object' ||
-    data === null ||
-    !(url.includes(API_ROUTES.AUTH.LOGIN) || url.includes(API_ROUTES.AUTH.REFRESH))
-  ) {
+  if (!(url.includes(API_ROUTES.AUTH.LOGIN) || url.includes(API_ROUTES.AUTH.REFRESH))) {
     return
   }
 
-  const respObj = data as Record<string, unknown>
-  if (typeof respObj.accessToken === 'string') authManager.setAccessToken(respObj.accessToken)
-  if (typeof respObj.refreshToken === 'string') authManager.setRefreshToken(respObj.refreshToken)
+  const parsed = tokensSchema.safeParse(data)
 
-  delete respObj.accessToken
-  delete respObj.refreshToken
+  if (parsed.success && parsed.data) {
+    const { accessToken, refreshToken } = parsed.data
+
+    if (accessToken) authManager.setAccessToken(accessToken)
+    if (refreshToken) authManager.setRefreshToken(refreshToken)
+
+    if (typeof data === 'object' && data !== null) {
+      const respObj = data as Record<string, unknown>
+      delete respObj.accessToken
+      delete respObj.refreshToken
+    }
+  }
 }
 
 export async function handleTokenRefresh<T = unknown>(
@@ -28,13 +38,11 @@ export async function handleTokenRefresh<T = unknown>(
   if (!refreshToken) return null
 
   try {
-    // Odświeżanie tokena (nie musi zwracać typu T)
     await apiFetch(API_ROUTES.AUTH.REFRESH, {
       method: 'POST',
       body: JSON.stringify({ refreshToken })
     })
 
-    // Ponowienie oryginalnego żądania (zwraca typ T)
     options._retry = true
     return await apiFetch<T>(url, options)
   } catch (refreshError) {

@@ -1,9 +1,19 @@
+import { z } from 'zod'
 import { decryptPayload, type EncryptedPayload } from '../decrypt-payload'
+
+// Schemat weryfikujący, czy payload z API jest zaszyfrowaną paczką AES-GCM
+const encryptedPayloadSchema = z.object({
+  payload: z.object({
+    iv: z.string(),
+    tag: z.string(),
+    data: z.string()
+  })
+})
 
 export function buildConfig(
   options: RequestInit,
   controller: AbortController,
-  token?: string | null // <-- DODANO
+  token?: string | null
 ): RequestInit {
   const headers = new Headers(options.headers || {})
 
@@ -27,26 +37,19 @@ export async function parseResponseData(response: Response): Promise<unknown> {
 }
 
 export function tryDecryptData(data: unknown): unknown {
-  if (
-    typeof data === 'object' &&
-    data !== null &&
-    'payload' in data &&
-    typeof (data as Record<string, unknown>).payload === 'object'
-  ) {
-    const payloadObj = (data as { payload: Record<string, unknown> }).payload
-    if (
-      payloadObj !== null &&
-      typeof payloadObj.iv === 'string' &&
-      typeof payloadObj.tag === 'string' &&
-      typeof payloadObj.data === 'string'
-    ) {
-      try {
-        return decryptPayload(data as EncryptedPayload)
-      } catch (error) {
-        console.error('[API DECRYPTION ERROR]', error)
-        throw new Error('Failed to decrypt secure response')
-      }
+  // Bezpieczne parsowanie bez rzucania błędami przez TS
+  const parsed = encryptedPayloadSchema.safeParse(data)
+
+  if (parsed.success) {
+    try {
+      // Skoro Zod to przepuścił, jesteśmy pewni w 100%, że struktura to EncryptedPayload
+      return decryptPayload(parsed.data as EncryptedPayload)
+    } catch (error) {
+      console.error('[API DECRYPTION ERROR]', error)
+      throw new Error('Failed to decrypt secure response')
     }
   }
+
+  // Jeśli to zwykły obiekt lub błąd walidacji schematu, po prostu zwracamy oryginalne dane
   return data
 }
