@@ -69,8 +69,11 @@ function handleClose(): void {
   align-items: center;
   justify-content: space-between;
   background-color: var(--color-accent);
-  border-radius: 12px;
-  padding: 6px 12px;
+  border-radius: 8px;
+  padding: 4px 10px;
+  height: 30px;
+  width: 33vw;
+  margin: 0 auto;
   -webkit-app-region: drag;
 }
 
@@ -78,15 +81,15 @@ function handleClose(): void {
 .sharing-navbar__right {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
 }
 
 .sharing-navbar__center {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   font-weight: 600;
-  font-size: 14px;
+  font-size: 13px;
   color: #000;
 }
 
@@ -95,8 +98,8 @@ function handleClose(): void {
 }
 
 .sharing-navbar__icon {
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
   color: #000;
 }
 
@@ -107,8 +110,8 @@ function handleClose(): void {
   background: none;
   border: none;
   cursor: pointer;
-  padding: 4px;
-  border-radius: 6px;
+  padding: 3px;
+  border-radius: 4px;
   transition: background-color 0.15s;
   -webkit-app-region: no-drag;
 }
