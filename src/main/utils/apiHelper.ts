@@ -1,39 +1,33 @@
 // src/main/utils/apiHelper.ts
-
-import type { AxiosResponse, AxiosError } from 'axios'
 import { decryptPayload, type EncryptedPayload } from '../decrypt-payload'
+import { HttpError, type FetchResponse } from '../apiClient'
 
 type ApiResult<T = unknown> =
   | { success: true; status: number; data: T }
   | { success: false; status: number; data: unknown }
 
 export async function handleApiCall<T = unknown>(
-  apiPromise: Promise<AxiosResponse<T>>
+  apiPromise: Promise<FetchResponse<T>>
 ): Promise<ApiResult<T>> {
   try {
     const response = await apiPromise
     return { success: true, status: response.status, data: response.data }
   } catch (error: unknown) {
-    if (
-      error &&
-      typeof error === 'object' &&
-      'isAxiosError' in error &&
-      (error as AxiosError).isAxiosError
-    ) {
-      const axiosError = error as AxiosError
-      let errorData = axiosError.response?.data || {
-        message: axiosError.message || 'Wystąpił nieznany błąd'
+    // Łapanie błędu rzuconego przez apiClient (zarówno tych z serwera, jak i timeoutów 408)
+    if (error instanceof HttpError) {
+      let errorData = error.data ?? {
+        message: error.message || 'Wystąpił nieznany błąd HTTP'
       }
-      // Odszyfrowanie błędu jeśli jest zaszyfrowany
-      type EncryptedErrorPayload = { payload: { iv: string; tag: string; data: string } }
       if (
-        errorData &&
         typeof errorData === 'object' &&
+        errorData !== null &&
         'payload' in errorData &&
-        typeof (errorData as { payload: unknown }).payload === 'object'
+        typeof (errorData as Record<string, unknown>).payload === 'object'
       ) {
-        const payloadObj = (errorData as EncryptedErrorPayload).payload
+        const payloadObj = (errorData as { payload: Record<string, unknown> }).payload
+
         if (
+          payloadObj !== null &&
           typeof payloadObj.iv === 'string' &&
           typeof payloadObj.tag === 'string' &&
           typeof payloadObj.data === 'string'
@@ -45,23 +39,28 @@ export async function handleApiCall<T = unknown>(
           }
         }
       }
+
       return {
         success: false,
-        status: axiosError.response?.status || 500,
+        status: error.status,
         data: errorData
       }
-    } else if (error instanceof Error) {
+    }
+
+    // Błędy nietypowe (np. problem z parsowaniem w fetch, błąd sieci / brak internetu)
+    if (error instanceof Error) {
       return {
         success: false,
         status: 500,
         data: { message: error.message }
       }
-    } else {
-      return {
-        success: false,
-        status: 500,
-        data: { message: 'Wystąpił nieznany błąd' }
-      }
+    }
+
+    // Fallback absolutny
+    return {
+      success: false,
+      status: 500,
+      data: { message: 'Wystąpił nieznany błąd' }
     }
   }
 }

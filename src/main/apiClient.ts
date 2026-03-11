@@ -1,59 +1,72 @@
-import axios from 'axios'
 import { authManager } from './authManager'
-import { API_ROUTES } from './apiRoutes'
-// Importujemy Twoją istniejącą funkcję i typ
-import { decryptPayload, type EncryptedPayload } from '../main/decrypt-payload'
+import { buildConfig, parseResponseData, tryDecryptData } from './utils/httpUtils'
+import { handleAuthTokens, handleTokenRefresh } from './utils/authUtils'
 
-export const apiClient = axios.create({
-  baseURL: 'http://localhost/api/v1',
-  timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json'
+const BASE_URL = 'http://localhost/api/v1'
+const DEFAULT_TIMEOUT = 10000
+
+export class HttpError<T = unknown> extends Error {
+  constructor(
+    public status: number,
+    public data: T,
+    message: string
+  ) {
+    super(message)
+    this.name = 'HttpError'
   }
-})
+}
 
-console.log('API CLIENT INICJOWANY!')
+export interface ApiFetchInit extends RequestInit {
+  timeout?: number
+  _retry?: boolean
+}
 
-// === INTERCEPTOR RESPONSU ===
-apiClient.interceptors.response.use(
-  (response) => {
-    // 1. SPRAWDZANIE I DESZYFROWANIE
-    console.log('[API] Odpowiedź body:', response.data)
-    if (
-      response.data &&
-      typeof response.data === 'object' &&
-      'payload' in response.data &&
-      response.data.payload?.iv &&
-      response.data.payload?.tag &&
-      response.data.payload?.data
-    ) {
-      try {
-        console.log('[API] Wykryto zaszyfrowany pakiet AES-GCM, deszyfrowanie...')
-        const decryptedData = decryptPayload(response.data as EncryptedPayload)
-        response.data = decryptedData
-        console.log('[API] Deszyfrowanie zakończone, odszyfrowane dane:', decryptedData)
-      } catch (error) {
-        console.error('[API DECRYPTION ERROR]', error)
-        return Promise.reject(new Error('Failed to decrypt secure response'))
+export type FetchResponse<T = unknown> = {
+  status: number
+  data: T
+  headers: Headers
+}
+
+export async function apiFetch<T = unknown>(
+  url: string,
+  options: ApiFetchInit = {}
+): Promise<FetchResponse<T>> {
+  const timeout = options.timeout ?? DEFAULT_TIMEOUT
+  const fullUrl = url.startsWith('http') ? url : `${BASE_URL}${url}`
+
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), timeout)
+
+  const token = authManager.getAccessToken()
+  const config = buildConfig(options, controller, token)
+
+  console.log('[API REQUEST]', { method: config.method || 'GET', url: fullUrl })
+
+  try {
+    const response = await fetch(fullUrl, config)
+    clearTimeout(timeoutId)
+
+    let responseData = await parseResponseData(response)
+
+    if (!response.ok) {
+      if (response.status === 401 && !options._retry) {
+        const retryResponse = await handleTokenRefresh<T>(url, options, apiFetch)
+        if (retryResponse) return retryResponse
       }
+      throw new HttpError(response.status, responseData, `HTTP Error: ${response.status}`)
     }
 
-    // 2. LOGIKA TOKENÓW (BEZ ZMIAN)
-    const url = response.config.url || ''
-    if (url.includes(API_ROUTES.AUTH.LOGIN) || url.includes(API_ROUTES.AUTH.REFRESH)) {
-      const { accessToken, refreshToken } = response.data
-
-      if (accessToken) authManager.setAccessToken(accessToken)
-      if (refreshToken) authManager.setRefreshToken(refreshToken)
-
-      delete response.data.accessToken
-      delete response.data.refreshToken
+    if (responseData) {
+      responseData = tryDecryptData(responseData)
+      handleAuthTokens(responseData, url)
     }
 
-    return response
-  },
-  async (error) => {
-    // ... istniejąca logika odświeżania tokena
-    return Promise.reject(error)
+    return { status: response.status, data: responseData as T, headers: response.headers }
+  } catch (error) {
+    clearTimeout(timeoutId)
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new HttpError(408, null, 'Request timeout')
+    }
+    throw error
   }
-)
+}
