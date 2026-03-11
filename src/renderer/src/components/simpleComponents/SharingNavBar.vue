@@ -1,38 +1,46 @@
 <template>
-  <nav class="sharing-navbar">
-    <div class="sharing-navbar__left">
-      <button
-        class="sharing-navbar__btn"
-        :title="pinned ? 'Odepnij' : 'Przypnij'"
-        @click="togglePin"
-      >
-        <UIcon :name="pinned ? 'i-lucide-pin-off' : 'i-lucide-pin'" class="sharing-navbar__icon" />
-      </button>
-      <button class="sharing-navbar__btn" title="Połączenie">
-        <UIcon name="i-lucide-wifi" class="sharing-navbar__icon" />
-      </button>
-    </div>
+  <nav v-if="!closed" class="sharing-navbar" :class="{ 'sharing-navbar--minimized': minimized }">
+    <template v-if="!minimized">
+      <div class="sharing-navbar__left">
+        <button
+          class="sharing-navbar__btn"
+          :title="pinned ? 'Odepnij' : 'Przypnij'"
+          @click="togglePin"
+        >
+          <UIcon
+            :name="pinned ? 'i-lucide-pin-off' : 'i-lucide-pin'"
+            class="sharing-navbar__icon"
+          />
+        </button>
+        <button class="sharing-navbar__btn" title="Połączenie">
+          <UIcon name="i-lucide-wifi" class="sharing-navbar__icon" />
+        </button>
+      </div>
 
-    <div class="sharing-navbar__center">
-      <UIcon name="i-lucide-users" class="sharing-navbar__icon" />
-      <span class="sharing-navbar__name">{{ hostName }}</span>
-    </div>
+      <div class="sharing-navbar__center">
+        <UIcon name="i-lucide-users" class="sharing-navbar__icon" />
+        <span class="sharing-navbar__name">{{ hostName }}</span>
+      </div>
 
-    <div class="sharing-navbar__right">
-      <button class="sharing-navbar__btn" title="Minimalizuj" @click="handleMinimize">
-        <UIcon name="i-lucide-minus" class="sharing-navbar__icon" />
+      <div class="sharing-navbar__right">
+        <button class="sharing-navbar__btn" title="Minimalizuj" @click="minimized = true">
+          <UIcon name="i-lucide-minus" class="sharing-navbar__icon" />
+        </button>
+        <button
+          class="sharing-navbar__btn sharing-navbar__btn--close"
+          title="Zamknij"
+          @click="closed = true"
+        >
+          <UIcon name="i-lucide-x" class="sharing-navbar__icon" />
+        </button>
+      </div>
+    </template>
+
+    <template v-else>
+      <button class="sharing-navbar__btn" title="Przywróć" @click="minimized = false">
+        <UIcon name="i-lucide-users" class="sharing-navbar__icon" />
       </button>
-      <button class="sharing-navbar__btn" title="Maksymalizuj" @click="handleMaximize">
-        <UIcon name="i-lucide-maximize-2" class="sharing-navbar__icon" />
-      </button>
-      <button
-        class="sharing-navbar__btn sharing-navbar__btn--close"
-        title="Zamknij"
-        @click="handleClose"
-      >
-        <UIcon name="i-lucide-x" class="sharing-navbar__icon" />
-      </button>
-    </div>
+    </template>
   </nav>
 </template>
 
@@ -44,22 +52,12 @@ defineProps<{
 }>()
 
 const pinned = ref(false)
+const minimized = ref(false)
+const closed = ref(false)
 
 function togglePin(): void {
   pinned.value = !pinned.value
   window.api.window.setAlwaysOnTop(pinned.value)
-}
-
-function handleMinimize(): void {
-  window.api.window.minimize()
-}
-
-function handleMaximize(): void {
-  window.api.window.maximize()
-}
-
-function handleClose(): void {
-  window.api.window.close()
 }
 </script>
 
@@ -126,5 +124,12 @@ function handleClose(): void {
 
 .sharing-navbar__btn--close:hover .sharing-navbar__icon {
   color: #fff;
+}
+
+.sharing-navbar--minimized {
+  width: auto;
+  padding: 4px;
+  border-radius: 50%;
+  cursor: pointer;
 }
 </style>
