@@ -1,10 +1,10 @@
 <template>
-  <nav class="sharing-navbar" :class="{ 'is-pinned': pinned }">
+  <nav class="sharing-navbar">
     <div class="sharing-navbar__left">
       <button
         class="sharing-navbar__btn"
         :title="pinned ? 'Odepnij' : 'Przypnij'"
-        @click="pinned = !pinned"
+        @click="togglePin"
       >
         <UIcon :name="pinned ? 'i-lucide-pin-off' : 'i-lucide-pin'" class="sharing-navbar__icon" />
       </button>
@@ -19,16 +19,16 @@
     </div>
 
     <div class="sharing-navbar__right">
-      <button class="sharing-navbar__btn" title="Minimalizuj" @click="emit('minimize')">
+      <button class="sharing-navbar__btn" title="Minimalizuj" @click="handleMinimize">
         <UIcon name="i-lucide-minus" class="sharing-navbar__icon" />
       </button>
-      <button class="sharing-navbar__btn" title="Maksymalizuj" @click="emit('maximize')">
+      <button class="sharing-navbar__btn" title="Maksymalizuj" @click="handleMaximize">
         <UIcon name="i-lucide-maximize-2" class="sharing-navbar__icon" />
       </button>
       <button
         class="sharing-navbar__btn sharing-navbar__btn--close"
         title="Zamknij"
-        @click="emit('close')"
+        @click="handleClose"
       >
         <UIcon name="i-lucide-x" class="sharing-navbar__icon" />
       </button>
@@ -43,13 +43,24 @@ defineProps<{
   hostName: string
 }>()
 
-const emit = defineEmits<{
-  minimize: []
-  maximize: []
-  close: []
-}>()
-
 const pinned = ref(false)
+
+function togglePin(): void {
+  pinned.value = !pinned.value
+  window.api.window.setAlwaysOnTop(pinned.value)
+}
+
+function handleMinimize(): void {
+  window.api.window.minimize()
+}
+
+function handleMaximize(): void {
+  window.api.window.maximize()
+}
+
+function handleClose(): void {
+  window.api.window.close()
+}
 </script>
 
 <style scoped>
