@@ -1,7 +1,7 @@
 <template>
-  <div class="sharing-navbar-wrapper" @mouseenter="hovered = true" @mouseleave="hovered = false">
+  <div class="sharing-navbar-wrapper" @mouseenter="onMouseEnter" @mouseleave="onMouseLeave">
     <nav
-      v-show="!closed || hovered"
+      v-show="visible"
       class="sharing-navbar"
       :class="{ 'sharing-navbar--minimized': minimized }"
     >
@@ -34,7 +34,7 @@
           <button
             class="sharing-navbar__btn sharing-navbar__btn--close"
             title="Zamknij"
-            @click="closed = true"
+            @click="handleClose"
           >
             <UIcon name="i-lucide-x" class="sharing-navbar__icon" />
           </button>
@@ -51,7 +51,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 
 defineProps<{
   hostName: string
@@ -61,6 +61,23 @@ const pinned = ref(false)
 const minimized = ref(false)
 const closed = ref(false)
 const hovered = ref(false)
+
+const visible = computed(() => !closed.value || hovered.value)
+
+function handleClose(): void {
+  closed.value = true
+}
+
+function onMouseEnter(): void {
+  hovered.value = true
+  if (closed.value) {
+    closed.value = false
+  }
+}
+
+function onMouseLeave(): void {
+  hovered.value = false
+}
 
 function togglePin(): void {
   pinned.value = !pinned.value
@@ -136,6 +153,14 @@ function togglePin(): void {
 
 .sharing-navbar__btn--close:hover .sharing-navbar__icon {
   color: #fff;
+}
+
+.sharing-navbar--minimized {
+  width: auto;
+  padding: 4px;
+  border-radius: 50%;
+  cursor: pointer;
+  justify-content: center;
 }
 
 .sharing-navbar--minimized {
