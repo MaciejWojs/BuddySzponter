@@ -1,9 +1,15 @@
 <template>
-  <div class="sharing-navbar-wrapper" @mouseenter="onMouseEnter" @mouseleave="onMouseLeave">
+  <div
+    class="sharing-navbar-wrapper"
+    :style="wrapperStyle"
+    @mouseenter="onMouseEnter"
+    @mouseleave="onMouseLeave"
+  >
     <nav
       v-show="visible"
       class="sharing-navbar"
       :class="{ 'sharing-navbar--minimized': minimized }"
+      @mousedown="startDrag"
     >
       <template v-if="!minimized">
         <div class="sharing-navbar__left">
@@ -55,7 +61,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onBeforeUnmount } from 'vue'
 
 defineProps<{
   hostName: string
@@ -65,8 +71,73 @@ const pinned = ref(false)
 const minimized = ref(false)
 const closed = ref(false)
 const hovered = ref(false)
+const position = ref({ x: 20, y: 20 })
+const isDragging = ref(false)
+const dragOffset = ref({ x: 0, y: 0 })
+const dragSize = ref({ width: 0, height: 0 })
 
 const visible = computed(() => !closed.value || hovered.value)
+const wrapperStyle = computed(() => ({
+  left: `${position.value.x}px`,
+  top: `${position.value.y}px`
+}))
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max)
+}
+
+function onDrag(event: MouseEvent): void {
+  if (!isDragging.value) {
+    return
+  }
+
+  const nextX = event.clientX - dragOffset.value.x
+  const nextY = event.clientY - dragOffset.value.y
+
+  const maxX = Math.max(0, window.innerWidth - dragSize.value.width)
+  const maxY = Math.max(0, window.innerHeight - dragSize.value.height)
+
+  position.value = {
+    x: clamp(nextX, 0, maxX),
+    y: clamp(nextY, 0, maxY)
+  }
+}
+
+function stopDrag(): void {
+  isDragging.value = false
+  window.removeEventListener('mousemove', onDrag)
+  window.removeEventListener('mouseup', stopDrag)
+}
+
+function startDrag(event: MouseEvent): void {
+  const target = event.target as HTMLElement | null
+  if (target?.closest('button')) {
+    return
+  }
+
+  const currentTarget = event.currentTarget as HTMLElement | null
+  if (!currentTarget) {
+    return
+  }
+
+  const rect = currentTarget.getBoundingClientRect()
+  dragSize.value = {
+    width: rect.width,
+    height: rect.height
+  }
+  dragOffset.value = {
+    x: event.clientX - rect.left,
+    y: event.clientY - rect.top
+  }
+
+  isDragging.value = true
+  window.addEventListener('mousemove', onDrag)
+  window.addEventListener('mouseup', stopDrag)
+}
+
+onBeforeUnmount(() => {
+  stopDrag()
+})
 
 function handleClose(): void {
   closed.value = true
@@ -92,8 +163,10 @@ function togglePin(): void {
 <style scoped>
 .sharing-navbar-wrapper {
   width: 33vw;
+  max-width: 500px;
   min-height: 30px;
-  margin: 0 auto;
+  position: fixed;
+  z-index: 30;
 }
 
 .sharing-navbar {
@@ -104,8 +177,12 @@ function togglePin(): void {
   border-radius: 8px;
   padding: 4px 10px;
   height: 30px;
-  -webkit-app-region: drag;
   transition: opacity 0.2s;
+  cursor: grab;
+}
+
+.sharing-navbar:active {
+  cursor: grabbing;
 }
 
 .sharing-navbar__left,
@@ -166,7 +243,6 @@ function togglePin(): void {
   border-radius: 50%;
   cursor: pointer;
   justify-content: center;
-  margin: 0 auto;
 }
 
 .sharing-navbar__btn--restore {
