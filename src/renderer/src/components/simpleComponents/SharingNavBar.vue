@@ -7,6 +7,7 @@
   >
     <nav
       v-show="visible"
+      ref="navRef"
       class="sharing-navbar"
       :class="{ 'sharing-navbar--minimized': minimized, 'sharing-navbar--locked': pinned }"
       @mousedown="startDrag"
@@ -51,7 +52,7 @@
         <button
           class="sharing-navbar__btn sharing-navbar__btn--restore"
           title="Przywróć"
-          @click="minimized = false"
+          @click="handleRestore"
         >
           <UIcon name="i-lucide-users" class="sharing-navbar__icon" />
         </button>
@@ -61,7 +62,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onBeforeUnmount } from 'vue'
+import { ref, computed, onBeforeUnmount, nextTick } from 'vue'
 
 defineProps<{
   hostName: string
@@ -76,6 +77,7 @@ const isDragging = ref(false)
 const dragOffset = ref({ x: 0, y: 0 })
 const dragSize = ref({ width: 0, height: 0 })
 const minimizedSize = 30
+const navRef = ref<HTMLElement | null>(null)
 
 const visible = computed(() => !closed.value || hovered.value)
 const wrapperStyle = computed(() => ({
@@ -155,6 +157,25 @@ function handleMinimize(): void {
 
   position.value = {
     x: Math.max(0, centeredX),
+    y: clamp(position.value.y, 0, maxY)
+  }
+}
+
+async function handleRestore(): Promise<void> {
+  minimized.value = false
+  await nextTick()
+
+  const navElement = navRef.value
+  if (!navElement) {
+    return
+  }
+
+  const rect = navElement.getBoundingClientRect()
+  const centeredX = (window.innerWidth - rect.width) / 2
+  const maxY = Math.max(0, window.innerHeight - rect.height)
+
+  position.value = {
+    x: clamp(centeredX, 0, Math.max(0, window.innerWidth - rect.width)),
     y: clamp(position.value.y, 0, maxY)
   }
 }
