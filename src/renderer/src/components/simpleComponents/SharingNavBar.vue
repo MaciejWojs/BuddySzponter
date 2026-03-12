@@ -147,17 +147,24 @@ onBeforeUnmount(() => {
 })
 
 function handleClose(): void {
+  const navWidth =
+    navRef.value?.getBoundingClientRect().width ?? Math.min(window.innerWidth * 0.33, 500)
+  const centeredX = (window.innerWidth - navWidth) / 2
+
   closed.value = true
+  position.value = {
+    x: clamp(centeredX, 0, Math.max(0, window.innerWidth - navWidth)),
+    y: 0
+  }
 }
 
 function handleMinimize(): void {
   minimized.value = true
   const centeredX = (window.innerWidth - minimizedSize) / 2
-  const maxY = Math.max(0, window.innerHeight - minimizedSize)
 
   position.value = {
     x: Math.max(0, centeredX),
-    y: clamp(position.value.y, 0, maxY)
+    y: 0
   }
 }
 
