@@ -32,9 +32,7 @@ export function decryptPayload(p: EncryptedPayload): object {
 
   // AES-GCM commonly uses a 12-byte IV/nonce.
   if (iv.length !== 12) {
-    throw new Error(
-      `Invalid IV length for AES-256-GCM: expected 12 bytes, got ${iv.length}`
-    )
+    throw new Error(`Invalid IV length for AES-256-GCM: expected 12 bytes, got ${iv.length}`)
   }
 
   // The authentication tag is typically 16 bytes for AES-GCM.
