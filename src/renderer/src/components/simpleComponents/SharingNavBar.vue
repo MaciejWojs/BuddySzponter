@@ -8,7 +8,7 @@
     <nav
       v-show="visible"
       class="sharing-navbar"
-      :class="{ 'sharing-navbar--minimized': minimized }"
+      :class="{ 'sharing-navbar--minimized': minimized, 'sharing-navbar--locked': pinned }"
       @mousedown="startDrag"
     >
       <template v-if="!minimized">
@@ -110,6 +110,10 @@ function stopDrag(): void {
 }
 
 function startDrag(event: MouseEvent): void {
+  if (pinned.value) {
+    return
+  }
+
   const target = event.target as HTMLElement | null
   if (target?.closest('button')) {
     return
@@ -156,6 +160,9 @@ function onMouseLeave(): void {
 
 function togglePin(): void {
   pinned.value = !pinned.value
+  if (pinned.value) {
+    stopDrag()
+  }
   window.api.window.setAlwaysOnTop(pinned.value)
 }
 </script>
@@ -183,6 +190,11 @@ function togglePin(): void {
 
 .sharing-navbar:active {
   cursor: grabbing;
+}
+
+.sharing-navbar--locked,
+.sharing-navbar--locked:active {
+  cursor: default;
 }
 
 .sharing-navbar__left,
