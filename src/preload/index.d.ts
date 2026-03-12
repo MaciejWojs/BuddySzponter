@@ -1,31 +1,26 @@
-// src/preload/index.d.ts
-import { ElectronAPI } from '@electron-toolkit/preload'
-// Update the path if necessary:
-import type { EncryptedPayload } from '../main/decrypt-payload'
+import type {
+  LoginInput,
+  LoginResponse,
+  RegisterInput,
+  RegisterResponse
+} from '../main/schemas/authSchemas'
 
-// Standardized response from our formatter in Main Process
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean
   status: number
-  data: T
+  data?: T
+  error?: unknown
 }
 
 declare global {
   interface Window {
-    electron: ElectronAPI
-
     api: {
       auth: {
-        // Here we also change to Record<string, unknown>
-        register: (data: Record<string, unknown>) => Promise<ApiResponse>
-        login: (credentials: Record<string, unknown>) => Promise<ApiResponse>
-        logout: () => Promise<ApiResponse>
-        getMe: () => Promise<ApiResponse>
+        register: (data: RegisterInput) => Promise<ApiResponse<RegisterResponse>>
+        login: (credentials: LoginInput) => Promise<ApiResponse<LoginResponse>>
+        logout: () => Promise<ApiResponse<void>>
+        getMe: () => Promise<ApiResponse<unknown>>
       }
-    }
-
-    apiUtils: {
-      decryptPayload: (p: EncryptedPayload) => Promise<Object>
     }
   }
 }
