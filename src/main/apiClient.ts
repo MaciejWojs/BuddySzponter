@@ -1,72 +1,68 @@
-import { authManager } from './authManager'
-import { buildConfig, parseResponseData, tryDecryptData } from './utils/httpUtils'
-import { handleAuthTokens, handleTokenRefresh } from './utils/authUtils'
+import { HttpError } from './utils/httpErrors'
+import { TokenManager } from './tokenManager' // Zmiana tutaj!owy import
 
-const BASE_URL = process.env.API_BASE_URL || 'http://localhost/api/v1'
-const DEFAULT_TIMEOUT = 10000
+export class ApiClient {
+  private static instance: ApiClient
+  private readonly baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost/api/v1'
 
-export class HttpError<T = unknown> extends Error {
-  constructor(
-    public status: number,
-    public data: T,
-    message: string
-  ) {
-    super(message)
-    this.name = 'HttpError'
+  public static getInstance(): ApiClient {
+    if (!ApiClient.instance) {
+      ApiClient.instance = new ApiClient()
+    }
+    return ApiClient.instance
   }
-}
 
-export interface ApiFetchInit extends RequestInit {
-  timeout?: number
-  _retry?: boolean
-}
+  public async fetch<T = unknown>(
+    method: 'GET' | 'POST' | 'PATCH' | 'DELETE',
+    endpoint: string,
+    data?: unknown,
+    isRetry = false
+  ): Promise<{ status: number; data: unknown }> {
+    const url = `${this.baseURL}${endpoint}`
+    const headers = new Headers({ 'Content-Type': 'application/json' })
 
-export type FetchResponse<T = unknown> = {
-  status: number
-  data: T
-  headers: Headers
-}
+    const token = TokenManager.getInstance().getAccessToken() // Zmiana
+    if (token) {
+      headers.set('Authorization', `Bearer ${token}`)
+    }
 
-export async function apiFetch<T = unknown>(
-  url: string,
-  options: ApiFetchInit = {}
-): Promise<FetchResponse<T>> {
-  const timeout = options.timeout ?? DEFAULT_TIMEOUT
-  const fullUrl = url.startsWith('http') ? url : `${BASE_URL}${url}`
+    const config: RequestInit = { method, headers }
 
-  const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), timeout)
+    if (data !== undefined) {
+      config.body = JSON.stringify(data)
+    }
 
-  const token = authManager.getAccessToken()
-  const config = buildConfig(options, controller, token)
+    let response: Response
 
-  console.log('[API REQUEST]', { method: config.method || 'GET', url: fullUrl })
+    try {
+      response = await fetch(url, config)
+    } catch {
+      throw new HttpError(500, { message: 'Błąd połączenia z serwerem backendu' })
+    }
 
-  try {
-    const response = await fetch(fullUrl, config)
-    clearTimeout(timeoutId)
+    if (response.status === 401 && !isRetry) {
+      await TokenManager.getInstance().refresh(this.baseURL)
+      return this.fetch<T>(method, endpoint, data, true)
 
-    let responseData = await parseResponseData(response)
+      return this.fetch<T>(method, endpoint, data, true)
+    }
+
+    let responseData: unknown = null
+    try {
+      if (response.status !== 204) {
+        responseData = await response.json()
+      }
+    } catch {
+      ///
+    }
 
     if (!response.ok) {
-      if (response.status === 401 && !options._retry) {
-        const retryResponse = await handleTokenRefresh<T>(url, options, apiFetch)
-        if (retryResponse) return retryResponse
-      }
-      throw new HttpError(response.status, responseData, `HTTP Error: ${response.status}`)
+      throw new HttpError(
+        response.status,
+        responseData || { message: 'Wystąpił nieznany błąd API' }
+      )
     }
 
-    if (responseData) {
-      responseData = tryDecryptData(responseData)
-      handleAuthTokens(responseData, url)
-    }
-
-    return { status: response.status, data: responseData as T, headers: response.headers }
-  } catch (error) {
-    clearTimeout(timeoutId)
-    if (error instanceof Error && error.name === 'AbortError') {
-      throw new HttpError(408, null, 'Request timeout')
-    }
-    throw error
+    return { status: response.status, data: responseData }
   }
 }
