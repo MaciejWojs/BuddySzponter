@@ -1,12 +1,5 @@
 import crypto from 'node:crypto'
-
-export type EncryptedPayload = {
-  payload: {
-    iv: string
-    tag: string
-    data: string
-  }
-}
+import { EncryptedPayload } from './schemas/encryptedPayloadSchema'
 
 export function decryptPayload(p: EncryptedPayload): object {
   const { payload } = p

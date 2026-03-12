@@ -1,5 +1,5 @@
-// src/main/utils/apiHelper.ts
-import { decryptPayload, type EncryptedPayload } from '../decrypt-payload'
+import { decryptPayload } from '../decrypt-payload'
+import { EncryptedPayload } from '../schemas/encryptedPayloadSchema'
 import { HttpError, type FetchResponse } from '../apiClient'
 
 type ApiResult<T = unknown> =

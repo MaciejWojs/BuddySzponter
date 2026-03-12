@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { EncryptedPayload } from '../main/decrypt-payload'
+import type { EncryptedPayload } from '../main/schemas/encryptedPayloadSchema'
 
 // Our API for Hono
 const api = {

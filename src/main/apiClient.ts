@@ -2,7 +2,7 @@ import { authManager } from './authManager'
 import { buildConfig, parseResponseData, tryDecryptData } from './utils/httpUtils'
 import { handleAuthTokens, handleTokenRefresh } from './utils/authUtils'
 
-const BASE_URL = 'http://localhost/api/v1'
+const BASE_URL = process.env.API_BASE_URL || 'http://localhost/api/v1'
 const DEFAULT_TIMEOUT = 10000
 
 export class HttpError<T = unknown> extends Error {

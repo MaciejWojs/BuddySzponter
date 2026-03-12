@@ -1,14 +1,5 @@
-import { z } from 'zod'
-import { decryptPayload, type EncryptedPayload } from '../decrypt-payload'
-
-// Schema verifying if the API payload is an AES-GCM encrypted package
-const encryptedPayloadSchema = z.object({
-  payload: z.object({
-    iv: z.string(),
-    tag: z.string(),
-    data: z.string()
-  })
-})
+import { decryptPayload } from '../decrypt-payload'
+import { EncryptedPayload, encryptedPayloadSchema } from '../schemas/encryptedPayloadSchema'
 
 export function buildConfig(
   options: RequestInit,

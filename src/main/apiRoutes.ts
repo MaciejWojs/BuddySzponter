@@ -1,5 +1,3 @@
-// src/main/apiRoutes.ts
-
 export const API_ROUTES = {
   AUTH: {
     // POST: Register a new user
