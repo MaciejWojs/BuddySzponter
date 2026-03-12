@@ -1,20 +1,17 @@
 // src/main/handlers/auth/logout.ts
 import { ipcMain } from 'electron'
-import { authManager } from '../../authManager'
+import { ApiClient } from '../../apiClient'
+import { API_ROUTES } from '../../apiRoutes'
+import { ApiHelper } from '../../utils/apiHelper'
+import { TokenManager } from '../../tokenManager'
 
 export function registerLogoutHandler(): void {
   ipcMain.handle('auth:logout', async () => {
-    try {
-      // If the backend has a logout endpoint, uncomment this:
-      // await apiFetch(API_ROUTES.AUTH.LOGOUT, { method: 'POST' })
-    } catch (error) {
-      console.error('[AUTH] Error during backend logout:', error)
-      // Even if the backend throws an error, we want to log out the user locally
-    } finally {
-      // Clear tokens regardless of the request result
-      authManager.clearTokens()
-    }
+    const requestPromise = ApiClient.getInstance().fetch('POST', API_ROUTES.AUTH.LOGOUT)
 
-    return { success: true }
+    await ApiHelper.handleApiCall(requestPromise)
+    TokenManager.getInstance().clearTokens()
+
+    return { success: true, status: 200 }
   })
 }
