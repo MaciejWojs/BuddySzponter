@@ -16,6 +16,20 @@ export default defineConfig({
         '@images': resolve('src/renderer/src/assets/images')
       }
     },
+    optimizeDeps: {
+      include: [
+        'vue',
+        '@vueuse/core',
+        'pinia',
+        'vee-validate',
+        '@vee-validate/zod',
+        'vue-i18n',
+        'vue-router',
+        'zod',
+        'zxcvbn',
+        'nanoid/non-secure'
+      ]
+    },
     plugins: [
       VueRouter({
         routesFolder: 'src/renderer/src/pages'

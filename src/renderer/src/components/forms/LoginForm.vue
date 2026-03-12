@@ -64,7 +64,7 @@ const loginValidator = computed(() =>
   toTypedSchema(
     z.object({
       email: z
-        .string({ message: t('validation.required') })
+        // .string({ message: t('validation.required') })
         .email({ message: t('validation.invalidEmail') }),
       password: z
         .string({ message: t('validation.required') })
