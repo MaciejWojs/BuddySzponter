@@ -43,7 +43,7 @@
       <div class="text-red-500 text-sm mt-1 h-2">{{ genericError }}</div>
     </div>
   </div>
-  <SharingNavBar host-name="Kamil Gruca" />
+  <SharingNavBar />
 </template>
 
 <script setup lang="ts">
