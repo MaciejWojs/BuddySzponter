@@ -1,6 +1,6 @@
 // src/main/handlers/auth/register.ts
 import { ipcMain } from 'electron'
-import { apiFetch } from '../../apiClient' // Pobieramy naszą nową główną funkcję
+import { apiFetch } from '../../apiClient' // We use our new main function
 import { API_ROUTES } from '../../apiRoutes'
 import { handleApiCall } from '../../utils/apiHelper'
 

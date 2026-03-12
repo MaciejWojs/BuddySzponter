@@ -1,7 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type { EncryptedPayload } from '../main/decrypt-payload'
 
-// Nasze API do Hono
+// Our API for Hono
 const api = {
   auth: {
     register: (data: Record<string, unknown>) => ipcRenderer.invoke('auth:register', data),
@@ -11,14 +11,17 @@ const api = {
   }
 }
 
-// Twoje Krypto
+// Your Crypto
 const apiUtils = {
   decryptPayload: (p: EncryptedPayload) => ipcRenderer.invoke('decrypt-payload', p)
 }
 
+// Use `contextBridge` APIs to expose Electron APIs to
+// renderer only if context isolation is enabled, otherwise
+// just add to the DOM global.
 if (process.contextIsolated) {
   try {
-    // USUNĘLIŚMY electron-toolkit! Wystawiamy tylko nasze 100% bezpieczne obiekty.
+    // REMOVED electron-toolkit! We only expose our 100% safe objects.
     contextBridge.exposeInMainWorld('api', api)
     contextBridge.exposeInMainWorld('apiUtils', apiUtils)
   } catch (error) {

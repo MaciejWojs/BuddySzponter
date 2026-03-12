@@ -2,19 +2,19 @@
 
 export const API_ROUTES = {
   AUTH: {
-    // POST: Rejestracja nowego użytkownika
+    // POST: Register a new user
     REGISTER: '/auth/register',
 
-    // POST: Logowanie użytkownika
+    // POST: User login
     LOGIN: '/auth/login',
 
-    // POST: Odświeżanie tokena autoryzacyjnego
+    // POST: Refresh authorization token
     REFRESH: '/auth/refresh',
 
-    // POST: Wylogowanie użytkownika
+    // POST: User logout
     LOGOUT: '/auth/logout',
 
-    // GET: Pobranie informacji o zalogowanym użytkowniku
+    // GET: Get information about the logged-in user
     ME: '/auth/me'
   }
 } as const

@@ -75,26 +75,26 @@
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
 
-// Stan formularza
+// Form state
 const form = reactive({
   nickname: 'TestUser123',
   email: 'test@example.com',
   password: 'Password123!',
-  passwordConfirm: 'Password123!' // Dodajemy dla rejestracji
+  passwordConfirm: 'Password123!' // Added for registration
 })
 
 const loading = ref(false)
 const successMsg = ref<string | null>(null)
 const errorMsg = ref<string | null>(null)
 
-// --- FUNKCJE TESTOWE ---
+// --- TEST FUNCTIONS ---
 
 const testRegister = async (): Promise<void> => {
   loading.value = true
   successMsg.value = null
   errorMsg.value = null
 
-  // Używamy naszego bezpiecznego mostu IPC!
+  // We use our secure IPC bridge!
   const response = await window.api.auth.register({
     nickname: form.nickname,
     email: form.email,
@@ -107,7 +107,7 @@ const testRegister = async (): Promise<void> => {
   if (response.success) {
     successMsg.value = response.data
   } else {
-    // Tutaj wpadną błędy walidacji np. z Zoda (Hono) lub błąd 500
+    // Here will fall validation errors e.g. from Zod (Hono) or 500 error
     errorMsg.value = response.data
   }
 }
@@ -125,7 +125,7 @@ const testLogin = async (): Promise<void> => {
   loading.value = false
 
   if (response.success) {
-    // Zwróć uwagę: tokenów tu nie ma! Zostały w Main Process!
+    // Note: tokens are not here! They stayed in Main Process!
     successMsg.value = response.data
   } else {
     errorMsg.value = response.data
@@ -137,7 +137,7 @@ const testMe = async (): Promise<void> => {
   successMsg.value = null
   errorMsg.value = null
 
-  // Uderzamy w endpoint wymagający autoryzacji (żeby sprawdzić czy token działa)
+  // We hit an endpoint requiring authorization (to check if the token works)
   const response = await window.api.auth.getMe()
 
   loading.value = false

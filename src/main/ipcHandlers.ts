@@ -6,14 +6,14 @@ import { registerLogoutHandler } from './handlers/auth/logout'
 import { registerDecryptHandler } from './handlers/crypto/decryptPayload'
 
 export function registerIpcHandlers(): void {
-  // Autoryzacja
+  // Authorization
   registerLoginHandler()
   registerRegisterHandler()
   registerLogoutHandler()
 
-  // Użytkownicy
+  // Users
   // registerGetProfileHandler()
 
-  // Inne
+  // Others
   registerDecryptHandler()
 }

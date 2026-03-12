@@ -6,13 +6,13 @@ import { API_ROUTES } from '../../apiRoutes'
 
 export function registerLoginHandler(): void {
   ipcMain.handle('auth:login', async (_, credentials) => {
-    // Zwykły, czytelny fetch. Zwróć uwagę na `body: JSON.stringify(...)`
+    // Simple, readable fetch. Note the `body: JSON.stringify(...)`
     const requestPromise = apiFetch(API_ROUTES.AUTH.LOGIN, {
       method: 'POST',
       body: JSON.stringify(credentials)
     })
 
-    // apiHelper zajmie się złapaniem błędów i ewentualnym odszyfrowaniem błędu 4xx/5xx
+    // apiHelper will catch errors and possibly decrypt 4xx/5xx errors
     const result = await handleApiCall(requestPromise)
 
     return result

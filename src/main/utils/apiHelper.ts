@@ -13,7 +13,7 @@ export async function handleApiCall<T = unknown>(
     const response = await apiPromise
     return { success: true, status: response.status, data: response.data }
   } catch (error: unknown) {
-    // Łapanie błędu rzuconego przez apiClient (zarówno tych z serwera, jak i timeoutów 408)
+    // Catching errors thrown by apiClient (both from server and 408 timeouts)
     if (error instanceof HttpError) {
       let errorData = error.data ?? {
         message: error.message || 'Wystąpił nieznany błąd HTTP'
@@ -35,7 +35,7 @@ export async function handleApiCall<T = unknown>(
           try {
             errorData = decryptPayload(errorData as EncryptedPayload)
           } catch {
-            // Jeśli nie uda się odszyfrować, zostawiamy oryginalny payload
+            // If decryption fails, leave the original payload
           }
         }
       }
@@ -47,7 +47,7 @@ export async function handleApiCall<T = unknown>(
       }
     }
 
-    // Błędy nietypowe (np. problem z parsowaniem w fetch, błąd sieci / brak internetu)
+    // Non-standard errors (e.g. fetch parsing problem, network error / no internet)
     if (error instanceof Error) {
       return {
         success: false,
@@ -56,7 +56,7 @@ export async function handleApiCall<T = unknown>(
       }
     }
 
-    // Fallback absolutny
+    // Absolute fallback
     return {
       success: false,
       status: 500,

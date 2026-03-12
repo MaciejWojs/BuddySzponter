@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { decryptPayload, type EncryptedPayload } from '../decrypt-payload'
 
-// Schemat weryfikujący, czy payload z API jest zaszyfrowaną paczką AES-GCM
+// Schema verifying if the API payload is an AES-GCM encrypted package
 const encryptedPayloadSchema = z.object({
   payload: z.object({
     iv: z.string(),
@@ -37,12 +37,12 @@ export async function parseResponseData(response: Response): Promise<unknown> {
 }
 
 export function tryDecryptData(data: unknown): unknown {
-  // Bezpieczne parsowanie bez rzucania błędami przez TS
+  // Safe parsing without throwing errors by TS
   const parsed = encryptedPayloadSchema.safeParse(data)
 
   if (parsed.success) {
     try {
-      // Skoro Zod to przepuścił, jesteśmy pewni w 100%, że struktura to EncryptedPayload
+      // Since Zod passed it, we are 100% sure the structure is EncryptedPayload
       return decryptPayload(parsed.data as EncryptedPayload)
     } catch (error) {
       console.error('[API DECRYPTION ERROR]', error)
@@ -50,6 +50,6 @@ export function tryDecryptData(data: unknown): unknown {
     }
   }
 
-  // Jeśli to zwykły obiekt lub błąd walidacji schematu, po prostu zwracamy oryginalne dane
+  // If it's a regular object or schema validation error, just return the original data
   return data
 }

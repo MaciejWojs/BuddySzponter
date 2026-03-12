@@ -2,10 +2,10 @@
 import { safeStorage } from 'electron'
 import Store from 'electron-store'
 
-// Baza danych na dysku (%APPDATA% na Windows)
+// Database on disk (%APPDATA% on Windows)
 const store = new Store({ name: 'buddy-secure-storage' })
 
-// Zmienna w RAM-ie (znika po wyłączeniu apki)
+// Variable in RAM (disappears after app shutdown)
 let currentAccessToken: string | null = null
 
 export const authManager = {
@@ -37,7 +37,7 @@ export const authManager = {
         const buffer = Buffer.from(storedValue, 'base64')
         return safeStorage.decryptString(buffer)
       } catch (e) {
-        this.clearTokens() // Ktoś majstrował przy pliku - usuwamy
+        this.clearTokens() // Someone tampered with the file - remove
         console.warn(e)
         return null
       }
@@ -45,7 +45,7 @@ export const authManager = {
     return storedValue
   },
 
-  // --- WYLOGOWANIE ---
+  // --- LOGOUT ---
   clearTokens() {
     currentAccessToken = null
     store.delete('rt')

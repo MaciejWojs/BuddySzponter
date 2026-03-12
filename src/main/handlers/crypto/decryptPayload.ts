@@ -1,5 +1,5 @@
 import { ipcMain } from 'electron'
-import { decryptPayload } from '../../decrypt-payload' // Twój oryginalny plik
+import { decryptPayload } from '../../decrypt-payload' // Your original file
 
 import type { EncryptedPayload } from '../../decrypt-payload'
 

@@ -5,13 +5,13 @@ import { authManager } from '../../authManager'
 export function registerLogoutHandler(): void {
   ipcMain.handle('auth:logout', async () => {
     try {
-      // Jeśli backend ma endpoint do wylogowania, odkomentuj to:
+      // If the backend has a logout endpoint, uncomment this:
       // await apiFetch(API_ROUTES.AUTH.LOGOUT, { method: 'POST' })
     } catch (error) {
-      console.error('[AUTH] Błąd podczas wylogowywania na backendzie:', error)
-      // Nawet jeśli backend rzuci błędem, chcemy wylogować użytkownika lokalnie
+      console.error('[AUTH] Error during backend logout:', error)
+      // Even if the backend throws an error, we want to log out the user locally
     } finally {
-      // Czyścimy tokeny niezależnie od wyniku zapytania
+      // Clear tokens regardless of the request result
       authManager.clearTokens()
     }
 
