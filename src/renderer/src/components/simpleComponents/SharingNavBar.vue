@@ -65,7 +65,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onBeforeUnmount, nextTick } from 'vue'
+import { ref, computed, onBeforeUnmount, onMounted, nextTick } from 'vue'
 import ToolsIcon from '@renderer/assets/images/components/tools.svg?component'
 
 defineProps<{
@@ -76,11 +76,12 @@ const pinned = ref(false)
 const minimized = ref(false)
 const closed = ref(false)
 const hovered = ref(false)
-const position = ref({ x: 20, y: 20 })
+const position = ref({ x: 0, y: 0 })
 const isDragging = ref(false)
 const dragOffset = ref({ x: 0, y: 0 })
 const dragSize = ref({ width: 0, height: 0 })
 const minimizedSize = 30
+const topOffset = 8
 const navRef = ref<HTMLElement | null>(null)
 
 const visible = computed(() => !closed.value || hovered.value)
@@ -103,10 +104,11 @@ function onDrag(event: MouseEvent): void {
 
   const maxX = Math.max(0, window.innerWidth - dragSize.value.width)
   const maxY = Math.max(0, window.innerHeight - dragSize.value.height)
+  const minY = Math.min(topOffset, maxY)
 
   position.value = {
     x: clamp(nextX, 0, maxX),
-    y: clamp(nextY, 0, maxY)
+    y: clamp(nextY, minY, maxY)
   }
 }
 
@@ -150,6 +152,19 @@ onBeforeUnmount(() => {
   stopDrag()
 })
 
+onMounted(async () => {
+  await nextTick()
+
+  const navWidth =
+    navRef.value?.getBoundingClientRect().width ?? Math.min(window.innerWidth * 0.33, 500)
+  const centeredX = (window.innerWidth - navWidth) / 2
+
+  position.value = {
+    x: clamp(centeredX, 0, Math.max(0, window.innerWidth - navWidth)),
+    y: topOffset
+  }
+})
+
 function handleClose(): void {
   const navWidth =
     navRef.value?.getBoundingClientRect().width ?? Math.min(window.innerWidth * 0.33, 500)
@@ -158,7 +173,7 @@ function handleClose(): void {
   closed.value = true
   position.value = {
     x: clamp(centeredX, 0, Math.max(0, window.innerWidth - navWidth)),
-    y: 0
+    y: topOffset
   }
 }
 
@@ -168,7 +183,7 @@ function handleMinimize(): void {
 
   position.value = {
     x: Math.max(0, centeredX),
-    y: 0
+    y: topOffset
   }
 }
 
@@ -184,10 +199,11 @@ async function handleRestore(): Promise<void> {
   const rect = navElement.getBoundingClientRect()
   const centeredX = (window.innerWidth - rect.width) / 2
   const maxY = Math.max(0, window.innerHeight - rect.height)
+  const minY = Math.min(topOffset, maxY)
 
   position.value = {
     x: clamp(centeredX, 0, Math.max(0, window.innerWidth - rect.width)),
-    y: clamp(position.value.y, 0, maxY)
+    y: clamp(position.value.y, minY, maxY)
   }
 }
 
