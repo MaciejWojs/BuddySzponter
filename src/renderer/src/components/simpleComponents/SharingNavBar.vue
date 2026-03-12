@@ -32,6 +32,9 @@
         <div class="sharing-navbar__center">
           <UIcon name="i-lucide-users" class="sharing-navbar__icon" />
           <span class="sharing-navbar__name">{{ hostName }}</span>
+          <button class="sharing-navbar__btn sharing-navbar__btn--tools" title="Tools">
+            <ToolsIcon class="sharing-navbar__icon" />
+          </button>
         </div>
 
         <div class="sharing-navbar__right">
@@ -63,6 +66,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onBeforeUnmount, nextTick } from 'vue'
+import ToolsIcon from '@renderer/assets/images/components/tools.svg?component'
 
 defineProps<{
   hostName: string
@@ -274,6 +278,10 @@ function togglePin(): void {
   border-radius: 4px;
   transition: background-color 0.15s;
   -webkit-app-region: no-drag;
+}
+
+.sharing-navbar__btn--tools {
+  padding: 4px;
 }
 
 .sharing-navbar__btn:hover {
