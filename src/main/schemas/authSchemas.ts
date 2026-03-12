@@ -31,8 +31,22 @@ export const registerResponseSchema = z.object({
   message: z.string()
 })
 
+export const apiErrorSchema = z.object({
+  message: z.string(),
+  cause: z
+    .array(
+      z.object({
+        field: z.string(),
+        error: z.string()
+      })
+    )
+    .optional()
+})
+
 export type RegisterInput = z.infer<typeof registerInputSchema>
 export type RegisterResponse = z.infer<typeof registerResponseSchema>
 
 export type LoginInput = z.infer<typeof loginInputSchema>
 export type LoginResponse = z.infer<typeof loginResponseSchema>
+
+export type ApiErrorResponse = z.infer<typeof apiErrorSchema>

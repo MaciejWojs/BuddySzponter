@@ -8,10 +8,4 @@ export const encryptedPayloadSchema = z.object({
   })
 })
 
-export type EncryptedPayload = {
-  payload: {
-    iv: string
-    tag: string
-    data: string
-  }
-}
+export type EncryptedPayload = z.infer<typeof encryptedPayloadSchema>
