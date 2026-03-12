@@ -34,7 +34,7 @@
         </div>
 
         <div class="sharing-navbar__right">
-          <button class="sharing-navbar__btn" title="Minimalizuj" @click="minimized = true">
+          <button class="sharing-navbar__btn" title="Minimalizuj" @click="handleMinimize">
             <UIcon name="i-lucide-minus" class="sharing-navbar__icon" />
           </button>
           <button
@@ -75,6 +75,7 @@ const position = ref({ x: 20, y: 20 })
 const isDragging = ref(false)
 const dragOffset = ref({ x: 0, y: 0 })
 const dragSize = ref({ width: 0, height: 0 })
+const minimizedSize = 30
 
 const visible = computed(() => !closed.value || hovered.value)
 const wrapperStyle = computed(() => ({
@@ -145,6 +146,17 @@ onBeforeUnmount(() => {
 
 function handleClose(): void {
   closed.value = true
+}
+
+function handleMinimize(): void {
+  minimized.value = true
+  const centeredX = (window.innerWidth - minimizedSize) / 2
+  const maxY = Math.max(0, window.innerHeight - minimizedSize)
+
+  position.value = {
+    x: Math.max(0, centeredX),
+    y: clamp(position.value.y, 0, maxY)
+  }
 }
 
 function onMouseEnter(): void {
