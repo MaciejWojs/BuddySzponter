@@ -1,66 +1,103 @@
+import { z } from 'zod'
+import { HttpError } from './httpErrors'
+import { ApiResult } from '../schemas/apiResultSchema'
+import { TokenManager } from '../tokenManager'
 import { decryptPayload } from '../decrypt-payload'
 import { EncryptedPayload } from '../schemas/encryptedPayloadSchema'
-import { HttpError, type FetchResponse } from '../apiClient'
 
-type ApiResult<T = unknown> =
-  | { success: true; status: number; data: T }
-  | { success: false; status: number; data: unknown }
+export interface HandleApiOptions<T> {
+  responseSchema?: z.ZodSchema<T>
+  decrypt?: boolean
+  saveTokens?: boolean
+}
 
-export async function handleApiCall<T = unknown>(
-  apiPromise: Promise<FetchResponse<T>>
-): Promise<ApiResult<T>> {
-  try {
-    const response = await apiPromise
-    return { success: true, status: response.status, data: response.data }
-  } catch (error: unknown) {
-    // Catching errors thrown by apiClient (both from server and 408 timeouts)
-    if (error instanceof HttpError) {
-      let errorData = error.data ?? {
-        message: error.message || 'Wystąpił nieznany błąd HTTP'
-      }
-      if (
-        typeof errorData === 'object' &&
-        errorData !== null &&
-        'payload' in errorData &&
-        typeof (errorData as Record<string, unknown>).payload === 'object'
-      ) {
-        const payloadObj = (errorData as { payload: Record<string, unknown> }).payload
+export class ApiHelper {
+  public static async handleApiCall<T>(
+    requestPromise: Promise<{ status: number; data: unknown }>,
+    options: HandleApiOptions<T> = {}
+  ): Promise<ApiResult<T>> {
+    try {
+      const response = await requestPromise
+      const status = response.status
+      let data = response.data
 
-        if (
-          payloadObj !== null &&
-          typeof payloadObj.iv === 'string' &&
-          typeof payloadObj.tag === 'string' &&
-          typeof payloadObj.data === 'string'
+      // 1. Optional recursive decryption from Hono
+      if (options.decrypt && data) {
+        let tryDecrypt = true
+        while (
+          tryDecrypt &&
+          typeof data === 'object' &&
+          data !== null &&
+          'payload' in data &&
+          data.payload &&
+          typeof data.payload === 'object' &&
+          'iv' in data.payload &&
+          'tag' in data.payload &&
+          'data' in data.payload
         ) {
           try {
-            errorData = decryptPayload(errorData as EncryptedPayload)
-          } catch {
-            // If decryption fails, leave the original payload
+            const encryptedData = data as EncryptedPayload
+            data = decryptPayload(encryptedData)
+          } catch (e) {
+            if (import.meta.env.DEV) {
+              console.error('Decryption failed:', e)
+            }
+            tryDecrypt = false
           }
         }
       }
 
-      return {
-        success: false,
-        status: error.status,
-        data: errorData
+      // Log data after decryption, before validation
+      if (import.meta.env.DEV) {
+        console.log('API response after decryption:', data)
       }
-    }
+      // 2. Optional token saving (after decryption!)
+      if (options.saveTokens && typeof data === 'object' && data !== null) {
+        const tokenData = data as { accessToken?: string; refreshToken?: string }
 
-    // Non-standard errors (e.g. fetch parsing problem, network error / no internet)
-    if (error instanceof Error) {
-      return {
-        success: false,
-        status: 500,
-        data: { message: error.message }
+        if (tokenData.accessToken) TokenManager.getInstance().setAccessToken(tokenData.accessToken)
+        if (tokenData.refreshToken)
+          TokenManager.getInstance().setRefreshToken(tokenData.refreshToken)
+
+        delete (data as Record<string, unknown>).accessToken
+        delete (data as Record<string, unknown>).refreshToken
       }
-    }
 
-    // Absolute fallback
-    return {
-      success: false,
-      status: 500,
-      data: { message: 'Wystąpił nieznany błąd' }
+      if (options.responseSchema) {
+        const temp = options.responseSchema.safeParse(data)
+        console.log('API response validation result:', temp)
+        if (temp.success) {
+          data = temp
+        } else {
+          if (import.meta.env.DEV) {
+            console.error('Response validation failed:', temp.error.issues)
+          }
+        }
+      }
+
+      return { success: true, status, data: data as T }
+    } catch (error: unknown) {
+      if (error instanceof HttpError) {
+        return { success: false, status: error.status, error: error.data }
+      }
+
+      if (error instanceof z.ZodError) {
+        const zodError = error as z.ZodError
+        if (import.meta.env.DEV) {
+          console.error('Backend data validation error:', zodError.issues)
+        }
+        return {
+          success: false,
+          status: 422,
+          error: { message: 'Invalid data format', details: zodError.issues }
+        }
+      }
+
+      if (import.meta.env.DEV) {
+        console.error('Critical API error:', error)
+      }
+      const errMessage = error instanceof Error ? error.message : 'An unexpected error occurred'
+      return { success: false, status: 500, error: { message: errMessage } }
     }
   }
 }
