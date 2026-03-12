@@ -5,9 +5,5 @@
     "composite": true,
     "types": ["electron-vite/node"],
     "baseUrl": ".",
-    "paths": {
-      "src/main/*": ["src/main/*"],
-      "src/preload/*": ["src/preload/*"]
-    }
   }
 }
