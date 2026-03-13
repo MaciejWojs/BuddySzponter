@@ -1,8 +1,85 @@
 <template>
-  <section class="shortcuts-overlay" aria-label="Menu skrótów systemowych">
+  <div
+    class="sharing-navbar-wrapper"
+    :style="wrapperStyle"
+    @mouseenter="onMouseEnter"
+    @mouseleave="onMouseLeave"
+  >
+    <nav
+      v-show="visible"
+      ref="navRef"
+      class="sharing-navbar"
+      :class="{ 'sharing-navbar--minimized': minimized, 'sharing-navbar--locked': pinned }"
+      @mousedown="startDrag"
+    >
+      <template v-if="!minimized">
+        <div class="sharing-navbar__left">
+          <button
+            class="sharing-navbar__btn"
+            :title="pinned ? 'Odepnij' : 'Przypnij'"
+            @click="togglePin"
+          >
+            <UIcon
+              :name="pinned ? 'i-lucide-pin-off' : 'i-lucide-pin'"
+              class="sharing-navbar__icon"
+            />
+          </button>
+          <button class="sharing-navbar__btn" title="Połączenie">
+            <UIcon name="i-lucide-wifi" class="sharing-navbar__icon" />
+          </button>
+        </div>
+
+        <div class="sharing-navbar__center">
+          <UIcon name="i-lucide-users" class="sharing-navbar__icon" />
+          <span class="sharing-navbar__name">{{ props.hostName }}</span>
+          <button
+            class="sharing-navbar__btn sharing-navbar__btn--tools"
+            title="Tools"
+            @click="openMenu"
+          >
+            <UIcon name="i-lucide-wrench" class="sharing-navbar__icon" />
+          </button>
+        </div>
+
+        <div class="sharing-navbar__right">
+          <button class="sharing-navbar__btn" title="Minimalizuj" @click="handleMinimize">
+            <UIcon name="i-lucide-minus" class="sharing-navbar__icon" />
+          </button>
+          <button
+            class="sharing-navbar__btn sharing-navbar__btn--close"
+            title="Zamknij"
+            @click="handleClose"
+          >
+            <UIcon name="i-lucide-x" class="sharing-navbar__icon" />
+          </button>
+        </div>
+      </template>
+
+      <template v-else>
+        <button
+          class="sharing-navbar__btn sharing-navbar__btn--restore"
+          title="Przywróć"
+          @click="handleRestore"
+        >
+          <UIcon name="i-lucide-users" class="sharing-navbar__icon" />
+        </button>
+      </template>
+    </nav>
+  </div>
+
+  <section
+    v-if="isMenuOpen"
+    class="shortcuts-overlay"
+    aria-label="Menu skrótów systemowych"
+    @click.self="closeMenu"
+  >
     <div class="shortcuts-overlay__backdrop" />
 
     <div class="shortcuts-panel">
+      <button type="button" class="shortcuts-panel__close" @click="closeMenu">
+        <UIcon name="i-lucide-x" />
+      </button>
+
       <header class="shortcuts-panel__header">
         <h2>Skróty systemowe</h2>
         <p>Kliknij napis lub obwódkę przycisku. Na razie akcje tylko logują użycie.</p>
@@ -56,12 +133,42 @@
 </template>
 
 <script setup lang="ts">
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+
 type MenuAction = {
   id: string
   label: string
   description: string
   requiresConfirmation?: boolean
 }
+
+const props = withDefaults(
+  defineProps<{
+    hostName?: string
+  }>(),
+  {
+    hostName: 'Kamil Gruca'
+  }
+)
+
+const isMenuOpen = ref(false)
+const pinned = ref(false)
+const minimized = ref(false)
+const closed = ref(false)
+const hovered = ref(false)
+const position = ref({ x: 0, y: 0 })
+const isDragging = ref(false)
+const dragOffset = ref({ x: 0, y: 0 })
+const dragSize = ref({ width: 0, height: 0 })
+const minimizedSize = 30
+const topOffset = 8
+const navRef = ref<HTMLElement | null>(null)
+
+const visible = computed(() => !closed.value || hovered.value)
+const wrapperStyle = computed(() => ({
+  left: `${position.value.x}px`,
+  top: `${position.value.y}px`
+}))
 
 const shortcutButtons: MenuAction[] = [
   {
@@ -181,9 +288,254 @@ function handleAction(action: MenuAction): void {
 
   console.log(`[Menu Skrótów] Użyto przycisku: ${action.label}`)
 }
+
+function openMenu(): void {
+  isMenuOpen.value = true
+}
+
+function closeMenu(): void {
+  isMenuOpen.value = false
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max)
+}
+
+function onDrag(event: MouseEvent): void {
+  if (!isDragging.value) {
+    return
+  }
+
+  const nextX = event.clientX - dragOffset.value.x
+  const nextY = event.clientY - dragOffset.value.y
+
+  const maxX = Math.max(0, window.innerWidth - dragSize.value.width)
+  const maxY = Math.max(0, window.innerHeight - dragSize.value.height)
+  const minY = Math.min(topOffset, maxY)
+
+  position.value = {
+    x: clamp(nextX, 0, maxX),
+    y: clamp(nextY, minY, maxY)
+  }
+}
+
+function stopDrag(): void {
+  isDragging.value = false
+  window.removeEventListener('mousemove', onDrag)
+  window.removeEventListener('mouseup', stopDrag)
+}
+
+function startDrag(event: MouseEvent): void {
+  if (pinned.value) {
+    return
+  }
+
+  const target = event.target as HTMLElement | null
+  if (target?.closest('button')) {
+    return
+  }
+
+  const currentTarget = event.currentTarget as HTMLElement | null
+  if (!currentTarget) {
+    return
+  }
+
+  const rect = currentTarget.getBoundingClientRect()
+  dragSize.value = {
+    width: rect.width,
+    height: rect.height
+  }
+  dragOffset.value = {
+    x: event.clientX - rect.left,
+    y: event.clientY - rect.top
+  }
+
+  isDragging.value = true
+  window.addEventListener('mousemove', onDrag)
+  window.addEventListener('mouseup', stopDrag)
+}
+
+onBeforeUnmount(() => {
+  stopDrag()
+})
+
+onMounted(async () => {
+  await nextTick()
+
+  const navWidth =
+    navRef.value?.getBoundingClientRect().width ?? Math.min(window.innerWidth * 0.33, 500)
+  const centeredX = (window.innerWidth - navWidth) / 2
+
+  position.value = {
+    x: clamp(centeredX, 0, Math.max(0, window.innerWidth - navWidth)),
+    y: topOffset
+  }
+})
+
+function handleClose(): void {
+  const navWidth =
+    navRef.value?.getBoundingClientRect().width ?? Math.min(window.innerWidth * 0.33, 500)
+  const centeredX = (window.innerWidth - navWidth) / 2
+
+  closed.value = true
+  position.value = {
+    x: clamp(centeredX, 0, Math.max(0, window.innerWidth - navWidth)),
+    y: topOffset
+  }
+}
+
+function handleMinimize(): void {
+  minimized.value = true
+  const centeredX = (window.innerWidth - minimizedSize) / 2
+
+  position.value = {
+    x: Math.max(0, centeredX),
+    y: topOffset
+  }
+}
+
+async function handleRestore(): Promise<void> {
+  minimized.value = false
+  await nextTick()
+
+  const navElement = navRef.value
+  if (!navElement) {
+    return
+  }
+
+  const rect = navElement.getBoundingClientRect()
+  const centeredX = (window.innerWidth - rect.width) / 2
+  const maxY = Math.max(0, window.innerHeight - rect.height)
+  const minY = Math.min(topOffset, maxY)
+
+  position.value = {
+    x: clamp(centeredX, 0, Math.max(0, window.innerWidth - rect.width)),
+    y: clamp(position.value.y, minY, maxY)
+  }
+}
+
+function onMouseEnter(): void {
+  hovered.value = true
+  if (closed.value) {
+    closed.value = false
+  }
+}
+
+function onMouseLeave(): void {
+  hovered.value = false
+}
+
+function togglePin(): void {
+  pinned.value = !pinned.value
+  if (pinned.value) {
+    stopDrag()
+  }
+  window.api.window.setAlwaysOnTop(pinned.value)
+}
 </script>
 
 <style scoped>
+.sharing-navbar-wrapper {
+  width: 33vw;
+  max-width: 500px;
+  min-height: 30px;
+  position: fixed;
+  z-index: 30;
+}
+
+.sharing-navbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: var(--color-accent);
+  border-radius: 8px;
+  padding: 4px 10px;
+  height: 30px;
+  transition: opacity 0.2s;
+  cursor: grab;
+}
+
+.sharing-navbar:active {
+  cursor: grabbing;
+}
+
+.sharing-navbar--locked,
+.sharing-navbar--locked:active {
+  cursor: default;
+}
+
+.sharing-navbar__left,
+.sharing-navbar__right {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.sharing-navbar__center {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  font-size: 13px;
+  color: #000;
+}
+
+.sharing-navbar__name {
+  white-space: nowrap;
+}
+
+.sharing-navbar__icon {
+  width: 16px;
+  height: 16px;
+  color: #000;
+}
+
+.sharing-navbar__btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 3px;
+  border-radius: 4px;
+  transition: background-color 0.15s;
+  -webkit-app-region: no-drag;
+}
+
+.sharing-navbar__btn--tools {
+  padding: 4px;
+}
+
+.sharing-navbar__btn:hover {
+  background-color: rgba(0, 0, 0, 0.15);
+}
+
+.sharing-navbar__btn--close:hover {
+  background-color: rgba(220, 38, 38, 0.8);
+}
+
+.sharing-navbar__btn--close:hover .sharing-navbar__icon {
+  color: #fff;
+}
+
+.sharing-navbar--minimized {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  justify-content: center;
+}
+
+.sharing-navbar__btn--restore {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  padding: 0;
+  justify-content: center;
+}
+
 .shortcuts-overlay {
   position: fixed;
   inset: 0;
@@ -215,6 +567,19 @@ function handleAction(action: MenuAction): void {
   box-shadow: 0 28px 60px rgba(0, 0, 0, 0.45);
   padding: 20px;
   color: #e6f4ff;
+}
+
+.shortcuts-panel__close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 8px;
+  background: rgba(16, 28, 43, 0.75);
+  color: #e6f4ff;
+  width: 30px;
+  height: 30px;
+  cursor: pointer;
 }
 
 .shortcuts-panel__header h2 {
@@ -306,6 +671,10 @@ function handleAction(action: MenuAction): void {
 }
 
 @media (max-width: 700px) {
+  .sharing-navbar-wrapper {
+    width: 88vw;
+  }
+
   .shortcuts-overlay {
     padding: 12px;
   }
