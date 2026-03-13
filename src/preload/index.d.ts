@@ -1,5 +1,6 @@
 import { ElectronAPI } from '@electron-toolkit/preload'
 
+// Type contract for renderer -> main window control methods.
 interface WindowAPI {
   minimize: () => void
   maximize: () => void
@@ -7,6 +8,7 @@ interface WindowAPI {
   setAlwaysOnTop: (flag: boolean) => void
 }
 
+// Root API exposed on window.api.
 interface CustomAPI {
   window: WindowAPI
 }
