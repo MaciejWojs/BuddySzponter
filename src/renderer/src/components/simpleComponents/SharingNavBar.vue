@@ -639,8 +639,8 @@ function togglePin(): void {
     radial-gradient(circle at 15% 20%, rgba(var(--tools-accent-rgb), 0.26), transparent 46%),
     radial-gradient(circle at 84% 78%, rgba(var(--tools-accent-soft-rgb), 0.2), transparent 45%),
     rgba(4, 1, 12, 0.6);
-  backdrop-filter: blur(16px) saturate(122%);
-  -webkit-backdrop-filter: blur(16px) saturate(122%);
+  backdrop-filter: blur(8px) saturate(122%);
+  -webkit-backdrop-filter: blur(8x) saturate(122%);
 }
 
 .shortcuts-panel {
