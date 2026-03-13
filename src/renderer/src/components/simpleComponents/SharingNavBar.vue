@@ -86,12 +86,13 @@
       </header>
 
       <div class="shortcuts-layout">
-        <article class="shortcuts-group shortcuts-group--management">
+        <article class="shortcuts-group shortcuts-group--system">
           <h3>
             <UIcon name="i-lucide-keyboard" />
-            Zarządzanie systemem
+            Skróty systemowe
           </h3>
-          <p class="shortcuts-group__meta">Wymaga potwierdzenia</p>
+
+          <p class="shortcuts-group__meta">Zarządzanie systemem</p>
           <button
             v-for="item in managementShortcuts"
             :key="item.id"
@@ -113,21 +114,6 @@
             <small class="shortcut-btn__hint">{{ item.description }}</small>
           </button>
 
-          <div class="confirm-preview">
-            <strong>Potwierdź akcję</strong>
-            <p>Czy na pewno chcesz wykonać akcję zasilania?</p>
-            <div class="confirm-preview__actions">
-              <span>Tak</span>
-              <span>Nie</span>
-            </div>
-          </div>
-        </article>
-
-        <article class="shortcuts-group shortcuts-group--shortcuts">
-          <h3>
-            <UIcon name="i-lucide-monitor" />
-            Skróty dostępne
-          </h3>
           <p class="shortcuts-group__meta">Otwieranie</p>
           <button
             v-for="item in availableShortcuts"
@@ -179,7 +165,6 @@
             <UIcon name="i-lucide-power" />
             Kontrola zasilania
           </h3>
-          <p class="shortcuts-group__meta">Potwierdzenie</p>
           <div class="shortcuts-power-row">
             <button
               v-for="item in powerButtons"
@@ -705,8 +690,7 @@ function togglePin(): void {
   margin-top: 16px;
   display: grid;
   grid-template-columns:
-    minmax(0, 1.15fr)
-    minmax(0, 1.2fr)
+    minmax(0, 1.8fr)
     minmax(230px, 0.8fr)
     minmax(230px, 0.8fr);
   gap: 16px;
@@ -729,52 +713,6 @@ function togglePin(): void {
   font-size: 0.78rem;
 }
 
-.confirm-preview {
-  margin-top: 8px;
-  border: 1px solid rgba(var(--tools-accent-soft-rgb), 0.28);
-  border-radius: 12px;
-  padding: 10px;
-  background: rgba(18, 11, 33, 0.54);
-}
-
-.confirm-preview strong {
-  font-size: 0.9rem;
-  font-weight: 700;
-}
-
-.confirm-preview p {
-  margin-top: 6px;
-  font-size: 0.78rem;
-  color: rgba(230, 214, 248, 0.86);
-}
-
-.confirm-preview__actions {
-  margin-top: 10px;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-
-.confirm-preview__actions span {
-  display: inline-flex;
-  justify-content: center;
-  align-items: center;
-  height: 30px;
-  border-radius: 8px;
-  font-size: 0.82rem;
-  font-weight: 600;
-}
-
-.confirm-preview__actions span:first-child {
-  background: linear-gradient(180deg, rgba(202, 59, 59, 0.92), rgba(160, 41, 41, 0.88));
-  color: #fff;
-}
-
-.confirm-preview__actions span:last-child {
-  background: rgba(68, 52, 92, 0.9);
-  color: rgba(240, 229, 255, 0.92);
-}
-
 .shortcuts-group h3 {
   margin: 0 0 10px;
   display: flex;
@@ -786,13 +724,13 @@ function togglePin(): void {
   color: #f1e6ff;
 }
 
-.shortcuts-group--shortcuts {
+.shortcuts-group--system {
   display: grid;
   grid-template-columns: 1fr;
   gap: 10px;
 }
 
-.shortcuts-group--shortcuts h3 {
+.shortcuts-group--system h3 {
   grid-column: 1 / -1;
   margin-bottom: 4px;
 }
@@ -926,16 +864,12 @@ function togglePin(): void {
   .shortcuts-layout {
     grid-template-columns: 1fr 1fr;
     grid-template-areas:
-      'management shortcuts'
+      'system system'
       'folders power';
   }
 
-  .shortcuts-group--management {
-    grid-area: management;
-  }
-
-  .shortcuts-group--shortcuts {
-    grid-area: shortcuts;
+  .shortcuts-group--system {
+    grid-area: system;
   }
 
   .shortcuts-group--folders {
