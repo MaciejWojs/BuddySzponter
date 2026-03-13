@@ -81,13 +81,16 @@
       </button>
 
       <header class="shortcuts-panel__header">
-        <h2>Skróty systemowe</h2>
-        <p>Kliknij napis lub obwódkę przycisku. Na razie akcje tylko logują użycie.</p>
+        <h2>System Tools</h2>
+        <p>Skróty i szybkie akcje. Na ten moment każde kliknięcie tylko loguje użycie.</p>
       </header>
 
-      <div class="shortcuts-grid">
-        <article class="shortcuts-group">
-          <h3>Skróty klawiaturowe</h3>
+      <div class="shortcuts-layout">
+        <article class="shortcuts-group shortcuts-group--shortcuts">
+          <h3>
+            <UIcon name="i-lucide-keyboard" />
+            Skróty klawiaturowe
+          </h3>
           <button
             v-for="item in shortcutButtons"
             :key="item.id"
@@ -95,38 +98,50 @@
             class="shortcut-btn"
             @click="handleAction(item)"
           >
-            <span class="shortcut-btn__label">{{ item.label }}</span>
+            <span class="shortcut-btn__label shortcut-btn__label--kbd">{{ item.label }}</span>
             <small class="shortcut-btn__hint">{{ item.description }}</small>
           </button>
         </article>
 
-        <article class="shortcuts-group">
-          <h3>Akcje z potwierdzeniem</h3>
-          <button
-            v-for="item in powerButtons"
-            :key="item.id"
-            type="button"
-            class="shortcut-btn shortcut-btn--danger"
-            @click="handleAction(item)"
-          >
-            <span class="shortcut-btn__label">{{ item.label }}</span>
-            <small class="shortcut-btn__hint">{{ item.description }}</small>
-          </button>
-        </article>
+        <div class="shortcuts-side">
+          <article class="shortcuts-group shortcuts-group--folders">
+            <h3>
+              <UIcon name="i-lucide-folder" />
+              Foldery
+            </h3>
+            <div class="shortcuts-folder-grid">
+              <button
+                v-for="item in folderButtons"
+                :key="item.id"
+                type="button"
+                class="shortcut-btn shortcut-btn--compact"
+                @click="handleAction(item)"
+              >
+                <span class="shortcut-btn__label">{{ item.label }}</span>
+                <small class="shortcut-btn__hint">{{ item.description }}</small>
+              </button>
+            </div>
+          </article>
 
-        <article class="shortcuts-group">
-          <h3>Foldery</h3>
-          <button
-            v-for="item in folderButtons"
-            :key="item.id"
-            type="button"
-            class="shortcut-btn"
-            @click="handleAction(item)"
-          >
-            <span class="shortcut-btn__label">{{ item.label }}</span>
-            <small class="shortcut-btn__hint">{{ item.description }}</small>
-          </button>
-        </article>
+          <article class="shortcuts-group shortcuts-group--power">
+            <h3>
+              <UIcon name="i-lucide-power" />
+              Akcje z potwierdzeniem
+            </h3>
+            <div class="shortcuts-power-row">
+              <button
+                v-for="item in powerButtons"
+                :key="item.id"
+                type="button"
+                class="shortcut-btn shortcut-btn--danger"
+                @click="handleAction(item)"
+              >
+                <span class="shortcut-btn__label">{{ item.label }}</span>
+                <small class="shortcut-btn__hint">{{ item.description }}</small>
+              </button>
+            </div>
+          </article>
+        </div>
       </div>
     </div>
   </section>
@@ -550,23 +565,26 @@ function togglePin(): void {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(circle at 10% 10%, rgba(64, 176, 166, 0.22), transparent 45%),
-    radial-gradient(circle at 90% 80%, rgba(243, 156, 18, 0.2), transparent 40%),
-    rgba(8, 14, 26, 0.45);
-  backdrop-filter: blur(14px) saturate(125%);
-  -webkit-backdrop-filter: blur(14px) saturate(125%);
+    radial-gradient(circle at 15% 15%, rgba(40, 180, 160, 0.26), transparent 45%),
+    radial-gradient(circle at 82% 78%, rgba(75, 125, 230, 0.26), transparent 42%),
+    rgba(5, 10, 18, 0.56);
+  backdrop-filter: blur(18px) saturate(138%);
+  -webkit-backdrop-filter: blur(18px) saturate(138%);
 }
 
 .shortcuts-panel {
   position: relative;
-  width: min(1080px, 100%);
+  width: min(1160px, 100%);
   max-height: calc(100vh - 40px);
   overflow: auto;
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  border-radius: 20px;
-  background: rgba(12, 23, 36, 0.78);
-  box-shadow: 0 28px 60px rgba(0, 0, 0, 0.45);
-  padding: 20px;
+  border: 1px solid rgba(185, 217, 255, 0.22);
+  border-radius: 22px;
+  background:
+    linear-gradient(145deg, rgba(14, 28, 43, 0.93), rgba(13, 21, 33, 0.9)), rgba(12, 23, 36, 0.78);
+  box-shadow:
+    0 28px 60px rgba(0, 0, 0, 0.5),
+    inset 0 1px rgba(255, 255, 255, 0.07);
+  padding: 22px;
   color: #e6f4ff;
 }
 
@@ -585,64 +603,103 @@ function togglePin(): void {
 
 .shortcuts-panel__header h2 {
   margin: 0;
-  font-size: clamp(1.2rem, 3vw, 1.8rem);
+  font-size: clamp(1.25rem, 3vw, 1.9rem);
   font-weight: 800;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
 }
 
 .shortcuts-panel__header p {
-  margin: 8px 0 0;
-  opacity: 0.86;
-  font-size: 0.96rem;
+  margin: 10px 0 0;
+  opacity: 0.84;
+  font-size: 0.92rem;
 }
 
-.shortcuts-grid {
-  margin-top: 18px;
+.shortcuts-layout {
+  margin-top: 16px;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
+  grid-template-columns: minmax(0, 1.45fr) minmax(320px, 1fr);
+  gap: 16px;
+}
+
+.shortcuts-side {
+  display: grid;
+  grid-template-rows: auto auto;
+  gap: 16px;
 }
 
 .shortcuts-group {
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(182, 215, 255, 0.2);
   border-radius: 16px;
-  padding: 14px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
+  padding: 14px 14px 12px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.02));
 }
 
 .shortcuts-group h3 {
   margin: 0 0 10px;
-  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.95rem;
   font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.shortcuts-group--shortcuts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.shortcuts-group--shortcuts h3 {
+  grid-column: 1 / -1;
+  margin-bottom: 4px;
+}
+
+.shortcuts-folder-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.shortcuts-power-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
 }
 
 .shortcut-btn {
   width: 100%;
-  margin-top: 9px;
   text-align: left;
-  border: 1px solid rgba(127, 204, 255, 0.6);
+  border: 1px solid rgba(132, 205, 255, 0.56);
   border-radius: 12px;
-  background: rgba(11, 35, 59, 0.62);
+  background: linear-gradient(180deg, rgba(20, 58, 93, 0.64), rgba(12, 38, 62, 0.6));
   color: #f2fbff;
-  padding: 11px 12px;
+  padding: 10px 11px;
   cursor: pointer;
   transition:
     transform 0.16s ease,
     border-color 0.16s ease,
-    background-color 0.16s ease;
+    background-color 0.16s ease,
+    box-shadow 0.16s ease;
 }
 
 .shortcut-btn__label {
   display: block;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   font-weight: 700;
+}
+
+.shortcut-btn__label--kbd {
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 0.02em;
 }
 
 .shortcut-btn__hint {
   display: block;
   margin-top: 4px;
   color: rgba(233, 246, 255, 0.75);
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   line-height: 1.35;
 }
 
@@ -650,24 +707,33 @@ function togglePin(): void {
 .shortcut-btn:focus-visible {
   transform: translateY(-1px);
   border-color: rgba(182, 234, 255, 0.95);
-  background: rgba(16, 58, 95, 0.72);
+  background: linear-gradient(180deg, rgba(28, 78, 124, 0.78), rgba(18, 56, 90, 0.74));
+  box-shadow: 0 8px 16px rgba(7, 21, 36, 0.4);
   outline: none;
 }
 
+.shortcut-btn--compact {
+  min-height: 74px;
+}
+
 .shortcut-btn--danger {
-  border-color: rgba(255, 152, 152, 0.8);
-  background: rgba(76, 13, 13, 0.58);
+  border-color: rgba(255, 171, 171, 0.78);
+  background: linear-gradient(180deg, rgba(110, 26, 26, 0.7), rgba(78, 18, 18, 0.66));
 }
 
 .shortcut-btn--danger:hover,
 .shortcut-btn--danger:focus-visible {
   border-color: rgba(255, 189, 189, 1);
-  background: rgba(116, 23, 23, 0.78);
+  background: linear-gradient(180deg, rgba(146, 35, 35, 0.82), rgba(98, 24, 24, 0.76));
 }
 
 @media (max-width: 1024px) {
-  .shortcuts-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .shortcuts-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .shortcuts-power-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
@@ -685,9 +751,14 @@ function togglePin(): void {
     border-radius: 14px;
   }
 
-  .shortcuts-grid {
-    grid-template-columns: 1fr;
+  .shortcuts-layout {
     gap: 10px;
+  }
+
+  .shortcuts-group--shortcuts,
+  .shortcuts-folder-grid,
+  .shortcuts-power-row {
+    grid-template-columns: 1fr;
   }
 }
 </style>
