@@ -81,8 +81,8 @@
       </button>
 
       <header class="shortcuts-panel__header">
-        <h2>System Tools</h2>
-        <p>Skróty i szybkie akcje. Na ten moment każde kliknięcie tylko loguje użycie.</p>
+        <h2>Szybkie Narzędzia</h2>
+        <p>Wybierz skrót, folder lub akcję. Na razie kliknięcia tylko zapisują się w konsoli.</p>
       </header>
 
       <div class="shortcuts-layout">
@@ -565,11 +565,11 @@ function togglePin(): void {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(circle at 15% 15%, rgba(40, 180, 160, 0.26), transparent 45%),
-    radial-gradient(circle at 82% 78%, rgba(75, 125, 230, 0.26), transparent 42%),
-    rgba(5, 10, 18, 0.56);
-  backdrop-filter: blur(18px) saturate(138%);
-  -webkit-backdrop-filter: blur(18px) saturate(138%);
+    radial-gradient(circle at 18% 18%, rgba(167, 73, 252, 0.2), transparent 48%),
+    radial-gradient(circle at 80% 80%, rgba(128, 196, 255, 0.14), transparent 45%),
+    rgba(6, 3, 14, 0.54);
+  backdrop-filter: blur(15px) saturate(118%);
+  -webkit-backdrop-filter: blur(15px) saturate(118%);
 }
 
 .shortcuts-panel {
@@ -577,13 +577,13 @@ function togglePin(): void {
   width: min(1160px, 100%);
   max-height: calc(100vh - 40px);
   overflow: auto;
-  border: 1px solid rgba(185, 217, 255, 0.22);
+  border: 1px solid rgba(167, 73, 252, 0.32);
   border-radius: 22px;
   background:
-    linear-gradient(145deg, rgba(14, 28, 43, 0.93), rgba(13, 21, 33, 0.9)), rgba(12, 23, 36, 0.78);
+    linear-gradient(145deg, rgba(17, 10, 33, 0.95), rgba(11, 8, 23, 0.93)), rgba(8, 5, 18, 0.9);
   box-shadow:
-    0 28px 60px rgba(0, 0, 0, 0.5),
-    inset 0 1px rgba(255, 255, 255, 0.07);
+    0 30px 60px rgba(0, 0, 0, 0.5),
+    inset 0 1px rgba(255, 255, 255, 0.05);
   padding: 22px;
   color: #e6f4ff;
 }
@@ -603,16 +603,17 @@ function togglePin(): void {
 
 .shortcuts-panel__header h2 {
   margin: 0;
-  font-size: clamp(1.25rem, 3vw, 1.9rem);
-  font-weight: 800;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
+  font-size: clamp(1.2rem, 3vw, 1.7rem);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: #f3e8ff;
 }
 
 .shortcuts-panel__header p {
   margin: 10px 0 0;
-  opacity: 0.84;
+  opacity: 0.9;
   font-size: 0.92rem;
+  color: rgba(241, 228, 255, 0.86);
 }
 
 .shortcuts-layout {
@@ -629,10 +630,10 @@ function togglePin(): void {
 }
 
 .shortcuts-group {
-  border: 1px solid rgba(182, 215, 255, 0.2);
+  border: 1px solid rgba(167, 73, 252, 0.24);
   border-radius: 16px;
   padding: 14px 14px 12px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.02));
+  background: linear-gradient(180deg, rgba(167, 73, 252, 0.1), rgba(255, 255, 255, 0.015));
 }
 
 .shortcuts-group h3 {
@@ -641,8 +642,9 @@ function togglePin(): void {
   align-items: center;
   gap: 8px;
   font-size: 0.95rem;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: 0.01em;
+  color: #efe3ff;
 }
 
 .shortcuts-group--shortcuts {
@@ -671,10 +673,10 @@ function togglePin(): void {
 .shortcut-btn {
   width: 100%;
   text-align: left;
-  border: 1px solid rgba(132, 205, 255, 0.56);
+  border: 1px solid rgba(171, 120, 255, 0.45);
   border-radius: 12px;
-  background: linear-gradient(180deg, rgba(20, 58, 93, 0.64), rgba(12, 38, 62, 0.6));
-  color: #f2fbff;
+  background: linear-gradient(180deg, rgba(43, 23, 74, 0.72), rgba(28, 15, 50, 0.7));
+  color: #f8f2ff;
   padding: 10px 11px;
   cursor: pointer;
   transition:
@@ -706,8 +708,8 @@ function togglePin(): void {
 .shortcut-btn:hover,
 .shortcut-btn:focus-visible {
   transform: translateY(-1px);
-  border-color: rgba(182, 234, 255, 0.95);
-  background: linear-gradient(180deg, rgba(28, 78, 124, 0.78), rgba(18, 56, 90, 0.74));
+  border-color: rgba(206, 167, 255, 0.92);
+  background: linear-gradient(180deg, rgba(66, 37, 108, 0.84), rgba(42, 23, 73, 0.82));
   box-shadow: 0 8px 16px rgba(7, 21, 36, 0.4);
   outline: none;
 }
@@ -717,14 +719,14 @@ function togglePin(): void {
 }
 
 .shortcut-btn--danger {
-  border-color: rgba(255, 171, 171, 0.78);
-  background: linear-gradient(180deg, rgba(110, 26, 26, 0.7), rgba(78, 18, 18, 0.66));
+  border-color: rgba(255, 145, 145, 0.75);
+  background: linear-gradient(180deg, rgba(121, 32, 53, 0.75), rgba(82, 22, 36, 0.72));
 }
 
 .shortcut-btn--danger:hover,
 .shortcut-btn--danger:focus-visible {
-  border-color: rgba(255, 189, 189, 1);
-  background: linear-gradient(180deg, rgba(146, 35, 35, 0.82), rgba(98, 24, 24, 0.76));
+  border-color: rgba(255, 188, 188, 0.96);
+  background: linear-gradient(180deg, rgba(153, 41, 66, 0.86), rgba(102, 27, 44, 0.8));
 }
 
 @media (max-width: 1024px) {
