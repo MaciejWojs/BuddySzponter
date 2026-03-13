@@ -763,6 +763,17 @@ function togglePin(): void {
   gap: 10px;
 }
 
+.shortcuts-group--power {
+  display: flex;
+  flex-direction: column;
+}
+
+.shortcuts-group--power .shortcuts-power-row {
+  width: 100%;
+  margin-top: auto;
+  margin-bottom: auto;
+}
+
 .shortcut-btn {
   width: 100%;
   text-align: left;
