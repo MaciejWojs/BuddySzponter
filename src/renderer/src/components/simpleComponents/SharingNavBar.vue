@@ -208,6 +208,7 @@ const props = withDefaults(
   }
 )
 
+// Core UI state: navbar visibility, pin/minimize mode, and tools overlay.
 const isMenuOpen = ref(false)
 const pinned = ref(false)
 const minimized = ref(false)
@@ -221,12 +222,16 @@ const minimizedSize = 30
 const topOffset = 8
 const navRef = ref<HTMLElement | null>(null)
 
+// Show the bar unless it was closed; hovering the wrapper reveals it again.
 const visible = computed(() => !closed.value || hovered.value)
+
+// Apply the current drag position as inline style.
 const wrapperStyle = computed(() => ({
   left: `${position.value.x}px`,
   top: `${position.value.y}px`
 }))
 
+// Full list of actions rendered in the tools panel.
 const shortcutButtons: MenuAction[] = [
   {
     id: 'ctrl-shift-esc',
@@ -271,7 +276,7 @@ const shortcutButtons: MenuAction[] = [
   {
     id: 'win-x',
     label: 'Win + X',
-    description: 'Menu administratora (szybki dostęp do narzędzi systemowych).'
+    description: 'Menu administratora'
   },
   {
     id: 'win-shift-s',
@@ -334,6 +339,7 @@ const folderButtons: MenuAction[] = [
   }
 ]
 
+// Split shortcuts into two groups to match the system panel layout.
 const managementShortcuts = shortcutButtons.filter(
   (item) => item.id === 'ctrl-shift-esc' || item.id === 'ctrl-alt-delete'
 )
@@ -342,6 +348,7 @@ const availableShortcuts = shortcutButtons.filter(
 )
 
 function handleAction(action: MenuAction): void {
+  // Power actions require confirmation before we log the usage.
   if (action.requiresConfirmation) {
     const confirmed = window.confirm(`Potwierdź akcję: ${action.label}`)
     if (!confirmed) {
@@ -353,6 +360,7 @@ function handleAction(action: MenuAction): void {
   console.log(`[Menu Skrótów] Użyto przycisku: ${action.label}`)
 }
 
+// Open and close the full-screen tools overlay.
 function openMenu(): void {
   isMenuOpen.value = true
 }
@@ -362,6 +370,7 @@ function closeMenu(): void {
 }
 
 function parseShortcut(label: string): string[] {
+  // Turn labels like "Win + X" into key tokens for keycap UI rendering.
   return label
     .split('+')
     .map((part) => part.trim())
@@ -369,6 +378,7 @@ function parseShortcut(label: string): string[] {
 }
 
 function getPowerIcon(actionId: string): string {
+  // Map each power action to the icon used in the power section.
   if (actionId === 'shutdown') {
     return 'i-lucide-power'
   }
@@ -385,6 +395,7 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 function onDrag(event: MouseEvent): void {
+  // Update drag position and keep the navbar inside viewport bounds.
   if (!isDragging.value) {
     return
   }
@@ -403,12 +414,14 @@ function onDrag(event: MouseEvent): void {
 }
 
 function stopDrag(): void {
+  // Finish dragging and remove temporary global listeners.
   isDragging.value = false
   window.removeEventListener('mousemove', onDrag)
   window.removeEventListener('mouseup', stopDrag)
 }
 
 function startDrag(event: MouseEvent): void {
+  // Do not start drag while pinned and ignore clicks coming from buttons.
   if (pinned.value) {
     return
   }
@@ -438,11 +451,13 @@ function startDrag(event: MouseEvent): void {
   window.addEventListener('mouseup', stopDrag)
 }
 
+// Safety cleanup: ensure no mouse listeners remain after unmount.
 onBeforeUnmount(() => {
   stopDrag()
 })
 
 onMounted(async () => {
+  // Initial placement: center the navbar near the top edge.
   await nextTick()
 
   const navWidth =
@@ -456,6 +471,7 @@ onMounted(async () => {
 })
 
 function handleClose(): void {
+  // Hide the bar and reset it to a centered top position.
   const navWidth =
     navRef.value?.getBoundingClientRect().width ?? Math.min(window.innerWidth * 0.33, 500)
   const centeredX = (window.innerWidth - navWidth) / 2
@@ -468,6 +484,7 @@ function handleClose(): void {
 }
 
 function handleMinimize(): void {
+  // Collapse into the mini button while keeping top alignment.
   minimized.value = true
   const centeredX = (window.innerWidth - minimizedSize) / 2
 
@@ -478,6 +495,7 @@ function handleMinimize(): void {
 }
 
 async function handleRestore(): Promise<void> {
+  // Restore full navbar and clamp its position after DOM updates.
   minimized.value = false
   await nextTick()
 
@@ -498,6 +516,7 @@ async function handleRestore(): Promise<void> {
 }
 
 function onMouseEnter(): void {
+  // Bring the bar back when the pointer enters the wrapper area.
   hovered.value = true
   if (closed.value) {
     closed.value = false
@@ -509,6 +528,7 @@ function onMouseLeave(): void {
 }
 
 function togglePin(): void {
+  // Mirror pin state to Electron window always-on-top behavior.
   pinned.value = !pinned.value
   if (pinned.value) {
     stopDrag()
