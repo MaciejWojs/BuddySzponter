@@ -82,17 +82,55 @@
 
       <header class="shortcuts-panel__header">
         <h2>Panel szybkich akcji</h2>
-        <p>Układ narzędzi inspirowany PowerToys. Kliknięcia są logowane w konsoli.</p>
+        <p>Układ inspirowany PowerToys. Brak strzałek po lewej, same najważniejsze akcje.</p>
       </header>
 
       <div class="shortcuts-layout">
-        <article class="shortcuts-group shortcuts-group--shortcuts">
+        <article class="shortcuts-group shortcuts-group--management">
           <h3>
             <UIcon name="i-lucide-keyboard" />
             Zarządzanie systemem
           </h3>
+          <p class="shortcuts-group__meta">Wymaga potwierdzenia</p>
           <button
-            v-for="item in shortcutButtons"
+            v-for="item in managementShortcuts"
+            :key="item.id"
+            type="button"
+            class="shortcut-btn"
+            @click="handleAction(item)"
+          >
+            <span class="shortcut-btn__keys">
+              <template
+                v-for="(part, index) in parseShortcut(item.label)"
+                :key="`${item.id}-${part}-${index}`"
+              >
+                <span class="shortcut-btn__keycap">{{ part }}</span>
+                <span v-if="index < parseShortcut(item.label).length - 1" class="shortcut-btn__plus"
+                  >+</span
+                >
+              </template>
+            </span>
+            <small class="shortcut-btn__hint">{{ item.description }}</small>
+          </button>
+
+          <div class="confirm-preview">
+            <strong>Potwierdź akcję</strong>
+            <p>Czy na pewno chcesz wykonać akcję zasilania?</p>
+            <div class="confirm-preview__actions">
+              <span>Tak</span>
+              <span>Nie</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="shortcuts-group shortcuts-group--shortcuts">
+          <h3>
+            <UIcon name="i-lucide-monitor" />
+            Skróty dostępne
+          </h3>
+          <p class="shortcuts-group__meta">Otwieranie</p>
+          <button
+            v-for="item in availableShortcuts"
             :key="item.id"
             type="button"
             class="shortcut-btn"
@@ -118,6 +156,7 @@
             <UIcon name="i-lucide-folder" />
             Skróty dostępne
           </h3>
+          <p class="shortcuts-group__meta">Otwieranie</p>
           <div class="shortcuts-folder-grid">
             <button
               v-for="item in folderButtons"
@@ -140,22 +179,22 @@
             <UIcon name="i-lucide-power" />
             Kontrola zasilania
           </h3>
+          <p class="shortcuts-group__meta">Potwierdzenie</p>
           <div class="shortcuts-power-row">
             <button
               v-for="item in powerButtons"
               :key="item.id"
               type="button"
-              class="shortcut-btn shortcut-btn--danger"
+              class="shortcut-btn shortcut-btn--danger shortcut-btn--power"
               @click="handleAction(item)"
             >
-              <span class="shortcut-btn__row">
+              <span class="shortcut-btn__row shortcut-btn__row--power">
                 <UIcon
                   :name="getPowerIcon(item.id)"
                   class="shortcut-btn__mini-icon shortcut-btn__mini-icon--power"
                 />
                 <span class="shortcut-btn__label">{{ item.label }} komputer</span>
               </span>
-              <small class="shortcut-btn__hint">{{ item.description }}</small>
             </button>
           </div>
         </article>
@@ -309,6 +348,13 @@ const folderButtons: MenuAction[] = [
     description: 'Folder profilu użytkownika.'
   }
 ]
+
+const managementShortcuts = shortcutButtons.filter(
+  (item) => item.id === 'ctrl-shift-esc' || item.id === 'ctrl-alt-delete'
+)
+const availableShortcuts = shortcutButtons.filter(
+  (item) => item.id !== 'ctrl-shift-esc' && item.id !== 'ctrl-alt-delete'
+)
 
 function handleAction(action: MenuAction): void {
   if (action.requiresConfirmation) {
@@ -655,7 +701,11 @@ function togglePin(): void {
 .shortcuts-layout {
   margin-top: 16px;
   display: grid;
-  grid-template-columns: minmax(0, 1.5fr) minmax(260px, 0.9fr) minmax(250px, 0.8fr);
+  grid-template-columns:
+    minmax(0, 1.15fr)
+    minmax(0, 1.2fr)
+    minmax(230px, 0.8fr)
+    minmax(230px, 0.8fr);
   gap: 16px;
 }
 
@@ -664,6 +714,58 @@ function togglePin(): void {
   border-radius: 16px;
   padding: 14px 14px 12px;
   background: linear-gradient(180deg, rgba(120, 180, 255, 0.11), rgba(255, 255, 255, 0.02));
+}
+
+.shortcuts-group__meta {
+  margin: -6px 0 10px;
+  color: rgba(199, 223, 247, 0.78);
+  font-size: 0.78rem;
+}
+
+.confirm-preview {
+  margin-top: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  padding: 10px;
+  background: rgba(20, 24, 33, 0.5);
+}
+
+.confirm-preview strong {
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.confirm-preview p {
+  margin-top: 6px;
+  font-size: 0.78rem;
+  color: rgba(223, 236, 249, 0.8);
+}
+
+.confirm-preview__actions {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.confirm-preview__actions span {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  height: 30px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.confirm-preview__actions span:first-child {
+  background: linear-gradient(180deg, rgba(202, 59, 59, 0.92), rgba(160, 41, 41, 0.88));
+  color: #fff;
+}
+
+.confirm-preview__actions span:last-child {
+  background: rgba(62, 67, 80, 0.9);
+  color: rgba(232, 242, 255, 0.9);
 }
 
 .shortcuts-group h3 {
@@ -764,6 +866,13 @@ function togglePin(): void {
   gap: 8px;
 }
 
+.shortcut-btn__row--power {
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+  gap: 10px;
+}
+
 .shortcut-btn__mini-icon {
   width: 18px;
   height: 18px;
@@ -787,6 +896,10 @@ function togglePin(): void {
   min-height: 64px;
 }
 
+.shortcut-btn--power {
+  min-height: 116px;
+}
+
 .shortcut-btn--danger {
   border-color: rgba(255, 157, 157, 0.8);
   background: linear-gradient(180deg, rgba(102, 28, 43, 0.8), rgba(72, 19, 30, 0.78));
@@ -802,8 +915,12 @@ function togglePin(): void {
   .shortcuts-layout {
     grid-template-columns: 1fr 1fr;
     grid-template-areas:
-      'shortcuts shortcuts'
+      'management shortcuts'
       'folders power';
+  }
+
+  .shortcuts-group--management {
+    grid-area: management;
   }
 
   .shortcuts-group--shortcuts {
