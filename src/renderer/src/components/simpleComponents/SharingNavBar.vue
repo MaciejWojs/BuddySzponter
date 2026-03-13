@@ -726,13 +726,29 @@ function togglePin(): void {
 
 .shortcuts-group--system {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 
 .shortcuts-group--system h3 {
   grid-column: 1 / -1;
   margin-bottom: 4px;
+}
+
+.shortcuts-group--system .shortcuts-group__meta {
+  grid-column: 1 / -1;
+  margin-bottom: 2px;
+}
+
+.shortcuts-group--system .shortcut-btn {
+  min-height: 76px;
+  padding: 8px 9px;
+}
+
+.shortcuts-group--system .shortcut-btn__hint {
+  margin-top: 3px;
+  font-size: 0.72rem;
+  line-height: 1.2;
 }
 
 .shortcuts-folder-grid {
@@ -901,6 +917,7 @@ function togglePin(): void {
     gap: 10px;
   }
 
+  .shortcuts-group--system,
   .shortcuts-group--shortcuts,
   .shortcuts-folder-grid,
   .shortcuts-power-row {
