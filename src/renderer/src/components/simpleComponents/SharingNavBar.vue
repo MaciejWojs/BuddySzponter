@@ -82,7 +82,7 @@
 
       <header class="shortcuts-panel__header">
         <h2>Panel szybkich akcji</h2>
-        <p>Układ inspirowany PowerToys. Brak strzałek po lewej, same najważniejsze akcje.</p>
+        <p>Wszystkie kluczowe skróty i narzędzia w twoim zasięgu</p>
       </header>
 
       <div class="shortcuts-layout">
@@ -662,13 +662,36 @@ function togglePin(): void {
   position: absolute;
   top: 12px;
   right: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.35);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(var(--tools-accent-soft-rgb), 0.55);
   border-radius: 8px;
-  background: rgba(16, 28, 43, 0.75);
-  color: #e6f4ff;
+  background: linear-gradient(180deg, rgba(54, 30, 90, 0.86), rgba(35, 20, 61, 0.83));
+  color: #f6eaff;
   width: 30px;
   height: 30px;
+  padding: 0;
+  line-height: 1;
   cursor: pointer;
+  transition:
+    border-color 0.16s ease,
+    background-color 0.16s ease,
+    transform 0.16s ease;
+}
+
+.shortcuts-panel__close :deep(svg) {
+  display: block;
+  width: 16px;
+  height: 16px;
+}
+
+.shortcuts-panel__close:hover,
+.shortcuts-panel__close:focus-visible {
+  border-color: rgba(232, 201, 255, 0.95);
+  background: linear-gradient(180deg, rgba(76, 44, 124, 0.9), rgba(50, 29, 83, 0.88));
+  transform: translateY(-1px);
+  outline: none;
 }
 
 .shortcuts-panel__header h2 {
