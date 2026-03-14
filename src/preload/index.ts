@@ -1,7 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 import type { EncryptedPayload } from '../main/decrypt-payload'
-import { ipcRenderer } from 'electron/renderer'
 
 // Custom API exposed to the renderer process.
 const api = {

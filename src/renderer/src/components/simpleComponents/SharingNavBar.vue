@@ -542,7 +542,6 @@ function togglePin(): void {
   if (pinned.value) {
     stopDrag()
   }
-  window.api.window.setAlwaysOnTop(pinned.value)
 }
 </script>
 
