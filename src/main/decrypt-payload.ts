@@ -1,34 +1,23 @@
-import crypto from 'node:crypto'
+import { createDecipheriv } from 'node:crypto'
+import { EncryptedPayload } from './encryptedPayload.schema'
 
-export type EncryptedPayload = {
-  payload: {
-    iv: string
-    tag: string
-    data: string
-  }
-}
-
-export function decryptPayload(p: EncryptedPayload): object {
+export function decryptPayload(p: EncryptedPayload, key: string): object {
   const { payload } = p
   const iv = Buffer.from(payload.iv, 'base64')
   const tag = Buffer.from(payload.tag, 'base64')
   const encrypted = Buffer.from(payload.data, 'base64')
 
-  //! TODO: Find a better way to manage the key (should not be bundled with the app)
-  //@ts-ignore (define in .env)
-  const key = import.meta.env.VITE_ENCRYPTION_KEY
-  console.log('Decrypting payload with key:', key)
-  if (!key) {
-    throw new Error('Encryption key is not defined')
-  }
-  const keyBuffer = Buffer.from(key, 'hex')
+  const keyBuffer = Buffer.from(key, 'base64')
 
-  const decipher = crypto.createDecipheriv('aes-256-gcm', keyBuffer, iv)
+  const decipher = createDecipheriv('aes-256-gcm', keyBuffer, iv)
 
   decipher.setAuthTag(tag)
 
   const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()])
 
-  //! Wrap in try-catch (json parse is throwable)
-  return JSON.parse(decrypted.toString())
+  try {
+    return JSON.parse(decrypted.toString())
+  } catch {
+    throw new Error('Failed to parse decrypted payload')
+  }
 }
