@@ -4,5 +4,8 @@ declare global {
   interface Window {
     electron: ElectronAPI
     api: unknown
+    apiUtils: {
+      decryptPayload: (p: EncryptedPayload) => Promise<Object>
+    }
   }
 }
