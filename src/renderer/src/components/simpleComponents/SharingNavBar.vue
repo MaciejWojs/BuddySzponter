@@ -394,6 +394,33 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max)
 }
 
+function getCurrentNavbarWidth(): number {
+  if (minimized.value) {
+    return minimizedSize
+  }
+
+  return navRef.value?.getBoundingClientRect().width ?? Math.min(window.innerWidth * 0.33, 500)
+}
+
+function centerNavbarAtTop(): void {
+  const navWidth = getCurrentNavbarWidth()
+  const centeredX = (window.innerWidth - navWidth) / 2
+
+  position.value = {
+    x: clamp(centeredX, 0, Math.max(0, window.innerWidth - navWidth)),
+    y: topOffset
+  }
+}
+
+function onWindowResize(): void {
+  // Recenter after window restore/maximize so the top bar stays aligned.
+  if (isDragging.value) {
+    return
+  }
+
+  centerNavbarAtTop()
+}
+
 function onDrag(event: MouseEvent): void {
   // Update drag position and keep the navbar inside viewport bounds.
   if (!isDragging.value) {
@@ -454,44 +481,26 @@ function startDrag(event: MouseEvent): void {
 // Safety cleanup: ensure no mouse listeners remain after unmount.
 onBeforeUnmount(() => {
   stopDrag()
+  window.removeEventListener('resize', onWindowResize)
 })
 
 onMounted(async () => {
   // Initial placement: center the navbar near the top edge.
   await nextTick()
-
-  const navWidth =
-    navRef.value?.getBoundingClientRect().width ?? Math.min(window.innerWidth * 0.33, 500)
-  const centeredX = (window.innerWidth - navWidth) / 2
-
-  position.value = {
-    x: clamp(centeredX, 0, Math.max(0, window.innerWidth - navWidth)),
-    y: topOffset
-  }
+  centerNavbarAtTop()
+  window.addEventListener('resize', onWindowResize)
 })
 
 function handleClose(): void {
   // Hide the bar and reset it to a centered top position.
-  const navWidth =
-    navRef.value?.getBoundingClientRect().width ?? Math.min(window.innerWidth * 0.33, 500)
-  const centeredX = (window.innerWidth - navWidth) / 2
-
   closed.value = true
-  position.value = {
-    x: clamp(centeredX, 0, Math.max(0, window.innerWidth - navWidth)),
-    y: topOffset
-  }
+  centerNavbarAtTop()
 }
 
 function handleMinimize(): void {
   // Collapse into the mini button while keeping top alignment.
   minimized.value = true
-  const centeredX = (window.innerWidth - minimizedSize) / 2
-
-  position.value = {
-    x: Math.max(0, centeredX),
-    y: topOffset
-  }
+  centerNavbarAtTop()
 }
 
 async function handleRestore(): Promise<void> {
