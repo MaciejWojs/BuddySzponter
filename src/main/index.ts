@@ -2,7 +2,6 @@ import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
-import { decryptPayload } from './decrypt-payload'
 
 function createWindow(): void {
   // Create the browser window.
@@ -52,19 +51,6 @@ app.whenReady().then(() => {
 
   // IPC test
   ipcMain.on('ping', () => console.log('pong'))
-  ipcMain.handle('decrypt-payload', async (_, payload: unknown) => {
-    try {
-      if (typeof payload !== 'string') {
-        throw new Error('Invalid payload format')
-      }
-
-      return decryptPayload(payload)
-    } catch (error) {
-      // Log detailed error on the main process side, but return a generic error to the renderer.
-      console.error('Failed to decrypt payload:', error)
-      throw new Error('Failed to decrypt payload')
-    }
-  })
   createWindow()
 
   //! Test handshake and encryption
