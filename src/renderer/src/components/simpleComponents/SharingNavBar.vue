@@ -547,8 +547,7 @@ function togglePin(): void {
 
 <style scoped>
 .sharing-navbar-wrapper {
-  width: 33vw;
-  max-width: 500px;
+  display: inline-block;
   min-height: 30px;
   position: fixed;
   z-index: 30;
@@ -558,6 +557,8 @@ function togglePin(): void {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  width: 33vw;
+  max-width: 500px;
   background-color: var(--color-accent);
   border-radius: 8px;
   padding: 4px 10px;
