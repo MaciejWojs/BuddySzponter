@@ -665,11 +665,11 @@ function togglePin(): void {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(circle at 15% 20%, rgba(var(--tools-accent-rgb), 0.26), transparent 46%),
-    radial-gradient(circle at 84% 78%, rgba(var(--tools-accent-soft-rgb), 0.2), transparent 45%),
-    rgba(4, 1, 12, 0.6);
-  backdrop-filter: blur(8px) saturate(122%);
-  -webkit-backdrop-filter: blur(8x) saturate(122%);
+    radial-gradient(circle at 18% 18%, rgba(var(--tools-accent-rgb), 0.08), transparent 52%),
+    radial-gradient(circle at 82% 75%, rgba(var(--tools-accent-soft-rgb), 0.06), transparent 50%),
+    rgba(12, 16, 24, 0.22);
+  backdrop-filter: blur(10px) saturate(108%);
+  -webkit-backdrop-filter: blur(10px) saturate(108%);
 }
 
 .shortcuts-panel {
@@ -677,12 +677,15 @@ function togglePin(): void {
   width: min(1160px, 100%);
   max-height: calc(100vh - 40px);
   overflow: auto;
-  border: 1px solid rgba(var(--tools-accent-rgb), 0.38);
+  border: 1px solid rgba(var(--tools-accent-rgb), 0.26);
   border-radius: 22px;
-  background: linear-gradient(145deg, var(--tools-bg-1), var(--tools-bg-2)), rgba(7, 12, 21, 0.92);
+  background:
+    linear-gradient(145deg, rgba(10, 5, 22, 0.62), rgba(6, 2, 16, 0.56)), rgba(7, 12, 21, 0.46);
   box-shadow:
-    0 30px 60px rgba(0, 0, 0, 0.5),
-    inset 0 1px rgba(255, 255, 255, 0.05);
+    0 28px 56px rgba(0, 0, 0, 0.38),
+    inset 0 1px rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(12px) saturate(108%);
+  -webkit-backdrop-filter: blur(12px) saturate(108%);
   padding: 22px;
   color: #e6f4ff;
 }
@@ -754,8 +757,8 @@ function togglePin(): void {
   padding: 14px 14px 12px;
   background: linear-gradient(
     180deg,
-    rgba(var(--tools-accent-rgb), 0.12),
-    rgba(var(--tools-accent-soft-rgb), 0.03)
+    rgba(var(--tools-accent-rgb), 0.08),
+    rgba(var(--tools-accent-soft-rgb), 0.02)
   );
 }
 
@@ -831,7 +834,7 @@ function togglePin(): void {
   text-align: left;
   border: 1px solid rgba(var(--tools-accent-soft-rgb), 0.48);
   border-radius: 12px;
-  background: linear-gradient(180deg, rgba(55, 31, 92, 0.74), rgba(33, 19, 58, 0.72));
+  background: linear-gradient(180deg, rgba(55, 31, 92, 0.52), rgba(33, 19, 58, 0.46));
   color: #f8f1ff;
   padding: 10px 11px;
   cursor: pointer;
@@ -930,7 +933,7 @@ function togglePin(): void {
 
 .shortcut-btn--danger {
   border-color: rgba(255, 157, 157, 0.8);
-  background: linear-gradient(180deg, rgba(102, 28, 43, 0.8), rgba(72, 19, 30, 0.78));
+  background: linear-gradient(180deg, rgba(102, 28, 43, 0.58), rgba(72, 19, 30, 0.52));
 }
 
 .shortcut-btn--danger:hover,
