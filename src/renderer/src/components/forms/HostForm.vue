@@ -1,5 +1,4 @@
 <script lang="ts" setup>
-import { ref } from 'vue'
 import BuTimer from '../simpleComponents/BuTimer.vue'
 import { customAlphabet } from 'nanoid/non-secure'
 import zxcvbn from 'zxcvbn'
@@ -34,19 +33,19 @@ const passwordValidator = computed(() =>
         .refine((value) => (value.match(/\p{L}/gu) ?? []).length <= PASSWORD_MAX_LETTERS, {
           message: t('validation.passwordMaxLetters', { count: PASSWORD_MAX_LETTERS })
         })
-        .refine((value) => value.length < PASSWORD_MIN_LENGTH || hasLowercase(value), {
+        .refine(hasLowercase, {
           message: t('validation.passwordRequiresLowercase')
         })
-        .refine((value) => value.length < PASSWORD_MIN_LENGTH || hasUppercase(value), {
+        .refine(hasUppercase, {
           message: t('validation.passwordRequiresUppercase')
         })
-        .refine((value) => value.length < PASSWORD_MIN_LENGTH || hasDigit(value), {
+        .refine(hasDigit, {
           message: t('validation.passwordRequiresDigit')
         })
-        .refine((value) => value.length < PASSWORD_MIN_LENGTH || hasSpecialCharacter(value), {
+        .refine(hasSpecialCharacter, {
           message: t('validation.passwordRequiresSpecialCharacter')
         })
-        .min(PASSWORD_MIN_LENGTH, {
+        .refine((value) => value.length >= PASSWORD_MIN_LENGTH, {
           message: t('validation.passwordMinLength', { count: PASSWORD_MIN_LENGTH })
         })
     })
@@ -56,10 +55,6 @@ const passwordValidator = computed(() =>
 const { errors, defineField, validateField } = useForm({
   validationSchema: passwordValidator
 })
-
-const validateSessionPasswordDebounced = useDebounceFn(() => {
-  void validateField('sessionPassword')
-}, 150)
 
 const [sessionPassword, sessionPasswordAttrs] = defineField('sessionPassword', {
   validateOnModelUpdate: false,
@@ -85,7 +80,7 @@ const strongProgressColor = computed(() => {
 })
 
 const refreshTime = 120
-const show = ref(false)
+const [show, toggleShow] = useToggle(false)
 
 const timer = ref<InstanceType<typeof BuTimer>>()
 const time = ref(0)
@@ -94,9 +89,13 @@ onMounted(() => {
   onTimerFinish()
 })
 
-watch(sessionPassword, () => {
-  validateSessionPasswordDebounced()
-})
+watchDebounced(
+  sessionPassword,
+  () => {
+    void validateField('sessionPassword')
+  },
+  { debounce: 150 }
+)
 
 function onTimerTick(value: number): void {
   time.value = value
@@ -108,7 +107,7 @@ function onTimerFinish(): void {
   sessionCode.value = nanoid()
 }
 
-function randomPassword(): void {
+function onRandomPasswordClick(): void {
   let generatedPassword = nanoidPassword()
 
   while (!hasRequiredPasswordCharacters(generatedPassword)) {
@@ -116,20 +115,6 @@ function randomPassword(): void {
   }
 
   sessionPassword.value = generatedPassword
-}
-
-function onTogglePasswordVisibility(): void {
-  show.value = !show.value
-  validateSessionPasswordDebounced()
-}
-
-function onRandomPasswordClick(): void {
-  randomPassword()
-  validateSessionPasswordDebounced()
-}
-
-function onPasswordBlur(): void {
-  validateSessionPasswordDebounced()
 }
 </script>
 
@@ -166,7 +151,7 @@ function onPasswordBlur(): void {
         font-size="20px"
         :copy-on-click="true"
         :show-copy-popover="true"
-        @blur="onPasswordBlur"
+        @blur="() => validateField('sessionPassword')"
       >
         <template #suffix>
           <div class="flex flex-row items-center">
@@ -177,7 +162,7 @@ function onPasswordBlur(): void {
               class="text-white opacity-50"
               :aria-label="show ? 'Hide password' : 'Show password'"
               :aria-pressed="show"
-              @click="onTogglePasswordVisibility"
+              @click="toggleShow()"
             />
             <UButton
               icon="lucide:dice-1"

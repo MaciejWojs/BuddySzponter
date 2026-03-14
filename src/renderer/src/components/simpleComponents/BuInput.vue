@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, PropType, ref, useAttrs } from 'vue'
-import { useI18n } from 'vue-i18n'
+import type { PropType } from 'vue'
 
 defineOptions({
   inheritAttrs: false
@@ -73,9 +72,16 @@ const props = defineProps({
 
 const { t } = useI18n()
 const attrs = useAttrs()
+const { copy } = useClipboard()
 
 const isCopyPopoverOpen = ref(false)
-let copyPopoverTimeout: ReturnType<typeof setTimeout> | null = null
+const { start: startPopoverTimeout, stop: stopPopoverTimeout } = useTimeoutFn(
+  () => {
+    isCopyPopoverOpen.value = false
+  },
+  () => props.copyPopoverDuration,
+  { immediate: false }
+)
 
 const fontFamilyMap = {
   mono: "'JetBrains Mono', monospace",
@@ -107,20 +113,14 @@ async function onClick(): Promise<void> {
   if (!text) return
 
   try {
-    await navigator.clipboard.writeText(text)
+    await copy(text)
     emit('copied', text)
 
     if (!props.showCopyPopover) return
 
     isCopyPopoverOpen.value = true
-
-    if (copyPopoverTimeout) {
-      clearTimeout(copyPopoverTimeout)
-    }
-
-    copyPopoverTimeout = setTimeout(() => {
-      isCopyPopoverOpen.value = false
-    }, props.copyPopoverDuration)
+    stopPopoverTimeout()
+    startPopoverTimeout()
   } catch {
     // Keep UI responsive even when clipboard access is blocked.
   }
@@ -137,12 +137,6 @@ function onPopoverOpenChange(value: boolean): void {
     isCopyPopoverOpen.value = false
   }
 }
-
-onBeforeUnmount(() => {
-  if (copyPopoverTimeout) {
-    clearTimeout(copyPopoverTimeout)
-  }
-})
 </script>
 <template>
   <UPopover

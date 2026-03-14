@@ -16,6 +16,10 @@ interface CustomAPI {
 declare global {
   interface Window {
     electron: ElectronAPI
-    api: CustomAPI
+//    api: CustomAPI
+    api: unknown
+    apiUtils: {
+      decryptPayload: (p: EncryptedPayload) => Promise<Object>
+    }
   }
 }
