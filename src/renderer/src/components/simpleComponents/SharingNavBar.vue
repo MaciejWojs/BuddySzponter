@@ -657,17 +657,17 @@ function togglePin(): void {
   padding: 18px;
   --tools-accent-rgb: 167, 73, 252;
   --tools-accent-soft-rgb: 200, 143, 255;
-  --tools-bg-1: rgba(10, 5, 22, 0.72);
-  --tools-bg-2: rgba(6, 2, 16, 0.68);
+  --tools-bg-1: rgba(10, 5, 22, 0.84);
+  --tools-bg-2: rgba(6, 2, 16, 0.8);
 }
 
 .shortcuts-overlay__backdrop {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(circle at 18% 18%, rgba(var(--tools-accent-rgb), 0.05), transparent 52%),
-    radial-gradient(circle at 82% 75%, rgba(var(--tools-accent-soft-rgb), 0.04), transparent 50%),
-    rgba(12, 16, 24, 0.1);
+    radial-gradient(circle at 18% 18%, rgba(var(--tools-accent-rgb), 0.09), transparent 52%),
+    radial-gradient(circle at 82% 75%, rgba(var(--tools-accent-soft-rgb), 0.07), transparent 50%),
+    rgba(12, 16, 24, 0.22);
   backdrop-filter: blur(10px) saturate(108%);
   -webkit-backdrop-filter: blur(10px) saturate(108%);
 }
@@ -677,13 +677,13 @@ function togglePin(): void {
   width: min(1160px, 100%);
   max-height: calc(100vh - 40px);
   overflow: auto;
-  border: 1px solid rgba(var(--tools-accent-rgb), 0.2);
+  border: 1px solid rgba(var(--tools-accent-rgb), 0.27);
   border-radius: 22px;
   background:
-    linear-gradient(145deg, rgba(10, 5, 22, 0.46), rgba(6, 2, 16, 0.4)), rgba(7, 12, 21, 0.3);
+    linear-gradient(145deg, rgba(10, 5, 22, 0.6), rgba(6, 2, 16, 0.54)), rgba(7, 12, 21, 0.44);
   box-shadow:
-    0 28px 56px rgba(0, 0, 0, 0.28),
-    inset 0 1px rgba(255, 255, 255, 0.05);
+    0 28px 56px rgba(0, 0, 0, 0.36),
+    inset 0 1px rgba(255, 255, 255, 0.07);
   backdrop-filter: blur(12px) saturate(108%);
   -webkit-backdrop-filter: blur(12px) saturate(108%);
   padding: 22px;
@@ -697,9 +697,9 @@ function togglePin(): void {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(var(--tools-accent-soft-rgb), 0.42);
+  border: 1px solid rgba(var(--tools-accent-soft-rgb), 0.48);
   border-radius: 8px;
-  background: linear-gradient(180deg, rgba(54, 30, 90, 0.64), rgba(35, 20, 61, 0.6));
+  background: linear-gradient(180deg, rgba(54, 30, 90, 0.72), rgba(35, 20, 61, 0.68));
   color: #f6eaff;
   width: 30px;
   height: 30px;
@@ -721,7 +721,7 @@ function togglePin(): void {
 .shortcuts-panel__close:hover,
 .shortcuts-panel__close:focus-visible {
   border-color: rgba(232, 201, 255, 0.95);
-  background: linear-gradient(180deg, rgba(76, 44, 124, 0.72), rgba(50, 29, 83, 0.68));
+  background: linear-gradient(180deg, rgba(76, 44, 124, 0.8), rgba(50, 29, 83, 0.76));
   transform: translateY(-1px);
   outline: none;
 }
@@ -752,13 +752,13 @@ function togglePin(): void {
 }
 
 .shortcuts-group {
-  border: 1px solid rgba(var(--tools-accent-rgb), 0.2);
+  border: 1px solid rgba(var(--tools-accent-rgb), 0.28);
   border-radius: 16px;
   padding: 14px 14px 12px;
   background: linear-gradient(
     180deg,
-    rgba(var(--tools-accent-rgb), 0.05),
-    rgba(var(--tools-accent-soft-rgb), 0.01)
+    rgba(var(--tools-accent-rgb), 0.1),
+    rgba(var(--tools-accent-soft-rgb), 0.04)
   );
 }
 
@@ -832,9 +832,9 @@ function togglePin(): void {
 .shortcut-btn {
   width: 100%;
   text-align: left;
-  border: 1px solid rgba(var(--tools-accent-soft-rgb), 0.34);
+  border: 1px solid rgba(var(--tools-accent-soft-rgb), 0.46);
   border-radius: 12px;
-  background: linear-gradient(180deg, rgba(55, 31, 92, 0.36), rgba(33, 19, 58, 0.3));
+  background: linear-gradient(180deg, rgba(55, 31, 92, 0.5), rgba(33, 19, 58, 0.44));
   color: #f8f1ff;
   padding: 10px 11px;
   cursor: pointer;
@@ -865,12 +865,8 @@ function togglePin(): void {
   min-width: 34px;
   height: 28px;
   border-radius: 7px;
-  border: 1px solid rgba(var(--tools-accent-soft-rgb), 0.68);
-  background: linear-gradient(
-    180deg,
-    rgba(var(--tools-accent-rgb), 0.72),
-    rgba(124, 44, 210, 0.66)
-  );
+  border: 1px solid rgba(var(--tools-accent-soft-rgb), 0.84);
+  background: linear-gradient(180deg, rgba(var(--tools-accent-rgb), 0.86), rgba(124, 44, 210, 0.8));
   color: #f8f0ff;
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.82rem;
@@ -918,8 +914,8 @@ function togglePin(): void {
 .shortcut-btn:focus-visible {
   transform: translateY(-1px);
   border-color: rgba(222, 184, 255, 0.95);
-  background: linear-gradient(180deg, rgba(76, 43, 126, 0.64), rgba(48, 27, 85, 0.6));
-  box-shadow: 0 8px 16px rgba(7, 21, 36, 0.28);
+  background: linear-gradient(180deg, rgba(76, 43, 126, 0.82), rgba(48, 27, 85, 0.78));
+  box-shadow: 0 8px 16px rgba(7, 21, 36, 0.38);
   outline: none;
 }
 
@@ -932,14 +928,14 @@ function togglePin(): void {
 }
 
 .shortcut-btn--danger {
-  border-color: rgba(255, 157, 157, 0.62);
-  background: linear-gradient(180deg, rgba(102, 28, 43, 0.42), rgba(72, 19, 30, 0.36));
+  border-color: rgba(255, 157, 157, 0.78);
+  background: linear-gradient(180deg, rgba(102, 28, 43, 0.58), rgba(72, 19, 30, 0.52));
 }
 
 .shortcut-btn--danger:hover,
 .shortcut-btn--danger:focus-visible {
   border-color: rgba(255, 203, 203, 0.96);
-  background: linear-gradient(180deg, rgba(136, 38, 58, 0.66), rgba(90, 25, 39, 0.6));
+  background: linear-gradient(180deg, rgba(136, 38, 58, 0.84), rgba(90, 25, 39, 0.78));
 }
 
 @media (max-width: 1024px) {
