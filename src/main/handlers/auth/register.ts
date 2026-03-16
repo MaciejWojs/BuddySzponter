@@ -1,51 +1,41 @@
 import { ipcMain } from 'electron'
-import { handshake } from '../../utils/handshake'
+
 import { encryptPayload } from '../../utils/encrypt-payload'
+import { execute } from '../../utils/execute'
+import { secureStore } from '../../utils/secureStore'
 import { decryptPayload } from '../../utils/decrypt-payload'
 
 export async function register(): Promise<void> {
-  let r
-  try {
-    r = await handshake('http://localhost/api/v1/crypto/handshake')
-    console.log('Handshake completed')
-  } catch (error) {
-    console.error('Handshake failed:', error)
-    throw error
-  }
-
   ipcMain.handle(
     'auth:register',
-    async (_event, { email, password, passwordConfirm, nickname }) => {
-      try {
+    async (_event, { email, password, passwordConfirm, nickname }) =>
+      await execute(async () => {
+        const key = secureStore.getSecure('aesKey')
+        const id = secureStore.getSecure('sessionId')
+
+        if (!key || !id) {
+          throw new Error('No session found. Please complete the handshake first.')
+        }
+
         const baseURL = 'http://localhost/api/v1'
         const url = `${baseURL}/auth/register`
 
-        const aesKey = Buffer.from(r.aesKey, 'base64')
-        const bd = { email, password, passwordConfirm, nickname }
-        const temp = await encryptPayload(bd, aesKey)
-        const encryptedPayload = { payload: { ...temp } }
+        const aesKeyBuffer = Buffer.from(key, 'base64')
+        const payloadData = { email, password, passwordConfirm, nickname }
+        const encrypted = await encryptPayload(payloadData, aesKeyBuffer)
 
         const response = await fetch(url, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'X-session-id': r.sessionId
+            'X-session-id': id
           },
-          body: JSON.stringify(encryptedPayload)
+          body: JSON.stringify({ payload: encrypted })
         })
+        const decrypted = await decryptPayload(await response.json(), key)
+        console.log('Decrypted response from register:', decrypted)
 
-        if (!response.ok) {
-          const errorData = await response.json()
-          const decryptedresponse = decryptPayload(errorData, r.aesKey)
-          console.log('Decrypted error response:', decryptedresponse)
-          // throw new Error(decryptedresponse.mass || 'Registration failed')
-        }
-        const data = await response.json()
-        return data
-      } catch (error) {
-        console.error('Error during registration:', error)
-        throw new Error('Registration failed')
-      }
-    }
+        return response
+      })
   )
 }
