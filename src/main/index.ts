@@ -3,6 +3,8 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { register } from './handlers/auth/register'
+import { handshake } from './utils/handshake'
+import { secureStore } from './utils/secureStore'
 
 function createWindow(): void {
   // Create the browser window.
@@ -52,9 +54,21 @@ app.whenReady().then(async () => {
 
   // IPC test
   ipcMain.on('ping', () => console.log('pong'))
-  createWindow()
 
   await register()
+
+  createWindow()
+
+  try {
+    const r = await handshake('http://localhost/api/v1/crypto/handshake')
+
+    secureStore.setSecure('sessionId', r.sessionId)
+    secureStore.setSecure('aesKey', r.aesKey)
+
+    console.log('Handshake completed, sessionId and aesKey stored securely')
+  } catch (error) {
+    console.error('Error during handshake:', error)
+  }
 
   //! Test handshake and encryption
   // handshake()

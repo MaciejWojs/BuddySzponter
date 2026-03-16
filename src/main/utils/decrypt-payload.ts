@@ -1,5 +1,5 @@
 import { createDecipheriv } from 'node:crypto'
-import { EncryptedPayload } from '../encryptedPayload.schema'
+import { EncryptedPayload } from '../schemas/encryptedPayload.schema'
 
 export function decryptPayload(p: EncryptedPayload, key: string): object {
   const { payload } = p
