@@ -1,3 +1,4 @@
+import { API_ROUTES } from '../apiRoutes'
 import { encryptPayloadSchema } from '../schemas/encryptedPayload.schema'
 import { handshake } from './handshake'
 import { secureStore } from './secureStore'
@@ -13,7 +14,9 @@ export async function execute(callback: () => Promise<Response>): Promise<Respon
       secureStore.clearSession()
 
       try {
-        const newSession = await handshake('http://localhost/api/v1/crypto/handshake')
+        const newSession = await handshake(
+          `${import.meta.env.VITE_API_BASE_URL}${API_ROUTES.CRYPTO.HANDSHAKE}`
+        )
         secureStore.setSecure('sessionId', newSession.sessionId)
         secureStore.setSecure('aesKey', newSession.aesKey)
 
