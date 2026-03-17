@@ -1,25 +1,25 @@
+// src/schemas/authSchemas.ts
 import { z } from 'zod'
-
-export const loginInputSchema = z.object({
-  email: z.email({
-    message: 'Invalid email format',
-    pattern: z.regexes?.email
-  }),
-  password: z.string().min(6, { message: 'Password must be at least 6 characters' })
-})
-
-export const loginResponseSchema = z.object({
-  message: z.string()
-})
+import zxcvbn from 'zxcvbn'
 
 export const registerInputSchema = z
   .object({
-    nickname: z.string().min(3, { message: 'Nickname must be at least 3 characters' }),
-    email: z.email({
-      message: 'Invalid email address format',
-      pattern: z.regexes?.email
-    }),
-    password: z.string().min(6, { message: 'Password must be at least 6 characters' }),
+    nickname: z
+      .string()
+      .min(3, { message: 'nickname have to be at least 3 characters long' })
+      .max(20, { message: 'nickname can be at most 20 characters long' }),
+
+    email: z.email({ message: 'Please provide a valid email address' }),
+
+    password: z
+      .string()
+      .min(8, { message: 'password must be at least 8 characters long' })
+      .regex(/[A-Z]/, { message: 'password must contain an uppercase letter' })
+      .regex(/[0-9]/, { message: 'password must contain a digit' })
+      .refine((val) => zxcvbn(val).score >= 3, {
+        message: 'Password is too weak (min. zxcvbn score: 3)'
+      }),
+
     passwordConfirm: z.string()
   })
   .refine((data) => data.password === data.passwordConfirm, {
@@ -27,26 +27,11 @@ export const registerInputSchema = z
     path: ['passwordConfirm']
   })
 
-export const registerResponseSchema = z.object({
-  message: z.string()
+export const loginInputSchema = z.object({
+  email: z.email({ message: 'Please provide a valid email address' }),
+  password: z.string().min(1, { message: 'Password cannot be empty' })
 })
-
-export const apiErrorSchema = z.object({
-  message: z.string(),
-  cause: z
-    .array(
-      z.object({
-        field: z.string(),
-        error: z.string()
-      })
-    )
-    .optional()
-})
-
-export type RegisterInput = z.infer<typeof registerInputSchema>
-export type RegisterResponse = z.infer<typeof registerResponseSchema>
 
 export type LoginInput = z.infer<typeof loginInputSchema>
-export type LoginResponse = z.infer<typeof loginResponseSchema>
 
-export type ApiErrorResponse = z.infer<typeof apiErrorSchema>
+export type RegisterInput = z.infer<typeof registerInputSchema>
