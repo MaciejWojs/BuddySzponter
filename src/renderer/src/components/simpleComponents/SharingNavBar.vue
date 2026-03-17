@@ -658,8 +658,9 @@ function togglePin(): void {
   --tools-accent-soft-rgb: 200, 143, 255;
   --tools-bg-1: rgba(10, 5, 22, 0.84);
   --tools-bg-2: rgba(6, 2, 16, 0.8);
-  --tools-win-glow-rgb: 158, 118, 255;
-  --tools-win-line-rgb: 233, 223, 255;
+  --tools-win-glow-rgb: 60, 40, 120;
+  --tools-win-line-rgb: 120, 110, 180;
+  --tools-win-shadow-rgb: 30, 20, 60;
 }
 
 .shortcuts-overlay__backdrop {
@@ -674,24 +675,6 @@ function togglePin(): void {
   -webkit-backdrop-filter: blur(10px) saturate(108%);
 }
 
-.shortcuts-overlay__backdrop::after {
-  content: '';
-  position: absolute;
-  right: clamp(16px, 8vw, 120px);
-  top: 50%;
-  width: clamp(260px, 28vw, 420px);
-  aspect-ratio: 1.45 / 1;
-  transform: translateY(-50%) skew(-6deg);
-  pointer-events: none;
-  z-index: 1;
-  opacity: 0.18;
-  background:
-    linear-gradient(to right, transparent 49.4%, #fff 49.4% 50.6%, transparent 50.6%),
-    linear-gradient(to bottom, transparent 49.4%, #fff 49.4% 50.6%, transparent 50.6%);
-  box-shadow: 0 0 32px 8px rgba(158, 118, 255, 0.18);
-  border-radius: 8px;
-}
-
 .shortcuts-overlay__backdrop::before {
   content: '';
   position: absolute;
@@ -702,11 +685,11 @@ function togglePin(): void {
   transform: translateY(-50%) skew(-6deg);
   pointer-events: none;
   background:
-    radial-gradient(circle at 48% 50%, rgba(var(--tools-win-glow-rgb), 0.35), transparent 62%),
-    radial-gradient(circle at 52% 50%, rgba(var(--tools-win-glow-rgb), 0.18), transparent 78%);
-  filter: blur(2px);
-  opacity: 0.8;
-  animation: windowsGlowPulse 6.2s ease-in-out infinite;
+    radial-gradient(circle at 48% 50%, rgba(var(--tools-win-glow-rgb), 0.22), transparent 62%),
+    radial-gradient(circle at 52% 50%, rgba(var(--tools-win-shadow-rgb), 0.13), transparent 78%);
+  filter: blur(3px);
+  opacity: 0.55;
+  animation: windowsGlowPulse 7.2s ease-in-out infinite;
 }
 
 .shortcuts-overlay__backdrop::after {
@@ -718,31 +701,31 @@ function togglePin(): void {
   aspect-ratio: 1.45 / 1;
   transform: translateY(-50%) perspective(800px) rotateY(-16deg);
   pointer-events: none;
-  opacity: 0.72;
+  opacity: 0.38;
   background:
     linear-gradient(
       to right,
       transparent 49.4%,
-      rgba(var(--tools-win-line-rgb), 0.84) 49.4% 50.6%,
+      rgba(var(--tools-win-line-rgb), 0.22) 49.4% 50.6%,
       transparent 50.6%
     ),
     linear-gradient(
       to bottom,
       transparent 49.4%,
-      rgba(var(--tools-win-line-rgb), 0.84) 49.4% 50.6%,
+      rgba(var(--tools-win-line-rgb), 0.22) 49.4% 50.6%,
       transparent 50.6%
     ),
     linear-gradient(
       165deg,
-      rgba(var(--tools-win-glow-rgb), 0.5),
-      rgba(var(--tools-win-glow-rgb), 0.12)
+      rgba(var(--tools-win-glow-rgb), 0.13),
+      rgba(var(--tools-win-shadow-rgb), 0.09)
     );
   box-shadow:
-    0 0 34px rgba(var(--tools-win-glow-rgb), 0.42),
-    0 0 80px rgba(var(--tools-win-glow-rgb), 0.24),
-    inset 0 0 24px rgba(var(--tools-win-line-rgb), 0.22);
-  border: 1px solid rgba(var(--tools-win-line-rgb), 0.48);
-  animation: windowsLogoBreath 7.4s ease-in-out infinite;
+    0 0 34px 12px rgba(var(--tools-win-glow-rgb), 0.22),
+    0 0 80px 24px rgba(var(--tools-win-glow-rgb), 0.18),
+    inset 0 0 24px rgba(var(--tools-win-line-rgb), 0.12);
+  border: 1px solid rgba(var(--tools-win-line-rgb), 0.18);
+  animation: windowsLogoBreath 8.4s ease-in-out infinite;
 }
 
 @keyframes windowsGlowPulse {
