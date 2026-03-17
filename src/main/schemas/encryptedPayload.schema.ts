@@ -1,5 +1,5 @@
 import z from 'zod'
-export const encryptPayloadSchema = z.object({
+export const encryptedPayloadSchema = z.object({
   payload: z.object({
     iv: z.base64(),
     tag: z.base64(),
@@ -7,4 +7,4 @@ export const encryptPayloadSchema = z.object({
   })
 })
 
-export type EncryptedPayload = z.infer<typeof encryptPayloadSchema>
+export type EncryptedPayload = z.infer<typeof encryptedPayloadSchema>
