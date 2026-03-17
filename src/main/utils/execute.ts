@@ -7,7 +7,10 @@ export async function execute(callback: () => Promise<Response>): Promise<Respon
   const result = await callback()
 
   if (result.status === 401) {
-    const body = await result.json()
+    const body = await result
+      .clone()
+      .json()
+      .catch(() => ({}))
     const validation = encryptPayloadSchema.safeParse(body)
 
     if (!validation.success) {
@@ -21,13 +24,10 @@ export async function execute(callback: () => Promise<Response>): Promise<Respon
         secureStore.setSecure('aesKey', newSession.aesKey)
 
         const retryResult = await callback()
-        if (!retryResult.ok) {
-          throw new Error('Request failed after re-authentication')
-        }
 
         return retryResult
-      } catch {
-        //errors
+      } catch (error) {
+        console.error('Error during handshake or retry:', error)
       }
     }
   }
