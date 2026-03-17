@@ -2,7 +2,9 @@ import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
-import { decryptPayload } from './decrypt-payload'
+import { register } from './handlers/auth/register'
+import { handshake } from './utils/handshake'
+import { secureStore } from './utils/secureStore'
 
 function createWindow(): void {
   // Create the browser window.
@@ -39,7 +41,7 @@ function createWindow(): void {
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron')
 
@@ -52,20 +54,26 @@ app.whenReady().then(() => {
 
   // IPC test
   ipcMain.on('ping', () => console.log('pong'))
-  ipcMain.handle('decrypt-payload', async (_, payload: unknown) => {
-    try {
-      if (typeof payload !== 'string') {
-        throw new Error('Invalid payload format')
-      }
 
-      return decryptPayload(payload)
-    } catch (error) {
-      // Log detailed error on the main process side, but return a generic error to the renderer.
-      console.error('Failed to decrypt payload:', error)
-      throw new Error('Failed to decrypt payload')
-    }
-  })
+  await register()
+
   createWindow()
+
+  try {
+    const r = await handshake('http://localhost/api/v1/crypto/handshake')
+
+    secureStore.setSecure('sessionId', r.sessionId)
+    secureStore.setSecure('aesKey', r.aesKey)
+
+    console.log('Handshake completed, sessionId and aesKey stored securely')
+  } catch (error) {
+    console.error('Error during handshake:', error)
+  }
+
+  //! Test handshake and encryption
+  // handshake()
+  //   .then((r) => console.log('Handshake completed'))
+  //   .catch((e) => console.error('Handshake failed:', e))
 
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the

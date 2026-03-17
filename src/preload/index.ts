@@ -1,14 +1,14 @@
-import { contextBridge } from 'electron'
+import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
-import type { EncryptedPayload } from '../main/decrypt-payload'
-import { ipcRenderer } from 'electron/renderer'
+import { RegisterInput, LoginInput } from '../main/schemas/authSchemas'
 
 // Custom APIs for renderer
-const api = {}
-
-const apiUtils = {
-  decryptPayload: (p: EncryptedPayload) => {
-    return ipcRenderer.invoke('decrypt-payload', p)
+const api = {
+  auth: {
+    register: (data: RegisterInput) => ipcRenderer.invoke('auth:register', data),
+    login: (credentials: LoginInput) => ipcRenderer.invoke('auth:login', credentials),
+    logout: () => ipcRenderer.invoke('auth:logout'),
+    getMe: () => ipcRenderer.invoke('auth:me')
   }
 }
 
@@ -19,7 +19,6 @@ if (process.contextIsolated) {
   try {
     contextBridge.exposeInMainWorld('electron', electronAPI)
     contextBridge.exposeInMainWorld('api', api)
-    contextBridge.exposeInMainWorld('apiUtils', apiUtils)
   } catch (error) {
     console.error(error)
   }
@@ -28,6 +27,4 @@ if (process.contextIsolated) {
   window.electron = electronAPI
   // @ts-ignore (define in dts)
   window.api = api
-  // @ts-ignore (define in dts)
-  window.apiUtils = apiUtils
 }
