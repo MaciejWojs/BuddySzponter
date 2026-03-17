@@ -674,6 +674,24 @@ function togglePin(): void {
   -webkit-backdrop-filter: blur(10px) saturate(108%);
 }
 
+.shortcuts-overlay__backdrop::after {
+  content: '';
+  position: absolute;
+  right: clamp(16px, 8vw, 120px);
+  top: 50%;
+  width: clamp(260px, 28vw, 420px);
+  aspect-ratio: 1.45 / 1;
+  transform: translateY(-50%) skew(-6deg);
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.18;
+  background:
+    linear-gradient(to right, transparent 49.4%, #fff 49.4% 50.6%, transparent 50.6%),
+    linear-gradient(to bottom, transparent 49.4%, #fff 49.4% 50.6%, transparent 50.6%);
+  box-shadow: 0 0 32px 8px rgba(158, 118, 255, 0.18);
+  border-radius: 8px;
+}
+
 .shortcuts-overlay__backdrop::before {
   content: '';
   position: absolute;
