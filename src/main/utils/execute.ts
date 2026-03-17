@@ -1,5 +1,5 @@
 import { API_ROUTES } from '../apiRoutes'
-import { encryptPayloadSchema } from '../schemas/encryptedPayload.schema'
+import { encryptedPayloadSchema } from '../schemas/encryptedPayload.schema'
 import { handshake } from './handshake'
 import { secureStore } from './secureStore'
 
@@ -11,7 +11,7 @@ export async function execute(callback: () => Promise<Response>): Promise<Respon
       .clone()
       .json()
       .catch(() => ({}))
-    const validation = encryptPayloadSchema.safeParse(body)
+    const validation = encryptedPayloadSchema.safeParse(body)
 
     if (!validation.success) {
       secureStore.clearSession()
