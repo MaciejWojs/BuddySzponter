@@ -1,7 +1,6 @@
 import { z } from 'zod'
 
 export const handshakeResponseSchema = z.object({
-  // Używamy 'message' zgodnie z tym, co sugeruje TypeScript
   serverPublicKey: z
     .string({
       message: 'Missing server public key'
