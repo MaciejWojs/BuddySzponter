@@ -9,6 +9,7 @@ import { API_ROUTES } from './apiRoutes'
 import { appSettings } from './services/AppSettingsService'
 import { clearLocalStore } from './store/localStore'
 import { clearTranslationStore } from './store/translationStore'
+import { login } from './handlers/auth/login'
 
 function createWindow(): void {
   // Create the browser window.
@@ -68,6 +69,7 @@ app.whenReady().then(async () => {
 
   await register()
   appSettings.registerHandlers()
+  await login()
 
   createWindow()
 
