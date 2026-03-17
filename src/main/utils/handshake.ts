@@ -1,4 +1,5 @@
 import { createECDH, createHash } from 'crypto'
+import { handshakeResponseSchema } from '../schemas/handshakeResponseSchema'
 
 /**
  * Performs a cryptographic handshake with the server to establish a shared AES encryption key.
@@ -30,11 +31,17 @@ export async function handshake(url: string): Promise<{ sessionId: string; aesKe
     throw new Error(`Handshake failed with status: ${request.status}`)
   }
 
-  const response = await request.json()
-  const { serverPublicKey, sessionId } = response
+  const rawResponse: unknown = await request.json()
+  const parsedResponse = handshakeResponseSchema.safeParse(rawResponse)
 
-  const serverPublicKeyBuffer = Buffer.from(serverPublicKey, 'base64')
-  const sharedSecret = ecdh.computeSecret(serverPublicKeyBuffer, 'base64')
+  if (!parsedResponse.success) {
+    console.error('[Handshake] Invalid response structure:', parsedResponse.error.issues)
+    throw new Error('Invalid handshake response from server: Missing or malformed data.')
+  }
+
+  const { serverPublicKey, sessionId } = parsedResponse.data
+
+  const sharedSecret = ecdh.computeSecret(serverPublicKey, 'base64')
 
   const aesKey = createHash('sha256').update(sharedSecret).digest()
 
