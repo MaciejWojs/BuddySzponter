@@ -658,17 +658,99 @@ function togglePin(): void {
   --tools-accent-soft-rgb: 200, 143, 255;
   --tools-bg-1: rgba(10, 5, 22, 0.84);
   --tools-bg-2: rgba(6, 2, 16, 0.8);
+  --tools-win-glow-rgb: 158, 118, 255;
+  --tools-win-line-rgb: 233, 223, 255;
 }
 
 .shortcuts-overlay__backdrop {
   position: absolute;
   inset: 0;
+  overflow: hidden;
   background:
     radial-gradient(circle at 18% 18%, rgba(var(--tools-accent-rgb), 0.09), transparent 52%),
     radial-gradient(circle at 82% 75%, rgba(var(--tools-accent-soft-rgb), 0.07), transparent 50%),
     rgba(12, 16, 24, 0.22);
   backdrop-filter: blur(10px) saturate(108%);
   -webkit-backdrop-filter: blur(10px) saturate(108%);
+}
+
+.shortcuts-overlay__backdrop::before {
+  content: '';
+  position: absolute;
+  right: clamp(-120px, -8vw, -60px);
+  top: 50%;
+  width: clamp(380px, 38vw, 620px);
+  aspect-ratio: 1.35 / 1;
+  transform: translateY(-50%) skew(-6deg);
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 48% 50%, rgba(var(--tools-win-glow-rgb), 0.35), transparent 62%),
+    radial-gradient(circle at 52% 50%, rgba(var(--tools-win-glow-rgb), 0.18), transparent 78%);
+  filter: blur(2px);
+  opacity: 0.8;
+  animation: windowsGlowPulse 6.2s ease-in-out infinite;
+}
+
+.shortcuts-overlay__backdrop::after {
+  content: '';
+  position: absolute;
+  right: clamp(8px, 3vw, 56px);
+  top: 50%;
+  width: clamp(240px, 24vw, 390px);
+  aspect-ratio: 1.45 / 1;
+  transform: translateY(-50%) perspective(800px) rotateY(-16deg);
+  pointer-events: none;
+  opacity: 0.72;
+  background:
+    linear-gradient(
+      to right,
+      transparent 49.4%,
+      rgba(var(--tools-win-line-rgb), 0.84) 49.4% 50.6%,
+      transparent 50.6%
+    ),
+    linear-gradient(
+      to bottom,
+      transparent 49.4%,
+      rgba(var(--tools-win-line-rgb), 0.84) 49.4% 50.6%,
+      transparent 50.6%
+    ),
+    linear-gradient(
+      165deg,
+      rgba(var(--tools-win-glow-rgb), 0.5),
+      rgba(var(--tools-win-glow-rgb), 0.12)
+    );
+  box-shadow:
+    0 0 34px rgba(var(--tools-win-glow-rgb), 0.42),
+    0 0 80px rgba(var(--tools-win-glow-rgb), 0.24),
+    inset 0 0 24px rgba(var(--tools-win-line-rgb), 0.22);
+  border: 1px solid rgba(var(--tools-win-line-rgb), 0.48);
+  animation: windowsLogoBreath 7.4s ease-in-out infinite;
+}
+
+@keyframes windowsGlowPulse {
+  0%,
+  100% {
+    opacity: 0.72;
+    transform: translateY(-50%) skew(-6deg) scale(1);
+  }
+
+  50% {
+    opacity: 0.9;
+    transform: translateY(-50%) skew(-6deg) scale(1.04);
+  }
+}
+
+@keyframes windowsLogoBreath {
+  0%,
+  100% {
+    opacity: 0.64;
+    filter: brightness(1);
+  }
+
+  50% {
+    opacity: 0.82;
+    filter: brightness(1.08);
+  }
 }
 
 .shortcuts-panel {
@@ -938,6 +1020,17 @@ function togglePin(): void {
 }
 
 @media (max-width: 1024px) {
+  .shortcuts-overlay__backdrop::before {
+    right: clamp(-140px, -14vw, -90px);
+    width: clamp(300px, 44vw, 460px);
+  }
+
+  .shortcuts-overlay__backdrop::after {
+    right: clamp(-8px, 1vw, 24px);
+    width: clamp(200px, 32vw, 300px);
+    opacity: 0.58;
+  }
+
   .shortcuts-layout {
     grid-template-columns: 1fr 1fr;
     grid-template-areas:
@@ -961,6 +1054,12 @@ function togglePin(): void {
 @media (max-width: 700px) {
   .sharing-navbar-wrapper {
     width: 88vw;
+  }
+
+  .shortcuts-overlay__backdrop::before,
+  .shortcuts-overlay__backdrop::after {
+    opacity: 0.34;
+    transform: translateY(-50%);
   }
 
   .shortcuts-overlay {

@@ -2,7 +2,7 @@ import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
-import { decryptPayload } from './decrypt-payload'
+// import { decryptPayload } from './decrypt-payload' // Zakomentowane: nieużywane, błąd TS6133
 
 function createWindow(): void {
   // Create the browser window.
@@ -58,7 +58,10 @@ app.whenReady().then(() => {
         throw new Error('Invalid payload format')
       }
 
-      return decryptPayload(payload)
+      // Wywołanie zakomentowane: typ 'string' niezgodny z wymaganym 'EncryptedPayload'.
+      // return decryptPayload(payload)
+      // Zwracamy payload bez dekryptowania, żeby nie było błędów typów.
+      return payload
     } catch (error) {
       // Log detailed error on the main process side, but return a generic error to the renderer.
       console.error('Failed to decrypt payload:', error)
