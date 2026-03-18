@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 import { RegisterInput, LoginInput } from '../main/schemas/authSchemas'
+import { AppLanguage } from '../main/schemas/langSchemas'
 
 // Custom APIs for renderer
 const api = {
@@ -11,7 +12,10 @@ const api = {
     getMe: () => ipcRenderer.invoke('auth:me')
   },
   i18n: {
-    load: (lang: string) => ipcRenderer.invoke('i18n:load', lang)
+    load: (lang: AppLanguage) => ipcRenderer.invoke('i18n:load', lang)
+  },
+  settings: {
+    getLanguage: (): Promise<AppLanguage> => ipcRenderer.invoke('settings:get-language')
   }
 }
 
