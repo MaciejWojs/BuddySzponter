@@ -5,7 +5,17 @@
     "password": "Hasło",
     "button": "Zaloguj się",
     "loading": "Ładowanie...",
-    "passwordStrength": "Siła hasła"
+    "passwordStrength": "Siła hasła",
+    "emailError": {
+      "invalid": "Wprowadź prawidłowy adres e-mail",
+      "maxLength": "Adres e-mail jest za długi",
+      "required": "Adres e-mail jest wymagany"
+    },
+    "passwordError": {
+      "minLength": "Hasło jest za krótkie",
+      "required": "Hasło jest wymagane",
+      "weak": "Hasło jest zbyt słabe"
+    }
   },
   "validation": {
     "invalidEmail": "Podaj prawidłowy adres e-mail",
@@ -18,18 +28,25 @@
     "passwordRequiresDigit": "Hasło musi zawierać cyfrę",
     "passwordRequiresSpecialCharacter": "Hasło musi zawierać znak specjalny"
   },
-  "HostForm": {
+  "hostForm": {
     "title": "Oddaj kontrolę",
     "description": "Wprowadź kod sesji, aby oddać kontrolę nad swoim urządzeniem innemu użytkownikowi.",
     "sessionCode": "Kod dostępu",
     "sessionPassword": "Hasło",
     "timeToJoin": "Pozostało:"
   },
-  "Alert": {
+  "alert": {
     "success": "Sukces",
     "error": "Błąd",
     "warning": "Ostrzeżenie",
     "info": "Informacja",
     "copy": "Skopiowano"
+  },
+  "languageSwitcher": {
+    "en": "Angielski",
+    "pl": "Polski",
+    "es": "Hiszpański",
+    "67": "Szponterski",
+    "choice": "Wybierz język"
   }
 }
