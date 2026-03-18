@@ -39,6 +39,8 @@
     "@nuxt/ui": "^4.5.1",
     "@types/electron-store": "^3.2.2",
     "electron-store": "^11.0.2",
+    "gsap": "^3.14.2",
+    "lucide-vue-next": "^0.577.0",
     "tailwindcss": "^4.2.1",
     "unplugin-auto-import": "^21.0.0",
     "zxcvbn": "^4.4.2"
