@@ -22,5 +22,6 @@ export const API_ROUTES = {
   CONNECTION: {
     CONNECTIONS: '/connections',
     JOIN: '/connections/join'
-  }
+  },
+  I18N: '/i18n'
 } as const
