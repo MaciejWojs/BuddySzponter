@@ -5,9 +5,8 @@ import icon from '../../resources/icon.png?asset'
 import { register } from './handlers/auth/register'
 import { handshake } from './utils/handshake'
 import { secureStore } from './utils/secureStore'
-import { loadTranslations } from './handlers/i18n/loadTranslations'
-import { AppLanguage } from '../shared/schemas/langSchemas'
 import { API_ROUTES } from './apiRoutes'
+import { appSettings } from './services/AppSettingsService'
 
 function createWindow(): void {
   // Create the browser window.
@@ -59,9 +58,7 @@ app.whenReady().then(async () => {
   ipcMain.on('ping', () => console.log('pong'))
 
   await register()
-  ipcMain.handle('i18n:loadTranslations', async (_event, lang: AppLanguage) => {
-    return await loadTranslations(lang)
-  })
+  appSettings.registerHandlers()
 
   createWindow()
 
