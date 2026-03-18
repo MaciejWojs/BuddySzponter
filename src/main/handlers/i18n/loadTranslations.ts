@@ -1,9 +1,9 @@
-import { AppLanguage, Translation } from '../schemas/langSchemas'
-import { API_ROUTES } from '../apiRoutes'
-import { execute } from '../utils/execute'
-import { secureStore } from '../utils/secureStore'
-import { decryptPayload } from '../utils/decrypt-payload'
-import { translationStore } from '../store/translationStore'
+import { AppLanguage, Translation } from '../../../shared/schemas/langSchemas'
+import { API_ROUTES } from '../../apiRoutes'
+import { execute } from '../../utils/execute'
+import { secureStore } from '../../utils/secureStore'
+import { decryptPayload } from '../../utils/decrypt-payload'
+import { translationStore } from '../../store/translationStore'
 
 export async function loadTranslations(
   lang: AppLanguage
