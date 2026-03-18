@@ -1,56 +1,56 @@
-import { ipcMain } from 'electron'
-import { AppLanguage } from '../schemas/langSchemas'
+import { AppLanguage, Translation } from '../schemas/langSchemas'
 import { API_ROUTES } from '../apiRoutes'
 import { execute } from '../utils/execute'
 import { secureStore } from '../utils/secureStore'
 import { decryptPayload } from '../utils/decrypt-payload'
+import { translationStore } from '../store/translationStore'
 
-export async function loadTranslations(): Promise<void> {
-  ipcMain.handle('i18n:load', async (_event, rawData) => {
-    try {
-      const lang = rawData as AppLanguage
+export async function loadTranslations(
+  lang: AppLanguage
+): Promise<{ success: boolean; data?: Translation; error?: string; status?: number }> {
+  try {
+    const response = await execute(async () => {
+      const key = secureStore.getSecure('aesKey')
+      const id = secureStore.getSecure('sessionId')
 
-      const response = await execute(async () => {
-        const key = secureStore.getSecure('aesKey')
-        const id = secureStore.getSecure('sessionId')
-        if (!key || !id) {
-          throw new Error('No session found. Please complete the handshake first.')
+      if (!key || !id) {
+        throw new Error('No session found. Please complete the handshake first.')
+      }
+
+      const baseURL = import.meta.env.VITE_API_BASE_URL
+      const url = `${baseURL}${API_ROUTES.I18N}?lang=${lang}`
+
+      return await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-session-id': id
         }
-
-        const baseURL = import.meta.env.VITE_API_BASE_URL
-        const url = `${baseURL}${API_ROUTES.I18N}?lang=${lang}`
-
-        return await fetch(url, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-session-id': id
-          }
-        })
       })
-      if (!response.ok) {
-        console.error('Failed to load translations:', response.status)
-        return {
-          success: false,
-          error: `Server returned error: ${response.status}`,
-          status: response.status
-        }
-      }
-      const encryptedJson = await response.json()
+    })
 
-      const currentKey = secureStore.getSecure('aesKey')
-      const decryptedData = await decryptPayload(encryptedJson, currentKey!)
-
-      return {
-        success: true,
-        data: decryptedData
-      }
-    } catch (error) {
-      console.error('Error loading translations:', error)
-      return {
-        success: false,
-        error: 'Failed to load translations'
-      }
+    if (!response.ok) {
+      throw new Error(`Server returned error: ${response.status}`)
     }
-  })
+
+    const encryptedJson = await response.json()
+    const currentKey = secureStore.getSecure('aesKey')
+    const decryptedData = await decryptPayload(encryptedJson, currentKey!)
+
+    translationStore.set(lang, decryptedData as Translation)
+
+    return { success: true, data: decryptedData as Translation }
+  } catch (error) {
+    console.warn(`[i18n] Network fetch failed for '${lang}', attempting to use local cache...`)
+
+    const cachedTranslation = translationStore.get(lang)
+
+    if (cachedTranslation) {
+      console.log(`[i18n] Successfully loaded '${lang}' from local cache.`)
+      return { success: true, data: cachedTranslation }
+    }
+
+    console.error('Error loading translations and no cache available:', error)
+    return { success: false, error: 'Failed to load translations' }
+  }
 }
