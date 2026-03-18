@@ -5,6 +5,7 @@ import icon from '../../resources/icon.png?asset'
 import { register } from './handlers/auth/register'
 import { handshake } from './utils/handshake'
 import { secureStore } from './utils/secureStore'
+import { loadTranslations } from './handlers/i18n'
 
 function createWindow(): void {
   // Create the browser window.
@@ -56,6 +57,7 @@ app.whenReady().then(async () => {
   ipcMain.on('ping', () => console.log('pong'))
 
   await register()
+  await loadTranslations()
 
   createWindow()
 
