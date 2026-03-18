@@ -5,7 +5,9 @@ import icon from '../../resources/icon.png?asset'
 import { register } from './handlers/auth/register'
 import { handshake } from './utils/handshake'
 import { secureStore } from './utils/secureStore'
-import { loadTranslations } from './handlers/i18n'
+import { loadTranslations } from './handlers/i18n/loadTranslations'
+import { AppLanguage } from '../shared/schemas/langSchemas'
+import { API_ROUTES } from './apiRoutes'
 
 function createWindow(): void {
   // Create the browser window.
@@ -57,12 +59,17 @@ app.whenReady().then(async () => {
   ipcMain.on('ping', () => console.log('pong'))
 
   await register()
-  await loadTranslations('pl')
+  ipcMain.handle('i18n:loadTranslations', async (_event, lang: AppLanguage) => {
+    return await loadTranslations(lang)
+  })
 
   createWindow()
 
   try {
-    const r = await handshake('http://localhost/api/v1/crypto/handshake')
+    const baseURL = import.meta.env.VITE_API_BASE_URL
+    const url = `${baseURL}${API_ROUTES.AUTH.REGISTER}`
+
+    const r = await handshake(url)
 
     secureStore.setSecure('sessionId', r.sessionId)
     secureStore.setSecure('aesKey', r.aesKey)
