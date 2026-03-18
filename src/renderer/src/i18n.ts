@@ -3,6 +3,7 @@ import pl from './locales/pl.json'
 
 const i18n = createI18n({
   legacy: false,
+  globalInjection: true, // <-- DODAJ TĘ LINIJKĘ
   locale: 'pl',
   fallbackLocale: 'pl',
   messages: {
