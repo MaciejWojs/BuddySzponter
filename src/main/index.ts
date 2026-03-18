@@ -57,7 +57,7 @@ app.whenReady().then(async () => {
   ipcMain.on('ping', () => console.log('pong'))
 
   await register()
-  await loadTranslations()
+  await loadTranslations('pl')
 
   createWindow()
 
