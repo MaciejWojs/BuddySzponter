@@ -2,14 +2,16 @@
 import { ref, onMounted, watch } from 'vue'
 import { ChevronDown, Loader2 } from 'lucide-vue-next'
 import gsap from 'gsap'
-import { useI18n } from 'vue-i18n' // Dodany import uzycia i18n
+import { useI18n } from 'vue-i18n'
 
-// Zaimportuj store i typ z pliku store'a
 import { useSettingsStore, type AppLanguage } from '@renderer/stores/settingsStore'
 
 const store = useSettingsStore()
-const { t } = useI18n() // Inicjalizacja i18n
+const { t } = useI18n()
 const isOpen = ref<boolean>(false)
+
+// Kierunek otwierania menu
+const menuAlignment = ref<'left' | 'right'>('left')
 
 // Referencje DOM (GSAP)
 const dropdownRef = ref<HTMLElement | null>(null)
@@ -27,9 +29,21 @@ onMounted((): void => {
   document.addEventListener('mousedown', handleClickOutside)
 })
 
-// Animacje GSAP
+// Animacje GSAP i automatyczne wykrywanie krawędzi ekranu
 watch(isOpen, (opened): void => {
   if (opened) {
+    // SPRAWDZANIE KRAWĘDZI: Czy menu zmieści się po prawej stronie?
+    if (dropdownRef.value) {
+      const rect = dropdownRef.value.getBoundingClientRect()
+      const menuWidth = 224 // szerokość 'w-56' to 224px
+
+      if (rect.left + menuWidth > window.innerWidth) {
+        menuAlignment.value = 'right'
+      } else {
+        menuAlignment.value = 'left'
+      }
+    }
+
     if (menuRef.value)
       gsap.to(menuRef.value, {
         display: 'block',
@@ -42,12 +56,13 @@ watch(isOpen, (opened): void => {
       gsap.fromTo(
         itemsRef.value,
         { opacity: 0, x: -15 },
-        { opacity: 1, x: 0, stagger: 0.05, duration: 0.3, delay: 0.1, ease: 'power2.out' }
+        { opacity: 1, x: 0, stagger: 0.05, duration: 0.3, delay: 0.1, ease: 'sine.inOut' }
       )
     if (chevronRef.value) gsap.to(chevronRef.value, { rotation: 180, duration: 0.3 })
     if (textRef.value)
       gsap.to(textRef.value, { width: 'auto', opacity: 1, marginLeft: '8px', duration: 0.3 })
   } else {
+    // Zamykanie
     if (menuRef.value)
       gsap.to(menuRef.value, {
         opacity: 0,
@@ -63,7 +78,6 @@ watch(isOpen, (opened): void => {
   }
 })
 
-// Akcja zmiany języka
 const selectLang = async (langCode: AppLanguage): Promise<void> => {
   isOpen.value = false
   await store.setLanguage(langCode)
@@ -71,15 +85,16 @@ const selectLang = async (langCode: AppLanguage): Promise<void> => {
 </script>
 
 <template>
-  <div ref="dropdownRef" class="relative inline-block text-left">
+  <div ref="dropdownRef" class="relative inline-block text-left select-none">
     <button
-      class="flex items-center px-4 py-2.5 rounded-full shadow-sm transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+      class="flex items-center px-4 py-2.5 rounded-full transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-purple-400"
       :class="{
         'opacity-70 cursor-wait': store.isLoadingTranslations,
-        'hover:shadow-md': !store.isLoadingTranslations
+        'hover:bg-black/5': !isOpen && !store.isLoadingTranslations, // Zmienić na 'hover:bg-white/10' jeśli strona ma ciemne tło
+        'shadow-md': isOpen // Cień pojawia się tylko, gdy menu jest otwarte
       }"
       :disabled="store.isLoadingTranslations"
-      style="background-color: #481566"
+      :style="{ backgroundColor: isOpen ? '#481566' : 'transparent' }"
       @click="isOpen = !isOpen"
     >
       <span class="flex items-center justify-center min-w-6">
@@ -93,12 +108,13 @@ const selectLang = async (langCode: AppLanguage): Promise<void> => {
       </span>
 
       <div ref="textRef" class="overflow-hidden whitespace-nowrap opacity-0 w-0">
-        <span class="font-semibold text-white">
-          {{
-            store.isLoadingTranslations
-              ? t('LanguageSwitcher.loading')
-              : t(`LanguageSwitcher.${store.currentLanguageDetails.code}`)
-          }}
+        <span class="font-semibold text-white flex items-center gap-2">
+          <template v-if="store.isLoadingTranslations">
+            <Loader2 class="animate-spin" :size="16" />
+          </template>
+          <template v-else>
+            {{ t(`languageSwitcher.${store.currentLanguageDetails.code}`) }}
+          </template>
         </span>
       </div>
 
@@ -109,12 +125,15 @@ const selectLang = async (langCode: AppLanguage): Promise<void> => {
 
     <div
       ref="menuRef"
-      style="display: none; opacity: 0"
-      class="absolute left-0 mt-3 w-56 origin-top-left bg-white border border-gray-100 rounded-2xl shadow-xl z-50 overflow-hidden"
+      style="display: none; opacity: 0; background-color: #481566; border-color: #64238c"
+      :class="[
+        'absolute mt-3 w-56 border rounded-2xl shadow-xl overflow-hidden z-50',
+        menuAlignment === 'right' ? 'right-0 origin-top-right' : 'left-0 origin-top-left'
+      ]"
     >
       <div class="p-1.5">
-        <p class="px-3 pt-2 pb-1 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-          {{ $t('LanguageSwitcher.choice') }}
+        <p class="px-3 pt-2 pb-1 text-[10px] font-bold text-[#b580d1] uppercase tracking-widest">
+          {{ $t('languageSwitcher.choice') }}
         </p>
 
         <button
@@ -124,10 +143,10 @@ const selectLang = async (langCode: AppLanguage): Promise<void> => {
           :class="[
             'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-all duration-200 group',
             store.selectedLanguage === lang.code
-              ? 'bg-blue-50 text-blue-700'
-              : 'text-gray-600 hover:bg-gray-50'
+              ? 'bg-[#64238c] text-white font-semibold'
+              : 'text-gray-200 hover:bg-[#5a1b80] hover:text-white'
           ]"
-          @click="selectLang(lang.code)"
+          @click.stop="selectLang(lang.code)"
         >
           <span class="flex items-center justify-center min-w-6">
             <span v-if="lang.flag" class="text-xl">{{ lang.flag }}</span>
@@ -136,19 +155,19 @@ const selectLang = async (langCode: AppLanguage): Promise<void> => {
               class="text-sm font-bold tracking-wide uppercase transition-colors"
               :class="
                 store.selectedLanguage === lang.code
-                  ? 'text-blue-600'
-                  : 'text-gray-500 group-hover:text-gray-700'
+                  ? 'text-white'
+                  : 'text-[#b580d1] group-hover:text-white'
               "
             >
               {{ lang.code }}
             </span>
           </span>
 
-          <span class="font-medium grow">{{ $t(`LanguageSwitcher.${lang.code}`) }}</span>
+          <span class="font-medium grow">{{ $t(`languageSwitcher.${lang.code}`) }}</span>
 
           <div
             v-if="store.selectedLanguage === lang.code"
-            class="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse"
+            class="w-1.5 h-1.5 rounded-full bg-white animate-pulse shadow-sm"
           ></div>
         </button>
       </div>
