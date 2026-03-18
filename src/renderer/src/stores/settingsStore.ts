@@ -15,12 +15,13 @@ export const useSettingsStore = defineStore('settings', () => {
   const selectedLanguage = ref<AppLanguage>('pl')
   const isLoadingTranslations = ref(false)
   const sessionPassword = ref<string>('')
-  const availableLanguages = ref<AppLanguage[]>(['pl', 'en'])
+  const availableLanguages = ref<AppLanguage[]>(['pl', 'en', '67'])
 
   // --- SŁOWNIK JĘZYKÓW (Wewnętrzny) ---
   const languagesInfo: Record<AppLanguage, LanguageDetails> = {
     pl: { code: 'pl', name: 'Polski', flag: '🇵🇱' },
-    en: { code: 'en', name: 'English', flag: '🇬🇧' }
+    en: { code: 'en', name: 'English', flag: '🇬🇧' },
+    '67': { code: '67', name: 'Szponterski', flag: '🇵🇱' }
   }
 
   // --- SERWIS JĘZYKOWY (Kompozycja) ---
