@@ -23,5 +23,8 @@ export const API_ROUTES = {
     CONNECTIONS: '/connections',
     JOIN: '/connections/join'
   },
-  I18N: '/i18n'
+  CORE: {
+    SUPPORTED_VERSIONS: '/core/supported-versions',
+    LOCALE: '/core/locale'
+  }
 } as const

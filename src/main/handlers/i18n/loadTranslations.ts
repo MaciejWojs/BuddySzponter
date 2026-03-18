@@ -18,7 +18,7 @@ export async function loadTranslations(
       }
 
       const baseURL = import.meta.env.VITE_API_BASE_URL
-      const url = `${baseURL}${API_ROUTES.I18N}?lang=${lang}`
+      const url = `${baseURL}${API_ROUTES.CORE.LOCALE}?lang=${lang}`
 
       return await fetch(url, {
         method: 'GET',
