@@ -9,6 +9,9 @@ const api = {
     login: (credentials: LoginInput) => ipcRenderer.invoke('auth:login', credentials),
     logout: () => ipcRenderer.invoke('auth:logout'),
     getMe: () => ipcRenderer.invoke('auth:me')
+  },
+  i18n: {
+    load: (lang: string) => ipcRenderer.invoke('i18n:load', lang)
   }
 }
 

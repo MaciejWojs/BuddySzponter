@@ -1,3 +1,4 @@
+import { AppLanguageSchema } from './../main/schemas/langSchemas'
 import { ElectronAPI } from '@electron-toolkit/preload'
 
 declare global {
@@ -9,6 +10,9 @@ declare global {
         login: (credentials: LoginInput) => Promise<ApiResponse<LoginResponse>>
         logout: () => Promise<ApiResponse<void>>
         getMe: () => Promise<ApiResponse<unknown>>
+      }
+      i18n: {
+        load: (lang: AppLanguageSchema) => Promise<ApiResponse<TranslationSchema>>
       }
     }
   }
