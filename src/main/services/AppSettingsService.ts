@@ -1,8 +1,9 @@
 import { randomUUID } from 'crypto'
 import os from 'os'
 import { localStore } from '../store/localStore'
-import { AppLanguage, AppLanguageSchema, Translation } from '../schemas/langSchemas'
-import { loadTranslations } from '../handlers/i18n'
+import { AppLanguage, AppLanguageSchema, Translation } from '../../shared/schemas/langSchemas'
+import { loadTranslations } from '../handlers/i18n/loadTranslations'
+import { ipcMain } from 'electron'
 
 export class AppSettingsService {
   private static instance: AppSettingsService
@@ -22,6 +23,7 @@ export class AppSettingsService {
 
   public getLanguage(): AppLanguage {
     const lang = localStore.get('language')
+    console.log('[AppSettingsService] Retrieved language from store:', lang)
     const parsed = AppLanguageSchema.safeParse(lang)
     return parsed.success ? parsed.data : 'pl'
   }
@@ -71,6 +73,18 @@ export class AppSettingsService {
     const uuid = randomUUID()
 
     return `${hostname}-${userInfo}-${uuid}`
+  }
+
+  public registerHandlers(): void {
+    ipcMain.handle('settings:getLanguage', () => {
+      return this.getLanguage()
+    })
+
+    ipcMain.handle('i18n:loadTranslations', async (_event, lang: unknown) => {
+      return await this.setLanguage(lang)
+    })
+
+    ipcMain.handle('settings:getHardwareId', () => this.getHardwareId())
   }
 }
 
