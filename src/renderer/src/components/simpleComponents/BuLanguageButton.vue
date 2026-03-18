@@ -4,7 +4,8 @@ import { ChevronDown, Loader2 } from 'lucide-vue-next'
 import gsap from 'gsap'
 import { useI18n } from 'vue-i18n'
 
-import { useSettingsStore, type AppLanguage } from '@renderer/stores/settingsStore'
+import { useSettingsStore } from '@renderer/stores/settingsStore'
+import type { AppLanguage } from 'src/shared/schemas/langSchemas'
 
 const store = useSettingsStore()
 const { t } = useI18n()
