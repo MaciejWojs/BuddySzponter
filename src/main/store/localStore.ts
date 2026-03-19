@@ -15,7 +15,11 @@ interface LocalStoreSchema {
 export const localStore = new StoreClass<LocalStoreSchema>({
   name: 'app-settings',
   defaults: {
-    language: 'pl',
+    language: 'en',
     hardwareId: null
   }
 })
+
+export function clearLocalStore(): void {
+  localStore.clear()
+}

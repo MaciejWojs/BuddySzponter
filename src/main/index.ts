@@ -7,6 +7,8 @@ import { handshake } from './utils/handshake'
 import { secureStore } from './utils/secureStore'
 import { API_ROUTES } from './apiRoutes'
 import { appSettings } from './services/AppSettingsService'
+import { clearLocalStore } from './store/localStore'
+import { clearTranslationStore } from './store/translationStore'
 
 function createWindow(): void {
   // Create the browser window.
@@ -57,6 +59,13 @@ app.whenReady().then(async () => {
   // IPC test
   ipcMain.on('ping', () => console.log('pong'))
 
+  if (import.meta.env.VITE_CLEAR_STORES === 'true') {
+    clearLocalStore()
+    clearTranslationStore()
+    secureStore.clearSession()
+    console.log('Stores cleared on startup due to VITE_CLEAR_STORES=true')
+  }
+
   await register()
   appSettings.registerHandlers()
 
@@ -64,7 +73,7 @@ app.whenReady().then(async () => {
 
   try {
     const baseURL = import.meta.env.VITE_API_BASE_URL
-    const url = `${baseURL}${API_ROUTES.AUTH.REGISTER}`
+    const url = `${baseURL}${API_ROUTES.CRYPTO.HANDSHAKE}`
 
     const r = await handshake(url)
 

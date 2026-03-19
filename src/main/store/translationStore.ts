@@ -10,3 +10,7 @@ const StoreClass = (
 export const translationStore = new StoreClass<Record<string, Translation>>({
   name: 'translations-cache'
 })
+
+export function clearTranslationStore(): void {
+  translationStore.clear()
+}

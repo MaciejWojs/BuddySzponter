@@ -11,7 +11,7 @@ export interface LanguageDetails {
 
 export const useSettingsStore = defineStore('settings', () => {
   // --- STATE ---
-  const selectedLanguage = ref<AppLanguage>('pl')
+  const selectedLanguage = ref<AppLanguage>('en')
   const isLoadingTranslations = ref(false)
   const sessionPassword = ref<string>('')
   const availableLanguages = ref<AppLanguage[]>(['pl', 'en', 'plX67'])

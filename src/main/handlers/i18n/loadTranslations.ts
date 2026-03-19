@@ -48,9 +48,22 @@ export async function loadTranslations(
     if (cachedTranslation) {
       console.log(`[i18n] Successfully loaded '${lang}' from local cache.`)
       return { success: true, data: cachedTranslation }
+    } else {
+      const data = await import(`../../../shared/locales/en.json`).then((module) => module.default)
+      if (lang !== 'en') {
+        console.warn(
+          `[i18n] No cached translation found for '${lang}', falling back to bundled locale.`
+        )
+        return {
+          success: false,
+          error: `Failed to load '${lang}' from server and no cache available, using bundled locale.`,
+          data
+        }
+      }
+      console.log(`[i18n] Loaded '${lang}' from bundled locales as fallback.`)
+      return { success: true, data }
     }
 
     console.error('Error loading translations and no cache available:', error)
-    return { success: false, error: 'Failed to load translations' }
   }
 }
