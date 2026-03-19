@@ -1,4 +1,4 @@
-import { randomUUID } from 'crypto'
+import { createHash } from 'crypto'
 import os from 'os'
 import { localStore } from '../store/localStore'
 import { AppLanguage, AppLanguageSchema, Translation } from '../../shared/schemas/langSchemas'
@@ -9,7 +9,7 @@ export class AppSettingsService {
   private static instance: AppSettingsService
 
   private constructor() {
-    //
+    console.log('[AppSettingsService] Initializing service...')
   }
 
   public static getInstance(): AppSettingsService {
@@ -57,7 +57,8 @@ export class AppSettingsService {
   // --- HARDWARE ID MANAGEMENT ---
 
   public getHardwareId(): string {
-    let hwId = localStore.get('hardwareId')
+    let hwId = ''
+    localStore.get('hardwareId')
 
     if (!hwId) {
       hwId = this.generateHardwareId()
@@ -70,9 +71,23 @@ export class AppSettingsService {
   private generateHardwareId(): string {
     const userInfo = os.userInfo().username
     const hostname = os.hostname()
-    const uuid = randomUUID()
+    const platform = os.platform() // win32, linux, darwin
+    const arch = os.arch() // x64, arm64
+    const cpuModel = os.cpus()[0]?.model || 'unknown-cpu'
+    const totalMem = os.totalmem()
 
-    return `${hostname}-${userInfo}-${uuid}`
+    const networkInterfaces = os.networkInterfaces()
+    const mac =
+      Object.values(networkInterfaces)
+        .flat()
+        .find((iface) => iface && !iface.internal && iface.mac !== '00:00:00:00:00:00')?.mac ||
+      'no-mac'
+
+    const rawId = `${hostname}|${userInfo}|${platform}|${arch}|${cpuModel}|${totalMem}|${mac}`
+
+    const hash = createHash('sha256').update(rawId).digest('hex').slice(0, 64)
+
+    return `SZPN-${hash}`
   }
 
   public registerHandlers(): void {
