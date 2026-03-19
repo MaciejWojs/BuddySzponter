@@ -3,7 +3,6 @@ import { ref, computed } from 'vue'
 import type { AppLanguage } from '../../../shared/schemas/langSchemas'
 import { LanguageService } from '@renderer/composables/LanguageService'
 
-// 1. Interfejs dla słownika
 export interface LanguageDetails {
   code: AppLanguage
   name: string
@@ -11,23 +10,21 @@ export interface LanguageDetails {
 }
 
 export const useSettingsStore = defineStore('settings', () => {
-  // --- 1. STAN (STATE) ---
+  // --- STATE ---
   const selectedLanguage = ref<AppLanguage>('pl')
   const isLoadingTranslations = ref(false)
   const sessionPassword = ref<string>('')
-  const availableLanguages = ref<AppLanguage[]>(['pl', 'en', '67'])
+  const availableLanguages = ref<AppLanguage[]>(['pl', 'en', 'plX67'])
 
-  // --- SŁOWNIK JĘZYKÓW (Wewnętrzny) ---
+  // --- LANGUAGES ---
   const languagesInfo: Record<AppLanguage, LanguageDetails> = {
     pl: { code: 'pl', name: 'Polski', flag: '🇵🇱' },
     en: { code: 'en', name: 'English', flag: '🇬🇧' },
-    '67': { code: '67', name: 'Szponterski', flag: '🇵🇱' }
+    plX67: { code: 'plX67', name: 'Szponterski', flag: '🏴‍☠️' }
   }
 
-  // --- SERWIS JĘZYKOWY (Kompozycja) ---
   const languageService = new LanguageService(selectedLanguage, isLoadingTranslations)
 
-  // --- 2. GETTERY (COMPUTED) ---
   const uiLanguages = computed<LanguageDetails[]>(() => {
     return availableLanguages.value.map((code) => languagesInfo[code])
   })
@@ -36,7 +33,6 @@ export const useSettingsStore = defineStore('settings', () => {
     return languagesInfo[selectedLanguage.value]
   })
 
-  // --- 3. AKCJE (ACTIONS) ---
   const initLanguage = async (): Promise<void> => {
     await languageService.initLanguage()
   }

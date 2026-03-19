@@ -1,8 +1,7 @@
 // composables/LanguageService.ts
 import { ref } from 'vue'
-// Pamiętaj o zaimportowaniu swojej instancji i18n oraz typu AppLanguage
-import i18n from '../i18n' // Zmień na właściwą ścieżkę do Twojego pliku i18n
-import type { AppLanguage } from 'src/shared/schemas/langSchemas' // Zmień na właściwą ścieżkę
+import i18n from '../i18n'
+import type { AppLanguage } from 'src/shared/schemas/langSchemas'
 
 export class LanguageService {
   constructor(
@@ -12,7 +11,6 @@ export class LanguageService {
 
   async initLanguage(): Promise<void> {
     try {
-      // @ts-ignore - upewnij się, że window.api ma odpowiednie typy w global.d.ts
       const savedLang = await window.api.settings.getLanguage()
       await this.setLanguage(savedLang, true)
     } catch (error) {

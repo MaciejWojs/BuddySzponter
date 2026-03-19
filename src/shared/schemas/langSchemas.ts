@@ -1,4 +1,4 @@
-export const AppLanguageSchema = z.enum(['pl', 'en', '67'])
+export const AppLanguageSchema = z.enum(['pl', 'en', 'plX67'])
 export type AppLanguage = z.infer<typeof AppLanguageSchema>
 import { z } from 'zod'
 
