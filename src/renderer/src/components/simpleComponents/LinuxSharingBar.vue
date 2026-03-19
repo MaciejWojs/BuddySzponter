@@ -1,5 +1,14 @@
 /* z-index: 30; */
+<!--
+LinuxSharingBar.vue
+Main shortcut bar for Linux (GNOME) system actions, window management, file locations, and power controls.
+Displays a draggable navbar and a modal overlay with categorized shortcut buttons.
+-->
 <template>
+  <!--
+    Top draggable navbar for quick access and window control.
+    Handles pinning, minimizing, restoring, and drag events.
+  -->
   <div
     class="sharing-navbar-wrapper"
     :style="wrapperStyle"
@@ -13,7 +22,12 @@
       :class="{ 'sharing-navbar--minimized': minimized, 'sharing-navbar--locked': pinned }"
       @mousedown="startDrag"
     >
+      <!--
+        Main navbar content: left (pin/wifi), center (user/tools), right (minimize/close).
+        Only visible when not minimized.
+      -->
       <template v-if="!minimized">
+        <!-- Left section: pin and wifi buttons -->
         <div class="sharing-navbar__left">
           <button
             class="sharing-navbar__btn"
@@ -30,6 +44,7 @@
           </button>
         </div>
 
+        <!-- Center section: user info and tools button -->
         <div class="sharing-navbar__center">
           <UIcon name="i-lucide-users" class="sharing-navbar__icon" />
           <span class="sharing-navbar__name">{{ hostName }}</span>
@@ -42,6 +57,7 @@
           </button>
         </div>
 
+        <!-- Right section: minimize and close buttons -->
         <div class="sharing-navbar__right">
           <button class="sharing-navbar__btn" title="Minimalizuj" @click="handleMinimize">
             <UIcon name="i-lucide-minus" class="sharing-navbar__icon" />
@@ -56,6 +72,7 @@
         </div>
       </template>
 
+      <!-- Minimized state: restore button only -->
       <template v-else>
         <button
           class="sharing-navbar__btn sharing-navbar__btn--restore"
@@ -68,26 +85,40 @@
     </nav>
   </div>
 
+  <!--
+    Modal overlay for Linux shortcuts and actions.
+    Contains backdrop and categorized shortcut panels.
+  -->
   <section
     v-if="isMenuOpen"
     class="shortcuts-overlay"
     aria-label="Menu skrótów systemowych"
     @click.self="closeMenu"
   >
-    <TuxOverlay />
+    <!-- TuxOverlay usunięty -->
     <div class="shortcuts-overlay__backdrop"></div>
 
+    <!-- Main shortcuts panel: system, window, files, power -->
     <div class="shortcuts-panel">
       <button type="button" class="shortcuts-panel__close" @click="closeMenu">
         <UIcon name="i-lucide-x" />
       </button>
 
+      <!-- Panel header: title and description -->
       <header class="shortcuts-panel__header">
         <h2>Panel szybkich akcji</h2>
         <p>Wszystkie kluczowe skróty i narzędzia w twoim zasięgu</p>
       </header>
 
+      <!--
+        Layout grid for shortcut groups:
+        - System shortcuts
+        - Window & desktop shortcuts
+        - File locations
+        - Power controls
+      -->
       <div class="shortcuts-layout">
+        <!-- System shortcuts group -->
         <article class="shortcuts-group shortcuts-group--system">
           <h3>
             <UIcon name="i-lucide-keyboard" />
@@ -139,6 +170,7 @@
           </button>
         </article>
 
+        <!-- File locations group -->
         <article class="shortcuts-group shortcuts-group--folders">
           <h3>
             <UIcon name="i-lucide-folder" />
@@ -162,6 +194,7 @@
           </div>
         </article>
 
+        <!-- Power controls group -->
         <article class="shortcuts-group shortcuts-group--power">
           <h3>
             <UIcon name="i-lucide-power" />
@@ -229,55 +262,29 @@ const wrapperStyle = computed(() => ({
 
 // Full list of actions rendered in the tools panel.
 const shortcutButtons: MenuAction[] = [
-  {
-    id: 'ctrl-shift-esc',
-    label: 'Ctrl + Shift + Esc',
-    description: 'Bezpośrednio otwiera Menedżer zadań.'
-  },
+  // 🔐 System
+  { id: 'super-l', label: 'Super + L', description: 'Blokada komputera' },
   {
     id: 'ctrl-alt-delete',
     label: 'Ctrl + Alt + Delete',
-    description: 'Otwiera menu bezpieczeństwa.'
+    description: 'Wylogowanie / wyłączenie (zależne od systemu)'
   },
+  { id: 'ctrl-alt-t', label: 'Ctrl + Alt + T', description: 'Otwiera terminal' },
+  // 🖥️ Okna i pulpit
+  { id: 'super-d', label: 'Super + D', description: 'Pokaż / ukryj pulpit' },
+  { id: 'alt-tab', label: 'Alt + Tab', description: 'Przełączanie między oknami' },
+  { id: 'alt-f4', label: 'Alt + F4', description: 'Zamknij okno' },
+  { id: 'super-h', label: 'Super + H', description: 'Ukryj okno' },
+  { id: 'super-arrow-up', label: 'Super + ↑', description: 'Maksymalizuj okno' },
+  { id: 'super-arrow-down', label: 'Super + ↓', description: 'Minimalizuj okno' },
+  // 📂 Pliki i aplikacje
+  { id: 'super-e', label: 'Super + E', description: 'Menedżer plików' },
+  { id: 'alt-f2', label: 'Alt + F2', description: 'Uruchamianie programu' },
+  // 📸 Zrzuty ekranu
   {
-    id: 'win-l',
-    label: 'Win + L',
-    description: 'Blokuje komputer.'
-  },
-  {
-    id: 'win-d',
-    label: 'Win + D',
-    description: 'Pokaż / ukryj pulpit.'
-  },
-  {
-    id: 'win-m',
-    label: 'Win + M',
-    description: 'Minimalizuj wszystkie okna.'
-  },
-  {
-    id: 'win-e',
-    label: 'Win + E',
-    description: 'Otwiera eksplorator plików.'
-  },
-  {
-    id: 'win-r',
-    label: 'Win + R',
-    description: 'Otwiera okno Uruchamianie (Run).'
-  },
-  {
-    id: 'win-i',
-    label: 'Win + I',
-    description: 'Otwiera ustawienia systemu.'
-  },
-  {
-    id: 'win-x',
-    label: 'Win + X',
-    description: 'Menu administratora'
-  },
-  {
-    id: 'win-shift-s',
-    label: 'Win + Shift + S',
-    description: 'Narzędzie do zaznaczania fragmentu ekranu.'
+    id: 'shift-print-screen',
+    label: 'Shift + Print Screen',
+    description: 'Zrzut zaznaczonego obszaru'
   }
 ]
 
@@ -303,44 +310,20 @@ const powerButtons: MenuAction[] = [
 ]
 
 const folderButtons: MenuAction[] = [
-  {
-    id: 'this-pc',
-    label: 'Ten komputer',
-    description: 'Folder systemowy: Ten komputer.'
-  },
-  {
-    id: 'downloads',
-    label: 'Pobrane',
-    description: 'Folder: Pobrane.'
-  },
-  {
-    id: 'documents',
-    label: 'Dokumenty',
-    description: 'Folder: Dokumenty.'
-  },
-  {
-    id: 'pictures',
-    label: 'Obrazy',
-    description: 'Folder: Obrazy.'
-  },
-  {
-    id: 'music',
-    label: 'Muzyka',
-    description: 'Folder: Muzyka.'
-  },
-  {
-    id: 'profile',
-    label: 'Profil (%userprofile%)',
-    description: 'Folder profilu użytkownika.'
-  }
+  { id: 'home', label: '~', description: 'Katalog domowy użytkownika' },
+  { id: 'root', label: '/', description: 'Cały system (root)' },
+  { id: 'downloads', label: '~/Pobrane', description: 'Pobrane' },
+  { id: 'documents', label: '~/Dokumenty', description: 'Dokumenty' },
+  { id: 'pictures', label: '~/Obrazy', description: 'Obrazy' },
+  { id: 'music', label: '~/Muzyka', description: 'Muzyka' }
 ]
 
-// Split shortcuts into two groups to match the system panel layout.
-const managementShortcuts = shortcutButtons.filter(
-  (item) => item.id === 'ctrl-shift-esc' || item.id === 'ctrl-alt-delete'
+// Podział na grupy dla Linux GNOME
+const managementShortcuts = shortcutButtons.filter((item) =>
+  ['super-l', 'ctrl-alt-delete', 'ctrl-alt-t', 'super-e'].includes(item.id)
 )
 const availableShortcuts = shortcutButtons.filter(
-  (item) => item.id !== 'ctrl-shift-esc' && item.id !== 'ctrl-alt-delete'
+  (item) => !['super-l', 'ctrl-alt-delete', 'ctrl-alt-t', 'super-e'].includes(item.id)
 )
 
 function handleAction(action: MenuAction): void {
@@ -672,22 +655,7 @@ function togglePin(): void {
   -webkit-backdrop-filter: blur(10px) saturate(108%);
 }
 
-.shortcuts-overlay__backdrop::before {
-  content: '';
-  position: absolute;
-  right: clamp(-120px, -8vw, -60px);
-  top: 50%;
-  width: clamp(380px, 38vw, 620px);
-  aspect-ratio: 1.35 / 1;
-  transform: translateY(-50%) skew(-6deg);
-  pointer-events: none;
-  background:
-    radial-gradient(circle at 48% 50%, rgba(var(--tools-win-glow-rgb), 0.22), transparent 62%),
-    radial-gradient(circle at 52% 50%, rgba(var(--tools-win-shadow-rgb), 0.13), transparent 78%);
-  filter: blur(3px);
-  opacity: 0.55;
-  animation: windowsGlowPulse 7.2s ease-in-out infinite;
-}
+/* Efekt glow usunięty */
 
 .shortcuts-overlay__backdrop::after {
   content: '';
@@ -708,18 +676,7 @@ function togglePin(): void {
   /* Usunięto gradienty, zostaje tylko wersja z background: none */
 }
 
-@keyframes windowsGlowPulse {
-  0%,
-  100% {
-    opacity: 0.72;
-    transform: translateY(-50%) skew(-6deg) scale(1);
-  }
-
-  50% {
-    opacity: 0.9;
-    transform: translateY(-50%) skew(-6deg) scale(1.04);
-  }
-}
+/* Animacja glow usunięta */
 
 @keyframes windowsLogoBreath {
   0%,
