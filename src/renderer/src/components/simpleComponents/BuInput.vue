@@ -95,7 +95,7 @@ const inputStyle = computed(() => ({
   cursor: props.copyOnClick && !props.disabled ? 'copy' : undefined
 }))
 
-const resolvedCopyPopoverText = computed(() => props.copyPopoverText || t('Alert.copy'))
+const resolvedCopyPopoverText = computed(() => props.copyPopoverText || t('alert.copy'))
 
 function onInput(event: Event): void {
   if (props.readonly || props.disabled) return

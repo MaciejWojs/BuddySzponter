@@ -1,14 +1,15 @@
 import { createI18n } from 'vue-i18n'
-import en from './locales/en.json'
-import pl from './locales/pl.json'
+import en from '../../shared/locales/en.json'
 
 const i18n = createI18n({
   legacy: false,
-  locale: 'pl',
+  globalInjection: true,
+  locale: 'en',
   fallbackLocale: 'en',
   messages: {
-    pl,
-    en
+    en,
+    pl: {},
+    plX67: {}
   }
 })
 
