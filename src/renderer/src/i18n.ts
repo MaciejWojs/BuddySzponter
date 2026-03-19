@@ -4,8 +4,8 @@ import pl from './locales/pl.json'
 const i18n = createI18n({
   legacy: false,
   globalInjection: true,
-  locale: 'pl',
-  fallbackLocale: 'pl',
+  locale: 'en',
+  fallbackLocale: 'en',
   messages: {
     pl,
     en: {},
