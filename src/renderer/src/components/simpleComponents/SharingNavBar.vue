@@ -494,6 +494,7 @@ onMounted(async () => {
 function handleClose(): void {
   // Hide the bar and reset it to a centered top position.
   closed.value = true
+  pinned.value = false // Resetuj przypięcie przy zamykaniu
   centerNavbarAtTop()
 }
 
