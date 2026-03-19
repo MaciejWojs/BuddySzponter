@@ -19,7 +19,6 @@ export async function login(data: LoginInput): Promise<LoginApiResult> {
     }
 
     const result = await securePost(API_ROUTES.AUTH.LOGIN, payload)
-    // Walidacja przez LoginApiResultSchema
     return LoginApiResultSchema.parse(result)
   } catch (error) {
     console.error('Login failed:', error)
