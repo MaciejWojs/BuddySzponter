@@ -29,7 +29,10 @@ export const registerInputSchema = z
 
 export const loginInputSchema = z.object({
   email: z.email({ message: 'Please provide a valid email address' }),
-  password: z.string().min(1, { message: 'Password cannot be empty' })
+  password: z.string().min(1, { message: 'Password cannot be empty' }),
+  fingerprint: z.string(),
+  os: z.string().optional().default(''),
+  name: z.string().optional().default('')
 })
 
 export type LoginInput = z.infer<typeof loginInputSchema>
