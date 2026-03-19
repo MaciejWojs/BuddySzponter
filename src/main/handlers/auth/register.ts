@@ -1,78 +1,20 @@
-import { ipcMain } from 'electron'
-import { encryptPayload } from '../../utils/encrypt-payload'
-import { execute } from '../../utils/execute'
-import { secureStore } from '../../utils/secureStore'
-import { decryptPayload } from '../../utils/decrypt-payload'
-import { API_ROUTES } from '../../apiRoutes'
-import { registerInputSchema } from '../../schemas/authSchemas'
-
 /**
  * auth:register
  */
-export async function register(): Promise<void> {
-  ipcMain.handle('auth:register', async (_event, rawData) => {
-    try {
-      const parsedInput = registerInputSchema.safeParse(rawData)
+import { RegisterApiResult } from './../../schemas/apiResultSchema'
+import { RegisterInput } from '../../schemas/authSchemas'
+import { securePost } from '../../utils/apiClient'
+import { API_ROUTES } from '../../apiRoutes'
 
-      if (!parsedInput.success) {
-        return {
-          success: false,
-          status: 400,
-          error: parsedInput.error.issues
-        }
-      }
-
-      const { email, password, passwordConfirm, nickname } = parsedInput.data
-
-      const response = await execute(async () => {
-        const key = secureStore.getSecure('aesKey')
-        const id = secureStore.getSecure('sessionId')
-
-        if (!key || !id) {
-          throw new Error('No session found. Please complete the handshake first.')
-        }
-
-        const baseURL = import.meta.env.VITE_API_BASE_URL
-        const url = `${baseURL}${API_ROUTES.AUTH.REGISTER}`
-        const aesKeyBuffer = Buffer.from(key, 'base64')
-
-        const payloadData = { email, password, passwordConfirm, nickname }
-        const encrypted = await encryptPayload(payloadData, aesKeyBuffer)
-
-        return await fetch(url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-session-id': id
-          },
-          body: JSON.stringify({ payload: encrypted })
-        })
-      })
-
-      if (!response.ok) {
-        const errorBody = await response.json().catch(() => ({}))
-        return {
-          success: false,
-          error: errorBody.message || `Server returned error: ${response.status}`,
-          status: response.status
-        }
-      }
-
-      const encryptedJson = await response.json()
-
-      const currentKey = secureStore.getSecure('aesKey')
-      const decryptedData = await decryptPayload(encryptedJson, currentKey!)
-
-      return {
-        success: true,
-        data: decryptedData
-      }
-    } catch (error: unknown) {
-      console.error('Error in register IPC:', error)
-      return {
-        success: false,
-        error: (error as Error).message || 'Unknown error occurred'
-      }
+export async function register(data: RegisterInput): Promise<RegisterApiResult> {
+  try {
+    const result = await securePost(API_ROUTES.AUTH.REGISTER, data)
+    return result as RegisterApiResult
+  } catch (error) {
+    console.error('Registration failed:', error)
+    return {
+      success: false,
+      error: { message: 'An unexpected error occurred during registration.' }
     }
-  })
+  }
 }
