@@ -60,12 +60,6 @@ export type RegisterApiResult = z.infer<typeof RegisterApiResultSchema>
 export const LoginApiResultSchema = z.object({
   success: z.boolean(),
   code: z.number().optional(),
-  data: z
-    .object({
-      accessToken: z.string(),
-      message: z.string()
-    })
-    .optional(),
   error: z
     .object({
       message: z.string()
