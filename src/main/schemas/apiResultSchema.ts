@@ -34,7 +34,8 @@ export const ErrorResponseSchema = z.object({
 })
 export type ErrorResponse = z.infer<typeof ErrorResponseSchema>
 
-export const RegisterApiResultSchema = ApiResultSchema.extend({
+export const RegisterApiResultSchema = z.object({
+  success: z.boolean(),
   data: z
     .object({
       message: z.string()
@@ -69,14 +70,6 @@ export const LoginApiResultSchema = z.object({
     .object({
       message: z.string()
     })
-    .optional(),
-  cause: z
-    .array(
-      z.object({
-        field: z.string(),
-        error: z.string()
-      })
-    )
     .optional()
 })
 export type LoginApiResult = z.infer<typeof LoginApiResultSchema>
