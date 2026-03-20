@@ -20,6 +20,14 @@ export const localStore = new StoreClass<LocalStoreSchema>({
   }
 })
 
+export const authStore = new StoreClass<{ accessToken: string | null }>({
+  name: 'auth',
+  defaults: {
+    accessToken: null
+  }
+})
+
 export function clearLocalStore(): void {
   localStore.clear()
+  authStore.clear()
 }
