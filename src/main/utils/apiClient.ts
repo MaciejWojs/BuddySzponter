@@ -34,6 +34,11 @@ export async function securePost(route: string, data: object): Promise<ApiResult
   const baseURL = import.meta.env.VITE_API_BASE_URL
   const url = `${baseURL}${route}`
 
+  const accessToken = authService.getAccessToken()
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`
+  }
+
   const response = await execute(async () => {
     return await fetch(url, {
       method: 'POST',
