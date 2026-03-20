@@ -6,6 +6,7 @@ import { API_ROUTES } from '../../apiRoutes'
 import { LoginApiResult, LoginApiResultSchema } from '../../schemas/apiResultSchema'
 import { LoginInput, loginInputSchema } from '../../schemas/authSchemas'
 import { appSettings } from '../../services/AppSettingsService'
+import { authStore } from '../../store/localStore'
 import { securePost } from '../../utils/apiClient'
 
 export async function login(data: LoginInput): Promise<LoginApiResult> {
@@ -19,6 +20,10 @@ export async function login(data: LoginInput): Promise<LoginApiResult> {
     }
 
     const result = await securePost(API_ROUTES.AUTH.LOGIN, payload)
+    const accessToken = result.data?.accessToken
+    if (accessToken) {
+      authStore.set('accessToken', accessToken)
+    }
 
     try {
       return LoginApiResultSchema.parse(result)
