@@ -1,0 +1,175 @@
+import UserNoLogin from '@renderer/components/simpleComponents/UserNoLogin.vue'
+<script setup lang="ts">
+// --- Component and asset imports ---
+import GuestForm from '@renderer/components/forms/GuestForm.vue'
+import HostForm from '@renderer/components/forms/HostForm.vue'
+import NavBar from '@renderer/components/UI/NavBar.vue'
+import type { NavBarItem } from '@renderer/components/UI/NavBar.vue'
+import DevicesButton from '@renderer/components/simpleComponents/DevicesButton.vue'
+import HomeButton from '@renderer/components/simpleComponents/HomeButton.vue'
+import SettingButton from '@renderer/components/simpleComponents/SettingButton.vue'
+import buddySzponterLogo from '@renderer/assets/images/buddyszponterLogo.png'
+
+// --- Navigation state: currently active tab ---
+const activeNav = ref('home')
+
+// --- Navigation items: icon buttons for NavBar ---
+const navItems: NavBarItem[] = [
+  {
+    name: 'settings',
+    component: SettingButton
+  },
+  {
+    name: 'home',
+    component: HomeButton
+  },
+  {
+    name: 'devices',
+    component: DevicesButton
+  }
+]
+</script>
+
+<template>
+  <!--
+    Main menu view:
+    - Top navigation bar (NavBar)
+    - Two columns: Share Control / Take Control
+    - Footer with logo
+  -->
+  <section class="menu-page">
+    <!-- User profile icon in top right corner -->
+    <UserNoLogin />
+    <header class="menu-topbar">
+      <!-- Navigation bar with icon buttons -->
+      <NavBar v-model="activeNav" :items="navItems" />
+    </header>
+
+    <main class="menu-content">
+      <article class="menu-column">
+        <!-- GuestForm: Share control with a friend -->
+        <h2>Oddaj kontrole</h2>
+        <p>Podaj kod dostepu i haslo przyjacielowi</p>
+        <GuestForm />
+      </article>
+
+      <article class="menu-column">
+        <!-- HostForm: Take control using code/password -->
+        <h2>Przejmij Kontrole</h2>
+        <p>Wprowadz kod dostepu i haslo podany przez przyjaciela</p>
+        <HostForm />
+      </article>
+    </main>
+
+    <footer class="menu-footer">
+      <!-- Application logo in footer -->
+      <img :src="buddySzponterLogo" alt="BuddySzponter logo" class="menu-logo" />
+    </footer>
+  </section>
+</template>
+
+<style scoped>
+/*
+  --- Styles for Menu view ---
+  .menu-page      - main container
+  .menu-topbar    - top navigation bar
+  .menu-content   - main content (two columns)
+  .menu-footer    - footer with logo
+  .menu-logo      - application logo
+  Media queries   - responsive adjustments
+*/
+.menu-page {
+  min-height: 100vh;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  padding: 20px 56px 24px;
+}
+
+.menu-topbar {
+  display: flex;
+  justify-content: center;
+  padding-top: 0;
+}
+
+.menu-topbar :deep(button) {
+  min-width: 54px;
+  min-height: 44px;
+  font-size: 22px;
+  padding: 10px 18px;
+}
+.menu-topbar :deep(svg) {
+  width: 24px !important;
+  height: 24px !important;
+}
+
+.menu-content {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(300px, 1fr));
+  align-items: start;
+  justify-content: center;
+  gap: 120px;
+  align-self: center;
+  padding-top: 0;
+}
+
+.menu-column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.menu-column h2 {
+  font-size: 35px;
+  margin-bottom: 4px;
+}
+
+.menu-column p {
+  font-size: 18px;
+  opacity: 0.85;
+  margin-bottom: 18px;
+}
+
+.menu-footer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding-bottom: 8px;
+}
+
+.menu-logo {
+  width: 260px;
+  max-width: 100%;
+  height: auto;
+}
+
+@media (max-width: 1100px) {
+  .menu-page {
+    padding: 16px 18px 20px;
+    overflow-y: auto;
+  }
+
+  .menu-content {
+    grid-template-columns: 1fr;
+    gap: 44px;
+    align-self: start;
+    padding-top: 12px;
+  }
+
+  .menu-column h2 {
+    font-size: 28px;
+  }
+
+  .menu-column p {
+    font-size: 15px;
+  }
+
+  .menu-footer {
+    margin-top: 12px;
+  }
+
+  .menu-logo {
+    width: 170px;
+  }
+}
+</style>

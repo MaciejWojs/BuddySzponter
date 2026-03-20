@@ -1,7 +1,10 @@
 <template>
-  <div class="flex flex-col items-center gap-6">
+  <div class="flex flex-col items-center gap-5">
     <div class="flex flex-col justify-items-center items-center gap-2">
-      <BuInput v-model="email" :placeholder="$t('login.email')" :error="!!errors.email">
+      <p class="w-full max-w-sm text-left text-white text-base font-medium opacity-90">
+        {{ t('login.email') }}
+      </p>
+      <BuInput v-model="email" placeholder="Twój email" :error="!!errors.email">
         <template #prefix>
           <Mail class="w-6 h-6 opacity-50" />
         </template>
@@ -10,9 +13,12 @@
     </div>
 
     <div class="flex flex-col justify-items-center items-center gap-2">
+      <p class="w-full max-w-sm text-left text-white text-base font-medium opacity-90">
+        {{ t('login.password') }}
+      </p>
       <BuInput
         v-model="password"
-        :placeholder="$t('login.password')"
+        placeholder="**********"
         :type="show ? 'text' : 'password'"
         :error="!!errors.password"
       >
@@ -31,6 +37,24 @@
       <div class="text-red-500 text-sm mt-1 h-2">{{ errors.password }}</div>
     </div>
 
+    <div class="w-full max-w-sm space-y-1 text-center">
+      <button
+        type="button"
+        class="text-white text-sm opacity-80 hover:opacity-100 hover:underline underline-offset-2 transition-opacity mx-auto"
+      >
+        {{ t('login.forgotPassword') }}
+      </button>
+      <div class="flex items-center justify-center gap-1 text-sm text-white opacity-80">
+        <span>{{ t('login.noAccount') }}</span>
+        <button
+          type="button"
+          class="text-white text-sm opacity-80 hover:opacity-100 hover:underline underline-offset-2 transition-opacity"
+        >
+          {{ t('login.registerNow') }}
+        </button>
+      </div>
+    </div>
+
     <GrayButton @click="handleLogin">
       {{ t('login.button') }}
       <template #suffix>
@@ -42,6 +66,8 @@
     <div>
       <div class="text-red-500 text-sm mt-1 h-2">{{ genericError }}</div>
     </div>
+
+    <img :src="buddySzponterLogo" alt="BuddySzponter" class="w-52 h-auto" />
   </div>
 </template>
 
@@ -51,6 +77,7 @@ const { t } = useI18n()
 
 // Custom svg components
 import Mail from '@images/components/mail.svg?component'
+import buddySzponterLogo from '@images/buddyszponterLogo.png'
 import { useAppToast } from '@renderer/composables/useAppToast'
 
 const { custom: toastCustom } = useAppToast()
@@ -64,7 +91,7 @@ const loginValidator = computed(() =>
   toTypedSchema(
     z.object({
       email: z
-        // .string({ message: t('validation.required') })
+        .string({ message: t('validation.required') })
         .email({ message: t('validation.invalidEmail') }),
       password: z
         .string({ message: t('validation.required') })

@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import { ref } from 'vue'
 import BuTimer from '../simpleComponents/BuTimer.vue'
 import { customAlphabet } from 'nanoid/non-secure'
 import zxcvbn from 'zxcvbn'
@@ -33,19 +34,19 @@ const passwordValidator = computed(() =>
         .refine((value) => (value.match(/\p{L}/gu) ?? []).length <= PASSWORD_MAX_LETTERS, {
           message: t('validation.passwordMaxLetters', { count: PASSWORD_MAX_LETTERS })
         })
-        .refine(hasLowercase, {
+        .refine((value) => value.length < PASSWORD_MIN_LENGTH || hasLowercase(value), {
           message: t('validation.passwordRequiresLowercase')
         })
-        .refine(hasUppercase, {
+        .refine((value) => value.length < PASSWORD_MIN_LENGTH || hasUppercase(value), {
           message: t('validation.passwordRequiresUppercase')
         })
-        .refine(hasDigit, {
+        .refine((value) => value.length < PASSWORD_MIN_LENGTH || hasDigit(value), {
           message: t('validation.passwordRequiresDigit')
         })
-        .refine(hasSpecialCharacter, {
+        .refine((value) => value.length < PASSWORD_MIN_LENGTH || hasSpecialCharacter(value), {
           message: t('validation.passwordRequiresSpecialCharacter')
         })
-        .refine((value) => value.length >= PASSWORD_MIN_LENGTH, {
+        .min(PASSWORD_MIN_LENGTH, {
           message: t('validation.passwordMinLength', { count: PASSWORD_MIN_LENGTH })
         })
     })
@@ -55,6 +56,10 @@ const passwordValidator = computed(() =>
 const { errors, defineField, validateField } = useForm({
   validationSchema: passwordValidator
 })
+
+const validateSessionPasswordDebounced = useDebounceFn(() => {
+  void validateField('sessionPassword')
+}, 150)
 
 const [sessionPassword, sessionPasswordAttrs] = defineField('sessionPassword', {
   validateOnModelUpdate: false,
@@ -80,7 +85,7 @@ const strongProgressColor = computed(() => {
 })
 
 const refreshTime = 120
-const [show, toggleShow] = useToggle(false)
+const show = ref(false)
 
 const timer = ref<InstanceType<typeof BuTimer>>()
 const time = ref(0)
@@ -89,13 +94,9 @@ onMounted(() => {
   onTimerFinish()
 })
 
-watchDebounced(
-  sessionPassword,
-  () => {
-    void validateField('sessionPassword')
-  },
-  { debounce: 150 }
-)
+watch(sessionPassword, () => {
+  validateSessionPasswordDebounced()
+})
 
 function onTimerTick(value: number): void {
   time.value = value
@@ -107,7 +108,7 @@ function onTimerFinish(): void {
   sessionCode.value = nanoid()
 }
 
-function onRandomPasswordClick(): void {
+function randomPassword(): void {
   let generatedPassword = nanoidPassword()
 
   while (!hasRequiredPasswordCharacters(generatedPassword)) {
@@ -116,12 +117,26 @@ function onRandomPasswordClick(): void {
 
   sessionPassword.value = generatedPassword
 }
+
+function onTogglePasswordVisibility(): void {
+  show.value = !show.value
+  validateSessionPasswordDebounced()
+}
+
+function onRandomPasswordClick(): void {
+  randomPassword()
+  validateSessionPasswordDebounced()
+}
+
+function onPasswordBlur(): void {
+  validateSessionPasswordDebounced()
+}
 </script>
 
 <template>
   <div>
     <div id="sessionCode" class="flex flex-col items-center">
-      <h3>{{ $t('hostForm.sessionCode') }}</h3>
+      <h3>{{ $t('HostForm.sessionCode') }}</h3>
       <BuInput
         v-model="sessionCode"
         :readonly="true"
@@ -136,11 +151,11 @@ function onRandomPasswordClick(): void {
       <BuProgress type="progress" :model-value="time" :steps="120" />
     </div>
     <div id="timer" class="flex flex-row gap-4 justify-center items-center">
-      <h3>{{ $t('hostForm.timeToJoin') }}</h3>
+      <h3>{{ $t('HostForm.timeToJoin') }}</h3>
       <BuTimer ref="timer" size="1.4rem" class="" @finish="onTimerFinish" @tick="onTimerTick" />
     </div>
     <div id="sessionPassword" class="flex flex-col items-center">
-      <h3>{{ $t('hostForm.sessionPassword') }}</h3>
+      <h3>{{ $t('HostForm.sessionPassword') }}</h3>
       <BuInput
         v-model="sessionPassword"
         v-bind="sessionPasswordAttrs"
@@ -151,7 +166,7 @@ function onRandomPasswordClick(): void {
         font-size="20px"
         :copy-on-click="true"
         :show-copy-popover="true"
-        @blur="() => validateField('sessionPassword')"
+        @blur="onPasswordBlur"
       >
         <template #suffix>
           <div class="flex flex-row items-center">
@@ -162,7 +177,7 @@ function onRandomPasswordClick(): void {
               class="text-white opacity-50"
               :aria-label="show ? 'Hide password' : 'Show password'"
               :aria-pressed="show"
-              @click="toggleShow()"
+              @click="onTogglePasswordVisibility"
             />
             <UButton
               icon="lucide:dice-1"
