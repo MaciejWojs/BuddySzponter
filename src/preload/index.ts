@@ -9,7 +9,8 @@ const api = {
     register: (data: RegisterInput) => ipcRenderer.invoke('auth:register', data),
     login: (credentials: LoginInput) => ipcRenderer.invoke('auth:login', credentials),
     logout: () => ipcRenderer.invoke('auth:logout'),
-    getMe: () => ipcRenderer.invoke('auth:me')
+    getMe: () => ipcRenderer.invoke('auth:me'),
+    refresh: () => ipcRenderer.invoke('auth:refresh')
   },
   settings: {
     getLanguage: (): Promise<AppLanguage> => ipcRenderer.invoke('settings:getLanguage'),

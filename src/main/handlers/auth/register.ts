@@ -1,6 +1,7 @@
 /**
  * auth:register
  */
+
 import { RegisterApiResult } from './../../schemas/apiResultSchema'
 import { RegisterInput } from '../../schemas/authSchemas'
 import { securePost } from '../../utils/apiClient'

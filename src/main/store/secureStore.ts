@@ -4,6 +4,7 @@ import Store from 'electron-store'
 interface StoreSchema {
   sessionId: string
   aesKey: string
+  refreshToken?: string
 }
 
 class SecureStore {
