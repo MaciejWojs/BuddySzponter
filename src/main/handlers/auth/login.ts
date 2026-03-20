@@ -19,7 +19,13 @@ export async function login(data: LoginInput): Promise<LoginApiResult> {
     }
 
     const result = await securePost(API_ROUTES.AUTH.LOGIN, payload)
-    return LoginApiResultSchema.parse(result)
+
+    try {
+      return LoginApiResultSchema.parse(result)
+    } catch (error) {
+      console.error('Failed to parse login result:', error)
+      throw new Error('An unexpected error occurred during login.')
+    }
   } catch (error) {
     console.error('Login failed:', error)
     return {
