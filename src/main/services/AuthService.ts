@@ -4,6 +4,7 @@ import { register } from '../handlers/auth/register'
 import { login } from '../handlers/auth/login'
 import { API_ROUTES } from '../apiRoutes'
 import { secureStore } from '../store/secureStore'
+import { authStore } from '../store/localStore'
 
 export class AuthService {
   private static instance: AuthService
@@ -17,6 +18,12 @@ export class AuthService {
       AuthService.instance = new AuthService()
     }
     return AuthService.instance
+  }
+  setAccessToken(token: string): void {
+    authStore.set('accessToken', token)
+  }
+  getAccessToken(): string | null {
+    return authStore.get('accessToken')
   }
 
   public catchRefreshToken(path: string, response: Response): void {
@@ -34,10 +41,6 @@ export class AuthService {
             const refreshToken = rawValue.split('=')[1]
 
             if (refreshToken) {
-              console.log(
-                '[AuthService] Refresh token captured from login response and stored securely.',
-                refreshToken
-              )
               secureStore.setSecure('refreshToken', refreshToken)
             }
           }
