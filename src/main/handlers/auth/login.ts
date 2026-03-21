@@ -6,8 +6,7 @@ import { authStore } from '../../store/localStore'
 import { secureStore } from '../../store/secureStore'
 import { decryptData, encryptData } from '../../utils/api/crypt'
 import { execute } from '../../utils/execute'
-import { LoginRendererResponse } from '../../../shared/schemas/ipc' // Import Twojego nowego typu
-import { session } from 'electron'
+import { LoginRendererResponse } from '../../../shared/schemas/ipc'
 
 export async function login(data: LoginInput): Promise<LoginRendererResponse> {
   try {
@@ -15,7 +14,12 @@ export async function login(data: LoginInput): Promise<LoginRendererResponse> {
     const deviceName = appSettings.getDeviceName()
     const osName = appSettings.getOsName()
 
-    const validPayload = loginInputSchema.parse({ ...data, fingerprint, osName, deviceName })
+    const validPayload = loginInputSchema.parse({
+      ...data,
+      fingerprint: fingerprint,
+      os: osName,
+      name: deviceName
+    })
 
     const url = `${import.meta.env.VITE_API_BASE_URL}${API_ROUTES.AUTH.LOGIN}`
     const isEncryptionEnabled = import.meta.env.VITE_ENCRYPT_DATA === 'true'
@@ -46,6 +50,33 @@ export async function login(data: LoginInput): Promise<LoginRendererResponse> {
 
     const decryptedResponse = isEncryptionEnabled ? await decryptData(responseJson) : responseJson
 
+    if (result.ok) {
+      try {
+        const setCookieHeaders = result.headers.getSetCookie()
+
+        if (setCookieHeaders && setCookieHeaders.length > 0) {
+          const refreshTokenCookie = setCookieHeaders.find((cookie) =>
+            cookie.startsWith('refreshToken=')
+          )
+
+          if (refreshTokenCookie) {
+            const rawValue = refreshTokenCookie.split(';')[0]
+            const refreshToken = rawValue.split('=')[1]
+
+            if (refreshToken) {
+              secureStore.setSecure('refreshToken', refreshToken)
+            }
+          } else {
+            console.log(
+              'User is authenticated but no refresh token cookie found in response headers.'
+            )
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to extract refresh token from response headers:', e)
+      }
+    }
+
     if (!result.ok) {
       const parsedError = errorResponseSchema.safeParse(decryptedResponse)
 
@@ -69,15 +100,6 @@ export async function login(data: LoginInput): Promise<LoginRendererResponse> {
       console.log('Received access token, saving to auth store.')
       authStore.set('accessToken', parsedResponse.accessToken)
     }
-
-    session.defaultSession.cookies
-      .get({})
-      .then((cookies) => {
-        console.log(cookies)
-      })
-      .catch((error) => {
-        console.log(error)
-      })
 
     return {
       success: true,
