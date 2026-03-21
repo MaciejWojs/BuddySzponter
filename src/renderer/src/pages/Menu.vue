@@ -49,14 +49,14 @@ const navItems: NavBarItem[] = [
       <article class="menu-column">
         <!-- GuestForm: Share control with a friend -->
         {{ $t('guestForm.title') }}
-        <p>Wprowadz kod dostepu i haslo podany przez przyjaciela</p>
+        <p>{{ $t('guestForm.description') }}</p>
         <GuestForm />
       </article>
 
       <article class="menu-column">
         <!-- HostForm: Take control using code/password -->
-        <h2>Oddaj kontrole</h2>
-        <p>Podaj kod dostepu i haslo przyjacielowi</p>
+        <h2>{{ $t('hostForm.title') }}</h2>
+        <p>{{ $t('hostForm.description') }}</p>
         <HostForm />
       </article>
     </main>

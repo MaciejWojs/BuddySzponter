@@ -36,11 +36,11 @@
     "timeToJoin": "Time Remaining:"
   },
   "guestForm": {
-    "title": "Transfer Control",
-    "description": "Enter the session code to transfer control of your device to another user.",
+    "title": "Join Session",
+    "description": "Enter the session code and password to join a remote session.",
     "sessionCode": "Session Code",
     "sessionPassword": "Session Password",
-    "timeToJoin": "Time Remaining:"
+    "joinButton": "Join"
   },
   "alert": {
     "success": "Success",
