@@ -1,21 +1,70 @@
-/**
- * auth:register
- */
-
-import { RegisterApiResult } from './../../schemas/apiResultSchema'
 import { RegisterInput } from '../../schemas/authSchemas'
-import { securePost } from '../../utils/apiClient'
+import { errorResponseSchema, registerPayloadSchema } from '../../schemas/apiResultSchema'
 import { API_ROUTES } from '../../apiRoutes'
+import { secureStore } from '../../store/secureStore'
+import { encryptData, decryptData } from '../../utils/api/crypt'
+import { execute } from '../../utils/execute'
+import { RegisterRendererResponse } from '../../../shared/schemas/ipc'
 
-export async function register(data: RegisterInput): Promise<RegisterApiResult> {
+export async function register(data: RegisterInput): Promise<RegisterRendererResponse> {
   try {
-    const result = await securePost(API_ROUTES.AUTH.REGISTER, data)
-    return result as RegisterApiResult
+    const url = `${import.meta.env.VITE_API_BASE_URL}${API_ROUTES.AUTH.REGISTER}`
+    const isEncryptionEnabled = import.meta.env.VITE_ENCRYPT_DATA === 'true'
+
+    const requestHeaders: Record<string, string> = {
+      'Content-Type': 'application/json'
+    }
+
+    let requestBody: string
+    if (isEncryptionEnabled) {
+      requestBody = JSON.stringify(await encryptData(data))
+      requestHeaders['X-session-id'] = secureStore.getSecure('sessionId') || ''
+    } else {
+      requestBody = JSON.stringify(data)
+    }
+
+    const result = await execute(() =>
+      fetch(url, {
+        method: 'POST',
+        headers: requestHeaders,
+        body: requestBody
+      })
+    )
+
+    const responseJson = await result.json()
+
+    const decryptedResponse = isEncryptionEnabled ? await decryptData(responseJson) : responseJson
+
+    if (!result.ok) {
+      const parsedError = errorResponseSchema.safeParse(decryptedResponse)
+
+      if (parsedError.success) {
+        return {
+          success: false,
+          message: parsedError.data.message,
+          cause: parsedError.data.cause
+        }
+      }
+
+      // Fallback
+      return {
+        success: false,
+        message: decryptedResponse?.message || `HTTP Error: ${result.status} ${result.statusText}`
+      }
+    }
+
+    const parsedResponse = registerPayloadSchema.parse(decryptedResponse)
+
+    return {
+      success: true,
+      message: parsedResponse.message || 'Registration successful.',
+      data: undefined
+    }
   } catch (error) {
     console.error('Registration failed:', error)
     return {
       success: false,
-      error: { message: 'An unexpected error occurred during registration.' }
+      message: 'Registration failed. Please try again.'
     }
   }
 }
