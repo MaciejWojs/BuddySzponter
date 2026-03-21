@@ -11,8 +11,8 @@
 
       <Transition name="fade-slide">
         <div v-if="menuOpen" class="menu-items">
-          <button class="menu-item">Zaloguj się</button>
-          <button class="menu-item">Zarejestruj się</button>
+          <button class="menu-item" @click="goToLogin">{{ $t('userMenu1.login') }}</button>
+          <button class="menu-item" @click="goToRegister">{{ $t('userMenu1.register') }}</button>
         </div>
       </Transition>
     </div>
@@ -21,9 +21,19 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 import UserIconSvg from '@renderer/assets/images/components/Usericon2.svg?component'
 
 const menuOpen = ref(false)
+const router = useRouter()
+
+function goToLogin(): void {
+  router.push('/login')
+}
+
+function goToRegister(): void {
+  router.push('/register')
+}
 </script>
 
 <style scoped>
