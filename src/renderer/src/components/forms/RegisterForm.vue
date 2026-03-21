@@ -1,6 +1,9 @@
 <template>
   <div class="flex flex-col items-center gap-6">
     <div class="flex flex-col justify-items-center items-center gap-2">
+      <p class="w-full max-w-sm text-left text-white text-base font-medium opacity-90">
+        {{ t('register.emailLabel') || t('login.email') || 'Email address' }}
+      </p>
       <BuInput v-model="email" :placeholder="$t('register.email')" :error="!!errors.email">
         <template #prefix>
           <Mail class="w-6 h-6 opacity-50" />
@@ -9,6 +12,9 @@
     </div>
 
     <div class="flex flex-col justify-items-center items-center gap-2">
+      <p class="w-full max-w-sm text-left text-white text-base font-medium opacity-90">
+        {{ t('register.nicknameLabel') || 'Nickname' }}
+      </p>
       <BuInput
         v-model="nickname"
         :placeholder="$t('register.nickname') || 'Nickname'"
@@ -18,6 +24,9 @@
     </div>
 
     <div class="flex flex-col justify-items-center items-center gap-2">
+      <p class="w-full max-w-sm text-left text-white text-base font-medium opacity-90">
+        {{ t('register.passwordLabel') || t('login.password') || 'Password' }}
+      </p>
       <BuInput
         v-model="password"
         :placeholder="$t('register.password')"
@@ -47,6 +56,9 @@
     </div>
 
     <div class="flex flex-col justify-items-center items-center gap-2">
+      <p class="w-full max-w-sm text-left text-white text-base font-medium opacity-90">
+        {{ t('register.confirmPasswordLabel') || 'Confirm password' }}
+      </p>
       <BuInput
         v-model="confirmPassword"
         :placeholder="$t('register.confirmPassword')"
