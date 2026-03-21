@@ -48,15 +48,15 @@ const navItems: NavBarItem[] = [
     <main class="menu-content">
       <article class="menu-column">
         <!-- GuestForm: Share control with a friend -->
-        <h2>Oddaj kontrole</h2>
-        <p>Podaj kod dostepu i haslo przyjacielowi</p>
+        <h2>Przejmij Kontrole</h2>
+        <p>Wprowadz kod dostepu i haslo podany przez przyjaciela</p>
         <GuestForm />
       </article>
 
       <article class="menu-column">
         <!-- HostForm: Take control using code/password -->
-        <h2>Przejmij Kontrole</h2>
-        <p>Wprowadz kod dostepu i haslo podany przez przyjaciela</p>
+        <h2>Oddaj kontrole</h2>
+        <p>Podaj kod dostepu i haslo przyjacielowi</p>
         <HostForm />
       </article>
     </main>
@@ -92,14 +92,26 @@ const navItems: NavBarItem[] = [
 }
 
 .menu-topbar :deep(button) {
-  min-width: 54px;
-  min-height: 44px;
+  min-width: 64px;
+  min-height: 64px;
+  aspect-ratio: 1/1;
   font-size: 22px;
-  padding: 10px 18px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  box-sizing: border-box;
+  background: none;
 }
 .menu-topbar :deep(svg) {
-  width: 24px !important;
-  height: 24px !important;
+  width: 70%;
+  height: 70%;
+  max-width: 70%;
+  max-height: 70%;
+  object-fit: contain;
+  display: block;
+  margin: auto;
 }
 
 .menu-content {
