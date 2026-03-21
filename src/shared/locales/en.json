@@ -55,5 +55,9 @@
     "es": "Spanish",
     "plX67": "Szponterski",
     "choice": "Choose language"
+  },
+  "userMenu1": {
+    "login": "Log in",
+    "register": "Register"
   }
 }
