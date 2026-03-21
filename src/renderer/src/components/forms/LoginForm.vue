@@ -4,7 +4,7 @@
       <p class="w-full max-w-sm text-left text-white text-base font-medium opacity-90">
         {{ t('login.email') }}
       </p>
-      <BuInput v-model="email" placeholder="Twój email" :error="!!errors.email">
+      <BuInput v-model="email" :placeholder="$t('login.email')" :error="!!errors.email">
         <template #prefix>
           <Mail class="w-6 h-6 opacity-50" />
         </template>
@@ -42,13 +42,14 @@
         type="button"
         class="text-white text-sm opacity-80 hover:opacity-100 hover:underline underline-offset-2 transition-opacity mx-auto"
       >
-        {{ t('login.forgotPassword') }}
+        {{ t('loginForm.forgotPassword') }}
       </button>
       <div class="flex items-center justify-center gap-1 text-sm text-white opacity-80">
         <span>{{ t('login.noAccount') }}</span>
         <button
           type="button"
           class="text-white text-sm opacity-80 hover:opacity-100 hover:underline underline-offset-2 transition-opacity"
+          @click="goToRegister"
         >
           {{ t('login.registerNow') }}
         </button>
@@ -73,6 +74,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 const { t } = useI18n()
 
 // Custom svg components
@@ -81,6 +83,7 @@ import buddySzponterLogo from '@images/buddyszponterLogo.png'
 import { useAppToast } from '@renderer/composables/useAppToast'
 
 const { custom: toastCustom } = useAppToast()
+const router = useRouter()
 
 // State
 const show = ref(false)
@@ -134,4 +137,8 @@ const handleLogin = handleSubmit((values) => {
   //       })
   //     }
 })
+
+function goToRegister(): void {
+  router.push('/register')
+}
 </script>
