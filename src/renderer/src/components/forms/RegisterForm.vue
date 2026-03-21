@@ -10,6 +10,15 @@
 
     <div class="flex flex-col justify-items-center items-center gap-2">
       <BuInput
+        v-model="nickname"
+        :placeholder="$t('register.nickname') || 'Nickname'"
+        :error="!!errors.nickname"
+      />
+      <div class="text-red-500 text-sm mt-1 h-2">{{ errors.nickname }}</div>
+    </div>
+
+    <div class="flex flex-col justify-items-center items-center gap-2">
+      <BuInput
         v-model="password"
         :placeholder="$t('register.password')"
         :type="showPassword ? 'text' : 'password'"
@@ -110,6 +119,9 @@ const registerValidator = computed(() =>
         email: z
           .string({ message: t('validation.required') })
           .email({ message: t('validation.invalidEmail') }),
+        nickname: z
+          .string({ message: t('validation.required') })
+          .min(3, { message: t('validation.nicknameTooShort') }),
         password: z
           .string({ message: t('validation.required') })
           .min(6, { message: t('validation.passwordTooShort') }),
@@ -126,12 +138,14 @@ const { errors, defineField, handleSubmit } = useForm({
   validationSchema: registerValidator,
   initialValues: {
     email: '',
+    nickname: '',
     password: '',
     confirmPassword: ''
   }
 })
 
 const [email] = defineField('email')
+const [nickname] = defineField('nickname')
 const [password] = defineField('password')
 const [confirmPassword] = defineField('confirmPassword')
 
