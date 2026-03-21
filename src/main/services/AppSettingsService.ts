@@ -68,6 +68,24 @@ export class AppSettingsService {
     return hwId
   }
 
+  public getDeviceName(): string {
+    return os.hostname()
+  }
+
+  public getOsName(): string {
+    const platform = os.platform()
+    switch (platform) {
+      case 'win32':
+        return 'Windows'
+      case 'darwin':
+        return 'macOS'
+      case 'linux':
+        return 'Linux'
+      default:
+        return platform
+    }
+  }
+
   private generateHardwareId(): string {
     const userInfo = os.userInfo().username
     const hostname = os.hostname()

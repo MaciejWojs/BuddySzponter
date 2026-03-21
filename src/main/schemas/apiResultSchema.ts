@@ -57,13 +57,23 @@ export const RegisterApiResultSchema = z.object({
 })
 export type RegisterApiResult = z.infer<typeof RegisterApiResultSchema>
 
-export const LoginApiResultSchema = z.object({
-  success: z.boolean(),
-  code: z.number().optional(),
-  error: z
-    .object({
-      message: z.string()
-    })
+export const loginPayloadSchema = z.object({
+  message: z.string(),
+  accessToken: z.jwt()
+})
+
+export const registerPayloadSchema = z.object({
+  message: z.string()
+})
+
+export const errorResponseSchema = z.object({
+  message: z.string(),
+  cause: z
+    .array(
+      z.object({
+        field: z.string(),
+        error: z.string()
+      })
+    )
     .optional()
 })
-export type LoginApiResult = z.infer<typeof LoginApiResultSchema>
