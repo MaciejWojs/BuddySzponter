@@ -48,7 +48,7 @@ const navItems: NavBarItem[] = [
     <main class="menu-content">
       <article class="menu-column">
         <!-- GuestForm: Share control with a friend -->
-        {{ $t('guestForm.title') }}
+        <h2>{{ $t('guestForm.title') }}</h2>
         <p>{{ $t('guestForm.description') }}</p>
         <GuestForm />
       </article>
