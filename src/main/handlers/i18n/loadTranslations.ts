@@ -35,7 +35,7 @@ export async function loadTranslations(
 
     const encryptedJson = await response.json()
     const currentKey = secureStore.getSecure('aesKey')
-    const decryptedData = await decryptPayload(encryptedJson, currentKey!)
+    const decryptedData = decryptPayload(encryptedJson, currentKey!)
 
     translationStore.set(lang, decryptedData as Translation)
 

@@ -35,6 +35,12 @@ export const loginInputSchema = z.object({
   name: z.string().optional().default('')
 })
 
+export const refreshTokenCookieSchema = z.object({
+  refreshToken: z.jwt()
+})
+
+export type RefreshTokenCookie = z.infer<typeof refreshTokenCookieSchema>
+
 export type LoginInput = z.infer<typeof loginInputSchema>
 
 export type RegisterInput = z.infer<typeof registerInputSchema>

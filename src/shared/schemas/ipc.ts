@@ -8,3 +8,4 @@ export type IpcResponse<TData = void> =
 
 export type LoginRendererResponse = IpcResponse<{ accessTokenSaved: boolean }>
 export type RegisterRendererResponse = IpcResponse
+export type LogoutRendererResponse = IpcResponse

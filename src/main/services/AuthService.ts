@@ -5,6 +5,7 @@ import { login } from '../handlers/auth/login'
 import { API_ROUTES } from '../apiRoutes'
 import { secureStore } from '../store/secureStore'
 import { authStore } from '../store/localStore'
+import { logout } from '../handlers/auth/logout'
 
 export class AuthService {
   private static instance: AuthService
@@ -63,6 +64,9 @@ export class AuthService {
     })
     ipcMain.handle('auth:login', async (_event, data: LoginInput) => {
       return await login(data)
+    })
+    ipcMain.handle('auth:logout', async () => {
+      return await logout()
     })
   }
 }
