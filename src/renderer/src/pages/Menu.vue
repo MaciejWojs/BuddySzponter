@@ -48,7 +48,7 @@ const navItems: NavBarItem[] = [
     <main class="menu-content">
       <article class="menu-column">
         <!-- GuestForm: Share control with a friend -->
-        <h2>Przejmij Kontrole</h2>
+        {{ $t('guestForm.title') }}
         <p>Wprowadz kod dostepu i haslo podany przez przyjaciela</p>
         <GuestForm />
       </article>
@@ -157,31 +157,59 @@ const navItems: NavBarItem[] = [
 
 @media (max-width: 1100px) {
   .menu-page {
-    padding: 16px 18px 20px;
+    padding: 12px 6vw 16px;
     overflow-y: auto;
   }
 
   .menu-content {
     grid-template-columns: 1fr;
-    gap: 44px;
+    gap: 32px;
     align-self: start;
-    padding-top: 12px;
+    padding-top: 10px;
   }
 
   .menu-column h2 {
-    font-size: 28px;
+    font-size: 24px;
   }
 
   .menu-column p {
-    font-size: 15px;
+    font-size: 14px;
   }
 
   .menu-footer {
-    margin-top: 12px;
+    margin-top: 10px;
   }
 
   .menu-logo {
-    width: 170px;
+    width: 120px;
+  }
+}
+
+@media (max-width: 600px) {
+  .menu-page {
+    padding: 6px 2vw 10px;
+  }
+  .menu-content {
+    gap: 18px;
+    padding-top: 4px;
+  }
+  .menu-column h2 {
+    font-size: 18px;
+  }
+  .menu-column p {
+    font-size: 12px;
+  }
+  .menu-footer {
+    margin-top: 6px;
+  }
+  .menu-logo {
+    width: 80px;
+  }
+  .menu-topbar :deep(button) {
+    min-width: 44px;
+    min-height: 44px;
+    border-radius: 10px;
+    font-size: 16px;
   }
 }
 </style>

@@ -35,6 +35,13 @@
     "sessionPassword": "Session Password",
     "timeToJoin": "Time Remaining:"
   },
+  "guestForm": {
+    "title": "Transfer Control",
+    "description": "Enter the session code to transfer control of your device to another user.",
+    "sessionCode": "Session Code",
+    "sessionPassword": "Session Password",
+    "timeToJoin": "Time Remaining:"
+  },
   "alert": {
     "success": "Success",
     "error": "Error",

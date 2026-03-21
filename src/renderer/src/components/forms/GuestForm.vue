@@ -125,7 +125,7 @@ function onPasswordBlur(): void {
 <template>
   <div>
     <div id="sessionCode" class="flex flex-col items-center">
-      <h3>{{ $t('GuestForm.sessionCode') }}</h3>
+      <h3>{{ $t('guestForm.sessionCode') }}</h3>
       <BuInput
         v-model="sessionCode"
         v-bind="sessionCodeAttrs"
