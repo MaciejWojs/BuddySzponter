@@ -59,5 +59,12 @@
   "userMenu1": {
     "login": "Log in",
     "register": "Register"
+  },
+  "loginform": {
+    "hint1": "Your password",
+    "forgotPassword": "Forgot password?",
+    "sessionCode": "Session Code",
+    "sessionPassword": "Session Password",
+    "joinButton": "Join"
   }
 }

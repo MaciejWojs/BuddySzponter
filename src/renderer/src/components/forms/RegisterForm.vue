@@ -65,6 +65,21 @@
         <UIcon v-if="isLoading" name="i-lucide-loader-circle" class="animate-spin w-6 h-6" />
       </template>
     </GrayButton>
+
+    <div class="w-full max-w-sm space-y-1 text-center mt-2">
+      <div class="flex items-center justify-center gap-1 text-sm text-white opacity-80">
+        <span>{{ t('register.haveAccount') || 'Posiadasz już konto?' }}</span>
+        <button
+          type="button"
+          class="text-white text-sm opacity-80 hover:opacity-100 hover:underline underline-offset-2 transition-opacity"
+          @click="goToLogin"
+        >
+          {{ t('register.loginNow') || 'Zaloguj się' }}
+        </button>
+      </div>
+    </div>
+
+    <img :src="buddySzponterLogo" alt="BuddySzponter" class="w-52 h-auto" />
   </div>
 </template>
 
@@ -75,9 +90,12 @@ const { t } = useI18n()
 // Custom svg components
 import Mail from '@images/components/mail.svg?component'
 import { useAppToast } from '@renderer/composables/useAppToast'
+import buddySzponterLogo from '@images/buddyszponterLogo.png'
 import zxcvbn from 'zxcvbn'
 
+import { useRouter } from 'vue-router'
 const { custom: toastCustom } = useAppToast()
+const router = useRouter()
 
 // State
 const showPassword = ref(false)
@@ -138,4 +156,8 @@ const handleRegister = handleSubmit((values) => {
     isLoading.value = false
   }
 })
+
+function goToLogin(): void {
+  router.push('/login')
+}
 </script>
