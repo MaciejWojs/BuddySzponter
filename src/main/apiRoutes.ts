@@ -25,6 +25,7 @@ export const API_ROUTES = {
   },
   CORE: {
     SUPPORTED_VERSIONS: '/core/supported-versions',
-    LOCALE: '/core/locale'
+    LOCALE: '/core/locale',
+    LANGUAGES: '/core/languages'
   }
 } as const
