@@ -1,6 +1,10 @@
+import { z } from 'zod'
+
 export const AppLanguageSchema = z.enum(['pl', 'en', 'plX67'])
 export type AppLanguage = z.infer<typeof AppLanguageSchema>
-import { z } from 'zod'
+
+export const LanguagesResponseSchema = z.array(z.enum(['en', 'pl', 'plX67', 'it']))
+export type LanguagesResponse = z.infer<typeof LanguagesResponseSchema>
 
 const JSONValueSchema: z.ZodType<unknown> = z.lazy(() =>
   z.union([
