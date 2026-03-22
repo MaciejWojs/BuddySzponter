@@ -19,6 +19,12 @@ const api = {
     ): Promise<{ success: boolean; data?: unknown; error?: string }> =>
       ipcRenderer.invoke('i18n:loadTranslations', lang),
     getHardwareId: (): Promise<string> => ipcRenderer.invoke('settings:getHardwareId')
+  },
+  core: {
+    getLocale: (params: { lang: string; version: string }) =>
+      ipcRenderer.invoke('core:getLocale', params),
+    getAvailableLanguages: () => ipcRenderer.invoke('core:getAvailableLanguages'),
+    getSupportedVersions: () => ipcRenderer.invoke('core:getSupportedVersions')
   }
 }
 
