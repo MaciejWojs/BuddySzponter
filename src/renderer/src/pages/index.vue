@@ -44,8 +44,15 @@
         <div class="card dark-card actions-card">
           <h2>Akcje Sesji</h2>
           <p>Przetestuj z tokenem i bez tokena:</p>
-          <button class="action-btn" @click="handleGetMe">馃攳 Pobierz Profil (/me)</button>
-          <button class="action-btn danger" @click="handleLogout">馃毆 Wyloguj</button>
+          <button class="action-btn" @click="handleGetMe">📳 Pobierz Profil (/me)</button>
+          <button class="action-btn danger" @click="handleLogout">🥶 Wyloguj</button>
+        </div>
+
+        <div class="card dark-card actions-card">
+          <h2>Testowanie Języków / Core</h2>
+          <button class="action-btn" @click="handleSupportedVersions">🌐 Supported Versions</button>
+          <button class="action-btn" @click="handleLanguages">🈯 Lista Języków</button>
+          <button class="action-btn" @click="handleLocale">🌍 Pobierz Locale (pl, 1.0.0)</button>
         </div>
       </div>
 
@@ -115,6 +122,40 @@ const handleLogout = async (): Promise<void> => {
   outputLog.value = 'Ładowanie...'
   const res = await window.api.auth.logout()
   logResult('LOGOUT', res)
+}
+
+// --- HANDLERY TESTUJĄCE ENDPOINTY JĘZYKOWE PRZEZ IPC ---
+const handleSupportedVersions = async (): Promise<void> => {
+  outputLog.value = 'Ładowanie...'
+  try {
+    // IPC: core:getSupportedVersions
+    const res = await window.api.core.getSupportedVersions()
+    logResult('SUPPORTED_VERSIONS', res)
+  } catch (e) {
+    logResult('SUPPORTED_VERSIONS_ERROR', e)
+  }
+}
+
+const handleLanguages = async (): Promise<void> => {
+  outputLog.value = 'Ładowanie...'
+  try {
+    // IPC: core:getAvailableLanguages
+    const res = await window.api.core.getAvailableLanguages()
+    logResult('LANGUAGES', res)
+  } catch (e) {
+    logResult('LANGUAGES_ERROR', e)
+  }
+}
+
+const handleLocale = async (): Promise<void> => {
+  outputLog.value = 'Ładowanie...'
+  try {
+    // IPC: core:getLocale
+    const res = await window.api.core.getLocale({ lang: 'en', version: '1.0.0' })
+    logResult('LOCALE', res)
+  } catch (e) {
+    logResult('LOCALE_ERROR', e)
+  }
 }
 </script>
 
