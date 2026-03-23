@@ -1,5 +1,5 @@
 import Store from 'electron-store'
-import { AppLanguage } from '../../shared/schemas/langSchemas'
+import { AppLanguage, Translation } from '../../shared/schemas/langSchemas'
 
 type StoreModule = { default: typeof Store }
 
@@ -9,6 +9,7 @@ const StoreClass = (
 
 interface LocalStoreSchema {
   language: AppLanguage
+  availableLanguages: AppLanguage[]
   hardwareId: string | null
 }
 
@@ -16,6 +17,7 @@ export const localStore = new StoreClass<LocalStoreSchema>({
   name: 'app-settings',
   defaults: {
     language: 'en',
+    availableLanguages: [],
     hardwareId: null
   }
 })
@@ -27,7 +29,12 @@ export const authStore = new StoreClass<{ accessToken: string | null }>({
   }
 })
 
+export const translationStore = new StoreClass<Record<string, Translation>>({
+  name: 'translations-cache'
+})
+
 export function clearLocalStore(): void {
   localStore.clear()
   authStore.clear()
+  translationStore.clear()
 }
