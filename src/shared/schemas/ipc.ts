@@ -8,7 +8,6 @@ export type IpcResponse<TData = void> =
   | { success: true; data: TData; message?: string }
   | { success: false; message: string; cause?: ValidationErrorCause[] }
 export interface SupportedVersion {
-  id: number
   version: string
   codename: string
   isSupported: boolean

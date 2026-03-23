@@ -7,7 +7,6 @@ import { z } from 'zod'
 import { decryptData } from '../../utils/api/crypt'
 
 export const SupportedVersionSchema = z.object({
-  id: z.number(),
   version: z.string(),
   codename: z.string(),
   isSupported: z.boolean()
