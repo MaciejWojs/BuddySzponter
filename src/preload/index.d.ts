@@ -13,15 +13,12 @@ declare global {
       }
       settings: {
         getLanguage: () => Promise<AppLanguage>
-        setLanguage: (
-          lang: AppLanguage
-        ) => Promise<{ success: boolean; data?: unknown; error?: string }>
+        setLanguage: (lang: AppLanguage) => Promise<boolean>
+        getTranslation: () => Promise<Translation>
+        getHardwareId: () => Promise<string>
       }
       core: {
-        getLocale: (params: {
-          lang: string
-          version: string
-        }) => Promise<GetAvailableLanguagesResponse>
+        getLocale: (lang: string) => Promise<GetLocaleResponse>
         getAvailableLanguages: () => Promise<GetAvailableLanguagesResponse>
         getSupportedVersions: () => Promise<GetSupportedVersionsResponse>
       }
