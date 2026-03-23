@@ -1,7 +1,8 @@
 <template>
   <div class="home-page dark-theme">
-    <header>
+    <header class="header-flex">
       <h1>Panel Testowy API (Auth)</h1>
+      <BuLanguageSelector class="ml-4" />
     </header>
 
     <div class="layout-wrapper">
@@ -25,7 +26,7 @@
             <input
               v-model="registerForm.passwordConfirm"
               type="password"
-              placeholder="Powt贸rz has艂o"
+              placeholder="Powtórz hasło"
               required
             />
             <button type="submit">Zarejestruj</button>
@@ -36,7 +37,7 @@
           <h2>Logowanie</h2>
           <form @submit.prevent="handleLogin">
             <input v-model="loginForm.email" type="email" placeholder="Email" required />
-            <input v-model="loginForm.password" type="password" placeholder="Has艂o" required />
+            <input v-model="loginForm.password" type="password" placeholder="Hasło" required />
             <button type="submit">Zaloguj</button>
           </form>
         </div>
@@ -52,7 +53,7 @@
           <h2>Testowanie Języków / Core</h2>
           <button class="action-btn" @click="handleSupportedVersions">🌐 Supported Versions</button>
           <button class="action-btn" @click="handleLanguages">🈯 Lista Języków</button>
-          <button class="action-btn" @click="handleLocale">🌍 Pobierz Locale (pl, 1.0.0)</button>
+          <button class="action-btn" @click="handleLocale">🌍 Pobierz Locale (pl)</button>
         </div>
       </div>
 
@@ -60,7 +61,7 @@
         <div class="card console-card">
           <h2>Wynik z Electrona:</h2>
           <div class="console-scroll-area">
-            <pre class="console-output">{{ outputLog || 'Czekam na akcj臋...' }}</pre>
+            <pre class="console-output">{{ outputLog || 'Czekam na akcję...' }}</pre>
           </div>
         </div>
       </div>
@@ -70,8 +71,8 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+// IMPORT NASZEGO NOWEGO KOMPONENTU (Upewnij się, że ścieżka się zgadza!)
 
-// --- STANY FORMULARZY Z GOTOWYMI DANYMI TESTOWYMI ---
 const registerForm = ref({
   nickname: 'testuser',
   email: 'test@example.com',
@@ -86,7 +87,7 @@ const loginForm = ref({
 
 const outputLog = ref<unknown | string | null>(null)
 
-// --- FUNKCJA POMOCNICZA DO WY艢WIETLANIA WYNIK脫W ---
+// --- FUNKCJA POMOCNICZA DO WYŚWIETLANIA WYNIKÓW ---
 const logResult = (_actionName: string, response: unknown): void => {
   outputLog.value = response
 }
@@ -128,7 +129,6 @@ const handleLogout = async (): Promise<void> => {
 const handleSupportedVersions = async (): Promise<void> => {
   outputLog.value = 'Ładowanie...'
   try {
-    // IPC: core:getSupportedVersions
     const res = await window.api.core.getSupportedVersions()
     logResult('SUPPORTED_VERSIONS', res)
   } catch (e) {
@@ -139,7 +139,6 @@ const handleSupportedVersions = async (): Promise<void> => {
 const handleLanguages = async (): Promise<void> => {
   outputLog.value = 'Ładowanie...'
   try {
-    // IPC: core:getAvailableLanguages
     const res = await window.api.core.getAvailableLanguages()
     logResult('LANGUAGES', res)
   } catch (e) {
@@ -150,8 +149,9 @@ const handleLanguages = async (): Promise<void> => {
 const handleLocale = async (): Promise<void> => {
   outputLog.value = 'Ładowanie...'
   try {
-    // IPC: core:getLocale
-    const res = await window.api.core.getLocale({ lang: 'en', version: '1.0.0' })
+    // Uwaga: Zakładamy, że getLocale przyjmuje teraz po prostu stringa/AppLanguage
+    // z uwagi na nasze ostatnie poprawki z preload/API.
+    const res = await window.api.core.getLocale('en')
     logResult('LOCALE', res)
   } catch (e) {
     logResult('LOCALE_ERROR', e)
@@ -160,7 +160,14 @@ const handleLocale = async (): Promise<void> => {
 </script>
 
 <style scoped>
-/* Reset i g艂贸wny kontener na ca艂y ekran */
+/* Nagłówek z przyciskiem języka */
+.header-flex {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+/* Reset i główny kontener na cały ekran */
 .home-page.dark-theme {
   padding: 20px;
   font-family: sans-serif;
@@ -168,7 +175,7 @@ const handleLocale = async (): Promise<void> => {
   margin: 0 auto;
   background-color: #121212;
   color: #e0e0e0;
-  height: 100vh; /* Zajmuje ca艂膮 wysoko艣膰 okna */
+  height: 100vh;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -187,19 +194,19 @@ h2 {
   margin-top: 0;
 }
 
-/* Nowy uk艂ad dwukolumnowy */
+/* Nowy układ dwukolumnowy */
 .layout-wrapper {
   display: flex;
   gap: 20px;
   flex-grow: 1;
-  min-height: 0; /* Wa偶ne, 偶eby scroll dzia艂a艂 wewn膮trz div贸w */
+  min-height: 0;
 }
 
 /* Lewa kolumna (Formularze) */
 .forms-section {
   flex: 1.2;
   display: grid;
-  grid-template-columns: 1fr 1fr; /* Dwa formularze obok siebie */
+  grid-template-columns: 1fr 1fr;
   gap: 20px;
   align-content: start;
   overflow-y: auto;
@@ -208,7 +215,7 @@ h2 {
 
 /* Prawa kolumna (Konsola) */
 .console-section {
-  flex: 1; /* Zajmuje troch臋 mniej miejsca ni偶 formularze */
+  flex: 1;
   display: flex;
   flex-direction: column;
   min-width: 350px;
@@ -222,11 +229,11 @@ h2 {
   padding: 20px;
 }
 
-/* Karta z akcjami musi rozci膮ga膰 si臋 na dwie kolumny w sekcji formularzy */
+/* Karta z akcjami musi rozciągać się na dwie kolumny w sekcji formularzy */
 .actions-card {
   grid-column: span 2;
   display: flex;
-  flex-direction: row; /* Przyciski obok siebie */
+  flex-direction: row;
   gap: 10px;
   align-items: center;
 }
@@ -247,7 +254,6 @@ h2 {
   box-sizing: border-box;
 }
 
-/* To tu dzieje si臋 magia przewijania log贸w */
 .console-scroll-area {
   flex-grow: 1;
   overflow-y: auto;
@@ -259,7 +265,7 @@ h2 {
 }
 
 .console-output {
-  color: #a6e22e; /* Kolor hakerski :) */
+  color: #a6e22e;
   white-space: pre-wrap;
   word-wrap: break-word;
   margin: 0;
