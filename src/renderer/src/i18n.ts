@@ -1,16 +1,19 @@
+// src/renderer/i18n.ts
 import { createI18n } from 'vue-i18n'
-import en from '../../shared/locales/en.json'
+import erTranslations from '../../shared/locales/er.json'
+import { AppLanguage } from 'src/shared/schemas/langSchemas'
 
-const i18n = createI18n({
+// IMPORTUJEMY TWÓJ TYP
+
+export const i18n = createI18n({
   legacy: false,
   globalInjection: true,
-  locale: 'en',
-  fallbackLocale: 'en',
+
+  // POPRAWKA: Rzutujemy na AppLanguage, żeby TS wiedział, co tu wolno wrzucać
+  locale: 'er' as AppLanguage,
+  fallbackLocale: 'er' as AppLanguage,
+
   messages: {
-    en,
-    pl: {},
-    plX67: {}
+    er: erTranslations
   }
 })
-
-export default i18n

@@ -5,6 +5,7 @@ import ui from '@nuxt/ui/vite'
 import VueRouter from 'vue-router/vite'
 import { VueRouterAutoImports } from 'vue-router/unplugin'
 import svgLoader from 'vite-svg-loader'
+import VueI18nPlugin from '@intlify/unplugin-vue-i18n/vite'
 
 export default defineConfig({
   main: {},
@@ -13,7 +14,8 @@ export default defineConfig({
     resolve: {
       alias: {
         '@renderer': resolve('src/renderer/src'),
-        '@images': resolve('src/renderer/src/assets/images')
+        '@images': resolve('src/renderer/src/assets/images'),
+        'vue-i18n': 'vue-i18n/dist/vue-i18n.runtime.esm-browser.prod.js'
       }
     },
     optimizeDeps: {
@@ -36,6 +38,12 @@ export default defineConfig({
       }),
       svgLoader(),
       vue(),
+      VueI18nPlugin({
+        // Wskazujemy gdzie są Twoje pliki z tłumaczeniami
+        include: [resolve(__dirname, './src/shared/locales/**')],
+        compositionOnly: true,
+        fullInstall: false
+      }),
       ui({
         autoImport: {
           imports: [
