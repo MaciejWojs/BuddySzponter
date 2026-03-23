@@ -1,9 +1,9 @@
 import { createHash } from 'crypto'
 import os from 'os'
-import { localStore } from '../store/localStore'
-import { AppLanguage, AppLanguageSchema, Translation } from '../../shared/schemas/langSchemas'
-import { loadTranslations } from '../handlers/i18n/loadTranslations'
+import { localStore, translationStore } from '../store/localStore'
 import { ipcMain } from 'electron'
+import { AppLanguage, Translation } from '../../shared/schemas/langSchemas'
+import fallbackTranslations from '../../shared/locales/er.json'
 
 export class AppSettingsService {
   private static instance: AppSettingsService
@@ -21,37 +21,48 @@ export class AppSettingsService {
 
   // --- LANGUAGE MANAGEMENT ---
 
-  public getLanguage(): AppLanguage {
-    const lang = localStore.get('language')
-    console.log('[AppSettingsService] Retrieved language from store:', lang)
-    const parsed = AppLanguageSchema.safeParse(lang)
-    return parsed.success ? parsed.data : 'pl'
+  public getSelectedLanguage(): AppLanguage {
+    const savedLang = localStore.get('language')
+    if (!savedLang) {
+      localStore.set('language', 'er')
+      console.log('[AppSettingsService] No language found in store, defaulting to "er".')
+      return 'er'
+    }
+
+    return localStore.get('language')
   }
 
-  public async setLanguage(
-    lang: unknown
-  ): Promise<{ success: boolean; data?: Translation; error?: string }> {
-    const parsed = AppLanguageSchema.safeParse(lang)
+  public getSelectedTranslation(): Translation {
+    let translation: Translation
+    const selectedLang = this.getSelectedLanguage()
 
-    if (!parsed.success) {
-      console.error('[AppSettingsService] Invalid language code:', lang)
-      return { success: false, error: 'Invalid language code' }
-    }
-
-    const validLang = parsed.data
-
-    try {
-      const result = await loadTranslations(validLang)
-
-      if (result.success) {
-        localStore.set('language', validLang)
+    if (selectedLang === 'er') {
+      translation = fallbackTranslations
+      translationStore.set('er', fallbackTranslations)
+      console.log('[AppSettingsService] No selected language found, using fallback translations.')
+    } else {
+      translation = translationStore.get(selectedLang)
+      if (!translation) {
+        console.warn(
+          `[AppSettingsService] Translations missing for ${selectedLang}. Falling back to 'er'.`
+        )
+        translation = fallbackTranslations
       }
-
-      return result
-    } catch (error) {
-      console.error('[AppSettingsService] Fatal error setting language:', error)
-      return { success: false, error: 'Internal system error' }
     }
+
+    return translation
+  }
+
+  public setLanguage(lang: AppLanguage): boolean {
+    const availableLanguages = localStore.get('availableLanguages') || []
+    if (availableLanguages.length > 0 && !availableLanguages.includes(lang)) {
+      console.warn(`[AppSettingsService] Attempted to set unavailable language: ${lang}`)
+    }
+
+    localStore.set('language', lang)
+    console.log(`[AppSettingsService] Language successfully changed to: '${lang}'`)
+
+    return true
   }
 
   // --- HARDWARE ID MANAGEMENT ---
@@ -110,14 +121,16 @@ export class AppSettingsService {
 
   public registerHandlers(): void {
     ipcMain.handle('settings:getLanguage', () => {
-      return this.getLanguage()
+      return this.getSelectedLanguage()
     })
 
-    ipcMain.handle('i18n:loadTranslations', async (_event, lang: unknown) => {
-      return await this.setLanguage(lang)
+    ipcMain.handle('settings:getTranslation', () => {
+      return this.getSelectedTranslation()
     })
 
-    ipcMain.handle('settings:getHardwareId', () => this.getHardwareId())
+    ipcMain.handle('settings:setLanguage', (_event, lang: AppLanguage) => {
+      return this.setLanguage(lang)
+    })
   }
 }
 
