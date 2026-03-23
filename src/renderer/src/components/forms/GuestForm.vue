@@ -125,7 +125,7 @@ function onPasswordBlur(): void {
 <template>
   <div>
     <div id="sessionCode" class="flex flex-col items-center">
-      <h3>{{ $t('GuestForm.sessionCode') }}</h3>
+      <h3>{{ $t('guestForm.sessionCode') }}</h3>
       <BuInput
         v-model="sessionCode"
         v-bind="sessionCodeAttrs"
@@ -155,7 +155,7 @@ function onPasswordBlur(): void {
       <div class="text-red-500 text-sm mt-1 mb-1 min-h-2">{{ errors.sessionCode }}</div>
     </div>
     <div id="sessionPassword" class="flex flex-col items-center">
-      <h3>{{ $t('GuestForm.sessionPassword') }}</h3>
+      <h3>{{ $t('guestForm.sessionPassword') }}</h3>
       <BuInput
         v-model="sessionPassword"
         v-bind="sessionPasswordAttrs"
@@ -184,7 +184,7 @@ function onPasswordBlur(): void {
     </div>
 
     <div class="flex justify-center" style="margin-top: 44px">
-      <GrayButton>Dolacz do sesji</GrayButton>
+      <GrayButton>{{ $t('guestForm.joinButton') }}</GrayButton>
     </div>
   </div>
 </template>

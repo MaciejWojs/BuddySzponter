@@ -1,7 +1,7 @@
 <template>
   <section class="login-page">
     <div class="login-card">
-      <h1 class="login-title">{{ $t('login.button') }}</h1>
+      <h1 class="login-title">{{ $t('login.title') }}</h1>
       <LoginForm />
     </div>
   </section>

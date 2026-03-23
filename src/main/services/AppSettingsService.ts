@@ -25,7 +25,7 @@ export class AppSettingsService {
     const lang = localStore.get('language')
     console.log('[AppSettingsService] Retrieved language from store:', lang)
     const parsed = AppLanguageSchema.safeParse(lang)
-    return parsed.success ? parsed.data : 'pl'
+    return parsed.success ? parsed.data : 'en'
   }
 
   public async setLanguage(

@@ -48,15 +48,15 @@ const navItems: NavBarItem[] = [
     <main class="menu-content">
       <article class="menu-column">
         <!-- GuestForm: Share control with a friend -->
-        <h2>Oddaj kontrole</h2>
-        <p>Podaj kod dostepu i haslo przyjacielowi</p>
+        <h2>{{ $t('guestForm.title') }}</h2>
+        <p>{{ $t('guestForm.description') }}</p>
         <GuestForm />
       </article>
 
       <article class="menu-column">
         <!-- HostForm: Take control using code/password -->
-        <h2>Przejmij Kontrole</h2>
-        <p>Wprowadz kod dostepu i haslo podany przez przyjaciela</p>
+        <h2>{{ $t('hostForm.title') }}</h2>
+        <p>{{ $t('hostForm.description') }}</p>
         <HostForm />
       </article>
     </main>
@@ -92,14 +92,26 @@ const navItems: NavBarItem[] = [
 }
 
 .menu-topbar :deep(button) {
-  min-width: 54px;
-  min-height: 44px;
+  min-width: 64px;
+  min-height: 64px;
+  aspect-ratio: 1/1;
   font-size: 22px;
-  padding: 10px 18px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  box-sizing: border-box;
+  background: none;
 }
 .menu-topbar :deep(svg) {
-  width: 24px !important;
-  height: 24px !important;
+  width: 70%;
+  height: 70%;
+  max-width: 70%;
+  max-height: 70%;
+  object-fit: contain;
+  display: block;
+  margin: auto;
 }
 
 .menu-content {
@@ -145,31 +157,59 @@ const navItems: NavBarItem[] = [
 
 @media (max-width: 1100px) {
   .menu-page {
-    padding: 16px 18px 20px;
+    padding: 12px 6vw 16px;
     overflow-y: auto;
   }
 
   .menu-content {
     grid-template-columns: 1fr;
-    gap: 44px;
+    gap: 32px;
     align-self: start;
-    padding-top: 12px;
+    padding-top: 10px;
   }
 
   .menu-column h2 {
-    font-size: 28px;
+    font-size: 24px;
   }
 
   .menu-column p {
-    font-size: 15px;
+    font-size: 14px;
   }
 
   .menu-footer {
-    margin-top: 12px;
+    margin-top: 10px;
   }
 
   .menu-logo {
-    width: 170px;
+    width: 120px;
+  }
+}
+
+@media (max-width: 600px) {
+  .menu-page {
+    padding: 6px 2vw 10px;
+  }
+  .menu-content {
+    gap: 18px;
+    padding-top: 4px;
+  }
+  .menu-column h2 {
+    font-size: 18px;
+  }
+  .menu-column p {
+    font-size: 12px;
+  }
+  .menu-footer {
+    margin-top: 6px;
+  }
+  .menu-logo {
+    width: 80px;
+  }
+  .menu-topbar :deep(button) {
+    min-width: 44px;
+    min-height: 44px;
+    border-radius: 10px;
+    font-size: 16px;
   }
 }
 </style>
