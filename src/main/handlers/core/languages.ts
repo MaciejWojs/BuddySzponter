@@ -6,6 +6,7 @@ import { encryptedPayloadSchema } from '../../schemas/encryptedPayload.schema'
 import { secureStore } from '../../store/secureStore'
 import { decryptData } from '../../utils/api/crypt'
 import { execute } from '../../utils/execute'
+import { localStore } from '../../store/localStore'
 
 export async function getAvailableLanguages(): Promise<GetAvailableLanguagesResponse> {
   try {
@@ -23,7 +24,6 @@ export async function getAvailableLanguages(): Promise<GetAvailableLanguagesResp
         requestHeaders['X-session-id'] = sessionId
       }
 
-      // POPRAWKA: Używamy dynamicznego url i requestHeaders
       return fetch(url, {
         headers: requestHeaders
       })
@@ -64,7 +64,7 @@ export async function getAvailableLanguages(): Promise<GetAvailableLanguagesResp
       languages = parse.data
     }
 
-    console.log('Parsed languages:', languages)
+    localStore.set('availableLanguages', languages)
     return { success: true, data: languages }
   } catch (error) {
     console.error('Error fetching languages:', error)

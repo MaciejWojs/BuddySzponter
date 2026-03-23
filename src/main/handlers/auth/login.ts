@@ -1,7 +1,7 @@
 import { API_ROUTES } from '../../apiRoutes'
 import { loginPayloadSchema, errorResponseSchema } from '../../schemas/apiResultSchema'
 import { LoginInput, loginInputSchema } from '../../schemas/authSchemas'
-import { appSettings } from '../../services/AppSettingsService'
+import { appSettings } from '../../services/SettingsService'
 import { authStore } from '../../store/localStore'
 import { secureStore } from '../../store/secureStore'
 import { decryptData, encryptData } from '../../utils/api/crypt'
