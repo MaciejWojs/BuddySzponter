@@ -43,10 +43,22 @@
     "copy": "Copied"
   },
   "languageSwitcher": {
-    "en": "English",
     "pl": "Polish",
+    "en": "English",
+    "er": "Eritrean",
+    "plX67": "Szpontish",
+    "de": "German",
+    "it": "Italian",
+    "fr": "French",
     "es": "Spanish",
-    "plX67": "Szponterski",
+    "cn": "Chinese",
+    "jp": "Japanese",
+    "kr": "Korean",
+    "id": "Indonesian",
+    "sa": "Saudi",
+    "bd": "Bangladeshi",
+    "br": "Brazilian",
+    "us": "American",
     "choice": "Choose language"
   }
 }

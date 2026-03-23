@@ -45,12 +45,12 @@
   "languageSwitchButton": {
     "choice": "Wybierz język",
     "languages": {
-      "en": "Angielski",
       "pl": "Polski",
-      "plX67": "Szponterski",
-      "it": "Włoski",
+      "en": "Angielski",
       "er": "Erytrejski",
+      "plX67": "Szponterski",
       "de": "Niemiecki",
+      "it": "Włoski",
       "fr": "Francuski",
       "es": "Hiszpański",
       "cn": "Chiński",
