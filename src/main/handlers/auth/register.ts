@@ -1,78 +1,70 @@
-import { ipcMain } from 'electron'
-import { encryptPayload } from '../../utils/encrypt-payload'
-import { execute } from '../../utils/execute'
-import { secureStore } from '../../utils/secureStore'
-import { decryptPayload } from '../../utils/decrypt-payload'
+import { RegisterInput } from '../../schemas/authSchemas'
+import { errorResponseSchema, registerPayloadSchema } from '../../schemas/apiResultSchema'
 import { API_ROUTES } from '../../apiRoutes'
-import { registerInputSchema } from '../../schemas/authSchemas'
+import { secureStore } from '../../store/secureStore'
+import { encryptData, decryptData } from '../../utils/api/crypt'
+import { execute } from '../../utils/execute'
+import { RegisterRendererResponse } from '../../../shared/schemas/ipc'
 
-/**
- * auth:register
- */
-export async function register(): Promise<void> {
-  ipcMain.handle('auth:register', async (_event, rawData) => {
-    try {
-      const parsedInput = registerInputSchema.safeParse(rawData)
+export async function register(data: RegisterInput): Promise<RegisterRendererResponse> {
+  try {
+    const url = `${import.meta.env.VITE_API_BASE_URL}${API_ROUTES.AUTH.REGISTER}`
+    const isEncryptionEnabled = import.meta.env.VITE_ENCRYPT_DATA === 'true'
 
-      if (!parsedInput.success) {
-        return {
-          success: false,
-          status: 400,
-          error: parsedInput.error.issues
-        }
-      }
+    const requestHeaders: Record<string, string> = {
+      'Content-Type': 'application/json'
+    }
 
-      const { email, password, passwordConfirm, nickname } = parsedInput.data
+    let requestBody: string
+    if (isEncryptionEnabled) {
+      requestBody = JSON.stringify(await encryptData(data))
+      requestHeaders['X-session-id'] = secureStore.getSecure('sessionId') || ''
+    } else {
+      requestBody = JSON.stringify(data)
+    }
 
-      const response = await execute(async () => {
-        const key = secureStore.getSecure('aesKey')
-        const id = secureStore.getSecure('sessionId')
-
-        if (!key || !id) {
-          throw new Error('No session found. Please complete the handshake first.')
-        }
-
-        const baseURL = import.meta.env.VITE_API_BASE_URL
-        const url = `${baseURL}${API_ROUTES.AUTH.REGISTER}`
-        const aesKeyBuffer = Buffer.from(key, 'base64')
-
-        const payloadData = { email, password, passwordConfirm, nickname }
-        const encrypted = await encryptPayload(payloadData, aesKeyBuffer)
-
-        return await fetch(url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-session-id': id
-          },
-          body: JSON.stringify({ payload: encrypted })
-        })
+    const result = await execute(() =>
+      fetch(url, {
+        method: 'POST',
+        headers: requestHeaders,
+        body: requestBody
       })
+    )
 
-      if (!response.ok) {
-        const errorBody = await response.json().catch(() => ({}))
+    const responseJson = await result.json()
+
+    const decryptedResponse = isEncryptionEnabled ? await decryptData(responseJson) : responseJson
+
+    if (!result.ok) {
+      const parsedError = errorResponseSchema.safeParse(decryptedResponse)
+
+      if (parsedError.success) {
         return {
           success: false,
-          error: errorBody.message || `Server returned error: ${response.status}`,
-          status: response.status
+          message: parsedError.data.message,
+          cause: parsedError.data.cause
         }
       }
 
-      const encryptedJson = await response.json()
-
-      const currentKey = secureStore.getSecure('aesKey')
-      const decryptedData = await decryptPayload(encryptedJson, currentKey!)
-
-      return {
-        success: true,
-        data: decryptedData
-      }
-    } catch (error: unknown) {
-      console.error('Error in register IPC:', error)
+      // Fallback
       return {
         success: false,
-        error: (error as Error).message || 'Unknown error occurred'
+        message: decryptedResponse?.message || `HTTP Error: ${result.status} ${result.statusText}`
       }
     }
-  })
+
+    const parsedResponse = registerPayloadSchema.parse(decryptedResponse)
+
+    return {
+      success: true,
+      message: parsedResponse.message || 'Registration successful.',
+      data: undefined
+    }
+  } catch (error) {
+    console.error('Registration failed:', error)
+    return {
+      success: false,
+      message: 'Registration failed. Please try again.'
+    }
+  }
 }

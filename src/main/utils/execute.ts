@@ -1,7 +1,7 @@
 import { API_ROUTES } from '../apiRoutes'
 import { encryptedPayloadSchema } from '../schemas/encryptedPayload.schema'
 import { handshake } from './handshake'
-import { secureStore } from './secureStore'
+import { secureStore } from '../store/secureStore'
 
 export async function execute(callback: () => Promise<Response>): Promise<Response> {
   const result = await callback()
