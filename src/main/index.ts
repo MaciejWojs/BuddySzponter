@@ -5,9 +5,8 @@ import icon from '../../resources/icon.png?asset'
 import { handshake } from './utils/handshake'
 import { secureStore } from './store/secureStore'
 import { API_ROUTES } from './apiRoutes'
-import { appSettings } from './services/AppSettingsService'
+import { appSettings } from './services/SettingsService'
 import { clearLocalStore } from './store/localStore'
-import { clearTranslationStore } from './store/translationStore'
 import { authService } from './services/AuthService'
 import { coreService } from './services/CoreService'
 
@@ -62,7 +61,6 @@ app.whenReady().then(async () => {
 
   if (import.meta.env.VITE_CLEAR_STORES === 'true') {
     clearLocalStore()
-    clearTranslationStore()
     secureStore.clearSession()
     console.log('Stores cleared on startup due to VITE_CLEAR_STORES=true')
   }
