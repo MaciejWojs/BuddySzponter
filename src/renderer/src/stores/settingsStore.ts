@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
-import type { AppLanguage } from '../../../shared/schemas/langSchemas'
+import { ref } from 'vue'
+import type { AppLanguage, Translation } from '../../../shared/schemas/langSchemas'
 import { LanguageService } from '@renderer/composables/LanguageService'
 
 export interface LanguageDetails {
@@ -10,45 +10,38 @@ export interface LanguageDetails {
 }
 
 export const useSettingsStore = defineStore('settings', () => {
-  // --- STATE ---
-  const selectedLanguage = ref<AppLanguage>('en')
-  const isLoadingTranslations = ref(false)
-  const sessionPassword = ref<string>('')
-  const availableLanguages = ref<AppLanguage[]>(['pl', 'en', 'plX67'])
+  // --- 1. STATE  ---
+  const selectedLanguage = ref<AppLanguage>('er')
+  const availableLanguages = ref<AppLanguage[]>([])
+  const isLoadingTranslations = ref<boolean>(true)
+  const translations = ref<Translation | null>(null)
 
-  // --- LANGUAGES ---
-  const languagesInfo: Record<AppLanguage, LanguageDetails> = {
-    pl: { code: 'pl', name: 'Polski', flag: '🇵🇱' },
-    en: { code: 'en', name: 'English', flag: '🇬🇧' },
-    plX67: { code: 'plX67', name: 'Szponterski', flag: '🏴‍☠️' }
+  const langService = new LanguageService(
+    selectedLanguage,
+    isLoadingTranslations,
+    availableLanguages,
+    translations
+  )
+
+  // --- ACTIONS ---
+
+  const initSettings = async (): Promise<void> => {
+    await langService.init()
   }
 
-  const languageService = new LanguageService(selectedLanguage, isLoadingTranslations)
-
-  const uiLanguages = computed<LanguageDetails[]>(() => {
-    return availableLanguages.value.map((code) => languagesInfo[code])
-  })
-
-  const currentLanguageDetails = computed<LanguageDetails>(() => {
-    return languagesInfo[selectedLanguage.value]
-  })
-
-  const initLanguage = async (): Promise<void> => {
-    await languageService.initLanguage()
+  const setAppLanguage = async (lang: AppLanguage): Promise<void> => {
+    await langService.changeLanguage(lang)
   }
 
-  const setLanguage = async (newLang: AppLanguage, forceLoad = false): Promise<void> => {
-    await languageService.setLanguage(newLang, forceLoad)
-  }
-
+  // --- RETURN ---
   return {
+    // Stan
     selectedLanguage,
     availableLanguages,
     isLoadingTranslations,
-    sessionPassword,
-    initLanguage,
-    setLanguage,
-    uiLanguages,
-    currentLanguageDetails
+    translations,
+
+    initSettings,
+    setAppLanguage
   }
 })
