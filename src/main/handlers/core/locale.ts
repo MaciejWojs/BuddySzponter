@@ -7,12 +7,11 @@ import { decryptData } from '../../utils/api/crypt'
 import { encryptedPayloadSchema } from '../../schemas/encryptedPayload.schema'
 import { TranslationSchema } from '../../../shared/schemas/langSchemas'
 import { secureStore } from '../../store/secureStore'
+import { translationStore } from '../../store/localStore'
+import { app } from 'electron'
 
-export async function getLocale(params: {
-  lang: string
-  version: string
-}): Promise<GetLocaleResponse> {
-  const { lang, version } = params
+export async function getLocale(lang: string): Promise<GetLocaleResponse> {
+  const version = app.getVersion()
 
   const requestHeaders: Record<string, string> = {
     'Content-Type': 'application/json'
@@ -76,9 +75,19 @@ export async function getLocale(params: {
 
     const localeData = TranslationSchema.safeParse(rawData)
 
+    if (!localeData.success) {
+      console.error('Validation error for locale data:', localeData.error)
+      return {
+        success: false,
+        message: `Received invalid locale data format from server for language '${lang}' and version '${version}'.`
+      }
+    }
+
+    translationStore.set(lang, localeData.data)
+
     return {
       success: true,
-      data: localeData
+      data: localeData.data
     }
   } catch (error) {
     console.error('Error fetching locale:', error)
