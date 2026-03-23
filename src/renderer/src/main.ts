@@ -10,7 +10,7 @@ import { routes } from 'vue-router/auto-routes'
 import { createPinia } from 'pinia'
 import ui from '@nuxt/ui/vue-plugin'
 import App from './App.vue'
-import i18n from './i18n'
+import { i18n } from './i18n'
 
 const router = createRouter({
   history: createWebHashHistory(),
