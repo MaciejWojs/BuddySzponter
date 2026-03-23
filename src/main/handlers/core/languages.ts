@@ -40,7 +40,6 @@ export async function getAvailableLanguages(): Promise<GetAvailableLanguagesResp
       languages = Array.isArray(decryptedData) ? decryptedData : []
     }
 
-    // Walidacja i rzutowanie na enum
     const parse = LanguagesResponseSchema.safeParse(languages)
     if (!parse.success) {
       return {
