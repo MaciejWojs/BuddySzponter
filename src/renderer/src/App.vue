@@ -4,9 +4,9 @@ const toaster = { position: 'top-right', duration: 3000, dismissible: true, max:
 import { useSettingsStore } from '@renderer/stores/settingsStore'
 
 const store = useSettingsStore()
-store.initLanguage()
-</script>
 
+store.initSettings()
+</script>
 <template>
   <UApp :toaster="toaster">
     <router-view></router-view>

@@ -35,13 +35,6 @@
     "sessionPassword": "Session Password",
     "timeToJoin": "Time Remaining:"
   },
-  "guestForm": {
-    "title": "Join Session",
-    "description": "Enter the session code and password to join a remote session.",
-    "sessionCode": "Session Code",
-    "sessionPassword": "Session Password",
-    "joinButton": "Join"
-  },
   "alert": {
     "success": "Success",
     "error": "Error",
@@ -49,34 +42,25 @@
     "info": "Information",
     "copy": "Copied"
   },
-  "languageSwitcher": {
-    "pl": "Polish",
-    "en": "English",
-    "er": "Eritrean",
-    "plX67": "Szpontish",
-    "de": "German",
-    "it": "Italian",
-    "fr": "French",
-    "es": "Spanish",
-    "cn": "Chinese",
-    "jp": "Japanese",
-    "kr": "Korean",
-    "id": "Indonesian",
-    "sa": "Saudi",
-    "bd": "Bangladeshi",
-    "br": "Brazilian",
-    "us": "American",
-    "choice": "Choose language"
-  },
-  "userMenu1": {
-    "login": "Log in",
-    "register": "Register"
-  },
-  "loginform": {
-    "hint1": "Your password",
-    "forgotPassword": "Forgot password?",
-    "sessionCode": "Session Code",
-    "sessionPassword": "Session Password",
-    "joinButton": "Join"
+  "languageSwitchButton": {
+    "choice": "Choose language",
+    "languages": {
+      "en": "English",
+      "pl": "Polish",
+      "er": "Erish",
+      "plX67": "Szpontish",
+      "de": "German",
+      "it": "Italian",
+      "fr": "French",
+      "es": "Spanish",
+      "cn": "Chinese",
+      "jp": "Japanese",
+      "kr": "Korean",
+      "id": "Indonesian",
+      "sa": "Arabic",
+      "bd": "Bengali",
+      "br": "Portuguese",
+      "us": "American"
+    }
   }
 }

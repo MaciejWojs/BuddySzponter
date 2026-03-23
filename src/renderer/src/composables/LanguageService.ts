@@ -1,40 +1,65 @@
 // composables/LanguageService.ts
-import { ref } from 'vue'
-import i18n from '../i18n'
-import type { AppLanguage } from 'src/shared/schemas/langSchemas'
+import type { Ref } from 'vue'
+import type { AppLanguage, Translation } from 'src/shared/schemas/langSchemas'
+import { i18n } from '@renderer/i18n'
 
 export class LanguageService {
   constructor(
-    private selectedLanguageRef: ReturnType<typeof ref<AppLanguage>>,
-    private isLoadingTranslationsRef: ReturnType<typeof ref<boolean>>
+    private selectedLanguageRef: Ref<AppLanguage>,
+    private isLoadingTranslationsRef: Ref<boolean>,
+    private availableLanguagesRef: Ref<AppLanguage[]>,
+    private translationsRef: Ref<Translation | null>
   ) {}
 
-  async initLanguage(): Promise<void> {
+  /**
+   * Inicjalizuje stan językowy przy starcie aplikacji.
+   */
+  public async init(): Promise<void> {
+    this.isLoadingTranslationsRef.value = true
     try {
-      const savedLang = await window.api.settings.getLanguage()
-      await this.setLanguage(savedLang, true)
+      const [savedLang, availableLangsRes, initialTranslations] = await Promise.all([
+        window.api.settings.getLanguage(),
+        window.api.core.getAvailableLanguages(),
+        window.api.settings.getTranslation()
+      ])
+
+      this.selectedLanguageRef.value = savedLang
+      this.translationsRef.value = initialTranslations
+
+      if (availableLangsRes?.success && Array.isArray(availableLangsRes.data)) {
+        this.availableLanguagesRef.value = availableLangsRes.data
+      }
+
+      // --- NOWE (vue-i18n) ---
+      if (initialTranslations) {
+        i18n.global.setLocaleMessage(savedLang, initialTranslations)
+        i18n.global.locale.value = savedLang as unknown as 'er'
+      }
     } catch (error) {
-      console.error('Błąd podczas inicjalizacji języka z Electrona:', error)
+      console.error('[LanguageService] Failed to initialize:', error)
+    } finally {
+      this.isLoadingTranslationsRef.value = false
     }
   }
 
-  async setLanguage(newLang: AppLanguage, forceLoad = false): Promise<void> {
-    if (!forceLoad && this.selectedLanguageRef.value === newLang) return
-
+  public async changeLanguage(lang: AppLanguage): Promise<void> {
+    if (this.selectedLanguageRef.value === lang) return
     this.isLoadingTranslationsRef.value = true
+
     try {
-      const response = await window.api.settings.setLanguage(newLang)
+      const localeResponse = await window.api.core.getLocale(lang)
+      if (localeResponse && localeResponse.success === false) return
 
-      if (response.success && response.data) {
-        i18n.global.setLocaleMessage(newLang, response.data)
-        i18n.global.locale.value = newLang
+      await window.api.settings.setLanguage(lang)
+      const newTranslations = await window.api.settings.getTranslation()
 
-        this.selectedLanguageRef.value = newLang
-      } else {
-        console.error('Nie można załadować tłumaczeń z API/Cache:', response.error)
-      }
-    } catch (e) {
-      console.error('Błąd podczas zmiany języka:', e)
+      this.selectedLanguageRef.value = lang
+      this.translationsRef.value = newTranslations
+
+      i18n.global.setLocaleMessage(lang, newTranslations)
+      i18n.global.locale.value = lang as unknown as 'er'
+    } catch (error) {
+      console.error(`[LanguageService] Error changing language:`, error)
     } finally {
       this.isLoadingTranslationsRef.value = false
     }

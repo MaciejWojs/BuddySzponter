@@ -1,17 +1,21 @@
+import { app } from 'electron'
 import { GetAvailableLanguagesResponse } from '../../../shared/schemas/ipc'
-import { LanguagesResponseSchema } from '../../../shared/schemas/langSchemas'
+import { LanguagesResponse, LanguagesResponseSchema } from '../../../shared/schemas/langSchemas'
 import { API_ROUTES } from '../../apiRoutes'
 import { encryptedPayloadSchema } from '../../schemas/encryptedPayload.schema'
 import { secureStore } from '../../store/secureStore'
 import { decryptData } from '../../utils/api/crypt'
 import { execute } from '../../utils/execute'
+import { localStore } from '../../store/localStore'
 
 export async function getAvailableLanguages(): Promise<GetAvailableLanguagesResponse> {
   try {
-    const url = `${import.meta.env.VITE_API_BASE_URL}${API_ROUTES.CORE.LANGUAGES}`
+    const version = app.getVersion()
+    const url = `${import.meta.env.VITE_API_BASE_URL}${API_ROUTES.CORE.LANGUAGES}/${version}`
+    console.log(`Fetching available languages from: ${url}`)
 
     const requestHeaders: Record<string, string> = {
-      'Content-Type': 'application/json'
+      accept: 'application/json'
     }
 
     const response = await execute(() => {
@@ -21,34 +25,49 @@ export async function getAvailableLanguages(): Promise<GetAvailableLanguagesResp
       }
 
       return fetch(url, {
-        method: 'GET',
         headers: requestHeaders
       })
     })
+
     if (!response.ok) {
       throw new Error(`Server returned error: ${response.status}`)
     }
 
     const rawData = await response.json()
+    console.log('Received languages data:', rawData)
 
     const isCrypted = encryptedPayloadSchema.safeParse(rawData)
 
-    let languages: string[] = []
+    let languages: LanguagesResponse = []
 
     if (isCrypted.success) {
       const decryptedData = await decryptData(isCrypted.data)
-      languages = Array.isArray(decryptedData) ? decryptedData : []
+
+      const parseDecrypted = LanguagesResponseSchema.safeParse(decryptedData)
+      if (!parseDecrypted.success) {
+        console.error('Validation error for decrypted data:', parseDecrypted.error)
+        return {
+          success: false,
+          message: 'Invalid languages format from server after decryption.'
+        }
+      }
+      languages = parseDecrypted.data
+    } else {
+      const parse = LanguagesResponseSchema.safeParse(rawData)
+      if (!parse.success) {
+        console.error('Validation error:', parse.error)
+        return {
+          success: false,
+          message: 'Invalid languages format from server.'
+        }
+      }
+      languages = parse.data
     }
 
-    const parse = LanguagesResponseSchema.safeParse(languages)
-    if (!parse.success) {
-      return {
-        success: false,
-        message: 'Invalid languages format from server.'
-      }
-    }
-    return { success: true, data: parse.data }
-  } catch {
+    localStore.set('availableLanguages', languages)
+    return { success: true, data: languages }
+  } catch (error) {
+    console.error('Error fetching languages:', error)
     return {
       success: false,
       message: `Failed to fetch available languages from server. Please check your connection and try again.`
