@@ -55,9 +55,12 @@ const emit = defineEmits<{
 
 .navbar :deep(svg) {
   display: block;
-  height: 18px !important;
-  width: auto !important;
-  max-width: 20px;
+  width: 100%;
+  height: 100%;
+  max-width: 40px;
+  max-height: 40px;
+  object-fit: contain;
+  margin: auto;
   overflow: visible;
 }
 </style>

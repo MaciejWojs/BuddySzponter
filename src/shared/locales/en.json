@@ -35,6 +35,13 @@
     "sessionPassword": "Session Password",
     "timeToJoin": "Time Remaining:"
   },
+  "guestForm": {
+    "title": "Join Session",
+    "description": "Enter the session code and password to join a remote session.",
+    "sessionCode": "Session Code",
+    "sessionPassword": "Session Password",
+    "joinButton": "Join"
+  },
   "alert": {
     "success": "Success",
     "error": "Error",
@@ -60,5 +67,16 @@
     "br": "Brazilian",
     "us": "American",
     "choice": "Choose language"
+  },
+  "userMenu1": {
+    "login": "Log in",
+    "register": "Register"
+  },
+  "loginform": {
+    "hint1": "Your password",
+    "forgotPassword": "Forgot password?",
+    "sessionCode": "Session Code",
+    "sessionPassword": "Session Password",
+    "joinButton": "Join"
   }
 }

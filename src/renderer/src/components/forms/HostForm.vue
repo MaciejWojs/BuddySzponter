@@ -136,7 +136,7 @@ function onPasswordBlur(): void {
 <template>
   <div>
     <div id="sessionCode" class="flex flex-col items-center">
-      <h3>{{ $t('HostForm.sessionCode') }}</h3>
+      <h3>{{ $t('hostForm.sessionCode') }}</h3>
       <BuInput
         v-model="sessionCode"
         :readonly="true"
@@ -151,11 +151,11 @@ function onPasswordBlur(): void {
       <BuProgress type="progress" :model-value="time" :steps="120" />
     </div>
     <div id="timer" class="flex flex-row gap-4 justify-center items-center">
-      <h3>{{ $t('HostForm.timeToJoin') }}</h3>
+      <h3>{{ $t('hostForm.timeToJoin') }}</h3>
       <BuTimer ref="timer" size="1.4rem" class="" @finish="onTimerFinish" @tick="onTimerTick" />
     </div>
     <div id="sessionPassword" class="flex flex-col items-center">
-      <h3>{{ $t('HostForm.sessionPassword') }}</h3>
+      <h3>{{ $t('hostForm.sessionPassword') }}</h3>
       <BuInput
         v-model="sessionPassword"
         v-bind="sessionPasswordAttrs"
