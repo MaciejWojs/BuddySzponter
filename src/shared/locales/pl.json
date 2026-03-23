@@ -1,0 +1,66 @@
+{
+  "login": {
+    "title": "Zaloguj się do BuddySzponter",
+    "email": "Adres e-mail",
+    "password": "Hasło",
+    "button": "Zaloguj się",
+    "loading": "Ładowanie...",
+    "passwordStrength": "Siła hasła",
+    "emailError": {
+      "invalid": "Wprowadź poprawny adres e-mail",
+      "maxLength": "Adres e-mail jest za długi",
+      "required": "Adres e-mail jest wymagany"
+    },
+    "passwordError": {
+      "minLength": "Hasło jest za krótkie",
+      "required": "Hasło jest wymagane",
+      "weak": "Hasło jest zbyt słabe"
+    }
+  },
+  "validation": {
+    "invalidEmail": "Wprowadź poprawny adres e-mail",
+    "passwordTooShort": "Hasło musi mieć co najmniej 6 znaków",
+    "required": "To pole jest wymagane",
+    "passwordMinLength": "Hasło musi mieć co najmniej {count} znaków",
+    "passwordMaxLetters": "Hasło może zawierać maksymalnie {count} liter",
+    "passwordRequiresLowercase": "Hasło musi zawierać małą literę",
+    "passwordRequiresUppercase": "Hasło musi zawierać wielką literę",
+    "passwordRequiresDigit": "Hasło musi zawierać cyfrę",
+    "passwordRequiresSpecialCharacter": "Hasło musi zawierać znak specjalny"
+  },
+  "hostForm": {
+    "title": "Przekazanie kontroli",
+    "description": "Wprowadź kod sesji, aby przekazać kontrolę nad swoim urządzeniem innemu użytkownikowi.",
+    "sessionCode": "Kod sesji",
+    "sessionPassword": "Hasło sesji",
+    "timeToJoin": "Pozostały czas:"
+  },
+  "alert": {
+    "success": "Sukces",
+    "error": "Błąd",
+    "warning": "Ostrzeżenie",
+    "info": "Informacja",
+    "copy": "Skopiowano"
+  },
+  "languageSwitchButton": {
+    "choice": "Wybierz język",
+    "languages": {
+      "en": "Angielski",
+      "pl": "Polski",
+      "plX67": "Szponterski",
+      "it": "Włoski",
+      "er": "Erytrejski",
+      "de": "Niemiecki",
+      "fr": "Francuski",
+      "es": "Hiszpański",
+      "cn": "Chiński",
+      "jp": "Japoński",
+      "kr": "Koreański",
+      "id": "Indonezyjski",
+      "sa": "Arabski",
+      "bd": "Bengalski",
+      "br": "Brazylijski",
+      "us": "Amerykański"
+    }
+  }
+}
