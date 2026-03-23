@@ -17,6 +17,14 @@ declare global {
           lang: AppLanguage
         ) => Promise<{ success: boolean; data?: unknown; error?: string }>
       }
+      core: {
+        getLocale: (params: {
+          lang: string
+          version: string
+        }) => Promise<GetAvailableLanguagesResponse>
+        getAvailableLanguages: () => Promise<GetAvailableLanguagesResponse>
+        getSupportedVersions: () => Promise<GetSupportedVersionsResponse>
+      }
     }
   }
 }

@@ -9,7 +9,8 @@ const api = {
     register: (data: RegisterInput) => ipcRenderer.invoke('auth:register', data),
     login: (credentials: LoginInput) => ipcRenderer.invoke('auth:login', credentials),
     logout: () => ipcRenderer.invoke('auth:logout'),
-    getMe: () => ipcRenderer.invoke('auth:me')
+    getMe: () => ipcRenderer.invoke('auth:me'),
+    refresh: () => ipcRenderer.invoke('auth:refresh')
   },
   settings: {
     getLanguage: (): Promise<AppLanguage> => ipcRenderer.invoke('settings:getLanguage'),
@@ -18,6 +19,12 @@ const api = {
     ): Promise<{ success: boolean; data?: unknown; error?: string }> =>
       ipcRenderer.invoke('i18n:loadTranslations', lang),
     getHardwareId: (): Promise<string> => ipcRenderer.invoke('settings:getHardwareId')
+  },
+  core: {
+    getLocale: (params: { lang: string; version: string }) =>
+      ipcRenderer.invoke('core:getLocale', params),
+    getAvailableLanguages: () => ipcRenderer.invoke('core:getAvailableLanguages'),
+    getSupportedVersions: () => ipcRenderer.invoke('core:getSupportedVersions')
   }
 }
 

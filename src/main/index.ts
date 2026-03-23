@@ -2,13 +2,14 @@ import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
-import { register } from './handlers/auth/register'
 import { handshake } from './utils/handshake'
-import { secureStore } from './utils/secureStore'
+import { secureStore } from './store/secureStore'
 import { API_ROUTES } from './apiRoutes'
 import { appSettings } from './services/AppSettingsService'
 import { clearLocalStore } from './store/localStore'
 import { clearTranslationStore } from './store/translationStore'
+import { authService } from './services/AuthService'
+import { coreService } from './services/CoreService'
 
 function createWindow(): void {
   // Create the browser window.
@@ -65,9 +66,9 @@ app.whenReady().then(async () => {
     secureStore.clearSession()
     console.log('Stores cleared on startup due to VITE_CLEAR_STORES=true')
   }
-
-  await register()
+  authService.registerHandler()
   appSettings.registerHandlers()
+  coreService.registerHandlers()
 
   createWindow()
 

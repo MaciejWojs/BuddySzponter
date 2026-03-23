@@ -1,7 +1,7 @@
 import { AppLanguage, Translation } from '../../../shared/schemas/langSchemas'
 import { API_ROUTES } from '../../apiRoutes'
 import { execute } from '../../utils/execute'
-import { secureStore } from '../../utils/secureStore'
+import { secureStore } from '../../store/secureStore'
 import { decryptPayload } from '../../utils/decrypt-payload'
 import { translationStore } from '../../store/translationStore'
 
@@ -35,7 +35,7 @@ export async function loadTranslations(
 
     const encryptedJson = await response.json()
     const currentKey = secureStore.getSecure('aesKey')
-    const decryptedData = await decryptPayload(encryptedJson, currentKey!)
+    const decryptedData = decryptPayload(encryptedJson, currentKey!)
 
     translationStore.set(lang, decryptedData as Translation)
 
