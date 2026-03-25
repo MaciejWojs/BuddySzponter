@@ -60,6 +60,10 @@ export class CoreService {
       const { getSupportedVersions } = await import('../handlers/core/supported-versions')
       return await getSupportedVersions()
     })
+    ipcMain.handle('core:getAppVersion', async () => {
+      const { getVersion } = await import('../handlers/core/version')
+      return getVersion()
+    })
   }
 }
 export const coreService = CoreService.getInstance()

@@ -12,7 +12,6 @@ export async function getAvailableLanguages(): Promise<GetAvailableLanguagesResp
   try {
     const version = app.getVersion()
     const url = `${import.meta.env.VITE_API_BASE_URL}${API_ROUTES.CORE.LANGUAGES}/${version}`
-    console.log(`Fetching available languages from: ${url}`)
 
     const requestHeaders: Record<string, string> = {
       accept: 'application/json'
@@ -29,12 +28,16 @@ export async function getAvailableLanguages(): Promise<GetAvailableLanguagesResp
       })
     })
 
+    if (response.status === 404) {
+      localStore.set('availableLanguages', [])
+      return { success: true, data: [] }
+    }
+
     if (!response.ok) {
       throw new Error(`Server returned error: ${response.status}`)
     }
 
     const rawData = await response.json()
-    console.log('Received languages data:', rawData)
 
     const isCrypted = encryptedPayloadSchema.safeParse(rawData)
 

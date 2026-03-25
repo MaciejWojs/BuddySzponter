@@ -21,6 +21,7 @@ declare global {
         getLocale: (lang: string) => Promise<GetLocaleResponse>
         getAvailableLanguages: () => Promise<GetAvailableLanguagesResponse>
         getSupportedVersions: () => Promise<GetSupportedVersionsResponse>
+        getAppVersion: () => GetAppVersionResponse
       }
     }
   }

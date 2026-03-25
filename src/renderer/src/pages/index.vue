@@ -55,6 +55,13 @@
           <button class="action-btn" @click="handleLanguages">🈯 Lista Języków</button>
           <button class="action-btn" @click="handleLocale">🌍 Pobierz Locale (pl)</button>
         </div>
+
+        <div class="card dark-card actions-card">
+          <h2>Testowanie Wersji</h2>
+          <button class="action-btn" @click="handleCurrentVersion">🔢 Aktualna wersja</button>
+          <button class="action-btn" @click="handleAvailableVersions">📋 Dostępne wersje</button>
+          <button class="action-btn" @click="handleVersionStatus">✅ Status wersji</button>
+        </div>
       </div>
 
       <div class="console-section">
@@ -71,6 +78,8 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useSettingsStore } from '@renderer/stores/settingsStore'
+const settingsStore = useSettingsStore()
 // IMPORT NASZEGO NOWEGO KOMPONENTU (Upewnij się, że ścieżka się zgadza!)
 
 const registerForm = ref({
@@ -149,12 +158,41 @@ const handleLanguages = async (): Promise<void> => {
 const handleLocale = async (): Promise<void> => {
   outputLog.value = 'Ładowanie...'
   try {
-    // Uwaga: Zakładamy, że getLocale przyjmuje teraz po prostu stringa/AppLanguage
-    // z uwagi na nasze ostatnie poprawki z preload/API.
     const res = await window.api.core.getLocale('en')
     logResult('LOCALE', res)
   } catch (e) {
     logResult('LOCALE_ERROR', e)
+  }
+}
+
+// --- NOWE HANDLERY WERSJI ---
+const handleCurrentVersion = async (): Promise<void> => {
+  outputLog.value = 'Ładowanie...'
+  try {
+    const res = await settingsStore.getCurrentVersion()
+    logResult('CURRENT_VERSION', res)
+  } catch (e) {
+    logResult('CURRENT_VERSION_ERROR', e)
+  }
+}
+
+const handleAvailableVersions = async (): Promise<void> => {
+  outputLog.value = 'Ładowanie...'
+  try {
+    await settingsStore.fetchSupportedVersions()
+    logResult('AVAILABLE_VERSIONS', settingsStore.supportedVersions)
+  } catch (e) {
+    logResult('AVAILABLE_VERSIONS_ERROR', e)
+  }
+}
+
+const handleVersionStatus = async (): Promise<void> => {
+  outputLog.value = 'Ładowanie...'
+  try {
+    const res = await settingsStore.checkVersionStatus()
+    logResult('VERSION_STATUS', res)
+  } catch (e) {
+    logResult('VERSION_STATUS_ERROR', e)
   }
 }
 </script>
