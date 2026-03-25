@@ -44,6 +44,8 @@ export const useSettingsStore = defineStore('settings', () => {
 
   const getCurrentVersion = versionsService.getVersion.bind(versionsService)
 
+  const checkVersionStatus = versionsService.checkVersionStatus.bind(versionsService)
+
   // --- RETURN ---
   return {
     selectedLanguage,
@@ -54,6 +56,7 @@ export const useSettingsStore = defineStore('settings', () => {
     fetchSupportedVersions,
     initSettings,
     setAppLanguage,
-    getCurrentVersion
+    getCurrentVersion,
+    checkVersionStatus
   }
 })
