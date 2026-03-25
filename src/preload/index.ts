@@ -22,7 +22,8 @@ const api = {
   core: {
     getLocale: (lang: AppLanguage) => ipcRenderer.invoke('core:getLocale', lang),
     getAvailableLanguages: () => ipcRenderer.invoke('core:getAvailableLanguages'),
-    getSupportedVersions: () => ipcRenderer.invoke('core:getSupportedVersions')
+    getSupportedVersions: () => ipcRenderer.invoke('core:getSupportedVersions'),
+    getAppVersion: () => ipcRenderer.invoke('core:getAppVersion')
   }
 }
 
