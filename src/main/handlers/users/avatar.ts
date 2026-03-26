@@ -8,8 +8,8 @@ import { withAuth } from '../../utils/api/withAuth'
 import { buildRoute } from '../../utils/api/path'
 import { authService } from '../../services/AuthService'
 import { secureStore } from '../../store/secureStore'
+import { decryptData } from '../../utils/api/crypt'
 
-// --- NOWOŚĆ: Wspólna logika wysyłki ---
 async function executeUpload(userId: string, form: FormData): Promise<UploadAvatarResponse> {
   const fullUrl = buildRoute(API_ROUTES.USERS.AVATAR, { userId })
 
@@ -32,10 +32,12 @@ async function executeUpload(userId: string, form: FormData): Promise<UploadAvat
   const result = await response.json()
   if (!response.ok) return { success: false, message: result.message || 'Upload error' }
 
-  return { success: true, message: 'Avatar uploaded successfully', data: result }
+  const decryptedResponse =
+    import.meta.env.VITE_ENCRYPT_DATA === 'true' ? await decryptData(result) : result
+
+  return { success: true, data: decryptedResponse }
 }
 
-// 1. Stara metoda (wybór pliku przez okno)
 export async function uploadAvatar(userId: string): Promise<UploadAvatarResponse> {
   try {
     const { canceled, filePaths } = await dialog.showOpenDialog({
@@ -61,7 +63,6 @@ export async function uploadAvatar(userId: string): Promise<UploadAvatarResponse
   }
 }
 
-// 2. NOWA METODA (Drag & Drop przez surowe bajty)
 export async function uploadAvatarByBuffer(
   userId: string,
   buffer: ArrayBuffer,
@@ -71,7 +72,6 @@ export async function uploadAvatarByBuffer(
   try {
     console.log(`[uploadAvatarByBuffer] Otrzymano plik z frontendu: ${fileName}`)
 
-    // Zmieniamy ArrayBuffer na Bloba i ładujemy do formularza
     const blob = new Blob([buffer], { type: mimeType })
     const form = new FormData()
     form.append('avatar', blob, fileName)

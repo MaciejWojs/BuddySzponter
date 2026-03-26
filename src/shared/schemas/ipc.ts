@@ -1,6 +1,7 @@
 // shared/types/ipc.ts
 
 import { LanguagesResponse, Translation } from './langSchemas'
+import { UserResponseSchema } from './user'
 
 export type ValidationErrorCause = { field: string; error: string }
 
@@ -16,6 +17,7 @@ export interface SupportedVersion {
 export type LoginRendererResponse = IpcResponse<{ accessTokenSaved: boolean }>
 export type RegisterRendererResponse = IpcResponse
 export type LogoutRendererResponse = IpcResponse
+export type GetCurrentUserResponse = IpcResponse<UserResponseSchema>
 
 //core
 export type GetAvailableLanguagesResponse = IpcResponse<LanguagesResponse>
