@@ -9,6 +9,7 @@ import { appSettings } from './services/SettingsService'
 import { clearLocalStore } from './store/localStore'
 import { authService } from './services/AuthService'
 import { coreService } from './services/CoreService'
+import { userService } from './services/UserService'
 
 function createWindow(): void {
   // Create the browser window.
@@ -67,6 +68,7 @@ app.whenReady().then(async () => {
   authService.registerHandler()
   appSettings.registerHandlers()
   coreService.registerHandlers()
+  userService.registerHandler()
 
   createWindow()
 
