@@ -12,10 +12,15 @@ export interface SupportedVersion {
   codename: string
   isSupported: boolean
 }
-
+//auth
 export type LoginRendererResponse = IpcResponse<{ accessTokenSaved: boolean }>
 export type RegisterRendererResponse = IpcResponse
 export type LogoutRendererResponse = IpcResponse
+
+//core
 export type GetAvailableLanguagesResponse = IpcResponse<LanguagesResponse>
 export type GetSupportedVersionsResponse = IpcResponse<SupportedVersion[]>
 export type GetLocaleResponse = IpcResponse<Translation>
+
+//user
+export type UploadAvatarResponse = IpcResponse
