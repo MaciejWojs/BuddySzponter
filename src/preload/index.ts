@@ -2,6 +2,12 @@ import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 import { RegisterInput, LoginInput } from '../main/schemas/authSchemas'
 import { AppLanguage, Translation } from '../shared/schemas/langSchemas'
+import {
+  GetAvailableLanguagesResponse,
+  GetLocaleResponse,
+  GetSupportedVersionsResponse,
+  UploadAvatarResponse
+} from '../shared/schemas/ipc'
 
 // Custom APIs for renderer
 const api = {
@@ -20,10 +26,25 @@ const api = {
     getHardwareId: (): Promise<string> => ipcRenderer.invoke('settings:getHardwareId')
   },
   core: {
-    getLocale: (lang: AppLanguage) => ipcRenderer.invoke('core:getLocale', lang),
-    getAvailableLanguages: () => ipcRenderer.invoke('core:getAvailableLanguages'),
-    getSupportedVersions: () => ipcRenderer.invoke('core:getSupportedVersions'),
-    getAppVersion: () => ipcRenderer.invoke('core:getAppVersion')
+    getLocale: (lang: AppLanguage): Promise<GetLocaleResponse> =>
+      ipcRenderer.invoke('core:getLocale', lang),
+    getAvailableLanguages: (): Promise<GetAvailableLanguagesResponse> =>
+      ipcRenderer.invoke('core:getAvailableLanguages'),
+    getSupportedVersions: (): Promise<GetSupportedVersionsResponse> =>
+      ipcRenderer.invoke('core:getSupportedVersions'),
+    getAppVersion: (): Promise<string> => ipcRenderer.invoke('core:getAppVersion')
+  },
+  users: {
+    uploadAvatar: (userId: string): Promise<UploadAvatarResponse> =>
+      ipcRenderer.invoke('user:uploadAvatar', userId),
+
+    uploadAvatarByBuffer: (
+      userId: string,
+      buffer: ArrayBuffer,
+      fileName: string,
+      mimeType: string
+    ): Promise<UploadAvatarResponse> =>
+      ipcRenderer.invoke('user:uploadAvatarByBuffer', userId, buffer, fileName, mimeType)
   }
 }
 
