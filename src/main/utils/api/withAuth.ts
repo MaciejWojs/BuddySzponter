@@ -1,6 +1,15 @@
 // main/utils/withAuth.ts
 import { refresh } from '../../handlers/auth/refresh'
 
+export const mock401Response = (message: string): Promise<Response> => {
+  return Promise.resolve(
+    new Response(JSON.stringify({ message }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' }
+    })
+  )
+}
+
 export async function withAuth(callback: () => Promise<Response>): Promise<Response> {
   const response = await callback()
 
