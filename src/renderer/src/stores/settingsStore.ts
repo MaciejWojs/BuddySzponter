@@ -1,9 +1,9 @@
 import { defineStore } from 'pinia'
 import { ref, type Ref } from 'vue'
 import type { AppLanguage, Translation } from '../../../shared/schemas/langSchemas'
-import { LanguageService } from '@renderer/composables/languageService'
+import { LanguageService } from '@renderer/composables/settings/languageService'
 import type { AppVersion } from '@renderer/schemas/settingsSchemas'
-import { VersionsService } from '@renderer/composables/versionsService'
+import { VersionsService } from '@renderer/composables/settings/versionsService'
 export interface LanguageDetails {
   code: AppLanguage
   name: string
