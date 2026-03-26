@@ -2,10 +2,10 @@ import { ipcMain } from 'electron'
 import { LoginInput, RegisterInput } from '../schemas/authSchemas'
 import { register } from '../handlers/auth/register'
 import { login } from '../handlers/auth/login'
-import { API_ROUTES } from '../apiRoutes'
 import { secureStore } from '../store/secureStore'
 import { authStore } from '../store/localStore'
 import { logout } from '../handlers/auth/logout'
+import { getCurrentUser } from '../handlers/auth/me'
 
 export class AuthService {
   private static instance: AuthService
@@ -27,31 +27,6 @@ export class AuthService {
     return authStore.get('accessToken')
   }
 
-  public catchRefreshToken(path: string, response: Response): void {
-    if (path === API_ROUTES.AUTH.LOGIN) {
-      try {
-        const setCookieHeaders = response.headers.getSetCookie()
-
-        if (setCookieHeaders && setCookieHeaders.length > 0) {
-          const refreshTokenCookie = setCookieHeaders.find((cookie) =>
-            cookie.startsWith('refreshToken=')
-          )
-
-          if (refreshTokenCookie) {
-            const rawValue = refreshTokenCookie.split(';')[0]
-            const refreshToken = rawValue.split('=')[1]
-
-            if (refreshToken) {
-              secureStore.setSecure('refreshToken', refreshToken)
-            }
-          }
-        }
-      } catch (e) {
-        console.warn("Can't parse refresh token from headers:", e)
-      }
-    }
-  }
-
   getRefreshToken(): string | undefined {
     return secureStore.getSecure('refreshToken')
   }
@@ -67,6 +42,9 @@ export class AuthService {
     })
     ipcMain.handle('auth:logout', async () => {
       return await logout()
+    })
+    ipcMain.handle('auth:me', async () => {
+      return await getCurrentUser()
     })
   }
 }
