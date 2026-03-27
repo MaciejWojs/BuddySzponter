@@ -29,6 +29,9 @@ export const API_ROUTES = {
     LANGUAGES: '/core/languages'
   },
   USERS: {
-    AVATAR: '/users/:userId/avatar'
+    AVATAR: {
+      ME: '/users/me/avatar',
+      ID: '/users/:userId/avatar'
+    }
   }
 } as const
