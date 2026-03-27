@@ -11,7 +11,7 @@ import { refresh } from '../handlers/auth/refresh'
 
 export class AuthService {
   private static instance: AuthService
-  private refreshTimeout: NodeJS.Timeout | null = null // <--- Zmienna przechowująca timer
+  private refreshTimeout: NodeJS.Timeout | null = null
 
   private constructor() {
     console.log('[AuthService] Initializing service...')
@@ -26,23 +26,22 @@ export class AuthService {
 
   // --- TOKEN MANAGEMENT ---
 
-  setAccessToken(token: string): void {
+  async setAccessToken(token: string): Promise<void> {
     authStore.set('accessToken', token)
+
     if (token) {
       const decoded = jwtDecode(token) as { exp: number }
-      console.log('[AuthService] Access token set. Decoded payload:', decoded)
-
       const expTimeMs = decoded.exp * 1000
-      const expDate = new Date(expTimeMs)
-      console.log('[AuthService] Access token expiration date:', expDate)
-
       const bufferMs = 15 * 1000
       const delayMs = expTimeMs - Date.now() - bufferMs
 
       if (delayMs > 0) {
         this.scheduleRefresh(delayMs)
       } else {
-        refresh().catch(console.error)
+        refresh().catch((err) => {
+          console.error('[AuthService] Immediate refresh failed:', err)
+          this.clearTokens()
+        })
       }
     } else {
       this.clearRefreshTimeout()
@@ -87,9 +86,14 @@ export class AuthService {
   private scheduleRefresh(delay: number): void {
     this.clearRefreshTimeout()
 
-    console.log(`[AuthService] Scheduling token refresh in ${delay / 1000} seconds.`)
-    this.refreshTimeout = setTimeout(() => {
-      refresh().catch(console.error)
+    // console.log(`[AuthService] Scheduling token refresh in ${delay / 1000} seconds.`)
+    this.refreshTimeout = setTimeout(async () => {
+      try {
+        await refresh()
+      } catch (error) {
+        console.error('[AuthService] Scheduled refresh failed:', error)
+        this.clearTokens()
+      }
     }, delay)
   }
 

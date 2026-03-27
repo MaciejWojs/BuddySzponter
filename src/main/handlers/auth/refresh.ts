@@ -37,6 +37,17 @@ export async function refresh(): Promise<void> {
     throw new Error('Token refresh failed')
   }
 
+  try {
+    const setCookieHeaders = response.headers.getSetCookie()
+    if (setCookieHeaders && setCookieHeaders.length > 0) {
+      if (!authService.grabRefreshTokenCookie(setCookieHeaders)) {
+        console.warn('No refresh token cookie found in response headers.')
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to extract refresh token from response headers:', e)
+  }
+
   const result = await response.json()
   const decryptedResult = isEncryptionEnabled ? await decryptData(result) : result
 
@@ -45,19 +56,5 @@ export async function refresh(): Promise<void> {
     throw new Error('Invalid token refresh response')
   }
 
-  if (result.ok) {
-    try {
-      const setCookieHeaders = result.headers.getSetCookie()
-
-      if (!authService.grabRefreshTokenCookie(setCookieHeaders)) {
-        console.warn('No refresh token cookie found in response headers.')
-      }
-    } catch (e) {
-      console.warn('Failed to extract refresh token from response headers:', e)
-    }
-  }
-
-  authService.setAccessToken(decryptedResult.accessToken)
-
-  console.log('[refresh] Token refresh successful')
+  await authService.setAccessToken(decryptedResult.accessToken)
 }
