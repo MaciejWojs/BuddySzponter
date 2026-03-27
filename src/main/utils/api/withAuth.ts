@@ -23,8 +23,8 @@ export async function withAuth(callback: () => Promise<Response>): Promise<Respo
       const retryResponse = await callback()
 
       return retryResponse
-    } catch (error) {
-      console.error('[withAuth] Error during token refresh:', error)
+    } catch {
+      console.error('[withAuth] Error during token refresh:')
       return response
     }
   }
