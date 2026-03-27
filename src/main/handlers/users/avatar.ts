@@ -10,8 +10,8 @@ import { authService } from '../../services/AuthService'
 import { secureStore } from '../../store/secureStore'
 import { decryptData } from '../../utils/api/crypt'
 
-async function executeUpload(userId: string, form: FormData): Promise<UploadAvatarResponse> {
-  const fullUrl = buildRoute(API_ROUTES.USERS.AVATAR, { userId })
+async function executeUpload(form: FormData): Promise<UploadAvatarResponse> {
+  const fullUrl = buildRoute(API_ROUTES.USERS.AVATAR.ME)
 
   const response = await withAuth(() => {
     const accessToken = authService.getAccessToken()
@@ -38,7 +38,7 @@ async function executeUpload(userId: string, form: FormData): Promise<UploadAvat
   return { success: true, data: decryptedResponse }
 }
 
-export async function uploadAvatar(userId: string): Promise<UploadAvatarResponse> {
+export async function uploadAvatar(): Promise<UploadAvatarResponse> {
   try {
     const { canceled, filePaths } = await dialog.showOpenDialog({
       properties: ['openFile'],
@@ -56,7 +56,7 @@ export async function uploadAvatar(userId: string): Promise<UploadAvatarResponse
     const form = new FormData()
     form.append('avatar', blob, path.basename(filePath))
 
-    return await executeUpload(userId, form)
+    return await executeUpload(form)
   } catch (error) {
     console.error('[uploadAvatar] Error:', error)
     return { success: false, message: error instanceof Error ? error.message : 'System error' }
@@ -64,7 +64,6 @@ export async function uploadAvatar(userId: string): Promise<UploadAvatarResponse
 }
 
 export async function uploadAvatarByBuffer(
-  userId: string,
   buffer: ArrayBuffer,
   fileName: string,
   mimeType: string
@@ -76,7 +75,7 @@ export async function uploadAvatarByBuffer(
     const form = new FormData()
     form.append('avatar', blob, fileName)
 
-    return await executeUpload(userId, form)
+    return await executeUpload(form)
   } catch (error) {
     console.error('[uploadAvatarByBuffer] Error:', error)
     return { success: false, message: error instanceof Error ? error.message : 'System error' }

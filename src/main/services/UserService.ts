@@ -15,17 +15,17 @@ export class UserService {
   }
 
   public registerHandler(): void {
-    ipcMain.handle('user:uploadAvatar', async (_event, userId: string) => {
+    ipcMain.handle('user:uploadAvatar', async () => {
       const { uploadAvatar } = await import('../handlers/users/avatar')
-      return await uploadAvatar(userId)
+      return await uploadAvatar()
     })
 
     // ZMIANA: Nasłuchujemy na buffer
     ipcMain.handle(
       'user:uploadAvatarByBuffer',
-      async (_event, userId: string, buffer: ArrayBuffer, fileName: string, mimeType: string) => {
+      async (_event, buffer: ArrayBuffer, fileName: string, mimeType: string) => {
         const { uploadAvatarByBuffer } = await import('../handlers/users/avatar')
-        return await uploadAvatarByBuffer(userId, buffer, fileName, mimeType)
+        return await uploadAvatarByBuffer(buffer, fileName, mimeType)
       }
     )
   }
