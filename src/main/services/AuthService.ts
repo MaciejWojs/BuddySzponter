@@ -6,9 +6,12 @@ import { secureStore } from '../store/secureStore'
 import { authStore } from '../store/localStore'
 import { logout } from '../handlers/auth/logout'
 import { getCurrentUser } from '../handlers/auth/me'
+import { jwtDecode } from 'jwt-decode'
+import { refresh } from '../handlers/auth/refresh'
 
 export class AuthService {
   private static instance: AuthService
+  private refreshTimeout: NodeJS.Timeout | null = null // <--- Zmienna przechowująca timer
 
   private constructor() {
     console.log('[AuthService] Initializing service...')
@@ -20,15 +23,81 @@ export class AuthService {
     }
     return AuthService.instance
   }
+
+  // --- TOKEN MANAGEMENT ---
+
   setAccessToken(token: string): void {
     authStore.set('accessToken', token)
+    if (token) {
+      const decoded = jwtDecode(token) as { exp: number }
+      console.log('[AuthService] Access token set. Decoded payload:', decoded)
+
+      const expTimeMs = decoded.exp * 1000
+      const expDate = new Date(expTimeMs)
+      console.log('[AuthService] Access token expiration date:', expDate)
+
+      const bufferMs = 15 * 1000
+      const delayMs = expTimeMs - Date.now() - bufferMs
+
+      if (delayMs > 0) {
+        this.scheduleRefresh(delayMs)
+      } else {
+        refresh().catch(console.error)
+      }
+    } else {
+      this.clearRefreshTimeout()
+    }
   }
+
   getAccessToken(): string | null {
     return authStore.get('accessToken')
   }
 
   getRefreshToken(): string | undefined {
     return secureStore.getSecure('refreshToken')
+  }
+
+  setRefreshToken(token: string): void {
+    secureStore.setSecure('refreshToken', token)
+  }
+
+  grabRefreshTokenCookie(cookies: string[]): boolean {
+    if (cookies && cookies.length > 0) {
+      const refreshTokenCookie = cookies.find((cookie) => cookie.startsWith('refreshToken='))
+
+      if (refreshTokenCookie) {
+        const rawValue = refreshTokenCookie.split(';')[0]
+        const refreshToken = rawValue.split('=')[1]
+
+        if (refreshToken) {
+          this.setRefreshToken(refreshToken)
+          return true
+        }
+      }
+    }
+    return false
+  }
+
+  clearTokens(): void {
+    this.setAccessToken('')
+    this.setRefreshToken('')
+    this.clearRefreshTimeout()
+  }
+
+  private scheduleRefresh(delay: number): void {
+    this.clearRefreshTimeout()
+
+    console.log(`[AuthService] Scheduling token refresh in ${delay / 1000} seconds.`)
+    this.refreshTimeout = setTimeout(() => {
+      refresh().catch(console.error)
+    }, delay)
+  }
+
+  private clearRefreshTimeout(): void {
+    if (this.refreshTimeout) {
+      clearTimeout(this.refreshTimeout)
+      this.refreshTimeout = null
+    }
   }
 
   // --- AUTHENTICATION METHODS ---
