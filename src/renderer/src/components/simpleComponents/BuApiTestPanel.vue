@@ -244,7 +244,7 @@ const handleLogout = async (): Promise<void> => {
 const handleUploadAvatar = async (): Promise<void> => {
   outputLog.value = 'Oczekiwanie na wybór pliku...'
   try {
-    const testUserId = '2'
+    const testUserId = '1'
     const res = await window.api.users.uploadAvatar(testUserId)
     logResult('UPLOAD_AVATAR_DIALOG', res)
   } catch (e) {

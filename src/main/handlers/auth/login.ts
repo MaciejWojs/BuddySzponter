@@ -82,7 +82,6 @@ export async function login(data: LoginInput): Promise<LoginRendererResponse> {
     const parsedResponse = loginPayloadSchema.parse(decryptedResponse)
 
     if (parsedResponse.accessToken) {
-      console.log('Received access token, saving to auth store.')
       authService.setAccessToken(parsedResponse.accessToken)
     }
 
