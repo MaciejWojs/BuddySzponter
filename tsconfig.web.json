@@ -9,14 +9,19 @@
   ],
   "compilerOptions": {
     "composite": true,
-    "baseUrl": ".",
     "moduleResolution": "bundler",
     "paths": {
+      "@shared/*": [
+        "./src/shared/*"
+      ],
+      "@main/*": [
+        "./src/main/*"
+      ],
       "@renderer/*": [
-        "src/renderer/src/*"
+        "./src/renderer/src/*"
       ],
       "@images/*": [
-        "src/renderer/src/assets/images/*"
+        "./src/renderer/src/assets/images/*"
       ]
     }
   }
