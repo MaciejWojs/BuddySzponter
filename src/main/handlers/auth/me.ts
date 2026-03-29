@@ -35,6 +35,7 @@ export async function getCurrentUser(): Promise<GetCurrentUserResponse> {
     })
 
     const responseJson = await response.json()
+    console.log('[getCurrentUser] API response:', responseJson)
 
     const decryptedResponse = isEncryptionEnabled ? await decryptData(responseJson) : responseJson
 
