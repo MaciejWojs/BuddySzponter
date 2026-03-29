@@ -19,7 +19,7 @@ export const API_ROUTES = {
     // POST: Handshake to establish secure session
     HANDSHAKE: '/crypto/handshake'
   },
-  CONNECTIONS: {
+  CONNECTION: {
     CREATE: '/connections',
     JOIN: '/connections/join'
   },
