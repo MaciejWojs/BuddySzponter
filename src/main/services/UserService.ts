@@ -16,7 +16,7 @@ export class UserService {
 
   public registerHandler(): void {
     ipcMain.handle('user:uploadAvatar', async (_event, userID: string | null) => {
-      const { uploadAvatar } = await import('../handlers/users/avatar')
+      const { uploadAvatar } = await import('../handlers/user/avatar')
       return await uploadAvatar(userID)
     })
 
@@ -29,7 +29,7 @@ export class UserService {
         mimeType: string,
         userId: string | null
       ) => {
-        const { uploadAvatarByBuffer } = await import('../handlers/users/avatar')
+        const { uploadAvatarByBuffer } = await import('../handlers/user/avatar')
         return await uploadAvatarByBuffer(buffer, fileName, mimeType, userId)
       }
     )
