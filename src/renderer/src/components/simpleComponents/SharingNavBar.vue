@@ -37,7 +37,7 @@
             title="Tools"
             @click="openMenu"
           >
-            <ToolsIcon class="sharing-navbar__icon" />
+            <UIcon name="i-lucide-settings" class="sharing-navbar__icon" />
           </button>
         </div>
 
@@ -190,7 +190,6 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
-import ToolsIcon from '@renderer/assets/images/components/tools.svg?component'
 
 type MenuAction = {
   id: string
