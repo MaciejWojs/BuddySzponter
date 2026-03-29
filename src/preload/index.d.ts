@@ -25,13 +25,14 @@ declare global {
         getAppVersion: () => GetAppVersionResponse
       }
       users: {
-        uploadAvatar: (userId: string) => Promise<UploadAvatarResponse>
+        uploadAvatar: (userId: string | null) => Promise<UploadAvatarResponse>
         uploadAvatarByBuffer: (
-          userId: string,
+          userId: string | null,
           buffer: ArrayBuffer,
           fileName: string,
           mimeType: string
         ) => Promise<UploadAvatarResponse>
+        getCurrentUser: () => Promise<GetCurrentUserResponse>
       }
     }
   }

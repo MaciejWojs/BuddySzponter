@@ -4,6 +4,7 @@ import { RegisterInput, LoginInput } from '../main/schemas/authSchemas'
 import { AppLanguage, Translation } from '../shared/schemas/langSchemas'
 import {
   GetAvailableLanguagesResponse,
+  GetCurrentUserResponse,
   GetLocaleResponse,
   GetSupportedVersionsResponse,
   UploadAvatarResponse
@@ -35,16 +36,18 @@ const api = {
     getAppVersion: (): Promise<string> => ipcRenderer.invoke('core:getAppVersion')
   },
   users: {
-    uploadAvatar: (userId: string): Promise<UploadAvatarResponse> =>
+    uploadAvatar: (userId: string | null): Promise<UploadAvatarResponse> =>
       ipcRenderer.invoke('user:uploadAvatar', userId),
 
     uploadAvatarByBuffer: (
-      userId: string,
+      userId: string | null,
       buffer: ArrayBuffer,
       fileName: string,
       mimeType: string
     ): Promise<UploadAvatarResponse> =>
-      ipcRenderer.invoke('user:uploadAvatarByBuffer', userId, buffer, fileName, mimeType)
+      ipcRenderer.invoke('user:uploadAvatarByBuffer', userId, buffer, fileName, mimeType),
+
+    getCurrentUser: (): Promise<GetCurrentUserResponse> => ipcRenderer.invoke('user:getCurrentUser')
   }
 }
 
