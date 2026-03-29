@@ -9,9 +9,19 @@ import { buildRoute } from '../../utils/api/path'
 import { authService } from '../../services/AuthService'
 import { secureStore } from '../../store/secureStore'
 import { decryptData } from '../../utils/api/crypt'
+import { string } from 'zod'
 
-async function executeUpload(form: FormData): Promise<UploadAvatarResponse> {
-  const fullUrl = buildRoute(API_ROUTES.USERS.AVATAR.ME)
+async function executeUpload(form: FormData, userId: string | null): Promise<UploadAvatarResponse> {
+  let finalUserId: string
+  if (userId) {
+    finalUserId = userId
+  } else {
+    finalUserId = authService.currentUser?.id.toString() || ''
+  }
+
+  const fullUrl = buildRoute(API_ROUTES.USERS.AVATAR.ME, {
+    userId: string().parse(finalUserId)
+  })
 
   const response = await withAuth(() => {
     const accessToken = authService.getAccessToken()
@@ -38,7 +48,7 @@ async function executeUpload(form: FormData): Promise<UploadAvatarResponse> {
   return { success: true, data: decryptedResponse }
 }
 
-export async function uploadAvatar(): Promise<UploadAvatarResponse> {
+export async function uploadAvatar(userID: string | null): Promise<UploadAvatarResponse> {
   try {
     const { canceled, filePaths } = await dialog.showOpenDialog({
       properties: ['openFile'],
@@ -56,7 +66,7 @@ export async function uploadAvatar(): Promise<UploadAvatarResponse> {
     const form = new FormData()
     form.append('avatar', blob, path.basename(filePath))
 
-    return await executeUpload(form)
+    return await executeUpload(form, userID)
   } catch (error) {
     console.error('[uploadAvatar] Error:', error)
     return { success: false, message: error instanceof Error ? error.message : 'System error' }
@@ -66,16 +76,15 @@ export async function uploadAvatar(): Promise<UploadAvatarResponse> {
 export async function uploadAvatarByBuffer(
   buffer: ArrayBuffer,
   fileName: string,
-  mimeType: string
+  mimeType: string,
+  userId: string | null
 ): Promise<UploadAvatarResponse> {
   try {
-    console.log(`[uploadAvatarByBuffer] Otrzymano plik z frontendu: ${fileName}`)
-
     const blob = new Blob([buffer], { type: mimeType })
     const form = new FormData()
     form.append('avatar', blob, fileName)
 
-    return await executeUpload(form)
+    return await executeUpload(form, userId)
   } catch (error) {
     console.error('[uploadAvatarByBuffer] Error:', error)
     return { success: false, message: error instanceof Error ? error.message : 'System error' }
