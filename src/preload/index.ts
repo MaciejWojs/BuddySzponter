@@ -3,12 +3,18 @@ import { electronAPI } from '@electron-toolkit/preload'
 import { RegisterInput, LoginInput } from '../main/schemas/authSchemas'
 import { AppLanguage, Translation } from '../shared/schemas/langSchemas'
 import {
+  CreateConnectionResponse,
   GetAvailableLanguagesResponse,
   GetCurrentUserResponse,
   GetLocaleResponse,
   GetSupportedVersionsResponse,
+  JoinConnectionResponse,
   UploadAvatarResponse
 } from '../shared/schemas/ipc'
+import {
+  CreateConnectionRequestSchema,
+  JoinConnectionRequestSchema
+} from '../shared/schemas/connection'
 
 // Custom APIs for renderer
 const api = {
@@ -48,6 +54,13 @@ const api = {
       ipcRenderer.invoke('user:uploadAvatarByBuffer', userId, buffer, fileName, mimeType),
 
     getCurrentUser: (): Promise<GetCurrentUserResponse> => ipcRenderer.invoke('user:getCurrentUser')
+  },
+  connection: {
+    create: (data: CreateConnectionRequestSchema): Promise<CreateConnectionResponse> =>
+      ipcRenderer.invoke('connection:create', data),
+
+    join: (data: JoinConnectionRequestSchema): Promise<JoinConnectionResponse> =>
+      ipcRenderer.invoke('connection:join', data)
   }
 }
 

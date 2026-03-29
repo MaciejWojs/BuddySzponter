@@ -34,6 +34,10 @@ declare global {
         ) => Promise<UploadAvatarResponse>
         getCurrentUser: () => Promise<GetCurrentUserResponse>
       }
+      connection: {
+        create: (data: CreateConnectionRequestSchema) => Promise<CreateConnectionResponseSchema>
+        join: (data: JoinConnectionRequestSchema) => Promise<JoinConnectionResponseSchema>
+      }
     }
   }
 }
