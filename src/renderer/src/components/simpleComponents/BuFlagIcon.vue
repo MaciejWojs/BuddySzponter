@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onBeforeUnmount, computed } from 'vue'
 import gsap from 'gsap'
-import type { AppLanguage } from 'src/shared/schemas/langSchemas'
+import type { AppLanguage } from '@shared/schemas/langSchemas'
 
 const props = withDefaults(
   defineProps<{

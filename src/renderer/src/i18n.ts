@@ -1,7 +1,7 @@
 // src/renderer/i18n.ts
 import { createI18n } from 'vue-i18n'
 import erTranslations from '../../shared/locales/er.json'
-import { AppLanguage } from 'src/shared/schemas/langSchemas'
+import type { AppLanguage } from '@shared/schemas/langSchemas'
 
 // IMPORTUJEMY TWÓJ TYP
 

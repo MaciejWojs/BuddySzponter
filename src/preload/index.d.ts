@@ -1,3 +1,4 @@
+import { path } from 'node:path'
 import { AppLanguageSchema } from '../shared/schemas/langSchemas'
 import { ElectronAPI } from '@electron-toolkit/preload'
 
@@ -22,6 +23,16 @@ declare global {
         getAvailableLanguages: () => Promise<GetAvailableLanguagesResponse>
         getSupportedVersions: () => Promise<GetSupportedVersionsResponse>
         getAppVersion: () => GetAppVersionResponse
+      }
+      users: {
+        uploadAvatar: (userId: string | null) => Promise<UploadAvatarResponse>
+        uploadAvatarByBuffer: (
+          userId: string | null,
+          buffer: ArrayBuffer,
+          fileName: string,
+          mimeType: string
+        ) => Promise<UploadAvatarResponse>
+        getCurrentUser: () => Promise<GetCurrentUserResponse>
       }
     }
   }

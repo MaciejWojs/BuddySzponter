@@ -2,11 +2,11 @@ import { API_ROUTES } from '../../apiRoutes'
 import { loginPayloadSchema, errorResponseSchema } from '../../schemas/apiResultSchema'
 import { LoginInput, loginInputSchema } from '../../schemas/authSchemas'
 import { appSettings } from '../../services/SettingsService'
-import { authStore } from '../../store/localStore'
 import { secureStore } from '../../store/secureStore'
 import { decryptData, encryptData } from '../../utils/api/crypt'
 import { execute } from '../../utils/execute'
 import { LoginRendererResponse } from '../../../shared/schemas/ipc'
+import { authService } from '../../services/AuthService'
 
 export async function login(data: LoginInput): Promise<LoginRendererResponse> {
   try {
@@ -54,23 +54,8 @@ export async function login(data: LoginInput): Promise<LoginRendererResponse> {
       try {
         const setCookieHeaders = result.headers.getSetCookie()
 
-        if (setCookieHeaders && setCookieHeaders.length > 0) {
-          const refreshTokenCookie = setCookieHeaders.find((cookie) =>
-            cookie.startsWith('refreshToken=')
-          )
-
-          if (refreshTokenCookie) {
-            const rawValue = refreshTokenCookie.split(';')[0]
-            const refreshToken = rawValue.split('=')[1]
-
-            if (refreshToken) {
-              secureStore.setSecure('refreshToken', refreshToken)
-            }
-          } else {
-            console.log(
-              'User is authenticated but no refresh token cookie found in response headers.'
-            )
-          }
+        if (!authService.grabRefreshTokenCookie(setCookieHeaders)) {
+          console.warn('No refresh token cookie found in response headers.')
         }
       } catch (e) {
         console.warn('Failed to extract refresh token from response headers:', e)
@@ -97,8 +82,7 @@ export async function login(data: LoginInput): Promise<LoginRendererResponse> {
     const parsedResponse = loginPayloadSchema.parse(decryptedResponse)
 
     if (parsedResponse.accessToken) {
-      console.log('Received access token, saving to auth store.')
-      authStore.set('accessToken', parsedResponse.accessToken)
+      authService.setAccessToken(parsedResponse.accessToken)
     }
 
     return {

@@ -1,6 +1,7 @@
 // composables/LanguageService.ts
 import type { Ref } from 'vue'
-import type { AppLanguage, Translation } from 'src/shared/schemas/langSchemas'
+import type { AppLanguage, Translation } from '@shared/schemas/langSchemas'
+
 import { i18n } from '@renderer/i18n'
 
 export class LanguageService {

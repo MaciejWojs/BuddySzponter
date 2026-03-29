@@ -27,5 +27,10 @@ export const API_ROUTES = {
     SUPPORTED_VERSIONS: '/core/supported-versions',
     LOCALE: '/core/locale',
     LANGUAGES: '/core/languages'
+  },
+  USERS: {
+    AVATAR: {
+      ME: '/users/:userId/avatar'
+    }
   }
 } as const
