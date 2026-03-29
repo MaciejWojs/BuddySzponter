@@ -8,13 +8,17 @@ import { logout } from '../handlers/auth/logout'
 import { getCurrentUser } from '../handlers/auth/me'
 import { jwtDecode } from 'jwt-decode'
 import { refresh } from '../handlers/auth/refresh'
+import { UserResponseSchema } from '../../shared/schemas/user'
 
 export class AuthService {
   private static instance: AuthService
   private refreshTimeout: NodeJS.Timeout | null = null
+  public currentUser: UserResponseSchema | null = null
 
   private constructor() {
     console.log('[AuthService] Initializing service...')
+
+    this.currentUser = this.getCurrentUserData()
   }
 
   public static getInstance(): AuthService {
@@ -81,6 +85,9 @@ export class AuthService {
     this.setAccessToken('')
     this.setRefreshToken('')
     this.clearRefreshTimeout()
+
+    authStore.set('user', null)
+    this.currentUser = null
   }
 
   private scheduleRefresh(delay: number): void {
@@ -104,6 +111,15 @@ export class AuthService {
     }
   }
 
+  private saveUserData(userData: UserResponseSchema): void {
+    authStore.set('user', userData)
+    this.currentUser = userData
+  }
+
+  public getCurrentUserData(): UserResponseSchema | null {
+    return authStore.get('user')
+  }
+
   // --- AUTHENTICATION METHODS ---
 
   public registerHandler(): void {
@@ -117,7 +133,11 @@ export class AuthService {
       return await logout()
     })
     ipcMain.handle('auth:me', async () => {
-      return await getCurrentUser()
+      const result = await getCurrentUser()
+      if (result.success && result.data) {
+        this.saveUserData(result.data)
+      }
+      return result
     })
   }
 }
