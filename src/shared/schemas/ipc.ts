@@ -17,7 +17,6 @@ export interface SupportedVersion {
 export type LoginRendererResponse = IpcResponse<{ accessTokenSaved: boolean }>
 export type RegisterRendererResponse = IpcResponse
 export type LogoutRendererResponse = IpcResponse
-export type GetCurrentUserResponse = IpcResponse<UserResponseSchema>
 
 //core
 export type GetAvailableLanguagesResponse = IpcResponse<LanguagesResponse>
@@ -26,3 +25,4 @@ export type GetLocaleResponse = IpcResponse<Translation>
 
 //user
 export type UploadAvatarResponse = IpcResponse
+export type GetCurrentUserResponse = IpcResponse<UserResponseSchema>
