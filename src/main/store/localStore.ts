@@ -1,5 +1,6 @@
 import Store from 'electron-store'
 import { AppLanguage, Translation } from '../../shared/schemas/langSchemas'
+import { UserResponseSchema } from '../../shared/schemas/user'
 
 type StoreModule = { default: typeof Store }
 
@@ -22,10 +23,14 @@ export const localStore = new StoreClass<LocalStoreSchema>({
   }
 })
 
-export const authStore = new StoreClass<{ accessToken: string | null }>({
+export const authStore = new StoreClass<{
+  accessToken: string | null
+  user: UserResponseSchema | null
+}>({
   name: 'auth',
   defaults: {
-    accessToken: null
+    accessToken: null,
+    user: null
   }
 })
 
