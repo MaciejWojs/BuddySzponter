@@ -1,5 +1,6 @@
 // shared/types/ipc.ts
 
+import { CreateConnectionResponseSchema, JoinConnectionResponseSchema } from './connection'
 import { LanguagesResponse, Translation } from './langSchemas'
 import { UserResponseSchema } from './user'
 
@@ -26,3 +27,7 @@ export type GetLocaleResponse = IpcResponse<Translation>
 //user
 export type UploadAvatarResponse = IpcResponse
 export type GetCurrentUserResponse = IpcResponse<UserResponseSchema>
+
+//connection
+export type CreateConnectionResponse = IpcResponse<CreateConnectionResponseSchema>
+export type JoinConnectionResponse = IpcResponse<JoinConnectionResponseSchema>
