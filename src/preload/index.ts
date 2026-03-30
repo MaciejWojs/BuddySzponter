@@ -9,18 +9,15 @@ import {
   GetLocaleResponse,
   GetSupportedVersionsResponse,
   JoinConnectionResponse,
-  UploadAvatarResponse
+  UploadAvatarResponse,
+  WsActionResponse,
+  WsConnectResponse,
+  WsServerEvents
 } from '../shared/schemas/ipc'
 import {
   CreateConnectionRequestSchema,
   JoinConnectionRequestSchema
 } from '../shared/schemas/connection'
-import {
-  WsConnectionAccepted,
-  WsConnectionError,
-  WsConnectionRejected,
-  WsRequestAccess
-} from '../shared/schemas/ws'
 
 // Custom APIs for renderer
 const api = {
@@ -69,66 +66,91 @@ const api = {
       ipcRenderer.invoke('connection:join', data)
   },
   ws: {
-    // ==========================================
-    // 1. Akcje (Wysyłanie: Renderer -> Main)
-    // ==========================================
-    connect: (connectionToken: string) => ipcRenderer.invoke('ws:connect', { connectionToken }),
+    // ACTIONS
+    connect: (token: string): Promise<WsConnectResponse> =>
+      ipcRenderer.invoke('ws:connect', { connectionToken: token }),
 
-    disconnect: () => ipcRenderer.invoke('ws:disconnect'),
+    disconnect: (): Promise<WsActionResponse> => ipcRenderer.invoke('ws:disconnect'),
 
-    // Ujednolicamy parametry zgodnie z tym, co przesyła Twój komponent Vue
-    respondAccept: (data: WsConnectionAccepted) =>
+    respondAccept: (data: WsServerEvents['ws:access-accepted']): Promise<WsActionResponse> =>
       ipcRenderer.invoke('ws:respond-accept', { accept: true, data }),
 
-    respondReject: (data: WsConnectionRejected) =>
+    respondReject: (data: WsServerEvents['ws:access-rejected']): Promise<WsActionResponse> =>
       ipcRenderer.invoke('ws:respond-reject', { accept: false, data }),
 
-    requestAccess: (data: WsRequestAccess) => ipcRenderer.invoke('ws:request-access', data),
+    requestAccess: (data: WsServerEvents['ws:request-access']): Promise<WsActionResponse> =>
+      ipcRenderer.invoke('ws:request-access', data),
 
-    // ==========================================
-    // 2. Listenery Systemowe (Socket.io)
-    // ==========================================
-    onConnected: (callback: (data: { socketId: string }) => void) => {
-      ipcRenderer.on('ws:connected', (_event, data) => callback(data as { socketId: string }))
+    hostAcknowledge: (data: WsServerEvents['ws:acknowledged']): Promise<WsActionResponse> =>
+      ipcRenderer.invoke('ws:acknowledged', data),
+
+    guestAcknowledge: (data: WsServerEvents['ws:acknowledged']): Promise<WsActionResponse> =>
+      ipcRenderer.invoke('ws:acknowledge', data),
+
+    webrtcOffer: (data: WsServerEvents['webrtc:offer']): Promise<WsActionResponse> =>
+      ipcRenderer.invoke('ws:webrtc-offer', data),
+
+    webrtcAnswer: (data: WsServerEvents['webrtc:answer']): Promise<WsActionResponse> =>
+      ipcRenderer.invoke('ws:webrtc-answer', data),
+
+    webrtcIceCandidate: (data: WsServerEvents['webrtc:ice-candidate']): Promise<WsActionResponse> =>
+      ipcRenderer.invoke('ws:webrtc-ice-candidate', data),
+
+    webrtcReady: (data: WsServerEvents['webrtc:ready']): Promise<WsActionResponse> =>
+      ipcRenderer.invoke('ws:webrtc-ready', data),
+
+    // LISTENERS
+    onConnected: (callback: (data: WsServerEvents['ws:connected']) => void) => {
+      ipcRenderer.on('ws:connected', (_, data) => callback(data))
     },
 
-    onDisconnected: (callback: (data: { reason: string }) => void) => {
-      ipcRenderer.on('ws:disconnected', (_event, data) => callback(data as { reason: string }))
+    onDisconnected: (callback: (data: WsServerEvents['ws:disconnected']) => void) => {
+      ipcRenderer.on('ws:disconnected', (_, data) => callback(data))
     },
 
-    onConnectError: (callback: (data: { message: string }) => void) => {
-      ipcRenderer.on('ws:connect_error', (_event, data) => callback(data as { message: string }))
+    onConnectError: (callback: (data: WsServerEvents['ws:connect_error']) => void) => {
+      ipcRenderer.on('ws:connect_error', (_, data) => callback(data))
     },
 
-    onMessage: (callback: (data: unknown) => void) => {
-      ipcRenderer.on('ws:message', (_event, data) => callback(data))
+    onMessage: (callback: (data: WsServerEvents['ws:message']) => void) => {
+      ipcRenderer.on('ws:message', (_, data) => callback(data))
     },
 
-    // ==========================================
-    // 3. Listenery Biznesowe (Logika aplikacji)
-    // ==========================================
-
-    onRequestAccess: (callback: (data: WsRequestAccess) => void) => {
-      ipcRenderer.on('ws:request-access', (_event, data) => callback(data as WsRequestAccess))
+    onRequestAccess: (callback: (data: WsServerEvents['ws:request-access']) => void) => {
+      ipcRenderer.on('ws:request-access', (_, data) => callback(data))
     },
 
-    onAccessAccepted: (callback: (data: WsConnectionAccepted) => void) => {
-      ipcRenderer.on('ws:access-accepted', (_event, data) => callback(data as WsConnectionAccepted))
+    onAccessAccepted: (callback: (data: WsServerEvents['ws:access-accepted']) => void) => {
+      ipcRenderer.on('ws:access-accepted', (_, data) => callback(data))
     },
 
-    onAccessRejected: (callback: (data: WsConnectionRejected) => void) => {
-      ipcRenderer.on('ws:access-rejected', (_event, data) => callback(data as WsConnectionRejected))
+    onAccessRejected: (callback: (data: WsServerEvents['ws:access-rejected']) => void) => {
+      ipcRenderer.on('ws:access-rejected', (_, data) => callback(data))
     },
 
-    onServerError: (callback: (data: WsConnectionError) => void) => {
-      ipcRenderer.on('ws:server-error', (_event, data) => callback(data as WsConnectionError))
+    onServerError: (callback: (data: WsServerEvents['ws:server-error']) => void) => {
+      ipcRenderer.on('ws:server-error', (_, data) => callback(data))
     },
 
-    // ==========================================
-    // 4. Czyszczenie (Krytyczne dla wydajności)
-    // ==========================================
+    onAcknowledged: (callback: (data: WsServerEvents['ws:acknowledged']) => void) => {
+      ipcRenderer.on('ws:acknowledged', (_, data) => callback(data))
+    },
+
+    onWebRTCOffer: (callback: (data: WsServerEvents['webrtc:offer']) => void) => {
+      ipcRenderer.on('webrtc:offer', (_, data) => callback(data))
+    },
+    onWebRTCAnswer: (callback: (data: WsServerEvents['webrtc:answer']) => void) => {
+      ipcRenderer.on('webrtc:answer', (_, data) => callback(data))
+    },
+    onWebRTCIceCandidate: (callback: (data: WsServerEvents['webrtc:ice-candidate']) => void) => {
+      ipcRenderer.on('webrtc:ice-candidate', (_, data) => callback(data))
+    },
+    onWebRTCReady: (callback: (data: WsServerEvents['webrtc:ready']) => void) => {
+      ipcRenderer.on('webrtc:ready', (_, data) => callback(data))
+    },
+
     removeAllListeners: () => {
-      const channels = [
+      const channels: (keyof WsServerEvents)[] = [
         'ws:connected',
         'ws:disconnected',
         'ws:connect_error',
@@ -136,9 +158,14 @@ const api = {
         'ws:request-access',
         'ws:access-accepted',
         'ws:access-rejected',
-        'ws:server-error'
+        'ws:server-error',
+        'ws:acknowledged',
+        'webrtc:offer',
+        'webrtc:answer',
+        'webrtc:ice-candidate',
+        'webrtc:ready'
       ]
-      channels.forEach((channel) => ipcRenderer.removeAllListeners(channel))
+      channels.forEach((ch) => ipcRenderer.removeAllListeners(ch))
     }
   }
 }

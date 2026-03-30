@@ -39,26 +39,41 @@ declare global {
         join: (data: JoinConnectionRequestSchema) => Promise<JoinConnectionResponseSchema>
       }
       ws: {
-        // --- AKCJE (Wysyłanie) ---
-        connect: (token: string) => Promise<{ success: boolean; message?: string }>
-        disconnect: () => Promise<{ success: boolean }>
-        respondAccept: (data: WsConnectionAccepted) => Promise<{ success: boolean }>
-        respondReject: (data: WsConnectionRejected) => Promise<{ success: boolean }>
-        requestAccess: (data: WsRequestAccess) => Promise<{ success: boolean }>
+        // --- ACTIONS ---
+        connect: (token: string) => Promise<WsConnectResponse>
+        disconnect: () => Promise<WsActionResponse>
+        respondAccept: (data: WsServerEvents['ws:access-accepted']) => Promise<WsActionResponse>
+        respondReject: (data: WsServerEvents['ws:access-rejected']) => Promise<WsActionResponse>
+        requestAccess: (data: WsServerEvents['ws:request-access']) => Promise<WsActionResponse>
+        hostAcknowledge: (data: WsServerEvents['ws:acknowledged']) => Promise<WsActionResponse>
+        guestAcknowledge: (data: WsServerEvents['ws:acknowledge']) => Promise<WsActionResponse>
+        webrtcOffer: (data: WsServerEvents['webrtc:offer']) => Promise<WsActionResponse>
+        webrtcAnswer: (data: WsServerEvents['webrtc:answer']) => Promise<WsActionResponse>
+        webrtcIceCandidate: (
+          data: WsServerEvents['webrtc:ice-candidate']
+        ) => Promise<WsActionResponse>
+        webrtcReady: (data: WsServerEvents['webrtc:ready']) => Promise<WsActionResponse>
 
-        // --- LISTENERY SYSTEMOWE (Surowe dane z Socket.io) ---
-        onConnected: (callback: (data: { socketId: string }) => void) => void
-        onDisconnected: (callback: (data: { reason: string }) => void) => void
-        onConnectError: (callback: (data: { message: string }) => void) => void
-        onMessage: (callback: (data: unknown) => void) => void
+        // --- LISTENERS ---
+        onConnected: (callback: (data: WsServerEvents['ws:connected']) => void) => void
+        onDisconnected: (callback: (data: WsServerEvents['ws:disconnected']) => void) => void
+        onConnectError: (callback: (data: WsServerEvents['ws:connect_error']) => void) => void
+        onMessage: (callback: (data: WsServerEvents['ws:message']) => void) => void
 
-        // --- LISTENERY BIZNESOWE (Typowane przez Zod) ---
-        onRequestAccess: (callback: (data: WsRequestAccess) => void) => void
-        onAccessAccepted: (callback: (data: WsConnectionAccepted) => void) => void
-        onAccessRejected: (callback: (data: WsConnectionRejected) => void) => void
-        onServerError: (callback: (data: WsConnectionError) => void) => void
+        onRequestAccess: (callback: (data: WsServerEvents['ws:request-access']) => void) => void
+        onAccessAccepted: (callback: (data: WsServerEvents['ws:access-accepted']) => void) => void
+        onAccessRejected: (callback: (data: WsServerEvents['ws:access-rejected']) => void) => void
+        onServerError: (callback: (data: WsServerEvents['ws:server-error']) => void) => void
+        onAcknowledged: (callback: (data: WsServerEvents['ws:acknowledged']) => void) => void
 
-        // --- INNE ---
+        onWebRTCOffer: (callback: (data: WsServerEvents['webrtc:offer']) => void) => void
+        onWebRTCAnswer: (callback: (data: WsServerEvents['webrtc:answer']) => void) => void
+        onWebRTCIceCandidate: (
+          callback: (data: WsServerEvents['webrtc:ice-candidate']) => void
+        ) => void
+        onWebRTCReady: (callback: (data: WsServerEvents['webrtc:ready']) => void) => void
+
+        // --- CLEANUP ---
         removeAllListeners: () => void
       }
     }
