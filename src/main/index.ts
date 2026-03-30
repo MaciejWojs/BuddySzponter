@@ -11,6 +11,7 @@ import { authService } from './services/AuthService'
 import { coreService } from './services/CoreService'
 import { userService } from './services/UserService'
 import { connectionService } from './services/ConnectionService'
+import { wsService } from './services/ws/WsService'
 
 function createWindow(): void {
   // Create the browser window.
@@ -71,6 +72,7 @@ app.whenReady().then(async () => {
   coreService.registerHandlers()
   userService.registerHandler()
   connectionService.registerHandlers()
+  wsService.registerHandlers()
 
   createWindow()
 
