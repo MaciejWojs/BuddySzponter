@@ -37,12 +37,12 @@ export async function joinConnection(
       }
     }
 
-    const response = await execute(() => {
+    const response = await execute(async () => {
       let finalBody: unknown = parsedBody.data
 
       if (isEncryptionEnabled) {
         requestHeaders['X-session-id'] = secureStore.getSecure('sessionId') || ''
-        finalBody = encryptData(parsedBody.data)
+        finalBody = await encryptData(parsedBody.data)
       }
 
       return fetch(url, {

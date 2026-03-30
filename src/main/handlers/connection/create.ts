@@ -37,12 +37,13 @@ export async function createConnection(
       }
     }
 
-    const response = await execute(() => {
+    const response = await execute(async () => {
       let finalBody: unknown = parsedBody.data
 
       if (isEncryptionEnabled) {
         requestHeaders['X-session-id'] = secureStore.getSecure('sessionId') || ''
-        finalBody = encryptData(parsedBody.data)
+        console.log('Encrypting request body for createConnection:', finalBody)
+        finalBody = await encryptData(parsedBody.data)
       }
 
       return fetch(url, {
