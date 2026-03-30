@@ -25,13 +25,14 @@
   </div>
 </template>
 
+// BuConnectionTest.vue (tylko sekcja script)
 <script setup lang="ts">
 import { ref } from 'vue'
 
 const emit = defineEmits<{ (e: 'log-result', action: string, data: unknown): void }>()
 
 const form = ref({
-  password: '',
+  password: '#Pracownia123',
   userId: undefined as number | undefined
 })
 
@@ -43,7 +44,16 @@ const handleCreateConnection = async (): Promise<void> => {
       ...(form.value.userId ? { userId: form.value.userId } : {})
     }
     const res = await window.api.connection.create(requestData)
-    emit('log-result', 'CREATE_CONNECTION_SUCCESS', res)
+
+    if (res.success && res.data?.token) {
+      emit('log-result', 'CREATE_CONNECTION_SUCCESS', res)
+      emit('log-result', 'WS_CONNECTING', 'Otrzymano token, automatyczne łączenie z WebSocketem...')
+
+      // Magia dzieje się tutaj:
+      await window.api.ws.connect(res.data.token)
+    } else {
+      emit('log-result', 'CREATE_CONNECTION_FAILED', res)
+    }
   } catch (e) {
     emit('log-result', 'CREATE_CONNECTION_ERROR', e)
   }

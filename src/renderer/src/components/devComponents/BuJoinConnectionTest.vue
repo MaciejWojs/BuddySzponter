@@ -33,7 +33,7 @@ const emit = defineEmits<{ (e: 'log-result', action: string, data: unknown): voi
 
 const form = ref({
   connectionCode: '',
-  password: ''
+  password: '#Pracownia123'
 })
 
 const handleJoinConnection = async (): Promise<void> => {
@@ -41,14 +41,24 @@ const handleJoinConnection = async (): Promise<void> => {
   try {
     const res = await window.api.connection.join({ ...form.value })
 
-    // Rozbijamy logi na sukces i błąd w zależności od flagi 'success' ze schematu
-    if (res.success) {
+    if (res.success && res.data?.token) {
       emit('log-result', 'JOIN_CONNECTION_SUCCESS', res)
+      emit('log-result', 'WS_CONNECTING', 'Otrzymano token, automatyczne łączenie z WebSocketem...')
+
+      await window.api.ws.connect(res.data.token)
+
+      setTimeout(async () => {
+        emit('log-result', 'WS_SENDING_REQUEST', 'Wysyłam prośbę o dostęp (request-access)...')
+
+        await window.api.ws.requestAccess({
+          event: 'connection:request-access',
+          sessionId: res.data.connectionUUID
+        })
+      }, 1000)
     } else {
       emit('log-result', 'JOIN_CONNECTION_FAILED', res)
     }
   } catch (e) {
-    // Łapie błędy rzucone przez IPC / sieć
     emit('log-result', 'JOIN_CONNECTION_ERROR', e)
   }
 }
