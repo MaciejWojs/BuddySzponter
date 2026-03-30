@@ -7,6 +7,7 @@ const store = useSettingsStore()
 store.initSettings()
 </script>
 <template>
+  <BuLanguageSelector />
   <UApp :toaster="toaster">
     <router-view></router-view>
   </UApp>
