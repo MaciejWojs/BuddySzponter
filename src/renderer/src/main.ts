@@ -14,7 +14,7 @@ import { i18n } from './i18n'
 
 const router = createRouter({
   history: createWebHashHistory(),
-  routes
+  routes: [{ path: '/', redirect: '/Menu' }, ...routes]
 })
 
 const pinia = createPinia()
