@@ -68,9 +68,14 @@
     "us": "American",
     "choice": "Choose language"
   },
-  "userMenu1": {
-    "login": "Log in",
-    "register": "Register"
+  "register": {
+    "tittle": "Register to BuddySzponter",
+    "emailLabel": "Email address",
+    "passwordLabel": "Password",
+    "confirmPasswordLabel": "Confirm password",
+    "registerButton": "Register",
+    "loading": "Loading...",
+    "passwordStrength": "Password strength"
   },
   "loginform": {
     "hint1": "Your password",

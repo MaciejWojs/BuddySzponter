@@ -8,6 +8,7 @@ const store = useSettingsStore()
 store.initSettings()
 </script>
 <template>
+  <BuLanguageSelector />
   <UApp :toaster="toaster">
     <Shared />
   </UApp>

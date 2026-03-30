@@ -4,7 +4,7 @@
       <p class="w-full max-w-sm text-left text-white text-base font-medium opacity-90">
         {{ t('register.emailLabel') || t('login.email') || 'Email address' }}
       </p>
-      <BuInput v-model="email" :placeholder="$t('register.email')" :error="!!errors.email">
+      <BuInput v-model="email" :placeholder="t('register.email')" :error="!!errors.email">
         <template #prefix>
           <Mail class="w-6 h-6 opacity-50" />
         </template>
