@@ -8,7 +8,7 @@ import type { NavBarItem } from '@renderer/components/UI/NavBar.vue'
 import DevicesButton from '@renderer/components/simpleComponents/DevicesButton.vue'
 import HomeButton from '@renderer/components/simpleComponents/HomeButton.vue'
 import SettingButton from '@renderer/components/simpleComponents/SettingButton.vue'
-import buddySzponterLogo from '@renderer/assets/images/buddyszponterLogo.png'
+import buddySzponterLogo from '@images/buddyszponterLogo.png'
 
 // --- Navigation state: currently active tab ---
 const activeNav = ref('home')

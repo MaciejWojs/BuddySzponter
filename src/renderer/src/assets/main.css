@@ -1,3 +1,11 @@
+html,
+body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden; /* Blokada skrolowania */
+  background-color: #03000c; /* Twoje bazowe tło */
+  cursor: default;
+}
 @import '@fontsource-variable/plus-jakarta-sans';
 @import '@fontsource-variable/jetbrains-mono';
 @import './base.css';
