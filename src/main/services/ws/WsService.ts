@@ -4,6 +4,7 @@ import { decryptData, encryptData } from '../../utils/api/crypt'
 import { EncryptedPayload } from '../../schemas/encryptedPayload.schema'
 import { secureStore } from '../../store/secureStore'
 import { authService } from '../AuthService'
+import { WsActionResponse, WsConnectResponse, WsServerEvents } from '../../../shared/schemas/ipc'
 
 export class WsService {
   private static instance: WsService
@@ -59,97 +60,120 @@ export class WsService {
     if (!this.socket) return
 
     this.socket.on('connect', () => {
-      console.log('[WsService] Connected with ID:', this.socket?.id)
-      this.notifyFrontend('ws:connected', { socketId: this.socket?.id })
+      this.notifyFrontend('ws:connected', { socketId: this.socket?.id || '' })
     })
 
-    this.socket.on('disconnect', (reason) => {
-      console.warn('[WsService] Disconnected. Reason:', reason)
+    this.socket.on('disconnect', (reason: string) => {
       this.notifyFrontend('ws:disconnected', { reason })
     })
 
-    this.socket.on('connect_error', (err) => {
-      console.error('[WsService] Connection error:', err.message)
+    this.socket.on('connect_error', (err: Error) => {
       this.notifyFrontend('ws:connect_error', { message: err.message })
     })
 
-    this.socket.on('message', async (message: unknown) => {
-      if (this.isEncryptionEnabled) {
-        try {
-          const decrypted = await decryptData(message as EncryptedPayload)
-          this.notifyFrontend<object>('ws:message', decrypted)
-        } catch (err) {
-          console.error('[WsService] Failed to decrypt standard message:', err)
-        }
-      } else {
-        this.notifyFrontend<unknown>('ws:message', message)
-      }
-    })
-
+    // --- BIZNESOWE ---
     this.socket.on('connection:request-access', async (data: unknown) => {
-      console.log('[WsService] Received connection:request-access')
-      const payload = this.isEncryptionEnabled ? await decryptData(data as EncryptedPayload) : data
-
-      this.notifyFrontend<unknown>('ws:request-access', payload)
+      const payload = await this.decryptIfNeeded<WsServerEvents['ws:request-access']>(data)
+      this.notifyFrontend('ws:request-access', payload)
     })
 
     this.socket.on('connection:accepted', async (data: unknown) => {
-      const payload = this.isEncryptionEnabled ? await decryptData(data as EncryptedPayload) : data
-
-      this.notifyFrontend<unknown>('ws:access-accepted', payload)
+      const payload = await this.decryptIfNeeded<WsServerEvents['ws:access-accepted']>(data)
+      this.notifyFrontend('ws:access-accepted', payload)
     })
 
     this.socket.on('connection:rejected', async (data: unknown) => {
-      const payload = this.isEncryptionEnabled ? await decryptData(data as EncryptedPayload) : data
-
-      this.notifyFrontend<unknown>('ws:access-rejected', payload)
+      const payload = await this.decryptIfNeeded<WsServerEvents['ws:access-rejected']>(data)
+      this.notifyFrontend('ws:access-rejected', payload)
     })
 
     this.socket.on('connection:error', async (data: unknown) => {
-      const payload = this.isEncryptionEnabled ? await decryptData(data as EncryptedPayload) : data
+      const payload = await this.decryptIfNeeded<WsServerEvents['ws:server-error']>(data)
+      this.notifyFrontend('ws:server-error', payload)
+    })
 
-      console.error('[WsService] Connection error from server:', payload)
-      this.notifyFrontend<unknown>('ws:server-error', payload)
+    this.socket.on('connection:acknowledged', async (data: unknown) => {
+      const payload = await this.decryptIfNeeded<WsServerEvents['ws:acknowledged']>(data)
+      this.notifyFrontend('ws:acknowledged', payload)
+    })
+
+    // --- WebRTC ---
+    this.socket.on('webrtc:offer', async (data: unknown) => {
+      const payload = await this.decryptIfNeeded<WsServerEvents['ws:message']>(data)
+      this.notifyFrontend('ws:message', payload)
+    })
+
+    this.socket.on('webrtc:answer', async (data: unknown) => {
+      const payload = await this.decryptIfNeeded<WsServerEvents['ws:message']>(data)
+      this.notifyFrontend('ws:message', payload)
+    })
+
+    this.socket.on('webrtc:ice-candidate', async (data: unknown) => {
+      const payload = await this.decryptIfNeeded<WsServerEvents['ws:message']>(data)
+      this.notifyFrontend('ws:message', payload)
+    })
+
+    this.socket.on('webrtc:ready', async (data: unknown) => {
+      const payload = await this.decryptIfNeeded<WsServerEvents['ws:message']>(data)
+      this.notifyFrontend('ws:message', payload)
     })
   }
 
-  private notifyFrontend<T>(channel: string, payload: T): void {
+  private notifyFrontend<K extends keyof WsServerEvents>(
+    channel: K,
+    payload: WsServerEvents[K]
+  ): void {
     const windows = BrowserWindow.getAllWindows()
     windows.forEach((win) => {
-      win.webContents.send(channel, payload)
+      if (!win.isDestroyed()) {
+        win.webContents.send(channel, payload)
+      }
     })
+  }
+
+  private async decryptIfNeeded<T>(data: unknown): Promise<T> {
+    return this.isEncryptionEnabled
+      ? ((await decryptData(data as EncryptedPayload)) as T)
+      : (data as T)
   }
 
   public registerHandlers(): void {
     console.log('[WsService] Registering IPC handlers...')
 
-    ipcMain.handle('ws:connect', async (_event, { connectionToken }) => {
+    ipcMain.handle('ws:connect', async (_, { connectionToken }): Promise<WsConnectResponse> => {
       this.connect(connectionToken)
       return { success: true }
     })
 
-    ipcMain.handle('ws:respond-accept', async (_event, payload) => {
+    ipcMain.handle('ws:respond-accept', async (_, payload): Promise<WsActionResponse> => {
       if (!this.socket) return { success: false, message: 'No socket connection' }
-
-      const actualData = payload.data || payload
-
-      const payloadToSend = this.isEncryptionEnabled ? await encryptData(actualData) : actualData
-
+      const payloadToSend = this.isEncryptionEnabled
+        ? await encryptData(payload.data)
+        : payload.data
       this.socket.emit('connection:accept', payloadToSend)
       return { success: true }
     })
 
-    ipcMain.handle('ws:respond-reject', async (_event, payload) => {
+    ipcMain.handle('ws:respond-reject', async (_, payload): Promise<WsActionResponse> => {
       if (!this.socket) return { success: false, message: 'No socket connection' }
-
-      const actualData = payload.data || payload
-
-      console.log('[WsService] Wysyłanie odrzucenia:', actualData)
       const payloadToSend = this.isEncryptionEnabled
-        ? await encryptData(actualData || {})
-        : actualData || {}
-
+        ? await encryptData(payload.data)
+        : payload.data
       this.socket.emit('connection:reject', payloadToSend)
+      return { success: true }
+    })
+
+    ipcMain.handle('ws:acknowledge', async (_, payload): Promise<WsActionResponse> => {
+      if (!this.socket) return { success: false, message: 'No socket connection' }
+      const payloadToSend = this.isEncryptionEnabled ? await encryptData(payload) : payload
+      this.socket.emit('connection:acknowledge', payloadToSend)
+      return { success: true }
+    })
+
+    ipcMain.handle('ws:acknowledged', async (_, payload): Promise<WsActionResponse> => {
+      if (!this.socket) return { success: false, message: 'No socket connection' }
+      const payloadToSend = this.isEncryptionEnabled ? await encryptData(payload) : payload
+      this.socket.emit('connection:acknowledged', payloadToSend)
       return { success: true }
     })
 
@@ -165,6 +189,36 @@ export class WsService {
 
     ipcMain.handle('ws:disconnect', async () => {
       this.disconnect()
+      return { success: true }
+    })
+
+    // -- WebRTC --
+
+    ipcMain.handle('ws:webrtc-offer', async (_event, data) => {
+      if (!this.socket) return { success: false, message: 'No socket connection' }
+      const payloadToSend = this.isEncryptionEnabled ? await encryptData(data) : data
+      this.socket.emit('webrtc:offer', payloadToSend)
+      return { success: true }
+    })
+
+    ipcMain.handle('ws:webrtc-answer', async (_event, data) => {
+      if (!this.socket) return { success: false, message: 'No socket connection' }
+      const payloadToSend = this.isEncryptionEnabled ? await encryptData(data) : data
+      this.socket.emit('webrtc:answer', payloadToSend)
+      return { success: true }
+    })
+
+    ipcMain.handle('ws:webrtc-ice-candidate', async (_event, data) => {
+      if (!this.socket) return { success: false, message: 'No socket connection' }
+      const payloadToSend = this.isEncryptionEnabled ? await encryptData(data) : data
+      this.socket.emit('webrtc:ice-candidate', payloadToSend)
+      return { success: true }
+    })
+
+    ipcMain.handle('ws:webrtc-ready', async (_event, data) => {
+      if (!this.socket) return { success: false, message: 'No socket connection' }
+      const payloadToSend = this.isEncryptionEnabled ? await encryptData(data) : data
+      this.socket.emit('webrtc:ready', payloadToSend)
       return { success: true }
     })
   }
