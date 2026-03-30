@@ -14,7 +14,7 @@
           <button class="menu-item" @click="goToLogin">{{ $t('userMenu1.login') }}</button>
           <button class="menu-item" @click="goToRegister">{{ $t('userMenu1.register') }}</button>
           <hr style="width: 80%; border: 0; border-top: 1px solid #444; margin: 10px 0" />
-          <button class="menu-item" @click="openVersionModal">🛠️ Panel wersji</button>
+          <button class="menu-item" @click="openVersionModal">Wersja aplikacji</button>
         </div>
       </Transition>
 
@@ -47,12 +47,17 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { storeToRefs } from 'pinia'
+import { useSettingsStore } from '@renderer/stores/settingsStore'
 import UserIconSvg from '@renderer/assets/images/components/Usericon2.svg?component'
 
 const menuOpen = ref(false)
 const showVersionModal = ref(false)
 const versionResult = ref<string | null>(null)
 const router = useRouter()
+
+const settingsStore = useSettingsStore()
+const { supportedVersions } = storeToRefs(settingsStore)
 
 function goToLogin(): void {
   router.push('/login')
@@ -85,12 +90,13 @@ async function handleCurrentVersion(): Promise<void> {
 
 async function handleAvailableVersions(): Promise<void> {
   try {
-    const res = await window.api.core.getSupportedVersions()
-    if (res.success) {
-      const wersje = res.data.map((v) => v.version).join(', ')
+    await settingsStore.fetchSupportedVersions()
+    console.log('Pobrane wersje:', supportedVersions.value)
+    if (supportedVersions.value && supportedVersions.value.length > 0) {
+      const wersje = supportedVersions.value.map((v) => v.version).join(', ')
       versionResult.value = 'Dostępne wersje: ' + wersje
     } else {
-      versionResult.value = 'Błąd pobierania wersji: ' + res.message
+      versionResult.value = 'Brak dostępnych wersji.'
     }
   } catch (e) {
     versionResult.value = 'Błąd pobierania wersji: ' + e
@@ -99,55 +105,11 @@ async function handleAvailableVersions(): Promise<void> {
 
 async function handleVersionStatus(): Promise<void> {
   try {
-    const currentVersion = String(await window.api.core.getAppVersion())
-      .replace(/^v/i, '')
-      .trim()
-    const res = await window.api.core.getSupportedVersions()
-    if (!res.success || !res.data) {
-      versionResult.value = 'Błąd pobierania wersji z API: ' + res.message
-      return
-    }
-    const versions = res.data
-    const sortedVersions = [...versions].sort((a, b) => compareVersions(b.version, a.version))
-    const latestApiVersion = sortedVersions[0]
-    const currentVersionData = versions.find(
-      (v) => v.version.replace(/^v/i, '').trim() === currentVersion
-    )
-    let status = ''
-    if (!versions || versions.length === 0) {
-      status = 'UNKNOWN'
-    } else if (!currentVersionData) {
-      if (compareVersions(currentVersion, latestApiVersion.version) > 0) {
-        status = 'UP_TO_DATE'
-      } else {
-        status = 'UPDATE_REQUIRED'
-      }
-    } else if (!currentVersionData.isSupported) {
-      status = 'UPDATE_REQUIRED'
-    } else if (compareVersions(latestApiVersion.version, currentVersion) > 0) {
-      status = 'UPDATE_AVAILABLE'
-    } else {
-      status = 'UP_TO_DATE'
-    }
+    const status = await settingsStore.checkVersionStatus()
     versionResult.value = 'Status wersji: ' + status
   } catch (e) {
     versionResult.value = 'Błąd sprawdzania statusu wersji: ' + e
   }
-}
-
-function compareVersions(v1: string, v2: string): number {
-  const cleanV1 = String(v1).replace(/^v/i, '').trim()
-  const cleanV2 = String(v2).replace(/^v/i, '').trim()
-  const parts1 = cleanV1.split('.').map((p) => parseInt(p, 10))
-  const parts2 = cleanV2.split('.').map((p) => parseInt(p, 10))
-  const len = Math.max(parts1.length, parts2.length)
-  for (let i = 0; i < len; i++) {
-    const p1 = isNaN(parts1[i]) ? 0 : parts1[i]
-    const p2 = isNaN(parts2[i]) ? 0 : parts2[i]
-    if (p1 > p2) return 1
-    if (p1 < p2) return -1
-  }
-  return 0
 }
 </script>
 
