@@ -3,7 +3,7 @@ import os from 'os'
 import { localStore, translationStore } from '../store/localStore'
 import { ipcMain } from 'electron'
 import { AppLanguage, Translation } from '../../shared/schemas/langSchemas'
-import fallbackTranslations from '../../shared/locales/er.json'
+import fallbackTranslations from '../../shared/locales/en.json'
 
 export class AppSettingsService {
   private static instance: AppSettingsService
@@ -24,9 +24,9 @@ export class AppSettingsService {
   public getSelectedLanguage(): AppLanguage {
     const savedLang = localStore.get('language')
     if (!savedLang) {
-      localStore.set('language', 'er')
-      console.log('[AppSettingsService] No language found in store, defaulting to "er".')
-      return 'er'
+      localStore.set('language', 'en')
+      console.log('[AppSettingsService] No language found in store, defaulting to "en".')
+      return 'en'
     }
 
     return localStore.get('language')
@@ -36,15 +36,15 @@ export class AppSettingsService {
     let translation: Translation
     const selectedLang = this.getSelectedLanguage()
 
-    if (selectedLang === 'er') {
+    if (selectedLang === 'en') {
       translation = fallbackTranslations
-      translationStore.set('er', fallbackTranslations)
+      translationStore.set('en', fallbackTranslations)
       console.log('[AppSettingsService] No selected language found, using fallback translations.')
     } else {
       translation = translationStore.get(selectedLang)
       if (!translation) {
         console.warn(
-          `[AppSettingsService] Translations missing for ${selectedLang}. Falling back to 'er'.`
+          `[AppSettingsService] Translations missing for ${selectedLang}. Falling back to 'en'.`
         )
         translation = fallbackTranslations
       }
