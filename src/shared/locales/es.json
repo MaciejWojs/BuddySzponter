@@ -1,0 +1,91 @@
+{
+  "login": {
+    "title": "Iniciar sesión en BuddySzponter",
+    "email": "Dirección de correo electrónico",
+    "register": "Registrarse",
+    "password": "Contraseña",
+    "button": "Iniciar sesión",
+    "nickname": "Nombre de usuario",
+    "loading": "Cargando...",
+    "forgotPassword": "¿Olvidaste tu contraseña?",
+    "noAccount": "¿No tienes una cuenta?",
+    "registerNow": "Regístrate ahora",
+    "confirm": "Confirmar contraseña",
+    "penter": "Introduce la contraseña",
+    "haveAccount": "¿Ya tienes una cuenta?",
+    "passwordStrength": "Fortaleza de la contraseña",
+    "emailError": {
+      "invalid": "Introduce una dirección de correo válida",
+      "maxLength": "La dirección de correo es demasiado larga",
+      "required": "La dirección de correo es obligatoria"
+    },
+    "passwordError": {
+      "minLength": "La contraseña es demasiado corta",
+      "required": "La contraseña es obligatoria",
+      "weak": "La contraseña es demasiado débil"
+    }
+  },
+  "userMenu": {
+    "guest": "Invitado",
+    "version": "Versión de la aplicación",
+    "logout": "Cerrar sesión",
+    "settings": "Configuración",
+    "profile": "Perfil"
+  },
+  "validation": {
+    "invalidEmail": "Introduce una dirección de correo válida",
+    "passwordTooShort": "La contraseña debe tener al menos 6 caracteres",
+    "required": "Este campo es obligatorio",
+    "passwordMinLength": "La contraseña debe tener al menos {count} caracteres",
+    "passwordMaxLetters": "La contraseña puede tener un máximo de {count} letras",
+    "passwordRequiresLowercase": "La contraseña debe contener una letra minúscula",
+    "passwordRequiresUppercase": "La contraseña debe contener una letra mayúscula",
+    "passwordRequiresDigit": "La contraseña debe contener un número",
+    "sessioncodelength": "El código de sesión debe tener exactamente 9 caracteres",
+    "passwordRequiresSpecialCharacter": "La contraseña debe contener un carácter especial"
+  },
+
+  "hostForm": {
+    "title": "Transferir control",
+    "description": "Introduce el código de sesión para transferir el control de tu dispositivo a otro usuario.",
+    "sessionCode": "Código de sesión",
+    "sessionPassword": "Contraseña de sesión",
+    "timeToJoin": "Tiempo restante:"
+  },
+  "guestForm": {
+    "title": "Unirse a la sesión",
+    "description": "Introduce el código de sesión para unirte a una sesión remota y tomar el control del dispositivo del anfitrión.",
+    "sessionCode": "Código de sesión",
+    "sessionPassword": "Contraseña de sesión",
+    "joinButton": "Unirse",
+    "timeToJoin": "Tiempo restante:"
+  },
+  "alert": {
+    "success": "Éxito",
+    "error": "Error",
+    "warning": "Advertencia",
+    "info": "Información",
+    "copy": "Copiado"
+  },
+  "languageSwitchButton": {
+    "choice": "Elige idioma",
+    "languages": {
+      "pl": "Polaco",
+      "en": "Inglés",
+      "er": "Eritreo",
+      "plX67": "Szponteriano",
+      "de": "Alemán",
+      "it": "Italiano",
+      "fr": "Francés",
+      "es": "Español",
+      "cn": "Chino",
+      "jp": "Japonés",
+      "kr": "Coreano",
+      "id": "Indonesio",
+      "sa": "Árabe",
+      "bd": "Bengalí",
+      "br": "Brasileño",
+      "us": "Estadounidense"
+    }
+  }
+}
