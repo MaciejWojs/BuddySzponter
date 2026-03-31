@@ -34,7 +34,7 @@ export class LanguageService {
       // --- NOWE (vue-i18n) ---
       if (initialTranslations) {
         i18n.global.setLocaleMessage(savedLang, initialTranslations)
-        i18n.global.locale.value = savedLang as unknown as 'er'
+        i18n.global.locale.value = savedLang as unknown as 'en'
       }
     } catch (error) {
       console.error('[LanguageService] Failed to initialize:', error)
@@ -58,7 +58,7 @@ export class LanguageService {
       this.translationsRef.value = newTranslations
 
       i18n.global.setLocaleMessage(lang, newTranslations)
-      i18n.global.locale.value = lang as unknown as 'er'
+      i18n.global.locale.value = lang as unknown as 'en'
     } catch (error) {
       console.error(`[LanguageService] Error changing language:`, error)
     } finally {

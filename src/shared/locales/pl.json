@@ -2,9 +2,17 @@
   "login": {
     "title": "Zaloguj się do BuddySzponter",
     "email": "Adres e-mail",
+    "register": "Zarejestruj się",
     "password": "Hasło",
     "button": "Zaloguj się",
+    "nickname": "Nazwa użytkownika",
     "loading": "Ładowanie...",
+    "forgotPassword": "Zapomniałeś hasła?",
+    "noAccount": "Nie masz konta?",
+    "registerNow": "Zarejestruj się teraz",
+    "confirm": "Potwierdź hasło",
+    "penter": "Wprowadź hasło",
+    "haveAccount": "Masz już konto?",
     "passwordStrength": "Siła hasła",
     "emailError": {
       "invalid": "Wprowadź poprawny adres e-mail",
@@ -17,6 +25,13 @@
       "weak": "Hasło jest zbyt słabe"
     }
   },
+  "userMenu": {
+    "guest": "Gość",
+    "version": "Wersja aplikacji",
+    "logout": "Wyloguj się",
+    "settings": "Ustawienia",
+    "profile": "Profil"
+  },
   "validation": {
     "invalidEmail": "Wprowadź poprawny adres e-mail",
     "passwordTooShort": "Hasło musi mieć co najmniej 6 znaków",
@@ -26,13 +41,23 @@
     "passwordRequiresLowercase": "Hasło musi zawierać małą literę",
     "passwordRequiresUppercase": "Hasło musi zawierać wielką literę",
     "passwordRequiresDigit": "Hasło musi zawierać cyfrę",
+    "sessioncodelength": "Kod sesji musi mieć dokładnie 9 znaków",
     "passwordRequiresSpecialCharacter": "Hasło musi zawierać znak specjalny"
   },
+
   "hostForm": {
     "title": "Przekazanie kontroli",
     "description": "Wprowadź kod sesji, aby przekazać kontrolę nad swoim urządzeniem innemu użytkownikowi.",
     "sessionCode": "Kod sesji",
     "sessionPassword": "Hasło sesji",
+    "timeToJoin": "Pozostały czas:"
+  },
+  "guestForm": {
+    "title": "Dołącz do sesji",
+    "description": "Wprowadź kod sesji, aby dołączyć do zdalnej sesji i przejąć kontrolę nad urządzeniem gospodarza.",
+    "sessionCode": "Kod sesji",
+    "sessionPassword": "Hasło sesji",
+    "joinButton": "Dołącz",
     "timeToJoin": "Pozostały czas:"
   },
   "alert": {

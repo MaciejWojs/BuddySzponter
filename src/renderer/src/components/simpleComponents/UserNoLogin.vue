@@ -7,14 +7,14 @@
         <UserIconSvg class="user-avatar" />
       </div>
 
-      <div class="user-name">Gość</div>
+      <div class="user-name">{{ $t('userMenu.guest') }}</div>
 
       <Transition name="fade-slide">
         <div v-if="menuOpen" class="menu-items">
-          <button class="menu-item" @click="goToLogin">{{ $t('userMenu1.login') }}</button>
-          <button class="menu-item" @click="goToRegister">{{ $t('userMenu1.register') }}</button>
+          <button class="menu-item" @click="goToLogin">{{ $t('login.button') }}</button>
+          <button class="menu-item" @click="goToRegister">{{ $t('login.register') }}</button>
           <hr style="width: 80%; border: 0; border-top: 1px solid #444; margin: 10px 0" />
-          <button class="menu-item" @click="openVersionModal">Wersja aplikacji</button>
+          <button class="menu-item" @click="openVersionModal">{{ $t('userMenu.version') }}</button>
         </div>
       </Transition>
 

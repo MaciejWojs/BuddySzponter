@@ -2,9 +2,9 @@
   <div class="flex flex-col items-center gap-6">
     <div class="flex flex-col justify-items-center items-center gap-2">
       <p class="w-full max-w-sm text-left text-white text-base font-medium opacity-90">
-        {{ t('register.emailLabel') || t('login.email') || 'Email address' }}
+        {{ t('login.email') || t('login.email') || 'Email address' }}
       </p>
-      <BuInput v-model="email" :placeholder="t('register.email')" :error="!!errors.email">
+      <BuInput v-model="email" :placeholder="t('login.email')" :error="!!errors.email">
         <template #prefix>
           <Mail class="w-6 h-6 opacity-50" />
         </template>
@@ -13,11 +13,11 @@
 
     <div class="flex flex-col justify-items-center items-center gap-2">
       <p class="w-full max-w-sm text-left text-white text-base font-medium opacity-90">
-        {{ t('register.nicknameLabel') || 'Nickname' }}
+        {{ t('login.nickname') || 'Nickname' }}
       </p>
       <BuInput
         v-model="nickname"
-        :placeholder="$t('register.nickname') || 'Nickname'"
+        :placeholder="$t('login.nickname') || 'Nickname'"
         :error="!!errors.nickname"
       />
       <div class="text-red-500 text-sm mt-1 h-2">{{ errors.nickname }}</div>
@@ -25,11 +25,11 @@
 
     <div class="flex flex-col justify-items-center items-center gap-2">
       <p class="w-full max-w-sm text-left text-white text-base font-medium opacity-90">
-        {{ t('register.passwordLabel') || t('login.password') || 'Password' }}
+        {{ t('login.password') || t('login.password') || 'Password' }}
       </p>
       <BuInput
         v-model="password"
-        :placeholder="$t('register.password')"
+        :placeholder="$t('login.penter')"
         :type="showPassword ? 'text' : 'password'"
         :error="!!errors.password"
       >
@@ -57,11 +57,11 @@
 
     <div class="flex flex-col justify-items-center items-center gap-2">
       <p class="w-full max-w-sm text-left text-white text-base font-medium opacity-90">
-        {{ t('register.confirmPasswordLabel') || 'Confirm password' }}
+        {{ t('login.confirm') || 'Confirm password' }}
       </p>
       <BuInput
         v-model="confirmPassword"
-        :placeholder="$t('register.confirmPassword')"
+        :placeholder="$t('login.confirm')"
         :type="showConfirmPassword ? 'text' : 'password'"
         :error="!!errors.confirmPassword"
       >
@@ -80,7 +80,7 @@
     </div>
 
     <GrayButton @click="handleRegister">
-      {{ t('register.button') }}
+      {{ t('login.register') }}
       <template #suffix>
         <UIcon v-if="!isLoading" name="i-lucide-arrow-right" class="w-6 h-6 opacity-75" />
         <UIcon v-if="isLoading" name="i-lucide-loader-circle" class="animate-spin w-6 h-6" />
@@ -89,13 +89,13 @@
 
     <div class="w-full max-w-sm space-y-1 text-center mt-2">
       <div class="flex items-center justify-center gap-1 text-sm text-white opacity-80">
-        <span>{{ t('register.haveAccount') || 'Posiadasz już konto?' }}</span>
+        <span>{{ t('login.haveAccount') || 'Posiadasz już konto?' }}</span>
         <button
           type="button"
           class="text-white text-sm opacity-80 hover:opacity-100 hover:underline underline-offset-2 transition-opacity"
           @click="goToLogin"
         >
-          {{ t('register.loginNow') || 'Zaloguj się' }}
+          {{ t('login.button') || 'Zaloguj się' }}
         </button>
       </div>
     </div>

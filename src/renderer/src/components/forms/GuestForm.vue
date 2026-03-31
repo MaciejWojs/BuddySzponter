@@ -10,7 +10,7 @@ const passwordValidator = computed(() =>
         .string({ message: t('validation.required') })
         .min(1, { message: t('validation.required') })
         .refine((value) => value.replace(/\s/g, '').length === 9, {
-          message: t('validation.sessionCodeLength')
+          message: t('validation.sessioncodelength')
         }),
       sessionPassword: z.string({ message: t('validation.required') })
     })
