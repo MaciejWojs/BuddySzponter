@@ -42,7 +42,7 @@
         type="button"
         class="text-white text-sm opacity-80 hover:opacity-100 hover:underline underline-offset-2 transition-opacity mx-auto"
       >
-        {{ t('loginForm.forgotPassword') }}
+        {{ t('login.forgotPassword') }}
       </button>
       <div class="flex items-center justify-center gap-1 text-sm text-white opacity-80">
         <span>{{ t('login.noAccount') }}</span>

@@ -1,7 +1,7 @@
 <template>
   <section class="register-page">
     <div class="register-card">
-      <h1 class="register-title">{{ $t('register.tittle ') }}</h1>
+      <h1 class="register-title">{{ $t('login.register') }}</h1>
       <RegisterForm />
     </div>
   </section>
