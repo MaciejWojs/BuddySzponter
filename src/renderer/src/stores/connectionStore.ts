@@ -48,11 +48,12 @@ export const useConnectionStore = defineStore('connection', () => {
     const now = new Date().getTime()
     const timeUntilRefresh = Math.max(expiresAt - now - 5000, 0)
 
-    console.log(
-      `[ConnectionStore] Następne odświeżenie za ${Math.round(timeUntilRefresh / 1000)} sekund.`
-    )
-
     refreshTimer = setTimeout(async () => {
+      if (socketStore.accessStatus === 'accepted') {
+        console.log('[ConnectionStore] Sesja w toku. Ignoruję odświeżanie PINu.')
+        return
+      }
+
       console.log('[ConnectionStore] Token wygasa! Odświeżam połączenie...')
       await createHostConnection(originalData)
     }, timeUntilRefresh)
