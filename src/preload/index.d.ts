@@ -22,7 +22,11 @@ declare global {
         getLocale: (lang: string) => Promise<GetLocaleResponse>
         getAvailableLanguages: () => Promise<GetAvailableLanguagesResponse>
         getSupportedVersions: () => Promise<GetSupportedVersionsResponse>
-        getAppVersion: () => GetAppVersionResponse
+        getAppVersion: () => Promise<string>
+        getVersionStatus: () => Promise<
+          'UP_TO_DATE' | 'UPDATE_AVAILABLE' | 'UPDATE_REQUIRED' | 'UNKNOWN'
+        >
+        isUpdateRequired: () => Promise<boolean>
       }
       users: {
         uploadAvatar: (userId: string | null) => Promise<UploadAvatarResponse>
