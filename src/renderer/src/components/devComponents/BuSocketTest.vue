@@ -1,208 +1,220 @@
 <template>
-  <div class="bg-[#1e1e1e] border border-[#333] rounded-lg p-6 shadow-xl max-w-2xl mx-auto">
-    <header class="flex justify-between items-center mb-6">
-      <h2 class="text-xl font-bold text-white m-0">Panel Sterowania WebSocket</h2>
+  <div
+    class="bg-[#1e1e1e] border border-[#333] rounded-lg p-5 col-span-1 md:col-span-2 shadow-xl relative overflow-hidden shrink-0 mb-8"
+  >
+    <header class="flex justify-between items-center mb-5">
+      <div>
+        <h2 class="text-xl font-bold text-white m-0">Panel WebSocket</h2>
+        <p class="text-[11px] text-gray-500 uppercase tracking-widest font-semibold mt-1">
+          Rola:
+          <span :class="connectionStore.isHost ? 'text-purple-400' : 'text-blue-400'">{{
+            connectionStore.isHost ? 'Host' : 'Gość'
+          }}</span>
+        </p>
+      </div>
 
-      <div class="flex items-center gap-2 px-3 py-1 rounded-full bg-black/30 border border-[#333]">
-        <div :class="['w-2.5 h-2.5 rounded-full shadow-sm', connectionColor]"></div>
-        <span class="text-xs font-mono uppercase tracking-wider text-gray-400">
-          {{ isConnected ? `Połączono: ${socketId.slice(0, 8)}` : 'Rozłączono' }}
+      <div
+        class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/40 border border-[#444] shadow-inner"
+      >
+        <div
+          class="w-2.5 h-2.5 rounded-full transition-colors duration-300"
+          :class="
+            socketStore.isConnected ? 'bg-emerald-500 shadow-[0_0_8px_#10b981]' : 'bg-rose-500'
+          "
+        ></div>
+        <span class="text-xs font-mono uppercase tracking-wider text-gray-300">
+          {{ socketStore.isConnected ? 'Połączono (WS)' : 'Rozłączono' }}
         </span>
       </div>
     </header>
 
-    <transition name="fade">
+    <transition name="slide-down">
       <section
-        v-if="incomingRequest"
-        class="mb-6 overflow-hidden border border-blue-500/50 rounded-xl bg-blue-950/20 shadow-lg shadow-blue-500/10"
+        v-if="socketStore.incomingRequest"
+        class="relative p-4 mb-5 bg-blue-950/30 border border-blue-500/50 rounded-xl shadow-lg shadow-blue-500/10 overflow-hidden"
       >
-        <div class="p-4 bg-blue-500/10 flex flex-col gap-3">
-          <div class="flex items-center gap-2 text-blue-300">
-            <span class="text-xl">🔔</span>
-            <span class="font-semibold text-sm">Nowa prośba o dostęp do sesji</span>
-          </div>
+        <div
+          class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-400 to-indigo-500"
+        ></div>
 
-          <p class="text-[10px] font-mono text-blue-400/70 truncate bg-black/20 p-2 rounded">
-            ID Sesji: {{ incomingRequest.sessionId }}
-          </p>
-
-          <div class="grid grid-cols-2 gap-3 mt-1">
-            <button
-              class="py-2 px-4 text-white rounded-lg font-bold transition-all active:scale-95 text-sm bg-emerald-500 hover:bg-emerald-600 shadow-md shadow-emerald-500/20"
-              @click="handleRespond(true)"
+        <div class="flex items-start gap-3">
+          <div class="p-2 bg-blue-500/20 rounded-lg text-xl animate-bounce">🔔</div>
+          <div class="flex-1">
+            <h3 class="text-sm font-bold text-blue-300 m-0">Nowa prośba o dostęp!</h3>
+            <p
+              class="text-[10px] text-blue-400/70 font-mono mt-1 bg-black/30 p-1.5 rounded inline-block"
             >
-              Akceptuj
-            </button>
-            <button
-              class="py-2 px-4 text-white rounded-lg font-bold transition-all active:scale-95 text-sm bg-rose-500 hover:bg-rose-600 shadow-md shadow-rose-500/20"
-              @click="handleRespond(false)"
-            >
-              Odrzuć
-            </button>
+              ID Sesji: {{ socketStore.incomingRequest.sessionId }}
+            </p>
           </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3 mt-4">
+          <button
+            class="py-2.5 px-4 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold uppercase tracking-wider rounded-lg transition-all active:scale-95 shadow-lg shadow-emerald-900/20"
+            @click="handleRespond(true)"
+          >
+            ✅ Akceptuj
+          </button>
+          <button
+            class="py-2.5 px-4 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold uppercase tracking-wider rounded-lg transition-all active:scale-95 shadow-lg shadow-rose-900/20"
+            @click="handleRespond(false)"
+          >
+            ❌ Odrzuć
+          </button>
         </div>
       </section>
     </transition>
 
-    <section v-if="accessStatus" class="mb-6 text-center animate-pulse">
+    <section
+      v-if="socketStore.accessStatus && !socketStore.incomingRequest"
+      class="mb-5 text-center"
+    >
       <div
-        v-if="accessStatus === 'accepted'"
-        class="p-3 border rounded-lg text-sm font-medium text-emerald-400 border-emerald-500/30 bg-emerald-500/10"
+        v-if="socketStore.accessStatus === 'accepted'"
+        class="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg"
       >
-        ✅ Dostęp przyznany! Sesja aktywna.
+        <span class="text-xs font-bold text-emerald-400"
+          >Dostęp przyznany. Handshake WebRTC w toku...</span
+        >
       </div>
       <div
-        v-if="accessStatus === 'rejected'"
-        class="p-3 border rounded-lg text-sm font-medium text-rose-400 border-rose-500/30 bg-rose-500/10"
+        v-else-if="socketStore.accessStatus === 'rejected'"
+        class="p-3 bg-rose-500/10 border border-rose-500/20 rounded-lg"
       >
-        ❌ Prośba o dostęp została odrzucona.
+        <span class="text-xs font-bold text-rose-400">Dostęp został odrzucony.</span>
       </div>
     </section>
 
-    <form class="space-y-4" @submit.prevent="handleConnect">
-      <div class="relative">
-        <input
-          v-model="token"
-          type="text"
-          placeholder="Wklej connectionToken..."
-          class="w-full p-3 bg-white/5 border border-[#444] rounded-lg text-gray-200 focus:outline-none focus:border-emerald-500 transition-all placeholder:text-gray-600"
-          :disabled="isConnected"
-        />
-      </div>
-
-      <div class="flex gap-3">
+    <footer class="pt-4 mt-2 border-t border-[#333] flex justify-between items-center">
+      <span class="text-[10px] text-gray-600 uppercase font-bold">Narzędzia Debugowania</span>
+      <div class="flex gap-2">
         <button
-          type="submit"
-          :disabled="isConnected || !token"
-          class="flex-1 py-3 px-4 bg-emerald-500 disabled:bg-gray-700 text-white rounded-lg font-bold transition-all active:scale-95 shadow-lg shadow-emerald-500/20"
+          v-if="!socketStore.isConnected"
+          class="px-4 py-2 bg-[#333] hover:bg-[#444] text-gray-300 text-xs font-semibold rounded transition-colors"
+          @click="handleManualConnect()"
         >
-          Połącz z serwerem
+          Połącz ręcznie
         </button>
-
         <button
-          type="button"
-          :disabled="!isConnected"
-          class="px-6 py-3 bg-transparent border border-[#444] text-gray-400 hover:text-rose-400 hover:border-rose-400 rounded-lg font-medium transition-all disabled:opacity-30"
-          @click="handleDisconnect"
+          v-if="socketStore.isConnected"
+          class="px-4 py-2 bg-transparent border border-[#444] hover:border-rose-500 hover:text-rose-400 text-gray-400 text-xs font-semibold rounded transition-colors"
+          @click="handleManualDisconnect()"
         >
-          Rozłącz
+          Rozłącz gniazdko
         </button>
       </div>
-    </form>
+    </footer>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import type { WsRequestAccess } from '@shared/schemas/ws'
+import { useConnectionStore } from '@renderer/stores/connectionStore'
+import { useSocketStore } from '@renderer/stores/useSocketStore'
+import { watch } from 'vue'
 
-// Rozszerzamy emit o parametr 'source', aby logi trafiały do wsLog
+const connectionStore = useConnectionStore()
 const emit = defineEmits<{
   (e: 'log-result', action: string, data: unknown, source?: 'api' | 'socket'): void
 }>()
 
-// --- State ---
-const token = ref('')
-const isConnected = ref(false)
-const socketId = ref('')
-const incomingRequest = ref<WsRequestAccess | null>(null)
-const accessStatus = ref<'accepted' | 'rejected' | null>(null)
+const socketStore = useSocketStore()
 
-// --- Computed ---
-const connectionColor = computed(() =>
-  isConnected.value ? 'bg-emerald-500 shadow-[0_0_8px_#10b981]' : 'bg-rose-500'
+// ==========================================
+// --- NASŁUCHIWANIE ZMIAN W STORE (LOGI) ---
+// ==========================================
+
+watch(
+  () => socketStore.isConnected,
+  (isConnected) => {
+    if (isConnected) {
+      emit('log-result', 'WS_CONNECTED', 'Nawiązano fizyczne połączenie z gniazdkiem.', 'socket')
+    } else {
+      emit('log-result', 'WS_DISCONNECTED', 'Rozłączono z gniazdkiem.', 'socket')
+    }
+  }
 )
 
-// --- Actions ---
-const handleConnect = async (): Promise<void> => {
-  if (!token.value) return
-  accessStatus.value = null
-  emit('log-result', 'WS_ACTION_CONNECT', 'Próba połączenia...', 'socket')
-  await window.api.ws.connect(token.value)
-}
+watch(
+  () => socketStore.incomingRequest,
+  (request) => {
+    if (request) {
+      emit('log-result', 'WS_INCOMING_REQUEST', request, 'socket')
+    }
+  }
+)
 
-const handleDisconnect = async (): Promise<void> => {
-  emit('log-result', 'WS_ACTION_DISCONNECT', 'Rozłączanie...', 'socket')
-  await window.api.ws.disconnect()
-  accessStatus.value = null
-}
+// 3. Logowanie decyzji o dostępie (Handshake)
+watch(
+  () => socketStore.accessStatus,
+  (status) => {
+    if (status === 'accepted') {
+      emit(
+        'log-result',
+        'WS_ACCESS_ACCEPTED',
+        'Dostęp przyznany. Odsyłam ACK (Acknowledge).',
+        'socket'
+      )
+    } else if (status === 'rejected') {
+      emit('log-result', 'WS_ACCESS_REJECTED', 'Dostęp odrzucony.', 'socket')
+    }
+  }
+)
+
+watch(
+  () => connectionStore.connectionCode,
+  (code) => {
+    if (code) {
+      emit('log-result', 'CONNECTION_CODE_SET', `Kod połączenia ustawiony: ${code}`, 'api')
+    } else {
+      emit('log-result', 'CONNECTION_CODE_CLEARED', 'Kod połączenia został wyczyszczony.', 'api')
+    }
+  }
+)
+
+watch(
+  () => socketStore.isAcknowledged,
+  (ack) => {
+    if (ack) {
+      emit(
+        'log-result',
+        'WS_ACK_RECEIVED',
+        'Otrzymano ACK od partnera. Handshake zakończony sukcesem!',
+        'socket'
+      )
+    }
+  }
+)
+
+// ==========================================
+// --- NAKŁADKI NA AKCJE (Żeby logować kliknięcia) ---
+// ==========================================
 
 const handleRespond = async (accept: boolean): Promise<void> => {
-  if (!incomingRequest.value) return
-
-  const payload = {
-    sessionId: incomingRequest.value.sessionId
-  }
-
-  const actionName = accept ? 'ACCEPT' : 'REJECT'
-  emit('log-result', `WS_RESPOND_${actionName}`, `Wysłano decyzję: ${actionName}`, 'socket')
-
-  if (accept) {
-    await window.api.ws.respondAccept(payload)
-  } else {
-    await window.api.ws.respondReject(payload)
-  }
-
-  incomingRequest.value = null
+  emit('log-result', 'WS_SENDING_RESPONSE', 'socket')
+  await socketStore.respondToRequest(accept)
 }
 
-// --- Lifecycle & Listeners ---
-onMounted(() => {
-  // Listenery Systemowe (Socket.io)
-  window.api.ws.onConnected((data) => {
-    isConnected.value = true
-    socketId.value = data.socketId
-    emit('log-result', 'SYSTEM_CONNECTED', data, 'socket')
-  })
+const handleManualConnect = async (): Promise<void> => {
+  emit('log-result', 'WS_MANUAL_CONNECT', 'socket')
+  await socketStore.connect('awaryjny-token-z-palca')
+}
 
-  window.api.ws.onDisconnected((data) => {
-    isConnected.value = false
-    socketId.value = ''
-    incomingRequest.value = null
-    accessStatus.value = null
-    emit('log-result', 'SYSTEM_DISCONNECTED', data, 'socket')
-  })
-
-  window.api.ws.onConnectError((data) => {
-    emit('log-result', 'SYSTEM_CONNECT_ERROR', data, 'socket')
-  })
-
-  // Listenery Biznesowe (Logika Aplikacji)
-  window.api.ws.onRequestAccess((data) => {
-    incomingRequest.value = data
-    emit('log-result', 'REQ_RECEIVED', data, 'socket')
-  })
-
-  window.api.ws.onAccessAccepted((data) => {
-    accessStatus.value = 'accepted'
-    emit('log-result', 'REQ_ACCEPTED_BY_HOST', data, 'socket')
-  })
-
-  window.api.ws.onAccessRejected((data) => {
-    accessStatus.value = 'rejected'
-    emit('log-result', 'REQ_REJECTED_BY_HOST', data, 'socket')
-  })
-
-  window.api.ws.onServerError((data) => {
-    emit('log-result', 'SERVER_ERROR', data, 'socket')
-  })
-})
-
-onUnmounted(() => {
-  // Sprzątamy, aby nie dublować logów przy przeładowaniu komponentu
-  window.api.ws.removeAllListeners()
-})
+const handleManualDisconnect = async (): Promise<void> => {
+  emit('log-result', 'WS_MANUAL_DISCONNECT', 'socket')
+  await socketStore.disconnect()
+}
 </script>
 
 <style scoped>
-/* Animacje przejścia dla powiadomień */
-.fade-enter-active,
-.fade-leave-active {
-  transition: all 0.3s ease;
+.slide-down-enter-active,
+.slide-down-leave-active {
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.fade-enter-from,
-.fade-leave-to {
+
+.slide-down-enter-from,
+.slide-down-leave-to {
   opacity: 0;
-  transform: translateY(-10px);
+  transform: translateY(-20px) scale(0.95);
 }
 </style>

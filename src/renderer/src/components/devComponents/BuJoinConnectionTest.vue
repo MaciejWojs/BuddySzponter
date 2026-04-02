@@ -1,35 +1,73 @@
 <template>
-  <div class="bg-[#1e1e1e] border border-[#333] rounded-lg p-5 col-span-1 md:col-span-2">
-    <h2 class="text-xl font-semibold mb-4 mt-0">Dołączanie do Połączenia (Join)</h2>
+  <div class="bg-[#1e1e1e] border border-[#333] rounded-lg p-5 col-span-1 md:col-span-2 relative">
+    <h2 class="text-xl font-semibold mb-4 mt-0">Dołączanie do Połączenia (Gość)</h2>
+
+    <div v-if="connectionStore.connectionCode && !connectionStore.isHost" class="mb-4 text-center">
+      <div
+        v-if="socketStore.accessStatus === 'accepted'"
+        class="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg"
+      >
+        <p class="text-xs text-emerald-400 font-bold">
+          Połączono z sesją: {{ connectionStore.connectionCode }}
+        </p>
+      </div>
+      <div
+        v-else-if="socketStore.accessStatus === 'rejected'"
+        class="p-3 bg-rose-500/10 border border-rose-500/30 rounded-lg"
+      >
+        <p class="text-xs text-rose-400 font-bold">Host odrzucił prośbę o dostęp.</p>
+      </div>
+      <div
+        v-else-if="socketStore.isConnected"
+        class="p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg animate-pulse"
+      >
+        <p class="text-xs text-blue-400 font-bold">Oczekiwanie na akceptację przez Hosta...</p>
+      </div>
+    </div>
+
     <form class="flex flex-col gap-2.5" @submit.prevent="handleJoinConnection">
       <input
         v-model="form.connectionCode"
         type="text"
         placeholder="Kod połączenia (np. XYZ-123)"
         required
-        class="p-2.5 border border-[#444] rounded bg-white/5 text-[#e0e0e0] focus:outline-none focus:border-[#42b883]"
+        class="p-2.5 border border-[#444] rounded bg-white/5 text-[#e0e0e0] focus:outline-none focus:border-emerald-500 transition-colors uppercase"
+        :disabled="socketStore.isConnected && !connectionStore.isHost"
       />
       <input
         v-model="form.password"
         type="password"
         placeholder="Hasło"
         required
-        class="p-2.5 border border-[#444] rounded bg-white/5 text-[#e0e0e0] focus:outline-none focus:border-[#42b883]"
+        class="p-2.5 border border-[#444] rounded bg-white/5 text-[#e0e0e0] focus:outline-none focus:border-emerald-500 transition-colors"
+        :disabled="socketStore.isConnected && !connectionStore.isHost"
       />
       <button
         type="submit"
-        class="p-2.5 bg-emerald-500 text-white border-none rounded cursor-pointer font-bold hover:bg-emerald-600 transition-colors mt-2"
+        :disabled="(socketStore.isConnected && !connectionStore.isHost) || !form.connectionCode"
+        class="p-3 mt-2 bg-emerald-500 text-white border-none rounded-lg cursor-pointer font-bold hover:bg-emerald-600 transition-all active:scale-95 disabled:bg-gray-700 disabled:text-gray-400 disabled:cursor-not-allowed disabled:active:scale-100"
       >
-        🚀 Dołącz do Sesji
+        {{
+          socketStore.isConnected && !connectionStore.isHost
+            ? '✅ Pukamy do Hosta...'
+            : '🚀 Dołącz do Sesji'
+        }}
       </button>
     </form>
   </div>
 </template>
 
 <script setup lang="ts">
+import { useConnectionStore } from '@renderer/stores/connectionStore'
+import { useSocketStore } from '@renderer/stores/useSocketStore'
 import { ref } from 'vue'
 
-const emit = defineEmits<{ (e: 'log-result', action: string, data: unknown): void }>()
+const emit = defineEmits<{
+  (e: 'log-result', action: string, data: unknown, source?: 'api' | 'socket'): void
+}>()
+
+const connectionStore = useConnectionStore()
+const socketStore = useSocketStore()
 
 const form = ref({
   connectionCode: '',
@@ -37,29 +75,25 @@ const form = ref({
 })
 
 const handleJoinConnection = async (): Promise<void> => {
-  emit('log-result', 'JOIN_CONNECTION', 'Ładowanie...')
+  if (connectionStore.isHost) {
+    emit('log-result', 'CLEARING_STATE', 'api')
+  }
+
+  emit('log-result', 'WS_JOIN_CONNECTION', 'api')
+
   try {
-    const res = await window.api.connection.join({ ...form.value })
+    const res = await connectionStore.joinGuestConnection(
+      form.value.connectionCode,
+      form.value.password
+    )
 
-    if (res.success && res.data?.token) {
-      emit('log-result', 'JOIN_CONNECTION_SUCCESS', res)
-      emit('log-result', 'WS_CONNECTING', 'Otrzymano token, automatyczne łączenie z WebSocketem...')
-
-      await window.api.ws.connect(res.data.token)
-
-      setTimeout(async () => {
-        emit('log-result', 'WS_SENDING_REQUEST', 'Wysyłam prośbę o dostęp (request-access)...')
-
-        await window.api.ws.requestAccess({
-          event: 'connection:request-access',
-          sessionId: res.data.connectionUUID
-        })
-      }, 1000)
+    if (res?.success) {
+      emit('log-result', 'WS_JOIN_SUCCESS', 'api')
     } else {
-      emit('log-result', 'JOIN_CONNECTION_FAILED', res)
+      emit('log-result', 'WS_JOIN_ERROR', res?.message, 'api')
     }
   } catch (e) {
-    emit('log-result', 'JOIN_CONNECTION_ERROR', e)
+    emit('log-result', 'WS_JOIN_FATAL_ERROR', e, 'api')
   }
 }
 </script>

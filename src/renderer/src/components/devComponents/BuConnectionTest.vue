@@ -1,35 +1,58 @@
 <template>
-  <div class="bg-[#1e1e1e] border border-[#333] rounded-lg p-5 col-span-1 md:col-span-2">
-    <h2 class="text-xl font-semibold mb-4 mt-0">Tworzenie Połączenia (Connection)</h2>
+  <div class="bg-[#1e1e1e] border border-[#333] rounded-lg p-5 col-span-1 md:col-span-2 relative">
+    <h2 class="text-xl font-semibold mb-4 mt-0">Tworzenie Połączenia (Host)</h2>
+
+    <div
+      v-if="connectionStore.isHost"
+      class="mb-4 p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-lg text-center animate-pulse"
+    >
+      <p class="text-xs text-emerald-400 uppercase font-bold mb-1">
+        Twój kod połączenia (Podaj Gościowi):
+      </p>
+      <p class="text-3xl font-mono text-white tracking-[0.2em]">
+        {{ connectionStore.connectionCode }}
+      </p>
+    </div>
+
     <form class="flex flex-col gap-2.5" @submit.prevent="handleCreateConnection">
       <input
         v-model="form.password"
         type="password"
         placeholder="Hasło do połączenia"
         required
-        class="p-2.5 border border-[#444] rounded bg-white/5 text-[#e0e0e0] focus:outline-none focus:border-[#42b883]"
+        class="p-2.5 border border-[#444] rounded bg-white/5 text-[#e0e0e0] focus:outline-none focus:border-[#42b883] transition-colors"
+        :disabled="socketStore.isConnected"
       />
       <input
         v-model.number="form.userId"
         type="number"
         placeholder="User ID (opcjonalne)"
-        class="p-2.5 border border-[#444] rounded bg-white/5 text-[#e0e0e0] focus:outline-none focus:border-[#42b883]"
+        class="p-2.5 border border-[#444] rounded bg-white/5 text-[#e0e0e0] focus:outline-none focus:border-[#42b883] transition-colors"
+        :disabled="socketStore.isConnected"
       />
       <button
         type="submit"
-        class="p-2.5 bg-orange-500 text-white border-none rounded cursor-pointer font-bold hover:bg-orange-600 transition-colors mt-2"
+        :disabled="socketStore.isConnected"
+        class="p-3 mt-2 bg-orange-500 text-white border-none rounded-lg cursor-pointer font-bold hover:bg-orange-600 transition-all active:scale-95 disabled:bg-gray-700 disabled:text-gray-400 disabled:cursor-not-allowed disabled:active:scale-100"
       >
-        🔗 Utwórz Połączenie
+        {{ socketStore.isConnected ? '✅ Połączono i Gotowe (Host)' : '🔗 Utwórz Połączenie' }}
       </button>
     </form>
   </div>
 </template>
 
-// BuConnectionTest.vue (tylko sekcja script)
 <script setup lang="ts">
+import { useConnectionStore } from '@renderer/stores/connectionStore'
+import { useSocketStore } from '@renderer/stores/useSocketStore'
 import { ref } from 'vue'
 
-const emit = defineEmits<{ (e: 'log-result', action: string, data: unknown): void }>()
+const emit = defineEmits<{
+  (e: 'log-result', action: string, data: unknown, source?: 'api' | 'socket'): void
+}>()
+
+// Inicjalizacja Store'ów
+const connectionStore = useConnectionStore()
+const socketStore = useSocketStore()
 
 const form = ref({
   password: '#Pracownia123',
@@ -37,25 +60,18 @@ const form = ref({
 })
 
 const handleCreateConnection = async (): Promise<void> => {
-  emit('log-result', 'CREATE_CONNECTION', 'Ładowanie...')
-  try {
-    const requestData = {
-      password: form.value.password,
-      ...(form.value.userId ? { userId: form.value.userId } : {})
-    }
-    const res = await window.api.connection.create(requestData)
+  emit('log-result', 'WS_CREATE_CONNECTION', 'Tworzenie sesji HTTP...', 'api')
 
-    if (res.success && res.data?.token) {
-      emit('log-result', 'CREATE_CONNECTION_SUCCESS', res)
-      emit('log-result', 'WS_CONNECTING', 'Otrzymano token, automatyczne łączenie z WebSocketem...')
+  const requestData = {
+    password: form.value.password,
+    ...(form.value.userId ? { userId: form.value.userId } : {})
+  }
 
-      // Magia dzieje się tutaj:
-      await window.api.ws.connect(res.data.token)
-    } else {
-      emit('log-result', 'CREATE_CONNECTION_FAILED', res)
-    }
-  } catch (e) {
-    emit('log-result', 'CREATE_CONNECTION_ERROR', e)
+  const response = await connectionStore.createHostConnection(requestData)
+  if (response?.success) {
+    emit('log-result', 'WS_CREATE_SUCCESS', 'api')
+  } else {
+    emit('log-result', 'WS_CREATE_ERROR', response?.message, 'api')
   }
 }
 </script>

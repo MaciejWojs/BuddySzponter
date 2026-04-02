@@ -11,25 +11,17 @@
       </header>
 
       <div class="flex flex-col lg:flex-row gap-5 grow min-h-0">
-        <div
-          class="flex-[1.2] grid grid-cols-1 md:grid-cols-2 gap-5 content-start overflow-y-auto pr-2.5 pb-10 custom-scrollbar"
-        >
+        <div class="flex-[1.2] flex flex-col gap-5 overflow-y-auto pr-2.5 pb-16 custom-scrollbar">
           <BuRegisterForm @log-result="logResult" />
           <BuLoginForm @log-result="logResult" />
-
           <BuSessionActions @log-result="logResult" @user-logged-out="clearUser" />
-
           <BuUserProfile :user="currentUser" @fetch-user="fetchCurrentUser" />
-
           <BuAvatarUpload @log-result="logResult" />
-
           <BuConnectionTest @log-result="logResult" />
-
           <BuJoinConnectionTest @log-result="logResult" />
-
           <BuSystemInfo @log-result="logResult" />
-
           <BuSocketTest @log-result="logResult" />
+          <BuDataChannelTest @log-result="logResult" />
         </div>
 
         <div class="flex-1 flex flex-col gap-5 min-w-[350px] min-h-0">
@@ -85,7 +77,7 @@ import BuConnectionTest from './BuConnectionTest.vue'
 import BuJoinConnectionTest from './BuJoinConnectionTest.vue'
 import BuSystemInfo from './BuSystemInfo.vue'
 import BuSocketTest from './BuSocketTest.vue'
-
+import BuDataChannelTest from './BuDataChannelTest.vue'
 // Stan Aplikacji
 const outputLog = ref<string>('')
 const wsLog = ref<string>('')
