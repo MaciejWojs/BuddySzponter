@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, sharedTexture } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 import { RegisterInput, LoginInput } from '../main/schemas/authSchemas'
 import { AppLanguage, Translation } from '../shared/schemas/langSchemas'
@@ -6,6 +6,7 @@ import {
   CreateConnectionResponse,
   GetAvailableLanguagesResponse,
   GetCurrentUserResponse,
+  GetDesktopSourcesResponse,
   GetLocaleResponse,
   GetSupportedVersionsResponse,
   JoinConnectionResponse,
@@ -18,6 +19,20 @@ import {
   CreateConnectionRequestSchema,
   JoinConnectionRequestSchema
 } from '../shared/schemas/connection'
+import addon from './screen_capture_addon.node'
+
+interface SharedHandleInfo {
+  handle: unknown // Używamy unknown, bo niżej i tak rzutujesz to na 'bigint'
+  width: number
+  height: number
+}
+
+// Opisujemy dostępne metody w klasie addona
+interface ScreenCaptureInstance {
+  start(): void
+  stop(): void
+  getSharedHandle(): SharedHandleInfo | null
+}
 
 // Custom APIs for renderer
 const api = {
@@ -166,6 +181,10 @@ const api = {
         'webrtc:ready'
       ]
       channels.forEach((ch) => ipcRenderer.removeAllListeners(ch))
+    },
+    desktop: {
+      getSources: (): Promise<GetDesktopSourcesResponse> =>
+        ipcRenderer.invoke('desktop:get-sources')
     }
   }
 }
@@ -177,6 +196,38 @@ if (process.contextIsolated) {
   try {
     contextBridge.exposeInMainWorld('electron', electronAPI)
     contextBridge.exposeInMainWorld('api', api)
+
+    // WSTAWIONY NOWY TYP:
+    let capturer: ScreenCaptureInstance | null = null
+
+    contextBridge.exposeInMainWorld('capture', {
+      start: () => {
+        if (!capturer) capturer = new addon.ScreenCapture()
+        capturer!.start()
+      },
+      stop: () => {
+        if (capturer) capturer.stop()
+      },
+      getFrame: () => {
+        if (!capturer) return null
+
+        const info = capturer.getSharedHandle()
+        if (!info || !info.handle) return null
+
+        const buf = Buffer.alloc(8)
+        buf.writeBigUInt64LE(info.handle as bigint, 0)
+
+        const st = sharedTexture.subtle.importSharedTexture({
+          pixelFormat: 'bgra',
+          codedSize: { width: info.width, height: info.height },
+          handle: { ntHandle: buf }
+        })
+
+        const frame = st.getVideoFrame()
+        st.release()
+        return frame
+      }
+    })
   } catch (error) {
     console.error(error)
   }

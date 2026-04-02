@@ -77,5 +77,10 @@ declare global {
         removeAllListeners: () => void
       }
     }
+    capture: {
+      start: () => void
+      stop: () => void
+      getFrame: () => VideoFrame | null
+    }
   }
 }

@@ -26,6 +26,12 @@ export interface SupportedVersion {
   isSupported: boolean
 }
 
+export interface DesktopSource {
+  id: string
+  name: string
+  thumbnail: string
+}
+
 // --- AUTH ---
 export type LoginRendererResponse = IpcResponse<{ accessTokenSaved: boolean }>
 export type RegisterRendererResponse = IpcResponse
@@ -43,6 +49,9 @@ export type GetCurrentUserResponse = IpcResponse<UserResponseSchema>
 // --- CONNECTION ---
 export type CreateConnectionResponse = IpcResponse<CreateConnectionResponseSchema>
 export type JoinConnectionResponse = IpcResponse<JoinConnectionResponseSchema>
+
+// --- DESKTOP ---
+export type GetDesktopSourcesResponse = IpcResponse<DesktopSource[]>
 
 // --- WEBSOCKET / IPC ACTIONS RESPONSES ---
 export type WsConnectResponse = { success: boolean; message?: string }
