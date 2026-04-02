@@ -99,23 +99,23 @@ export class WsService {
 
     // --- WebRTC ---
     this.socket.on('webrtc:offer', async (data: unknown) => {
-      const payload = await this.decryptIfNeeded<WsServerEvents['ws:message']>(data)
-      this.notifyFrontend('ws:message', payload)
+      const payload = await this.decryptIfNeeded<WsServerEvents['webrtc:offer']>(data)
+      this.notifyFrontend('webrtc:offer', payload)
     })
 
     this.socket.on('webrtc:answer', async (data: unknown) => {
-      const payload = await this.decryptIfNeeded<WsServerEvents['ws:message']>(data)
-      this.notifyFrontend('ws:message', payload)
+      const payload = await this.decryptIfNeeded<WsServerEvents['webrtc:answer']>(data)
+      this.notifyFrontend('webrtc:answer', payload)
     })
 
     this.socket.on('webrtc:ice-candidate', async (data: unknown) => {
-      const payload = await this.decryptIfNeeded<WsServerEvents['ws:message']>(data)
-      this.notifyFrontend('ws:message', payload)
+      const payload = await this.decryptIfNeeded<WsServerEvents['webrtc:ice-candidate']>(data)
+      this.notifyFrontend('webrtc:ice-candidate', payload)
     })
 
     this.socket.on('webrtc:ready', async (data: unknown) => {
-      const payload = await this.decryptIfNeeded<WsServerEvents['ws:message']>(data)
-      this.notifyFrontend('ws:message', payload)
+      const payload = await this.decryptIfNeeded<WsServerEvents['webrtc:ready']>(data)
+      this.notifyFrontend('webrtc:ready', payload)
     })
   }
 
