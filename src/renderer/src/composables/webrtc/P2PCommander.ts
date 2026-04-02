@@ -10,8 +10,8 @@ export const useP2PCommander = (): {
 } => {
   // Główna funkcja pakująca
   const send = (msg: P2PMessage): void => {
-    if (webRtcService.dataChannel?.readyState === 'open') {
-      webRtcService.sendData(JSON.stringify(msg))
+    if (webRtcService.systemChannel?.readyState === 'open') {
+      webRtcService.systemChannel.send(JSON.stringify(msg))
     }
   }
 
