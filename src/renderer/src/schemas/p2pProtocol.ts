@@ -1,0 +1,29 @@
+// shared/schemas/p2pProtocol.ts
+import { z } from 'zod'
+
+export const P2PMessageSchema = z.discriminatedUnion('type', [
+  z.object({
+    type: z.literal('CHAT'),
+    payload: z.object({
+      text: z.string().min(1),
+      sender: z.string()
+    })
+  }),
+
+  z.object({
+    type: z.literal('MOUSE_MOVE'),
+    payload: z.object({
+      x: z.number().min(0).max(100),
+      y: z.number().min(0).max(100)
+    })
+  }),
+
+  z.object({
+    type: z.literal('CONTROL'),
+    payload: z.object({
+      action: z.enum(['PAUSE_VIDEO', 'RESUME_VIDEO', 'LOWER_QUALITY'])
+    })
+  })
+])
+
+export type P2PMessage = z.infer<typeof P2PMessageSchema>
