@@ -9,6 +9,12 @@ import { getCurrentUser } from '../handlers/auth/me'
 import { jwtDecode } from 'jwt-decode'
 import { refresh } from '../handlers/auth/refresh'
 import { UserResponseSchema } from '../../shared/schemas/user'
+import { coreService } from './CoreService'
+
+const updateBlockedResponse = {
+  success: false as const,
+  message: 'Ta wersja aplikacji nie jest wspierana. Zaktualizuj aplikacje, aby kontynuowac.'
+}
 
 export class AuthService {
   private static instance: AuthService
@@ -124,15 +130,27 @@ export class AuthService {
 
   public registerHandler(): void {
     ipcMain.handle('auth:register', async (_event, data: RegisterInput) => {
+      if (await coreService.isUpdateRequired()) {
+        return updateBlockedResponse
+      }
       return await register(data)
     })
     ipcMain.handle('auth:login', async (_event, data: LoginInput) => {
+      if (await coreService.isUpdateRequired()) {
+        return updateBlockedResponse
+      }
       return await login(data)
     })
     ipcMain.handle('auth:logout', async () => {
+      if (await coreService.isUpdateRequired()) {
+        return updateBlockedResponse
+      }
       return await logout()
     })
     ipcMain.handle('auth:me', async () => {
+      if (await coreService.isUpdateRequired()) {
+        return updateBlockedResponse
+      }
       const result = await getCurrentUser()
       if (result.success && result.data) {
         this.saveUserData(result.data)

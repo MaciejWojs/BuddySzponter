@@ -99,10 +99,17 @@ app.whenReady().then(async () => {
   coreService.registerHandlers()
   userService.registerHandler()
 
+  const startupVersionStatus = await coreService.getVersionStatus(true)
+  console.log('[VersionGate] Startup status:', startupVersionStatus)
+
   createMainWindow()
 
   // IPC do otwierania okna sesji (shared)
-  ipcMain.on('open-shared-window', () => {
+  ipcMain.on('open-shared-window', async () => {
+    if (await coreService.isUpdateRequired()) {
+      console.warn('[VersionGate] Blocked opening shared window: update required')
+      return
+    }
     createSharedWindow()
   })
 
