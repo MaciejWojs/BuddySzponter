@@ -32,6 +32,31 @@
           <button class="menu-item">Ustawienia konta</button>
           <button class="menu-item">Nagrania sesji</button>
           <button class="menu-item logout">Wyloguj sie</button>
+          <hr style="width: 80%; border: 0; border-top: 1px solid #444; margin: 10px 0" />
+          <button class="menu-item" @click="openVersionModal">Panel wersji</button>
+        </div>
+      </Transition>
+
+      <Transition name="fade-slide">
+        <div v-if="showVersionModal" class="version-modal-overlay" @click.self="closeVersionModal">
+          <div class="version-modal">
+            <button class="close-btn" @click="closeVersionModal">&times;</button>
+            <h2 class="modal-title">Panel kontroli wersji</h2>
+            <div class="modal-btns">
+              <button class="menu-item modal-btn" @click="handleCurrentVersion">
+                🔢 Aktualna wersja
+              </button>
+              <button class="menu-item modal-btn" @click="handleAvailableVersions">
+                📋 Dostępne wersje
+              </button>
+              <button class="menu-item modal-btn" @click="handleVersionStatus">
+                ✅ Status wersji
+              </button>
+            </div>
+            <div class="modal-result">
+              <pre v-if="versionResult !== null">{{ versionResult }}</pre>
+            </div>
+          </div>
         </div>
       </Transition>
     </div>
@@ -40,6 +65,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useSettingsStore } from '@renderer/stores/settingsStore'
 import UserIconSvg from '@renderer/assets/images/components/usericon.svg?component'
 
@@ -48,7 +74,10 @@ const user = ref({
 })
 
 const menuOpen = ref(false)
+const showVersionModal = ref(false)
+const versionResult = ref<string | null>(null)
 const settingsStore = useSettingsStore()
+const { supportedVersions } = storeToRefs(settingsStore)
 const isUpdateRequired = computed(() => settingsStore.isUpdateRequired)
 const versionStatus = computed(() => settingsStore.versionStatus)
 
@@ -59,9 +88,133 @@ onMounted(() => {
 async function retryVersionCheck(): Promise<void> {
   await settingsStore.checkVersionStatus()
 }
+
+function openVersionModal(): void {
+  showVersionModal.value = true
+  versionResult.value = null
+}
+
+function closeVersionModal(): void {
+  showVersionModal.value = false
+  versionResult.value = null
+}
+
+async function handleCurrentVersion(): Promise<void> {
+  try {
+    const version = await window.api.core.getAppVersion()
+    versionResult.value = 'Aktualna wersja aplikacji: ' + version
+  } catch (e) {
+    versionResult.value = 'Błąd pobierania wersji: ' + e
+  }
+}
+
+async function handleAvailableVersions(): Promise<void> {
+  try {
+    await settingsStore.fetchSupportedVersions()
+    console.log('Pobrane wersje:', supportedVersions.value)
+    if (supportedVersions.value && supportedVersions.value.length > 0) {
+      const wersje = supportedVersions.value.map((v) => v.version).join(', ')
+      versionResult.value = 'Dostępne wersje: ' + wersje
+    } else {
+      versionResult.value = 'Brak dostępnych wersji.'
+    }
+  } catch (e) {
+    versionResult.value = 'Błąd pobierania wersji: ' + e
+  }
+}
+
+async function handleVersionStatus(): Promise<void> {
+  try {
+    const status = await settingsStore.checkVersionStatus()
+    versionResult.value = 'Status wersji: ' + status
+  } catch (e) {
+    versionResult.value = 'Błąd sprawdzania statusu wersji: ' + e
+  }
+}
 </script>
 
 <style scoped>
+.version-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.version-modal {
+  background: #18122b;
+  border-radius: 18px;
+  box-shadow: 0 8px 40px #000a;
+  padding: 32px 28px 24px;
+  min-width: 340px;
+  max-width: 90vw;
+  min-height: 220px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.close-btn {
+  position: absolute;
+  top: 12px;
+  right: 18px;
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 2rem;
+  cursor: pointer;
+  z-index: 10;
+  transition: color 0.2s;
+}
+
+.close-btn:hover {
+  color: #b794f4;
+}
+
+.modal-title {
+  color: #b794f4;
+  font-size: 1.3rem;
+  font-weight: 700;
+  margin-bottom: 18px;
+  text-align: center;
+}
+
+.modal-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 18px;
+  width: 100%;
+}
+
+.modal-btn {
+  width: 100%;
+  text-align: left;
+  padding-left: 18px;
+}
+
+.modal-result {
+  width: 100%;
+  min-height: 32px;
+  background: #221a36;
+  color: #a6e22e;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1rem;
+  margin-top: 6px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  box-sizing: border-box;
+}
+
 .update-required-overlay {
   position: fixed;
   inset: 0;
