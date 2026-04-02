@@ -33,7 +33,11 @@ const api = {
       ipcRenderer.invoke('core:getAvailableLanguages'),
     getSupportedVersions: (): Promise<GetSupportedVersionsResponse> =>
       ipcRenderer.invoke('core:getSupportedVersions'),
-    getAppVersion: (): Promise<string> => ipcRenderer.invoke('core:getAppVersion')
+    getAppVersion: (): Promise<string> => ipcRenderer.invoke('core:getAppVersion'),
+    getVersionStatus: (): Promise<
+      'UP_TO_DATE' | 'UPDATE_AVAILABLE' | 'UPDATE_REQUIRED' | 'UNKNOWN'
+    > => ipcRenderer.invoke('core:getVersionStatus'),
+    isUpdateRequired: (): Promise<boolean> => ipcRenderer.invoke('core:isUpdateRequired')
   },
   users: {
     uploadAvatar: (userId: string | null): Promise<UploadAvatarResponse> =>

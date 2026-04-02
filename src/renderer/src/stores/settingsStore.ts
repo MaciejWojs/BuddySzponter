@@ -1,9 +1,9 @@
 import { defineStore } from 'pinia'
-import { ref, type Ref } from 'vue'
+import { computed, ref, type Ref } from 'vue'
 import type { AppLanguage, Translation } from '../../../shared/schemas/langSchemas'
 import { LanguageService } from '@renderer/composables/settings/languageService'
 import type { AppVersion } from '@renderer/schemas/settingsSchemas'
-import { VersionsService } from '@renderer/composables/settings/versionsService'
+import { VersionStatus, VersionsService } from '@renderer/composables/settings/versionsService'
 export interface LanguageDetails {
   code: AppLanguage
   name: string
@@ -17,6 +17,8 @@ export const useSettingsStore = defineStore('settings', () => {
   const isLoadingTranslations = ref<boolean>(true)
   const translations = ref<Translation | null>(null)
   const supportedVersions = ref<AppVersion[]>([])
+  const versionStatus = ref<VersionStatus>('UNKNOWN')
+  const isUpdateRequired = computed(() => versionStatus.value === 'UPDATE_REQUIRED')
 
   const langService = new LanguageService(
     selectedLanguage,
@@ -34,6 +36,7 @@ export const useSettingsStore = defineStore('settings', () => {
   const initSettings = async (): Promise<void> => {
     await langService.init()
     await versionsService.init()
+    await checkVersionStatus()
   }
 
   const setAppLanguage = async (lang: AppLanguage): Promise<void> => {
@@ -45,6 +48,11 @@ export const useSettingsStore = defineStore('settings', () => {
   const getCurrentVersion = versionsService.getVersion.bind(versionsService)
 
   const checkVersionStatus = versionsService.checkVersionStatus.bind(versionsService)
+  const refreshVersionStatus = async (): Promise<VersionStatus> => {
+    const status = await checkVersionStatus()
+    versionStatus.value = status
+    return status
+  }
 
   // --- RETURN ---
   return {
@@ -53,10 +61,12 @@ export const useSettingsStore = defineStore('settings', () => {
     isLoadingTranslations,
     translations,
     supportedVersions,
+    versionStatus,
+    isUpdateRequired,
     fetchSupportedVersions,
     initSettings,
     setAppLanguage,
     getCurrentVersion,
-    checkVersionStatus
+    checkVersionStatus: refreshVersionStatus
   }
 })
