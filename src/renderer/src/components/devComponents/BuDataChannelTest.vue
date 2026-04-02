@@ -1,11 +1,13 @@
 <template>
-  <div class="bg-[#1e1e1e] border border-[#333] rounded-lg p-5 col-span-1 md:col-span-2">
+  <div
+    class="bg-[#1e1e1e] border border-[#333] rounded-lg p-5 shadow-xl relative overflow-hidden shrink-0 mb-8"
+  >
     <header class="flex justify-between items-center mb-4">
       <h2 class="text-xl font-bold m-0">Test DataChannel P2P</h2>
 
       <div class="flex items-center gap-3">
         <span
-          class="px-3 py-1 rounded bg-black border border-[#444] text-xs font-mono"
+          class="px-3 py-1 rounded bg-black border border-[#444] text-xs font-mono shadow-inner"
           :class="webRtcStore.rtcStatus === 'connected' ? 'text-emerald-400' : 'text-gray-400'"
         >
           {{ webRtcStore.rtcStatus.toUpperCase() }}
@@ -26,8 +28,8 @@
       uruchomić ten panel.
     </div>
 
-    <div v-else class="flex gap-5">
-      <div class="flex-1 flex flex-col gap-3 border-r border-[#333] pr-5">
+    <div v-else class="flex flex-col md:flex-row gap-5">
+      <div class="flex-1 flex flex-col gap-3 md:border-r border-[#333] md:pr-5">
         <h3 class="text-sm font-bold text-gray-300 m-0">Szybki Czat</h3>
         <div
           class="bg-black/50 border border-[#222] rounded p-3 h-[150px] overflow-y-auto text-sm font-mono flex flex-col gap-1"
@@ -92,29 +94,35 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useWebRtcStore } from '@renderer/stores/useWebRtcStore'
+import { useP2PCommander } from '@renderer/composables/webrtc/P2PCommander'
 
 const webRtcStore = useWebRtcStore()
+const commander = useP2PCommander()
+
 const chatInput = ref('')
 
 const handleSend = (): void => {
   if (chatInput.value.trim()) {
-    webRtcStore.sendChatMessage(chatInput.value)
+    // Wysyłamy do partnera używając naszego Commandera
+    commander.sendChatMessage(chatInput.value, 'Rozmówca')
+
+    // Dodajemy własną wiadomość do lokalnego logu (żeby było ją widać na ekranie)
+    webRtcStore.chatMessages.push(`Ja: ${chatInput.value}`)
+
     chatInput.value = ''
   }
 }
 
-// Liczymy procentową pozycję myszki, żeby działało na każdym ekranie
+// Liczymy procentową pozycję myszki, żeby działało idealnie niezależnie od rozdzielczości!
 const handleMouseMove = (e: MouseEvent): void => {
   if (webRtcStore.rtcStatus !== 'connected') return
 
   const target = e.currentTarget as HTMLElement
   const rect = target.getBoundingClientRect()
 
-  // Przeliczamy na wartości od 0 do 100 (%)
   const x = Math.round(((e.clientX - rect.left) / rect.width) * 100)
   const y = Math.round(((e.clientY - rect.top) / rect.height) * 100)
 
-  // Wysyłamy przez P2P
-  webRtcStore.sendMousePosition(x, y)
+  commander.sendMousePosition(x, y)
 }
 </script>

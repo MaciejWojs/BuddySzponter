@@ -166,8 +166,6 @@ watch(
   (code) => {
     if (code) {
       emit('log-result', 'CONNECTION_CODE_SET', `Kod połączenia ustawiony: ${code}`, 'api')
-    } else {
-      emit('log-result', 'CONNECTION_CODE_CLEARED', 'Kod połączenia został wyczyszczony.', 'api')
     }
   }
 )
