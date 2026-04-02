@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, session, desktopCapturer } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
@@ -12,6 +12,7 @@ import { coreService } from './services/CoreService'
 import { userService } from './services/UserService'
 import { connectionService } from './services/ConnectionService'
 import { wsService } from './services/ws/WsService'
+import { screenService } from './services/screenService'
 
 function createWindow(): void {
   // Create the browser window.
@@ -73,6 +74,20 @@ app.whenReady().then(async () => {
   userService.registerHandler()
   connectionService.registerHandlers()
   wsService.registerHandlers()
+  screenService.registerHandlers()
+
+  session.defaultSession.setDisplayMediaRequestHandler(
+    (_request, callback) => {
+      desktopCapturer.getSources({ types: ['screen'] }).then((sources) => {
+        console.log(
+          'Available screens for capture:',
+          sources.map((s) => s.name)
+        )
+        callback({ video: sources[0], audio: 'loopback' })
+      })
+    },
+    { useSystemPicker: true }
+  )
 
   createWindow()
 
