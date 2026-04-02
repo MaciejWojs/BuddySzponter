@@ -12,9 +12,7 @@ export const useSocketStore = defineStore('socket', () => {
   const isConnected = ref(false)
   const incomingRequest = ref<WsServerEvents['ws:request-access'] | null>(null)
   const accessStatus = ref<'accepted' | 'rejected' | null>(null)
-  const rtcStatus = ref('disconnected')
   const isAcknowledged = ref(false)
-  // USUWAMY isHost stąd! Będziemy go brać na bieżąco.
 
   // ==========================================
   // --- INICJALIZACJA NASŁUCHIWANIA ---
@@ -25,11 +23,9 @@ export const useSocketStore = defineStore('socket', () => {
   })
 
   wsService.onDisconnected(() => {
+    console.warn('[SocketStore] Rozłączono gniazdko WebSocket. Jeśli sesja P2P trwa, zignoruj to!')
     isConnected.value = false
     incomingRequest.value = null
-    accessStatus.value = null
-    rtcStatus.value = 'disconnected'
-    isAcknowledged.value = false
   })
 
   wsService.onRequestAccess((data) => {
@@ -87,8 +83,7 @@ export const useSocketStore = defineStore('socket', () => {
     isConnected,
     incomingRequest,
     accessStatus,
-    rtcStatus,
-    isAcknowledged,
+    isAcknowledged, // Zwracamy bez rtcStatus!
     connect,
     disconnect,
     respondToRequest,
