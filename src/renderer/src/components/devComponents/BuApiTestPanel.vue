@@ -22,7 +22,6 @@
           <BuSystemInfo @log-result="logResult" />
           <BuSocketTest @log-result="logResult" />
           <BuDataChannelTest @log-result="logResult" />
-          <BuVideoTest />
         </div>
 
         <div class="flex-1 flex flex-col gap-5 min-w-[350px] min-h-0">

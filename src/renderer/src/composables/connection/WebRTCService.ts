@@ -9,6 +9,7 @@ export class WebRTCService {
   public onIceCandidateGenerated?: (candidate: RTCIceCandidate) => void
   public onDataChannelOpened?: () => void
   public onMessageReceived?: (data: string) => void
+  public onRemoteStreamReceived?: (stream: MediaStream) => void
 
   constructor() {
     //
@@ -38,23 +39,41 @@ export class WebRTCService {
       this.setupChannel(event.channel)
     }
 
+    // --- NOWE: Odbieranie wideo/audio od partnera ---
+    this.peerConnection.ontrack = (event) => {
+      console.log('[WebRTCService] Otrzymano ścieżkę wideo/audio od partnera (ontrack)!')
+      if (event.streams && event.streams[0]) {
+        if (this.onRemoteStreamReceived) {
+          this.onRemoteStreamReceived(event.streams[0])
+        }
+      }
+    }
+
     this.peerConnection.onconnectionstatechange = () => {
       console.log('[WebRTCService] Stan połączenia P2P:', this.peerConnection?.connectionState)
     }
   }
 
+  public addLocalStream(stream: MediaStream): void {
+    if (!this.peerConnection) {
+      throw new Error('Brak PeerConnection! Wywołaj initialize() przed addLocalStream()')
+    }
+
+    stream.getTracks().forEach((track) => {
+      this.peerConnection?.addTrack(track, stream)
+    })
+    console.log('[WebRTCService] Dodano lokalny strumień wideo do PeerConnection.')
+  }
+
   // --- UNIWERSALNA FUNKCJA PODPINANIA KANAŁÓW ---
   private setupChannel(channel: RTCDataChannel): void {
-    // Nasłuchiwanie na otwarcie
     channel.onopen = () => {
       console.log(`[WebRTCService] Kanał OTWARTY: ${channel.label}`)
-      // Odpalamy zmianę statusu w UI tylko raz (np. gdy podniesie się kanał systemowy)
       if (channel.label === 'system-channel' && this.onDataChannelOpened) {
         this.onDataChannelOpened()
       }
     }
 
-    // Niezależnie z którego kanału przyjdzie wiadomość, przesyłamy ją do Store'a (tam Zod ją rozpozna)
     channel.onmessage = (event) => {
       if (this.onMessageReceived) this.onMessageReceived(event.data)
     }
@@ -63,7 +82,6 @@ export class WebRTCService {
       console.log(`[WebRTCService] Kanał ZAMKNIĘTY: ${channel.label}`)
     }
 
-    // Przypisanie referencji do właściwości klasy
     if (channel.label === 'system-channel') {
       this.systemChannel = channel
     } else if (channel.label === 'mouse-channel') {
