@@ -33,7 +33,7 @@
           <button class="menu-item">Nagrania sesji</button>
           <button class="menu-item logout">Wyloguj sie</button>
           <hr style="width: 80%; border: 0; border-top: 1px solid #444; margin: 10px 0" />
-          <button class="menu-item" @click="openVersionModal">Panel wersji</button>
+          <button class="menu-item" @click="openVersionModal">Wersja aplikacji</button>
         </div>
       </Transition>
 
@@ -283,18 +283,22 @@ async function handleVersionStatus(): Promise<void> {
   top: -10px;
   left: 0;
   right: 0;
-  bottom: 100%;
+  bottom: -12px;
   background-color: #0a0514;
   border-radius: 150px;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  transition:
+    transform 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.3s ease,
+    box-shadow 0.3s ease;
   z-index: -1;
   opacity: 0;
+  transform: scaleY(0);
+  transform-origin: top center;
 }
 
 .dropdown-bg.is-open {
-  height: 370px;
-  bottom: auto;
   opacity: 1;
+  transform: scaleY(1);
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
   overflow: hidden;
 }
