@@ -1,7 +1,9 @@
 // composables/webrtc/webRtcService.ts
 export class WebRTCService {
   public peerConnection: RTCPeerConnection | null = null
-  public dataChannel: RTCDataChannel | null = null
+
+  public systemChannel: RTCDataChannel | null = null
+  public mouseChannel: RTCDataChannel | null = null
 
   // Callbacki dla Store'a
   public onIceCandidateGenerated?: (candidate: RTCIceCandidate) => void
@@ -13,7 +15,16 @@ export class WebRTCService {
   }
 
   public initialize(): void {
-    this.peerConnection = new RTCPeerConnection()
+    const isRemote = import.meta.env.VITE_WEBRTC_REMOTE === 'true'
+    const serversJson = import.meta.env.VITE_ICE_SERVERS
+
+    const config: RTCConfiguration = {
+      iceServers: isRemote && serversJson ? JSON.parse(serversJson) : []
+    }
+
+    console.log(`[WebRTC] Inicjalizacja w trybie: ${isRemote ? 'REMOTE' : 'LOCAL'}`)
+
+    this.peerConnection = new RTCPeerConnection(config)
 
     this.peerConnection.onicecandidate = (event) => {
       if (event.candidate && this.onIceCandidateGenerated) {
@@ -21,10 +32,10 @@ export class WebRTCService {
       }
     }
 
-    // --- TYLKO DLA GOŚCIA: Odbiór kanału stworzonego przez Hosta ---
+    // --- TYLKO DLA GOŚCIA: Odbiera kanały, które Host dołącza do oferty ---
     this.peerConnection.ondatachannel = (event) => {
-      console.log('[WebRTCService] Gość odebrał DataChannel!')
-      this.setupDataChannel(event.channel)
+      console.log(`[WebRTCService] Gość odebrał DataChannel: ${event.channel.label}`)
+      this.setupChannel(event.channel)
     }
 
     this.peerConnection.onconnectionstatechange = () => {
@@ -32,43 +43,64 @@ export class WebRTCService {
     }
   }
 
-  private setupDataChannel(channel: RTCDataChannel): void {
-    this.dataChannel = channel
-
-    this.dataChannel.onopen = () => {
-      console.log('[WebRTCService] Kanał danych OTWARTY!')
-      if (this.onDataChannelOpened) this.onDataChannelOpened()
+  // --- UNIWERSALNA FUNKCJA PODPINANIA KANAŁÓW ---
+  private setupChannel(channel: RTCDataChannel): void {
+    // Nasłuchiwanie na otwarcie
+    channel.onopen = () => {
+      console.log(`[WebRTCService] Kanał OTWARTY: ${channel.label}`)
+      // Odpalamy zmianę statusu w UI tylko raz (np. gdy podniesie się kanał systemowy)
+      if (channel.label === 'system-channel' && this.onDataChannelOpened) {
+        this.onDataChannelOpened()
+      }
     }
 
-    this.dataChannel.onmessage = (event) => {
+    // Niezależnie z którego kanału przyjdzie wiadomość, przesyłamy ją do Store'a (tam Zod ją rozpozna)
+    channel.onmessage = (event) => {
       if (this.onMessageReceived) this.onMessageReceived(event.data)
     }
 
-    this.dataChannel.onclose = () => {
-      console.log('[WebRTCService] Kanał danych ZAMKNIĘTY.')
+    channel.onclose = () => {
+      console.log(`[WebRTCService] Kanał ZAMKNIĘTY: ${channel.label}`)
+    }
+
+    // Przypisanie referencji do właściwości klasy
+    if (channel.label === 'system-channel') {
+      this.systemChannel = channel
+    } else if (channel.label === 'mouse-channel') {
+      this.mouseChannel = channel
     }
   }
 
+  // --- TYLKO DLA HOSTA: Tworzy obydwa kanały ZANIM stworzy ofertę ---
   public async createOffer(): Promise<RTCSessionDescriptionInit> {
     if (!this.peerConnection) throw new Error('Brak PeerConnection')
 
-    const channel = this.peerConnection.createDataChannel('main-channel')
-    this.setupDataChannel(channel)
+    const sysChannel = this.peerConnection.createDataChannel('system-channel', {
+      ordered: true
+    })
+    this.setupChannel(sysChannel)
+
+    const mouseChannel = this.peerConnection.createDataChannel('mouse-channel', {
+      ordered: false,
+      maxRetransmits: 0
+    })
+    this.setupChannel(mouseChannel)
 
     const offer = await this.peerConnection.createOffer()
     await this.peerConnection.setLocalDescription(offer)
     return offer
   }
 
-  public sendData(message: string): void {
-    if (this.dataChannel && this.dataChannel.readyState === 'open') {
-      this.dataChannel.send(message)
+  public sendData(channelLabel: 'system-channel' | 'mouse-channel', message: string): void {
+    const channel = channelLabel === 'system-channel' ? this.systemChannel : this.mouseChannel
+
+    if (channel && channel.readyState === 'open') {
+      channel.send(message)
     } else {
-      console.warn('[WebRTCService] Nie można wysłać danych. Kanał zamknięty.')
+      console.warn(`[WebRTCService] Kanał ${channelLabel} nie jest otwarty.`)
     }
   }
 
-  // 3. Akcje Gościa: Odbiera ofertę, tworzy odpowiedź
   public async handleOfferAndCreateAnswer(
     offer: RTCSessionDescriptionInit
   ): Promise<RTCSessionDescriptionInit> {
@@ -80,13 +112,11 @@ export class WebRTCService {
     return answer
   }
 
-  // 4. Akcje Hosta: Odbiera odpowiedź od Gościa
   public async handleAnswer(answer: RTCSessionDescriptionInit): Promise<void> {
     if (!this.peerConnection) throw new Error('Brak PeerConnection')
     await this.peerConnection.setRemoteDescription(new RTCSessionDescription(answer))
   }
 
-  // 5. Obie strony: Dodawanie kandydatów ICE z sieci
   public async addIceCandidate(candidate: RTCIceCandidateInit): Promise<void> {
     if (!this.peerConnection) return
     await this.peerConnection.addIceCandidate(new RTCIceCandidate(candidate))
@@ -96,6 +126,8 @@ export class WebRTCService {
     if (this.peerConnection) {
       this.peerConnection.close()
       this.peerConnection = null
+      this.systemChannel = null
+      this.mouseChannel = null
     }
   }
 }
