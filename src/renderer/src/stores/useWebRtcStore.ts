@@ -103,7 +103,7 @@ export const useWebRtcStore = defineStore('webrtc', () => {
       type: 'CHAT',
       payload: { text, sender: 'Stygus' }
     }
-    webRtcService.sendData(JSON.stringify(msg))
+    webRtcService.systemChannel?.send(JSON.stringify(msg))
 
     // Dodajemy własną wiadomość do okna czatu
     chatMessages.value.push(`Ja: ${text}`)
@@ -115,7 +115,7 @@ export const useWebRtcStore = defineStore('webrtc', () => {
       type: 'MOUSE_MOVE',
       payload: { x, y }
     }
-    webRtcService.sendData(JSON.stringify(msg))
+    webRtcService.mouseChannel?.send(JSON.stringify(msg))
   }
 
   // ==========================================
