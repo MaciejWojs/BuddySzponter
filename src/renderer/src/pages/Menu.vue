@@ -39,7 +39,7 @@ const navItems: NavBarItem[] = [
   -->
   <section class="menu-page">
     <!-- User profile icon in top right corner -->
-    <UserNoLogin />
+    <UserIcon />
     <header class="menu-topbar">
       <!-- Navigation bar with icon buttons -->
       <NavBar v-model="activeNav" :items="navItems" />
