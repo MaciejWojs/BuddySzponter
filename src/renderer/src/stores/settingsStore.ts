@@ -34,9 +34,7 @@ export const useSettingsStore = defineStore('settings', () => {
   // --- ACTIONS ---
 
   const initSettings = async (): Promise<void> => {
-    await langService.init()
-    await versionsService.init()
-    await checkVersionStatus()
+    await Promise.all([langService.init(), versionsService.init(), refreshVersionStatus()])
   }
 
   const setAppLanguage = async (lang: AppLanguage): Promise<void> => {
