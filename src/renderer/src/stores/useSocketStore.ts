@@ -83,7 +83,7 @@ export const useSocketStore = defineStore('socket', () => {
     isConnected,
     incomingRequest,
     accessStatus,
-    isAcknowledged, // Zwracamy bez rtcStatus!
+    isAcknowledged,
     connect,
     disconnect,
     respondToRequest,
