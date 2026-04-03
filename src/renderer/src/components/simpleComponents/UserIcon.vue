@@ -29,11 +29,44 @@
 
       <Transition name="fade-slide">
         <div v-if="menuOpen" class="menu-items">
-          <button class="menu-item">Ustawienia konta</button>
+          <button class="menu-item" @click="openUserModal">Twoje konto</button>
           <button class="menu-item">Nagrania sesji</button>
           <button class="menu-item logout">Wyloguj sie</button>
           <hr style="width: 80%; border: 0; border-top: 1px solid #444; margin: 10px 0" />
           <button class="menu-item" @click="openVersionModal">Wersja aplikacji</button>
+        </div>
+      </Transition>
+
+      <Transition name="fade-slide">
+        <div v-if="showUserModal" class="user-modal-overlay" @click.self="closeUserModal">
+          <div class="user-modal">
+            <button class="close-btn" @click="closeUserModal">&times;</button>
+            <h2 class="modal-title">Panel uzytkownika</h2>
+
+            <div class="user-profile-preview">
+              <UserIconSvg class="profile-avatar" />
+              <div class="profile-info">
+                <strong>{{ user.name }}</strong>
+                <span>Konto aktywne</span>
+              </div>
+            </div>
+
+            <div class="modal-btns">
+              <button class="menu-item modal-btn" @click="handleAccountSummary">
+                👤 Podsumowanie konta
+              </button>
+              <button class="menu-item modal-btn" @click="handleAccountSecurity">
+                🔒 Status bezpieczenstwa
+              </button>
+              <button class="menu-item modal-btn" @click="handleAccountActivity">
+                📊 Ostatnia aktywnosc
+              </button>
+            </div>
+
+            <div class="modal-result">
+              <pre v-if="userPanelResult !== null">{{ userPanelResult }}</pre>
+            </div>
+          </div>
         </div>
       </Transition>
 
@@ -74,8 +107,10 @@ const user = ref({
 })
 
 const menuOpen = ref(false)
+const showUserModal = ref(false)
 const showVersionModal = ref(false)
 const versionResult = ref<string | null>(null)
+const userPanelResult = ref<string | null>(null)
 const settingsStore = useSettingsStore()
 const { supportedVersions } = storeToRefs(settingsStore)
 const isUpdateRequired = computed(() => settingsStore.isUpdateRequired)
@@ -87,6 +122,41 @@ onMounted(() => {
 
 async function retryVersionCheck(): Promise<void> {
   await settingsStore.checkVersionStatus()
+}
+
+function openUserModal(): void {
+  showUserModal.value = true
+  userPanelResult.value = null
+}
+
+function closeUserModal(): void {
+  showUserModal.value = false
+  userPanelResult.value = null
+}
+
+function handleAccountSummary(): void {
+  userPanelResult.value = [
+    'Nazwa: ' + user.value.name,
+    'Plan: Standard',
+    'Status: Konto aktywne',
+    'Synchronizacja: Wlaczona'
+  ].join('\n')
+}
+
+function handleAccountSecurity(): void {
+  userPanelResult.value = [
+    'Logowanie dwuetapowe: Wylaczone',
+    'Sila hasla: Dobra',
+    'Wymagana aktualizacja: ' + (isUpdateRequired.value ? 'Tak' : 'Nie')
+  ].join('\n')
+}
+
+function handleAccountActivity(): void {
+  userPanelResult.value = [
+    'Ostatnie logowanie: Dzisiaj',
+    'Uruchomiony klient: Desktop',
+    'Status wersji aplikacji: ' + versionStatus.value
+  ].join('\n')
 }
 
 function openVersionModal(): void {
@@ -134,6 +204,33 @@ async function handleVersionStatus(): Promise<void> {
 </script>
 
 <style scoped>
+.user-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.user-modal {
+  background: #18122b;
+  border-radius: 18px;
+  box-shadow: 0 8px 40px #000a;
+  padding: 32px 28px 24px;
+  min-width: 340px;
+  max-width: 90vw;
+  min-height: 220px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
 .version-modal-overlay {
   position: fixed;
   top: 0;
@@ -198,6 +295,38 @@ async function handleVersionStatus(): Promise<void> {
   width: 100%;
   text-align: left;
   padding-left: 18px;
+}
+
+.user-profile-preview {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(183, 148, 244, 0.35);
+  border-radius: 12px;
+  background: rgba(34, 26, 54, 0.55);
+  margin-bottom: 14px;
+  box-sizing: border-box;
+}
+
+.profile-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #1e103c;
+}
+
+.profile-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: #f5f3ff;
+}
+
+.profile-info span {
+  font-size: 0.9rem;
+  opacity: 0.8;
 }
 
 .modal-result {
