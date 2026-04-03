@@ -17,10 +17,17 @@ export class WebRTCService {
 
   public initialize(): void {
     const isRemote = import.meta.env.VITE_WEBRTC_REMOTE === 'true'
-    const serversJson = import.meta.env.VITE_ICE_SERVERS
+    const server = import.meta.env.VITE_ICE_SERVER
+    const serverUser = import.meta.env.VITE_ICE_SERVER_USER || 'user'
+    const serverPass = import.meta.env.VITE_ICE_SERVER_PASS || '1234'
 
     const config: RTCConfiguration = {
-      iceServers: isRemote && serversJson ? JSON.parse(serversJson) : []
+      iceServers: [
+        { urls: `stun:${server}:3478` },
+        { urls: `turn:${server}:3478`, username: serverUser, credential: serverPass },
+        { urls: `turns:${server}:443`, username: serverUser, credential: serverPass },
+        { urls: `turns:${server}:5349`, username: serverUser, credential: serverPass }
+      ]
     }
 
     console.log(`[WebRTC] Inicjalizacja w trybie: ${isRemote ? 'REMOTE' : 'LOCAL'}`)
