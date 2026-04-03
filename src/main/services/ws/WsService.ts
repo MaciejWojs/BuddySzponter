@@ -35,7 +35,7 @@ export class WsService {
     const sessionId = secureStore.getSecure('sessionId')
     const authToken = authService.getAccessToken()
 
-    this.socket = io('http://localhost', {
+    this.socket = io(import.meta.env.VITE_API_WS, {
       auth: {
         authToken: `Bearer ${authToken}`,
         connectionToken: connectionToken,
