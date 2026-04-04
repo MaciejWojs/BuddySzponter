@@ -25,7 +25,7 @@
         <UserIconSvg class="user-avatar" />
       </div>
 
-      <div class="user-name">{{ user.name }}</div>
+      <div class="user-name">{{ user.nickname }}</div>
 
       <Transition name="fade-slide">
         <div v-if="menuOpen" class="menu-items">
@@ -44,22 +44,48 @@
             <h2 class="modal-title">Panel uzytkownika</h2>
 
             <div class="user-profile-preview">
-              <UserIconSvg class="profile-avatar" />
+              <img
+                v-if="avatarPreview"
+                :src="avatarPreview"
+                alt="Awatar uzytkownika"
+                class="profile-avatar profile-avatar-image"
+              />
+              <UserIconSvg v-else class="profile-avatar" />
               <div class="profile-info">
-                <strong>{{ user.name }}</strong>
-                <span>Konto aktywne</span>
+                <strong>{{ user.nickname }}</strong>
+                <span>{{ user.email }}</span>
+              </div>
+            </div>
+
+            <div class="account-fields">
+              <div class="account-field">
+                <span class="field-label">Adres email</span>
+                <span class="field-value">{{ user.email }}</span>
+              </div>
+              <div class="account-field">
+                <span class="field-label">Pseudonim</span>
+                <span class="field-value">{{ user.nickname }}</span>
               </div>
             </div>
 
             <div class="modal-btns">
-              <button class="menu-item modal-btn" @click="handleAccountSummary">
-                👤 Podsumowanie konta
+              <button class="menu-item modal-btn" @click="handlePasswordReset">
+                🔐 Resetowanie hasla
               </button>
-              <button class="menu-item modal-btn" @click="handleAccountSecurity">
-                🔒 Status bezpieczenstwa
-              </button>
-              <button class="menu-item modal-btn" @click="handleAccountActivity">
-                📊 Ostatnia aktywnosc
+
+              <label class="menu-item modal-btn avatar-upload-label" for="avatar-upload-input">
+                🖼️ Zmien awatar
+              </label>
+              <input
+                id="avatar-upload-input"
+                class="avatar-upload-input"
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                @change="handleAvatarChange"
+              />
+
+              <button class="menu-item modal-btn danger-btn" @click="handleDeleteAccount">
+                🗑️ Usun konto
               </button>
             </div>
 
@@ -103,7 +129,8 @@ import { useSettingsStore } from '@renderer/stores/settingsStore'
 import UserIconSvg from '@renderer/assets/images/components/usericon.svg?component'
 
 const user = ref({
-  name: 'Bradley Lawlor'
+  nickname: 'Bradley Lawlor',
+  email: 'bradley.lawlor@example.com'
 })
 
 const menuOpen = ref(false)
@@ -111,6 +138,7 @@ const showUserModal = ref(false)
 const showVersionModal = ref(false)
 const versionResult = ref<string | null>(null)
 const userPanelResult = ref<string | null>(null)
+const avatarPreview = ref<string | null>(null)
 const settingsStore = useSettingsStore()
 const { supportedVersions } = storeToRefs(settingsStore)
 const isUpdateRequired = computed(() => settingsStore.isUpdateRequired)
@@ -134,29 +162,33 @@ function closeUserModal(): void {
   userPanelResult.value = null
 }
 
-function handleAccountSummary(): void {
-  userPanelResult.value = [
-    'Nazwa: ' + user.value.name,
-    'Plan: Standard',
-    'Status: Konto aktywne',
-    'Synchronizacja: Wlaczona'
-  ].join('\n')
+function handlePasswordReset(): void {
+  userPanelResult.value = 'Link do resetu hasla zostal wyslany na adres: ' + user.value.email
 }
 
-function handleAccountSecurity(): void {
-  userPanelResult.value = [
-    'Logowanie dwuetapowe: Wylaczone',
-    'Sila hasla: Dobra',
-    'Wymagana aktualizacja: ' + (isUpdateRequired.value ? 'Tak' : 'Nie')
-  ].join('\n')
+function handleAvatarChange(event: Event): void {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) {
+    return
+  }
+
+  if (avatarPreview.value) {
+    URL.revokeObjectURL(avatarPreview.value)
+  }
+
+  avatarPreview.value = URL.createObjectURL(file)
+  userPanelResult.value = 'Awatar zostal zmieniony na: ' + file.name
+  input.value = ''
 }
 
-function handleAccountActivity(): void {
-  userPanelResult.value = [
-    'Ostatnie logowanie: Dzisiaj',
-    'Uruchomiony klient: Desktop',
-    'Status wersji aplikacji: ' + versionStatus.value
-  ].join('\n')
+function handleDeleteAccount(): void {
+  const accepted = window.confirm(
+    'Czy na pewno chcesz usunac konto? Tej operacji nie mozna cofnac.'
+  )
+  userPanelResult.value = accepted
+    ? 'Zadanie usuniecia konta zostalo przyjete.'
+    : 'Usuwanie konta anulowane.'
 }
 
 function openVersionModal(): void {
@@ -327,6 +359,55 @@ async function handleVersionStatus(): Promise<void> {
 .profile-info span {
   font-size: 0.9rem;
   opacity: 0.8;
+}
+
+.profile-avatar-image {
+  object-fit: cover;
+}
+
+.account-fields {
+  width: 100%;
+  display: grid;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.account-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  background: rgba(34, 26, 54, 0.42);
+  border: 1px solid rgba(183, 148, 244, 0.25);
+}
+
+.field-label {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.7;
+}
+
+.field-value {
+  font-size: 0.96rem;
+}
+
+.avatar-upload-label {
+  display: inline-flex;
+  align-items: center;
+}
+
+.avatar-upload-input {
+  display: none;
+}
+
+.danger-btn {
+  color: #ff9090;
+}
+
+.danger-btn:hover {
+  color: #ff6b6b;
 }
 
 .modal-result {
