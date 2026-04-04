@@ -44,16 +44,9 @@
             <h2 class="modal-title">Panel uzytkownika</h2>
 
             <div class="user-profile-preview">
-              <img
-                v-if="avatarPreview"
-                :src="avatarPreview"
-                alt="Awatar uzytkownika"
-                class="profile-avatar profile-avatar-image"
-              />
-              <UserIconSvg v-else class="profile-avatar" />
-              <div class="profile-info">
-                <strong>{{ user.nickname }}</strong>
-                <span>{{ user.email }}</span>
+              <div class="avatar">
+                <img v-if="avatarPreview" :src="avatarPreview" alt="Awatar użytkownika" />
+                <UserIconSvg v-else class="avatar-fallback" />
               </div>
             </div>
 
@@ -330,39 +323,67 @@ async function handleVersionStatus(): Promise<void> {
 }
 
 .user-profile-preview {
-  width: 100%;
+  width: auto;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 12px;
-  border: 1px solid rgba(183, 148, 244, 0.35);
-  border-radius: 12px;
-  background: rgba(34, 26, 54, 0.55);
-  margin-bottom: 14px;
+  justify-content: center;
+  padding: 2px;
+  margin-bottom: 16px;
   box-sizing: border-box;
 }
 
 .profile-avatar {
-  width: 48px;
-  height: 48px;
+  width: 86px;
+  height: 86px;
   border-radius: 50%;
   background: #1e103c;
+  padding: 4px;
+  border: 2px solid rgba(183, 148, 244, 0.55);
 }
 
-.profile-info {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  color: #f5f3ff;
-}
-
-.profile-info span {
-  font-size: 0.9rem;
-  opacity: 0.8;
+.profile-avatar :deep(path) {
+  fill: #cbb2ff;
 }
 
 .profile-avatar-image {
+  width: 100%;
+  height: 100%;
+  max-width: 86px;
+  max-height: 86px;
   object-fit: cover;
+  object-position: center;
+  border-radius: 50%;
+  display: block;
+  background: #1e103c;
+  margin: 0 auto;
+  padding: 0;
+}
+
+.avatar {
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 3px solid #8b5cf6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #1e1533;
+  margin: 0 auto 18px auto;
+}
+
+.avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+}
+
+.avatar-fallback {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
 .account-fields {
