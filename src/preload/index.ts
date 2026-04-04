@@ -197,8 +197,8 @@ if (process.contextIsolated) {
     contextBridge.exposeInMainWorld('electron', electronAPI)
     contextBridge.exposeInMainWorld('api', api)
 
-    // WSTAWIONY NOWY TYP:
-    let capturer: ScreenCaptureInstance | null = null
+   const handleBuffer = Buffer.allocUnsafe(8)
+   let capturer: ScreenCaptureInstance | null = null
 
     contextBridge.exposeInMainWorld('capture', {
       start: () => {
@@ -214,13 +214,12 @@ if (process.contextIsolated) {
         const info = capturer.getSharedHandle()
         if (!info || !info.handle) return null
 
-        const buf = Buffer.alloc(8)
-        buf.writeBigUInt64LE(info.handle as bigint, 0)
+        handleBuffer.writeBigUInt64LE(info.handle as bigint, 0)
 
         const st = sharedTexture.subtle.importSharedTexture({
           pixelFormat: 'bgra',
           codedSize: { width: info.width, height: info.height },
-          handle: { ntHandle: buf }
+          handle: { ntHandle: handleBuffer }
         })
 
         const frame = st.getVideoFrame()
