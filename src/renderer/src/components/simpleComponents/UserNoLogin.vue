@@ -3,8 +3,8 @@
     <div :class="['dropdown-bg', { 'is-open': menuOpen }]" />
 
     <div class="user-content">
-      <div class="avatar-wrapper">
-        <UserIconSvg class="user-avatar" />
+      <div class="avatar">
+        <UserIconSvg class="avatar-fallback" />
       </div>
 
       <div class="user-name">{{ $t('userMenu.guest') }}</div>
@@ -230,29 +230,28 @@ async function handleVersionStatus(): Promise<void> {
   padding-top: 10px;
 }
 
-.avatar-wrapper {
+.avatar {
   width: 90px;
   height: 90px;
   border-radius: 50%;
-  padding: 6px;
-  background: rgba(30, 16, 60, 0.18);
-  box-shadow: 0 4px 24px 0 rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+  border: 3px solid #8b5cf6;
   display: flex;
-  justify-content: center;
   align-items: center;
+  justify-content: center;
+  background: #1e1533;
+  box-shadow: 0 4px 24px 0 rgba(0, 0, 0, 0.18);
   transition: transform 0.3s ease;
 }
 
-.user-container:hover .avatar-wrapper {
+.user-container:hover .avatar {
   transform: scale(1.05);
 }
 
-.user-avatar {
-  width: 90px;
-  height: 90px;
-  border-radius: 50%;
-  object-fit: cover;
-  background: #1e103c;
+.avatar-fallback {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
 .user-name {
