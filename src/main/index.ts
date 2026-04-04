@@ -55,6 +55,7 @@ app.whenReady().then(async () => {
   electronApp.setAppUserModelId('com.electron')
   
   app.commandLine.appendSwitch('disable-renderer-backgrounding');
+  app.commandLine.appendSwitch('disable-background-timer-throttling')
   
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.

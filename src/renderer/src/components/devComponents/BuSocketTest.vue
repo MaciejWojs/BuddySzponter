@@ -34,12 +34,9 @@ interface WindowWithGenerator extends Window {
 const videoCanvas = ref<HTMLCanvasElement | null>(null)
 const isCapturing = ref(false)
 
-let animationId: number | null = null
-let lastRenderTime = 0
 const TARGET_FPS = 60
 const FRAME_INTERVAL = 1000 / TARGET_FPS
 
-// trackWriter musi zostać, bo używamy go w pętli renderLoop
 let trackWriter: WritableStreamDefaultWriter<VideoFrame> | null = null
 
 function startCapture(): void {
@@ -66,57 +63,63 @@ function startCapture(): void {
     // Start Addona
     window.capture.start()
     isCapturing.value = true
-    lastRenderTime = performance.now()
 
-    animationId = requestAnimationFrame(renderLoop)
+    // Zastąpienie rAF niezależnym timerem
+    renderLoop()
   } catch (err) {
     console.error(err)
     isCapturing.value = false
   }
 }
 
-function renderLoop(timestamp: number): void {
+function renderLoop(): void {
   if (!isCapturing.value) return
-  animationId = requestAnimationFrame(renderLoop)
 
-  if (timestamp - lastRenderTime < FRAME_INTERVAL) return
-  lastRenderTime = timestamp
-
-  const canvas = videoCanvas.value
-  if (!canvas) return
-  const ctx = canvas.getContext('2d')
-  if (!ctx) return
+  const timestamp = performance.now()
 
   try {
     // @ts-ignore: capture.getFrame() returns a native VideoFrame
     const frame = window.capture.getFrame() as VideoFrame | null
+    
     if (frame) {
+      // Zawsze wysyłamy przez WebRTC
       if (trackWriter) {
         trackWriter.write(frame.clone()).catch(() => {})
       }
 
-      if (canvas.width !== frame.displayWidth || canvas.height !== frame.displayHeight) {
-        canvas.width = frame.displayWidth
-        canvas.height = frame.displayHeight
+      // Rysowanie opcjonalne - tylko jeśli istnieje canvas (podgląd hosta)
+      const canvas = videoCanvas.value
+      if (canvas) {
+        const ctx = canvas.getContext('2d')
+        if (ctx) {
+          if (canvas.width !== frame.displayWidth || canvas.height !== frame.displayHeight) {
+            canvas.width = frame.displayWidth
+            canvas.height = frame.displayHeight
+          }
+          ctx.drawImage(frame, 0, 0, canvas.width, canvas.height)
+        }
       }
-      ctx.drawImage(frame, 0, 0, canvas.width, canvas.height)
 
+      // MUSISZ zamykać ramkę by uniknąć wycieków pamięci
       frame.close()
     }
   } catch (error) {
     console.error(error)
   }
+
+  // Kalkulacja pozostałego czasu by utrzymać odpowiedni interwał (60 FPS)
+  const elapsed = performance.now() - timestamp
+  const nextDelay = Math.max(0, FRAME_INTERVAL - elapsed)
+
+  // Niezależny licznik podtrzymujący obieg, niewrażliwy na minimalizację okna
+  window.setTimeout(renderLoop, nextDelay)
 }
 
 function stopCapture(): void {
   if (!isCapturing.value) return
-  isCapturing.value = false
+  isCapturing.value = false // Pętla renderLoop zatrzyma się naturalnie podczas następnego tiku timeoutu
+  
   emit('log-result', 'NATIVE_CAPTURE', 'Zatrzymano przechwytywanie ekranu.', 'api')
-
-  if (animationId !== null) {
-    cancelAnimationFrame(animationId)
-    animationId = null
-  }
 
   if (trackWriter) {
     trackWriter.close().catch(() => {})
