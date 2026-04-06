@@ -380,10 +380,10 @@ const onDrop = async (event: DragEvent): Promise<void> => {
     const arrayBuffer = await file.arrayBuffer()
 
     const res = await window.api.users.uploadAvatarByBuffer(
-      testUserId,
       arrayBuffer,
       file.name,
-      file.type
+      file.type,
+      testUserId
     )
 
     logResult('UPLOAD_AVATAR_DROP', res)
