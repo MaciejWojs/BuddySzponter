@@ -7,6 +7,7 @@ import type { NavBarItem } from '@renderer/components/UI/NavBar.vue'
 import DevicesButton from '@renderer/components/simpleComponents/DevicesButton.vue'
 import HomeButton from '@renderer/components/simpleComponents/HomeButton.vue'
 import SettingButton from '@renderer/components/simpleComponents/SettingButton.vue'
+import BuLanguageSelector from '@renderer/components/simpleComponents/BuLanguageSelector.vue'
 import UserIcon from '@renderer/components/simpleComponents/UserIcon.vue'
 import UserNoLogin from '@renderer/components/simpleComponents/UserNoLogin.vue'
 import { useUserStore } from '@renderer/stores/userStore'
@@ -44,6 +45,11 @@ const navItems: NavBarItem[] = [
     - Footer with logo
   -->
   <section class="menu-page">
+    <!-- Language selector in top left corner -->
+    <div class="menu-lang-selector">
+      <BuLanguageSelector />
+    </div>
+
     <!-- User profile icon in top right corner -->
     <UserIcon v-if="isAuthenticated" />
     <UserNoLogin v-else />
@@ -70,7 +76,7 @@ const navItems: NavBarItem[] = [
 
     <footer class="menu-footer">
       <!-- Application logo in footer -->
-      <img :src="buddySzponterLogo" alt="BuddySzponter logo" class="menu-logo" />
+      <img :src="buddySzponterLogo" :alt="$t('common.logoAlt')" class="menu-logo" />
     </footer>
   </section>
 </template>
@@ -85,11 +91,19 @@ const navItems: NavBarItem[] = [
   .menu-logo      - application logo
   Media queries   - responsive adjustments
 */
+.menu-lang-selector {
+  position: absolute;
+  top: 20px;
+  left: 24px;
+  z-index: 10;
+}
+
 .menu-page {
   min-height: 100vh;
   display: grid;
   grid-template-rows: auto 1fr auto;
   padding: 20px 56px 24px;
+  position: relative;
 }
 
 .menu-topbar {
@@ -168,6 +182,11 @@ const navItems: NavBarItem[] = [
     overflow-y: auto;
   }
 
+  .menu-lang-selector {
+    top: 8px;
+    left: 8px;
+  }
+
   .menu-content {
     grid-template-columns: 1fr;
     gap: 32px;
@@ -196,6 +215,12 @@ const navItems: NavBarItem[] = [
   .menu-page {
     padding: 6px 2vw 10px;
   }
+
+  .menu-lang-selector {
+    top: 2px;
+    left: 2px;
+  }
+
   .menu-content {
     gap: 18px;
     padding-top: 4px;

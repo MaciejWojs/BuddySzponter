@@ -22,16 +22,16 @@
         <div v-if="showVersionModal" class="version-modal-overlay" @click.self="closeVersionModal">
           <div class="version-modal">
             <button class="close-btn" @click="closeVersionModal">&times;</button>
-            <h2 class="modal-title">Panel kontroli wersji</h2>
+            <h2 class="modal-title">{{ t('userVersion.modalTitle') }}</h2>
             <div class="modal-btns">
               <button class="menu-item modal-btn" @click="handleCurrentVersion">
-                🔢 Aktualna wersja
+                🔢 {{ t('userVersion.currentVersion') }}
               </button>
               <button class="menu-item modal-btn" @click="handleAvailableVersions">
-                📋 Dostępne wersje
+                📋 {{ t('userVersion.availableVersions') }}
               </button>
               <button class="menu-item modal-btn" @click="handleVersionStatus">
-                ✅ Status wersji
+                ✅ {{ t('userVersion.versionStatus') }}
               </button>
             </div>
             <div class="modal-result">
@@ -95,9 +95,9 @@ function closeVersionModal(): void {
 async function handleCurrentVersion(): Promise<void> {
   try {
     const version = await window.api.core.getAppVersion()
-    versionResult.value = 'Aktualna wersja aplikacji: ' + version
+    versionResult.value = `${t('userVersion.currentVersionLabel')}: ${version}`
   } catch (e) {
-    versionResult.value = 'Błąd pobierania wersji: ' + e
+    versionResult.value = `${t('userVersion.fetchError')}: ${e}`
   }
 }
 
@@ -106,22 +106,22 @@ async function handleAvailableVersions(): Promise<void> {
     await settingsStore.fetchSupportedVersions()
     console.log('Pobrane wersje:', supportedVersions.value)
     if (supportedVersions.value && supportedVersions.value.length > 0) {
-      const wersje = supportedVersions.value.map((v) => v.version).join(', ')
-      versionResult.value = 'Dostępne wersje: ' + wersje
+      const versions = supportedVersions.value.map((v) => v.version).join(', ')
+      versionResult.value = `${t('userVersion.availableVersionsLabel')}: ${versions}`
     } else {
-      versionResult.value = 'Brak dostępnych wersji.'
+      versionResult.value = t('userVersion.noAvailableVersions')
     }
   } catch (e) {
-    versionResult.value = 'Błąd pobierania wersji: ' + e
+    versionResult.value = `${t('userVersion.fetchError')}: ${e}`
   }
 }
 
 async function handleVersionStatus(): Promise<void> {
   try {
     const status = await settingsStore.checkVersionStatus()
-    versionResult.value = 'Status wersji: ' + status
+    versionResult.value = `${t('userVersion.versionStatusLabel')}: ${status}`
   } catch (e) {
-    versionResult.value = 'Błąd sprawdzania statusu wersji: ' + e
+    versionResult.value = `${t('userVersion.statusError')}: ${e}`
   }
 }
 </script>

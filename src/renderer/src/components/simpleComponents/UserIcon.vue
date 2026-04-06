@@ -7,13 +7,13 @@
       aria-modal="true"
     >
       <div class="update-required-card">
-        <h2>Wymagana aktualizacja aplikacji</h2>
+        <h2>{{ t('updateRequired.title') }}</h2>
         <p>
-          Ta wersja nie jest juz wspierana. Zainstaluj najnowsza wersje, aby odblokowac aplikacje.
+          {{ t('updateRequired.description') }}
         </p>
-        <p class="status-line">Status wersji: {{ versionStatus }}</p>
+        <p class="status-line">{{ t('updateRequired.statusLine') }}: {{ versionStatus }}</p>
         <button type="button" class="retry-button" @click="retryVersionCheck">
-          Sprawdz ponownie
+          {{ t('updateRequired.retry') }}
         </button>
       </div>
     </div>
@@ -25,7 +25,7 @@
         <img
           v-if="avatarPreview || userAvatarUrl"
           :src="avatarPreview || userAvatarUrl || ''"
-          alt="Awatar użytkownika"
+          :alt="t('userMenu.avatarAlt')"
         />
         <UserIconSvg v-else class="avatar-fallback" />
       </div>
@@ -34,11 +34,11 @@
 
       <Transition name="fade-slide">
         <div v-if="menuOpen" class="menu-items">
-          <button class="menu-item" @click="openUserModal">Twoje konto</button>
-          <button class="menu-item">Nagrania sesji</button>
-          <button class="menu-item logout" @click="handleLogout">Wyloguj sie</button>
+          <button class="menu-item" @click="openUserModal">{{ t('userMenu.yourAccount') }}</button>
+          <button class="menu-item">{{ t('userMenu.sessionRecordings') }}</button>
+          <button class="menu-item logout" @click="handleLogout">{{ t('userMenu.logout') }}</button>
           <hr style="width: 80%; border: 0; border-top: 1px solid #444; margin: 10px 0" />
-          <button class="menu-item" @click="openVersionModal">Wersja aplikacji</button>
+          <button class="menu-item" @click="openVersionModal">{{ t('userMenu.version') }}</button>
         </div>
       </Transition>
 
@@ -46,14 +46,14 @@
         <div v-if="showUserModal" class="user-modal-overlay" @click.self="closeUserModal">
           <div class="user-modal">
             <button class="close-btn" @click="closeUserModal">&times;</button>
-            <h2 class="modal-title">Panel uzytkownika</h2>
+            <h2 class="modal-title">{{ t('userMenu.userPanelTitle') }}</h2>
 
             <div class="user-profile-preview">
               <div class="avatar">
                 <img
                   v-if="avatarPreview || userAvatarUrl"
                   :src="avatarPreview || userAvatarUrl || ''"
-                  alt="Awatar użytkownika"
+                  :alt="t('userMenu.avatarAlt')"
                 />
                 <UserIconSvg v-else class="avatar-fallback" />
               </div>
@@ -61,22 +61,22 @@
 
             <div class="account-fields">
               <div class="account-field">
-                <span class="field-label">Adres email</span>
+                <span class="field-label">{{ t('userMenu.emailLabel') }}</span>
                 <span class="field-value">{{ displayEmail }}</span>
               </div>
               <div class="account-field">
-                <span class="field-label">Pseudonim</span>
+                <span class="field-label">{{ t('userMenu.nicknameLabel') }}</span>
                 <span class="field-value">{{ displayNickname }}</span>
               </div>
             </div>
 
             <div class="modal-btns">
               <button class="menu-item modal-btn" @click="handlePasswordReset">
-                🔐 Resetowanie hasla
+                🔐 {{ t('userMenu.resetPassword') }}
               </button>
 
               <label class="menu-item modal-btn avatar-upload-label" for="avatar-upload-input">
-                🖼️ Zmien awatar
+                🖼️ {{ t('userMenu.changeAvatar') }}
               </label>
               <input
                 id="avatar-upload-input"
@@ -87,7 +87,7 @@
               />
 
               <button class="menu-item modal-btn danger-btn" @click="handleDeleteAccount">
-                🗑️ Usun konto
+                🗑️ {{ t('userMenu.deleteAccount') }}
               </button>
             </div>
 
@@ -102,16 +102,16 @@
         <div v-if="showVersionModal" class="version-modal-overlay" @click.self="closeVersionModal">
           <div class="version-modal">
             <button class="close-btn" @click="closeVersionModal">&times;</button>
-            <h2 class="modal-title">Panel kontroli wersji</h2>
+            <h2 class="modal-title">{{ t('userVersion.modalTitle') }}</h2>
             <div class="modal-btns">
               <button class="menu-item modal-btn" @click="handleCurrentVersion">
-                🔢 Aktualna wersja
+                🔢 {{ t('userVersion.currentVersion') }}
               </button>
               <button class="menu-item modal-btn" @click="handleAvailableVersions">
-                📋 Dostępne wersje
+                📋 {{ t('userVersion.availableVersions') }}
               </button>
               <button class="menu-item modal-btn" @click="handleVersionStatus">
-                ✅ Status wersji
+                ✅ {{ t('userVersion.versionStatus') }}
               </button>
             </div>
             <div class="modal-result">
@@ -131,6 +131,7 @@ import { useSettingsStore } from '@renderer/stores/settingsStore'
 import { useUserStore } from '@renderer/stores/userStore'
 import UserIconSvg from '@renderer/assets/images/components/usericon.svg?component'
 import { useRouter } from 'vue-router'
+const { t } = useI18n()
 
 const menuOpen = ref(false)
 const showUserModal = ref(false)
@@ -147,7 +148,7 @@ const { currentUser } = storeToRefs(userStore)
 
 const isUpdateRequired = computed(() => settingsStore.isUpdateRequired)
 const versionStatus = computed(() => settingsStore.versionStatus)
-const displayNickname = computed(() => currentUser.value?.nickname || 'Uzytkownik')
+const displayNickname = computed(() => currentUser.value?.nickname || t('userMenu.defaultUser'))
 const displayEmail = computed(() => currentUser.value?.email || '-')
 const userAvatarUrl = computed(() => {
   if (!currentUser.value?.avatar) {
@@ -178,7 +179,7 @@ function closeUserModal(): void {
 }
 
 function handlePasswordReset(): void {
-  userPanelResult.value = 'Link do resetu hasla zostal wyslany na adres: ' + displayEmail.value
+  userPanelResult.value = `${t('userMenu.resetPasswordSent')}: ${displayEmail.value}`
 }
 
 async function handleAvatarChange(event: Event): Promise<void> {
@@ -211,21 +212,18 @@ async function handleAvatarChange(event: Event): Promise<void> {
     }
 
     await userStore.fetchCurrentUser(true)
-    userPanelResult.value = 'Awatar zostal zmieniony na: ' + file.name
+    userPanelResult.value = `${t('userMenu.avatarChangedTo')}: ${file.name}`
   } catch (error) {
-    userPanelResult.value =
-      error instanceof Error ? error.message : 'Wystapil blad podczas zmiany awatara.'
+    userPanelResult.value = error instanceof Error ? error.message : t('userMenu.avatarChangeError')
   }
   input.value = ''
 }
 
 function handleDeleteAccount(): void {
-  const accepted = window.confirm(
-    'Czy na pewno chcesz usunac konto? Tej operacji nie mozna cofnac.'
-  )
+  const accepted = window.confirm(t('userMenu.deleteAccountConfirm'))
   userPanelResult.value = accepted
-    ? 'Zadanie usuniecia konta zostalo przyjete.'
-    : 'Usuwanie konta anulowane.'
+    ? t('userMenu.deleteAccountAccepted')
+    : t('userMenu.deleteAccountCancelled')
 }
 
 function openVersionModal(): void {
@@ -241,9 +239,9 @@ function closeVersionModal(): void {
 async function handleCurrentVersion(): Promise<void> {
   try {
     const version = await window.api.core.getAppVersion()
-    versionResult.value = 'Aktualna wersja aplikacji: ' + version
+    versionResult.value = `${t('userVersion.currentVersionLabel')}: ${version}`
   } catch (e) {
-    versionResult.value = 'Błąd pobierania wersji: ' + e
+    versionResult.value = `${t('userVersion.fetchError')}: ${e}`
   }
 }
 
@@ -252,22 +250,22 @@ async function handleAvailableVersions(): Promise<void> {
     await settingsStore.fetchSupportedVersions()
     console.log('Pobrane wersje:', supportedVersions.value)
     if (supportedVersions.value && supportedVersions.value.length > 0) {
-      const wersje = supportedVersions.value.map((v) => v.version).join(', ')
-      versionResult.value = 'Dostępne wersje: ' + wersje
+      const versions = supportedVersions.value.map((v) => v.version).join(', ')
+      versionResult.value = `${t('userVersion.availableVersionsLabel')}: ${versions}`
     } else {
-      versionResult.value = 'Brak dostępnych wersji.'
+      versionResult.value = t('userVersion.noAvailableVersions')
     }
   } catch (e) {
-    versionResult.value = 'Błąd pobierania wersji: ' + e
+    versionResult.value = `${t('userVersion.fetchError')}: ${e}`
   }
 }
 
 async function handleVersionStatus(): Promise<void> {
   try {
     const status = await settingsStore.checkVersionStatus()
-    versionResult.value = 'Status wersji: ' + status
+    versionResult.value = `${t('userVersion.versionStatusLabel')}: ${status}`
   } catch (e) {
-    versionResult.value = 'Błąd sprawdzania statusu wersji: ' + e
+    versionResult.value = `${t('userVersion.statusError')}: ${e}`
   }
 }
 
