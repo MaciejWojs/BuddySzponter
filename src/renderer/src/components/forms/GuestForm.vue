@@ -147,7 +147,7 @@ function onPasswordBlur(): void {
             color="neutral"
             variant="link"
             class="text-white opacity-50"
-            aria-label="Copy session code"
+            :aria-label="t('guestForm.copySessionCode')"
             @click="onCopySessionCode"
           />
         </template>
@@ -173,7 +173,7 @@ function onPasswordBlur(): void {
               color="neutral"
               variant="link"
               class="text-white opacity-50"
-              :aria-label="show ? 'Hide password' : 'Show password'"
+              :aria-label="show ? t('common.hidePassword') : t('common.showPassword')"
               :aria-pressed="show"
               @click="onTogglePasswordVisibility"
             />
