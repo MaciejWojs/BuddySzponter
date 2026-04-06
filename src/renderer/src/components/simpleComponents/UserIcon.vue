@@ -22,17 +22,21 @@
 
     <div class="user-content">
       <div class="avatar">
-        <img v-if="avatarPreview" :src="avatarPreview" alt="Awatar użytkownika" />
+        <img
+          v-if="avatarPreview || userAvatarUrl"
+          :src="avatarPreview || userAvatarUrl || ''"
+          alt="Awatar użytkownika"
+        />
         <UserIconSvg v-else class="avatar-fallback" />
       </div>
 
-      <div class="user-name">{{ user.nickname }}</div>
+      <div class="user-name">{{ displayNickname }}</div>
 
       <Transition name="fade-slide">
         <div v-if="menuOpen" class="menu-items">
           <button class="menu-item" @click="openUserModal">Twoje konto</button>
           <button class="menu-item">Nagrania sesji</button>
-          <button class="menu-item logout">Wyloguj sie</button>
+          <button class="menu-item logout" @click="handleLogout">Wyloguj sie</button>
           <hr style="width: 80%; border: 0; border-top: 1px solid #444; margin: 10px 0" />
           <button class="menu-item" @click="openVersionModal">Wersja aplikacji</button>
         </div>
@@ -46,7 +50,11 @@
 
             <div class="user-profile-preview">
               <div class="avatar">
-                <img v-if="avatarPreview" :src="avatarPreview" alt="Awatar użytkownika" />
+                <img
+                  v-if="avatarPreview || userAvatarUrl"
+                  :src="avatarPreview || userAvatarUrl || ''"
+                  alt="Awatar użytkownika"
+                />
                 <UserIconSvg v-else class="avatar-fallback" />
               </div>
             </div>
@@ -54,11 +62,11 @@
             <div class="account-fields">
               <div class="account-field">
                 <span class="field-label">Adres email</span>
-                <span class="field-value">{{ user.email }}</span>
+                <span class="field-value">{{ displayEmail }}</span>
               </div>
               <div class="account-field">
                 <span class="field-label">Pseudonim</span>
-                <span class="field-value">{{ user.nickname }}</span>
+                <span class="field-value">{{ displayNickname }}</span>
               </div>
             </div>
 
@@ -120,12 +128,9 @@
 import { computed, onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useSettingsStore } from '@renderer/stores/settingsStore'
+import { useUserStore } from '@renderer/stores/userStore'
 import UserIconSvg from '@renderer/assets/images/components/usericon.svg?component'
-
-const user = ref({
-  nickname: 'Bradley Lawlor',
-  email: 'bradley.lawlor@example.com'
-})
+import { useRouter } from 'vue-router'
 
 const menuOpen = ref(false)
 const showUserModal = ref(false)
@@ -134,12 +139,28 @@ const versionResult = ref<string | null>(null)
 const userPanelResult = ref<string | null>(null)
 const avatarPreview = ref<string | null>(null)
 const settingsStore = useSettingsStore()
+const userStore = useUserStore()
+const router = useRouter()
+
 const { supportedVersions } = storeToRefs(settingsStore)
+const { currentUser } = storeToRefs(userStore)
+
 const isUpdateRequired = computed(() => settingsStore.isUpdateRequired)
 const versionStatus = computed(() => settingsStore.versionStatus)
+const displayNickname = computed(() => currentUser.value?.nickname || 'Uzytkownik')
+const displayEmail = computed(() => currentUser.value?.email || '-')
+const userAvatarUrl = computed(() => {
+  if (!currentUser.value?.avatar) {
+    return null
+  }
+  return `http://localhost/avatar/${currentUser.value.avatar}/256.webp`
+})
 
 onMounted(() => {
   void settingsStore.checkVersionStatus()
+  if (!currentUser.value) {
+    void userStore.fetchCurrentUser(true)
+  }
 })
 
 async function retryVersionCheck(): Promise<void> {
@@ -157,10 +178,10 @@ function closeUserModal(): void {
 }
 
 function handlePasswordReset(): void {
-  userPanelResult.value = 'Link do resetu hasla zostal wyslany na adres: ' + user.value.email
+  userPanelResult.value = 'Link do resetu hasla zostal wyslany na adres: ' + displayEmail.value
 }
 
-function handleAvatarChange(event: Event): void {
+async function handleAvatarChange(event: Event): Promise<void> {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
   if (!file) {
@@ -172,7 +193,29 @@ function handleAvatarChange(event: Event): void {
   }
 
   avatarPreview.value = URL.createObjectURL(file)
-  userPanelResult.value = 'Awatar zostal zmieniony na: ' + file.name
+  try {
+    const buffer = await file.arrayBuffer()
+    const userId = currentUser.value?.id ? String(currentUser.value.id) : null
+
+    const response = await window.api.users.uploadAvatarByBuffer(
+      buffer,
+      file.name,
+      file.type,
+      userId
+    )
+
+    if (!response.success) {
+      userPanelResult.value = response.message
+      input.value = ''
+      return
+    }
+
+    await userStore.fetchCurrentUser(true)
+    userPanelResult.value = 'Awatar zostal zmieniony na: ' + file.name
+  } catch (error) {
+    userPanelResult.value =
+      error instanceof Error ? error.message : 'Wystapil blad podczas zmiany awatara.'
+  }
   input.value = ''
 }
 
@@ -226,6 +269,13 @@ async function handleVersionStatus(): Promise<void> {
   } catch (e) {
     versionResult.value = 'Błąd sprawdzania statusu wersji: ' + e
   }
+}
+
+async function handleLogout(): Promise<void> {
+  await userStore.logout()
+  showUserModal.value = false
+  showVersionModal.value = false
+  await router.push('/login')
 }
 </script>
 
