@@ -1,16 +1,29 @@
-import { path } from 'node:path'
-import { AppLanguageSchema } from '../shared/schemas/langSchemas'
+import type { LoginInput, RegisterInput } from '../main/schemas/authSchemas'
 import { ElectronAPI } from '@electron-toolkit/preload'
+import type { AppLanguage, Translation } from '../shared/schemas/langSchemas'
+import type {
+  GetAvailableLanguagesResponse,
+  GetCurrentUserResponse,
+  GetLocaleResponse,
+  GetSupportedVersionsResponse,
+  IpcResponse,
+  UploadAvatarResponse
+} from '../shared/schemas/ipc'
+
+type LoginCredentials = Pick<LoginInput, 'email' | 'password'>
 
 declare global {
   interface Window {
     electron: ElectronAPI
     api: {
       auth: {
-        register: (data: RegisterInput) => Promise<ApiResponse<RegisterResponse>>
-        login: (credentials: LoginInput) => Promise<ApiResponse<LoginResponse>>
-        logout: () => Promise<ApiResponse<void>>
-        getMe: () => Promise<ApiResponse<unknown>>
+        register: (data: RegisterInput) => Promise<IpcResponse>
+        login: (
+          credentials: LoginCredentials
+        ) => Promise<IpcResponse<{ accessTokenSaved: boolean }>>
+        logout: () => Promise<IpcResponse>
+        getMe: () => Promise<GetCurrentUserResponse>
+        refresh: () => Promise<IpcResponse<{ accessTokenSaved: boolean }>>
       }
       settings: {
         getLanguage: () => Promise<AppLanguage>
@@ -31,10 +44,10 @@ declare global {
       users: {
         uploadAvatar: (userId: string | null) => Promise<UploadAvatarResponse>
         uploadAvatarByBuffer: (
-          userId: string | null,
           buffer: ArrayBuffer,
           fileName: string,
-          mimeType: string
+          mimeType: string,
+          userId: string | null
         ) => Promise<UploadAvatarResponse>
         getCurrentUser: () => Promise<GetCurrentUserResponse>
       }
