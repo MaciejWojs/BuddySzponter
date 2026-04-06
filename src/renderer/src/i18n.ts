@@ -4,6 +4,7 @@ import enTranslations from '../../shared/locales/en.json'
 import type { AppLanguage } from '@shared/schemas/langSchemas'
 
 // IMPORTUJEMY TWÓJ TYP
+export type AppMessages = typeof enTranslations
 
 export const i18n = createI18n({
   legacy: false,
