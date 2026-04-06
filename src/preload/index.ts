@@ -10,11 +10,13 @@ import {
   UploadAvatarResponse
 } from '../shared/schemas/ipc'
 
+type LoginCredentials = Pick<LoginInput, 'email' | 'password'>
+
 // Custom APIs for renderer
 const api = {
   auth: {
     register: (data: RegisterInput) => ipcRenderer.invoke('auth:register', data),
-    login: (credentials: LoginInput) => ipcRenderer.invoke('auth:login', credentials),
+    login: (credentials: LoginCredentials) => ipcRenderer.invoke('auth:login', credentials),
     logout: () => ipcRenderer.invoke('auth:logout'),
     getMe: () => ipcRenderer.invoke('auth:me'),
     refresh: () => ipcRenderer.invoke('auth:refresh')
@@ -44,12 +46,12 @@ const api = {
       ipcRenderer.invoke('user:uploadAvatar', userId),
 
     uploadAvatarByBuffer: (
-      userId: string | null,
       buffer: ArrayBuffer,
       fileName: string,
-      mimeType: string
+      mimeType: string,
+      userId: string | null
     ): Promise<UploadAvatarResponse> =>
-      ipcRenderer.invoke('user:uploadAvatarByBuffer', userId, buffer, fileName, mimeType),
+      ipcRenderer.invoke('user:uploadAvatarByBuffer', buffer, fileName, mimeType, userId),
 
     getCurrentUser: (): Promise<GetCurrentUserResponse> => ipcRenderer.invoke('user:getCurrentUser')
   }
