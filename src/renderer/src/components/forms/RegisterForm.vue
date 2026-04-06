@@ -2,7 +2,7 @@
   <div class="flex flex-col items-center gap-6">
     <div class="flex flex-col justify-items-center items-center gap-2">
       <p class="w-full max-w-sm text-left text-white text-base font-medium opacity-90">
-        {{ t('login.email') || t('login.email') || 'Email address' }}
+        {{ t('login.email') }}
       </p>
       <BuInput v-model="email" :placeholder="t('login.email')" :error="!!errors.email">
         <template #prefix>
@@ -13,19 +13,15 @@
 
     <div class="flex flex-col justify-items-center items-center gap-2">
       <p class="w-full max-w-sm text-left text-white text-base font-medium opacity-90">
-        {{ t('login.nickname') || 'Nickname' }}
+        {{ t('login.nickname') }}
       </p>
-      <BuInput
-        v-model="nickname"
-        :placeholder="$t('login.nickname') || 'Nickname'"
-        :error="!!errors.nickname"
-      />
+      <BuInput v-model="nickname" :placeholder="$t('login.nickname')" :error="!!errors.nickname" />
       <div class="text-red-500 text-sm mt-1 h-2">{{ errors.nickname }}</div>
     </div>
 
     <div class="flex flex-col justify-items-center items-center gap-2">
       <p class="w-full max-w-sm text-left text-white text-base font-medium opacity-90">
-        {{ t('login.password') || t('login.password') || 'Password' }}
+        {{ t('login.password') }}
       </p>
       <BuInput
         v-model="password"
@@ -39,7 +35,7 @@
             variant="link"
             class="text-white opacity-50"
             :icon="!showPassword ? 'i-lucide-eye-off' : 'i-lucide-eye'"
-            :aria-label="showPassword ? 'Hide password' : 'Show password'"
+            :aria-label="showPassword ? t('common.hidePassword') : t('common.showPassword')"
             :aria-pressed="showPassword"
             @click="showPassword = !showPassword"
           />
@@ -57,7 +53,7 @@
 
     <div class="flex flex-col justify-items-center items-center gap-2">
       <p class="w-full max-w-sm text-left text-white text-base font-medium opacity-90">
-        {{ t('login.confirm') || 'Confirm password' }}
+        {{ t('login.confirm') }}
       </p>
       <BuInput
         v-model="confirmPassword"
@@ -71,7 +67,7 @@
             variant="link"
             class="text-white opacity-50"
             :icon="!showConfirmPassword ? 'i-lucide-eye-off' : 'i-lucide-eye'"
-            :aria-label="showConfirmPassword ? 'Hide password' : 'Show password'"
+            :aria-label="showConfirmPassword ? t('common.hidePassword') : t('common.showPassword')"
             :aria-pressed="showConfirmPassword"
             @click="showConfirmPassword = !showConfirmPassword"
           />
@@ -93,18 +89,18 @@
 
     <div class="w-full max-w-sm space-y-1 text-center mt-2">
       <div class="flex items-center justify-center gap-1 text-sm text-white opacity-80">
-        <span>{{ t('login.haveAccount') || 'Posiadasz już konto?' }}</span>
+        <span>{{ t('login.haveAccount') }}</span>
         <button
           type="button"
           class="text-white text-sm opacity-80 hover:opacity-100 hover:underline underline-offset-2 transition-opacity"
           @click="goToLogin"
         >
-          {{ t('login.button') || 'Zaloguj się' }}
+          {{ t('login.button') }}
         </button>
       </div>
     </div>
 
-    <img :src="buddySzponterLogo" alt="BuddySzponter" class="w-52 h-auto" />
+    <img :src="buddySzponterLogo" :alt="t('common.logoAlt')" class="w-52 h-auto" />
   </div>
 </template>
 
@@ -191,7 +187,7 @@ const handleRegister = handleSubmit(async (values) => {
     return
   }
 
-  toastCustom('Sukces, konto zostalo utworzone', '')
+  toastCustom(t('register.successCreated'), '')
   await router.push('/login')
 })
 

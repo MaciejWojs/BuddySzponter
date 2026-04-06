@@ -28,7 +28,7 @@
             variant="link"
             class="text-white opacity-50"
             :icon="!show ? 'i-lucide-eye-off' : 'i-lucide-eye'"
-            :aria-label="show ? 'Hide password' : 'Show password'"
+            :aria-label="show ? t('common.hidePassword') : t('common.showPassword')"
             :aria-pressed="show"
             @click="show = !show"
           />
@@ -68,7 +68,7 @@
       <div class="text-red-500 text-sm mt-1 h-2">{{ genericError }}</div>
     </div>
 
-    <img :src="buddySzponterLogo" alt="BuddySzponter" class="w-52 h-auto" />
+    <img :src="buddySzponterLogo" :alt="t('common.logoAlt')" class="w-52 h-auto" />
   </div>
 </template>
 
@@ -130,7 +130,7 @@ const handleLogin = handleSubmit(async (values) => {
     return
   }
 
-  toastCustom('Sukces, udalo ci sie zalogowac', '')
+  toastCustom(t('login.loginSuccess'), '')
   await router.push('/Menu')
 })
 
