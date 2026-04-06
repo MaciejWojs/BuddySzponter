@@ -11,6 +11,7 @@ import { createPinia } from 'pinia'
 import ui from '@nuxt/ui/vue-plugin'
 import App from './App.vue'
 import { i18n } from './i18n'
+import { useUserStore } from '@renderer/stores/userStore'
 
 const router = createRouter({
   history: createWebHashHistory(),
@@ -18,6 +19,25 @@ const router = createRouter({
 })
 
 const pinia = createPinia()
+
+router.beforeEach(async (to) => {
+  const userStore = useUserStore(pinia)
+  await userStore.initSession()
+
+  const normalizedPath = to.path.toLowerCase()
+  const isAuthPage = normalizedPath === '/login' || normalizedPath === '/register'
+  const isProtectedPage = normalizedPath === '/menu'
+
+  if (userStore.isAuthenticated && isAuthPage) {
+    return '/Menu'
+  }
+
+  if (!userStore.isAuthenticated && isProtectedPage) {
+    return '/login'
+  }
+
+  return true
+})
 
 const app = createApp(App)
 app.use(router)
