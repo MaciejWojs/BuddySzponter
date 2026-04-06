@@ -1,14 +1,19 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useSettingsStore } from '@renderer/stores/settingsStore'
+import { useUserStore } from '@renderer/stores/userStore'
 
 const toaster = { position: 'top-right', duration: 3000, dismissible: true, max: 3, expand: false }
 
 const store = useSettingsStore()
 store.initSettings()
 
+const userStore = useUserStore()
+void userStore.initSession()
+
 const isUpdateRequired = computed(() => store.isUpdateRequired)
 const versionStatus = computed(() => store.versionStatus)
+const isSessionReady = computed(() => userStore.initialized && !userStore.isInitializing)
 
 async function retryVersionCheck(): Promise<void> {
   await store.checkVersionStatus()
@@ -17,7 +22,10 @@ async function retryVersionCheck(): Promise<void> {
 <template>
   <UApp :toaster="toaster">
     <div :class="['app-shell', { blurred: isUpdateRequired }]">
-      <router-view />
+      <router-view v-if="isSessionReady" />
+      <div v-else class="session-loader" role="status" aria-live="polite">
+        <div class="session-loader-spinner" />
+      </div>
     </div>
 
     <div
@@ -49,6 +57,28 @@ async function retryVersionCheck(): Promise<void> {
   filter: blur(10px);
   pointer-events: none;
   user-select: none;
+}
+
+.session-loader {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.session-loader-spinner {
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  border: 3px solid rgba(255, 255, 255, 0.2);
+  border-top-color: #d0f224;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .update-required-overlay {
