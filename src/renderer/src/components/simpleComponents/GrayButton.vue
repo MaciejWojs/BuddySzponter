@@ -7,7 +7,7 @@
     :style="{ width: props.width }"
   >
     <span v-if="props.loading" class="gray-button__spinner" />
-    <slot>{{ props.label }}</slot>
+    <slot>{{ resolvedLabel }}</slot>
     <span class="gray-button__suffix">
       <slot name="suffix"></slot>
     </span>
@@ -15,10 +15,15 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
+
 const props = defineProps({
   label: {
     type: String,
-    default: 'Dołącz do sesji'
+    default: ''
   },
   type: {
     type: String,
@@ -39,6 +44,7 @@ const props = defineProps({
 })
 
 const buttonType = computed(() => props.type as 'button' | 'submit' | 'reset')
+const resolvedLabel = computed(() => props.label || t('guestForm.joinButton'))
 </script>
 
 <style scoped>
