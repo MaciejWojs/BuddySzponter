@@ -75,19 +75,22 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { storeToRefs } from 'pinia'
 const { t } = useI18n()
 
 // Custom svg components
 import Mail from '@images/components/mail.svg?component'
 import buddySzponterLogo from '@images/buddyszponterLogo.png'
 import { useAppToast } from '@renderer/composables/useAppToast'
+import { useUserStore } from '@renderer/stores/userStore'
 
 const { custom: toastCustom } = useAppToast()
 const router = useRouter()
+const userStore = useUserStore()
+const { isLoggingIn, errorMessage, fieldErrors } = storeToRefs(userStore)
 
 // State
 const show = ref(false)
-const isLoading = ref(false)
 
 // validator
 const loginValidator = computed(() =>
@@ -103,39 +106,32 @@ const loginValidator = computed(() =>
   )
 )
 
-const { errors, defineField, handleSubmit } = useForm({
+const { errors, defineField, handleSubmit, setErrors } = useForm({
   validationSchema: loginValidator
 })
 
 const [email] = defineField('email', { validateOnModelUpdate: false })
 const [password] = defineField('password', { validateOnModelUpdate: false })
 
-// Generic error state for login failures (e.g., incorrect credentials)
-const genericError = ref<string | null>(null)
+const genericError = computed(() => errorMessage.value)
+const isLoading = computed(() => isLoggingIn.value)
 
-const handleLogin = handleSubmit((values) => {
-  console.log('Login values:', values)
+const handleLogin = handleSubmit(async (values) => {
+  const success = await userStore.login({
+    email: values.email,
+    password: values.password
+  })
 
-  try {
-    isLoading.value = true
-    setTimeout(() => {
-      toastCustom('Sukces, udało ci się zalogować', '')
-      genericError.value = null
-      isLoading.value = false
-    }, 2000)
-  } catch (apiError: unknown) {
-    console.error('Login error:', apiError)
-    genericError.value = 'Coś poszło nie tak po stronie serwera. Spróbuj później.'
-    isLoading.value = false
+  if (!success) {
+    setErrors({
+      email: fieldErrors.value.email,
+      password: fieldErrors.value.password
+    })
+    return
   }
 
-  // 2. Obsługa błędów autoryzacji (np. 401 Unauthorized)
-  //     else if (apiError.response?.status === 401) {
-  //       setErrors({
-  //         email: ' ', // Puste znaki, żeby podświetlić pole na czerwono
-  //         password: 'Niepoprawny e-mail lub hasło'
-  //       })
-  //     }
+  toastCustom('Sukces, udalo ci sie zalogowac', '')
+  await router.push('/Menu')
 })
 
 function goToRegister(): void {
