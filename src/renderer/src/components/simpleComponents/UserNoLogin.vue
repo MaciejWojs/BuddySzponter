@@ -7,7 +7,7 @@
         <UserIconSvg class="avatar-fallback" />
       </div>
 
-      <div class="user-name">{{ $t('userMenu.guest') }}</div>
+      <div class="user-name">{{ displayName }}</div>
 
       <Transition name="fade-slide">
         <div v-if="menuOpen" class="menu-items">
@@ -45,11 +45,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useSettingsStore } from '@renderer/stores/settingsStore'
+import { useUserStore } from '@renderer/stores/userStore'
 import UserIconSvg from '@renderer/assets/images/components/Usericon2.svg?component'
+const { t } = useI18n()
 
 const menuOpen = ref(false)
 const showVersionModal = ref(false)
@@ -57,14 +59,25 @@ const versionResult = ref<string | null>(null)
 const router = useRouter()
 
 const settingsStore = useSettingsStore()
+const userStore = useUserStore()
 const { supportedVersions } = storeToRefs(settingsStore)
+const { isAuthenticated, currentUser } = storeToRefs(userStore)
+const displayName = computed(() => currentUser.value?.nickname || t('userMenu.guest'))
 
 function goToLogin(): void {
+  if (isAuthenticated.value) {
+    void router.push('/Menu')
+    return
+  }
   router.push('/login')
   showVersionModal.value = false
 }
 
 function goToRegister(): void {
+  if (isAuthenticated.value) {
+    void router.push('/Menu')
+    return
+  }
   router.push('/register')
   showVersionModal.value = false
 }
