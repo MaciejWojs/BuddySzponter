@@ -31,7 +31,7 @@ Displays a draggable navbar and a modal overlay with categorized shortcut button
         <div class="sharing-navbar__left">
           <button
             class="sharing-navbar__btn"
-            :title="pinned ? 'Odepnij' : 'Przypnij'"
+            :title="pinned ? $t('sharingBar.unpin') : $t('sharingBar.pin')"
             @click="togglePin"
           >
             <UIcon
@@ -39,7 +39,7 @@ Displays a draggable navbar and a modal overlay with categorized shortcut button
               class="sharing-navbar__icon"
             />
           </button>
-          <button class="sharing-navbar__btn" title="Połączenie">
+          <button class="sharing-navbar__btn" :title="$t('sharingBar.connection')">
             <UIcon name="i-lucide-wifi" class="sharing-navbar__icon" />
           </button>
         </div>
@@ -50,7 +50,7 @@ Displays a draggable navbar and a modal overlay with categorized shortcut button
           <span class="sharing-navbar__name">{{ hostName }}</span>
           <button
             class="sharing-navbar__btn sharing-navbar__btn--tools"
-            title="Tools"
+            :title="$t('sharingBar.tools')"
             @click="openMenu"
           >
             <ToolsIcon class="sharing-navbar__icon" />
@@ -59,12 +59,16 @@ Displays a draggable navbar and a modal overlay with categorized shortcut button
 
         <!-- Right section: minimize and close buttons -->
         <div class="sharing-navbar__right">
-          <button class="sharing-navbar__btn" title="Minimalizuj" @click="handleMinimize">
+          <button
+            class="sharing-navbar__btn"
+            :title="$t('sharingBar.minimize')"
+            @click="handleMinimize"
+          >
             <UIcon name="i-lucide-minus" class="sharing-navbar__icon" />
           </button>
           <button
             class="sharing-navbar__btn sharing-navbar__btn--close"
-            title="Zamknij"
+            :title="$t('sharingBar.close')"
             @click="handleClose"
           >
             <UIcon name="i-lucide-x" class="sharing-navbar__icon" />
@@ -76,7 +80,7 @@ Displays a draggable navbar and a modal overlay with categorized shortcut button
       <template v-else>
         <button
           class="sharing-navbar__btn sharing-navbar__btn--restore"
-          title="Przywróć"
+          :title="$t('sharingBar.restore')"
           @click="handleRestore"
         >
           <UIcon name="i-lucide-users" class="sharing-navbar__icon" />
@@ -92,7 +96,7 @@ Displays a draggable navbar and a modal overlay with categorized shortcut button
   <section
     v-if="isMenuOpen"
     class="shortcuts-overlay"
-    aria-label="Menu skrótów systemowych"
+    :aria-label="$t('sharingBar.shortcutsAriaLabel')"
     @click.self="closeMenu"
   >
     <!-- TuxOverlay usunięty -->
@@ -106,8 +110,8 @@ Displays a draggable navbar and a modal overlay with categorized shortcut button
 
       <!-- Panel header: title and description -->
       <header class="shortcuts-panel__header">
-        <h2>Panel szybkich akcji</h2>
-        <p>Wszystkie kluczowe skróty i narzędzia w twoim zasięgu</p>
+        <h2>{{ $t('sharingBar.quickActionsPanel') }}</h2>
+        <p>{{ $t('sharingBar.quickActionsDescription') }}</p>
       </header>
 
       <!--
@@ -122,10 +126,10 @@ Displays a draggable navbar and a modal overlay with categorized shortcut button
         <article class="shortcuts-group shortcuts-group--system">
           <h3>
             <UIcon name="i-lucide-keyboard" />
-            Skróty systemowe
+            {{ $t('sharingBar.systemShortcuts') }}
           </h3>
 
-          <p class="shortcuts-group__meta">Zarządzanie systemem</p>
+          <p class="shortcuts-group__meta">{{ $t('sharingBar.systemManagement') }}</p>
           <button
             v-for="item in managementShortcuts"
             :key="item.id"
@@ -147,7 +151,7 @@ Displays a draggable navbar and a modal overlay with categorized shortcut button
             <small class="shortcut-btn__hint">{{ item.description }}</small>
           </button>
 
-          <p class="shortcuts-group__meta">Otwieranie</p>
+          <p class="shortcuts-group__meta">{{ $t('sharingBar.opening') }}</p>
           <button
             v-for="item in availableShortcuts"
             :key="item.id"
@@ -174,9 +178,9 @@ Displays a draggable navbar and a modal overlay with categorized shortcut button
         <article class="shortcuts-group shortcuts-group--folders">
           <h3>
             <UIcon name="i-lucide-folder" />
-            Skróty dostępne
+            {{ $t('sharingBar.availableShortcuts') }}
           </h3>
-          <p class="shortcuts-group__meta">Otwieranie</p>
+          <p class="shortcuts-group__meta">{{ $t('sharingBar.opening') }}</p>
           <div class="shortcuts-folder-grid">
             <button
               v-for="item in folderButtons"
@@ -198,7 +202,7 @@ Displays a draggable navbar and a modal overlay with categorized shortcut button
         <article class="shortcuts-group shortcuts-group--power">
           <h3>
             <UIcon name="i-lucide-power" />
-            Kontrola zasilania
+            {{ $t('sharingBar.powerControl') }}
           </h3>
           <div class="shortcuts-power-row">
             <button
@@ -213,7 +217,9 @@ Displays a draggable navbar and a modal overlay with categorized shortcut button
                   :name="getPowerIcon(item.id)"
                   class="shortcut-btn__mini-icon shortcut-btn__mini-icon--power"
                 />
-                <span class="shortcut-btn__label">{{ item.label }} komputer</span>
+                <span class="shortcut-btn__label"
+                  >{{ item.label }} {{ $t('sharingBar.computerSuffix') }}</span
+                >
               </span>
             </button>
           </div>
@@ -226,6 +232,7 @@ Displays a draggable navbar and a modal overlay with categorized shortcut button
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import ToolsIcon from '@renderer/assets/images/components/tools.svg?component'
+import { useI18n } from 'vue-i18n'
 
 type MenuAction = {
   id: string
@@ -236,6 +243,7 @@ type MenuAction = {
 
 const props = defineProps<{ hostName?: string }>()
 const hostName = props.hostName ?? 'Kamil Gruca'
+const { t } = useI18n()
 
 // Core UI state: navbar visibility, pin/minimize mode, and tools overlay.
 const isMenuOpen = ref(false)
@@ -261,82 +269,100 @@ const wrapperStyle = computed(() => ({
 }))
 
 // Full list of actions rendered in the tools panel.
-const shortcutButtons: MenuAction[] = [
+const shortcutButtons = computed<MenuAction[]>(() => [
   // 🔐 System
-  { id: 'super-l', label: 'Super + L', description: 'Blokada komputera' },
+  { id: 'super-l', label: 'Super + L', description: t('linuxSharingBar.shortcuts.superL') },
   {
     id: 'ctrl-alt-delete',
     label: 'Ctrl + Alt + Delete',
-    description: 'Wylogowanie / wyłączenie (zależne od systemu)'
+    description: t('linuxSharingBar.shortcuts.ctrlAltDelete')
   },
-  { id: 'ctrl-alt-t', label: 'Ctrl + Alt + T', description: 'Otwiera terminal' },
+  {
+    id: 'ctrl-alt-t',
+    label: 'Ctrl + Alt + T',
+    description: t('linuxSharingBar.shortcuts.ctrlAltT')
+  },
   // 🖥️ Okna i pulpit
-  { id: 'super-d', label: 'Super + D', description: 'Pokaż / ukryj pulpit' },
-  { id: 'alt-tab', label: 'Alt + Tab', description: 'Przełączanie między oknami' },
-  { id: 'alt-f4', label: 'Alt + F4', description: 'Zamknij okno' },
-  { id: 'super-h', label: 'Super + H', description: 'Ukryj okno' },
-  { id: 'super-arrow-up', label: 'Super + ↑', description: 'Maksymalizuj okno' },
-  { id: 'super-arrow-down', label: 'Super + ↓', description: 'Minimalizuj okno' },
+  { id: 'super-d', label: 'Super + D', description: t('linuxSharingBar.shortcuts.superD') },
+  { id: 'alt-tab', label: 'Alt + Tab', description: t('linuxSharingBar.shortcuts.altTab') },
+  { id: 'alt-f4', label: 'Alt + F4', description: t('linuxSharingBar.shortcuts.altF4') },
+  { id: 'super-h', label: 'Super + H', description: t('linuxSharingBar.shortcuts.superH') },
+  {
+    id: 'super-arrow-up',
+    label: 'Super + ↑',
+    description: t('linuxSharingBar.shortcuts.superArrowUp')
+  },
+  {
+    id: 'super-arrow-down',
+    label: 'Super + ↓',
+    description: t('linuxSharingBar.shortcuts.superArrowDown')
+  },
   // 📂 Pliki i aplikacje
-  { id: 'super-e', label: 'Super + E', description: 'Menedżer plików' },
-  { id: 'alt-f2', label: 'Alt + F2', description: 'Uruchamianie programu' },
+  { id: 'super-e', label: 'Super + E', description: t('linuxSharingBar.shortcuts.superE') },
+  { id: 'alt-f2', label: 'Alt + F2', description: t('linuxSharingBar.shortcuts.altF2') },
   // 📸 Zrzuty ekranu
   {
     id: 'shift-print-screen',
     label: 'Shift + Print Screen',
-    description: 'Zrzut zaznaczonego obszaru'
+    description: t('linuxSharingBar.shortcuts.shiftPrintScreen')
   }
-]
+])
 
-const powerButtons: MenuAction[] = [
+const powerButtons = computed<MenuAction[]>(() => [
   {
     id: 'shutdown',
-    label: 'Wyłącz',
-    description: 'Wyłącz komputer.',
+    label: t('sharingBar.power.shutdownLabel'),
+    description: t('sharingBar.power.shutdownDescription'),
     requiresConfirmation: true
   },
   {
     id: 'restart',
-    label: 'Zresetuj',
-    description: 'Zresetuj komputer.',
+    label: t('sharingBar.power.restartLabel'),
+    description: t('sharingBar.power.restartDescription'),
     requiresConfirmation: true
   },
   {
     id: 'sleep',
-    label: 'Uśpij',
-    description: 'Uśpij komputer.',
+    label: t('sharingBar.power.sleepLabel'),
+    description: t('sharingBar.power.sleepDescription'),
     requiresConfirmation: true
   }
-]
+])
 
-const folderButtons: MenuAction[] = [
-  { id: 'home', label: '~', description: 'Katalog domowy użytkownika' },
-  { id: 'root', label: '/', description: 'Cały system (root)' },
-  { id: 'downloads', label: '~/Pobrane', description: 'Pobrane' },
-  { id: 'documents', label: '~/Dokumenty', description: 'Dokumenty' },
-  { id: 'pictures', label: '~/Obrazy', description: 'Obrazy' },
-  { id: 'music', label: '~/Muzyka', description: 'Muzyka' }
-]
+const folderButtons = computed<MenuAction[]>(() => [
+  { id: 'home', label: '~', description: t('linuxSharingBar.folders.home') },
+  { id: 'root', label: '/', description: t('linuxSharingBar.folders.root') },
+  { id: 'downloads', label: '~/Pobrane', description: t('linuxSharingBar.folders.downloads') },
+  { id: 'documents', label: '~/Dokumenty', description: t('linuxSharingBar.folders.documents') },
+  { id: 'pictures', label: '~/Obrazy', description: t('linuxSharingBar.folders.pictures') },
+  { id: 'music', label: '~/Muzyka', description: t('linuxSharingBar.folders.music') }
+])
 
 // Podział na grupy dla Linux GNOME
-const managementShortcuts = shortcutButtons.filter((item) =>
-  ['super-l', 'ctrl-alt-delete', 'ctrl-alt-t', 'super-e'].includes(item.id)
+const managementShortcuts = computed(() =>
+  shortcutButtons.value.filter((item) =>
+    ['super-l', 'ctrl-alt-delete', 'ctrl-alt-t', 'super-e'].includes(item.id)
+  )
 )
-const availableShortcuts = shortcutButtons.filter(
-  (item) => !['super-l', 'ctrl-alt-delete', 'ctrl-alt-t', 'super-e'].includes(item.id)
+const availableShortcuts = computed(() =>
+  shortcutButtons.value.filter(
+    (item) => !['super-l', 'ctrl-alt-delete', 'ctrl-alt-t', 'super-e'].includes(item.id)
+  )
 )
 
 function handleAction(action: MenuAction): void {
   // Power actions require confirmation before we log the usage.
   if (action.requiresConfirmation) {
-    const confirmed = window.confirm(`Potwierdź akcję: ${action.label}`)
+    const confirmed = window.confirm(`${t('sharingBar.confirmAction')}: ${action.label}`)
     if (!confirmed) {
-      console.log(`[Menu Skrótów] Anulowano: ${action.label}`)
+      console.log(
+        `[${t('sharingBar.logPrefix')}] ${t('sharingBar.actionCanceled')}: ${action.label}`
+      )
       return
     }
   }
 
-  console.log(`[Menu Skrótów] Użyto przycisku: ${action.label}`)
+  console.log(`[${t('sharingBar.logPrefix')}] ${t('sharingBar.buttonUsed')}: ${action.label}`)
 }
 
 // Open and close the full-screen tools overlay.

@@ -2,7 +2,7 @@
   <div class="main-container">
     <SharingNavBar />
     <div id="video-container" ref="videoContainer" class="video-container">
-      <div v-if="!streamActive" class="placeholder">Czekam na sygnał...</div>
+      <div v-if="!streamActive" class="placeholder">{{ $t('shared.waitingSignal') }}</div>
     </div>
   </div>
 </template>

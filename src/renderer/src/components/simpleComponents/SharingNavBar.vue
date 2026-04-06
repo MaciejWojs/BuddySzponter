@@ -16,7 +16,7 @@
         <div class="sharing-navbar__left">
           <button
             class="sharing-navbar__btn"
-            :title="pinned ? 'Odepnij' : 'Przypnij'"
+            :title="pinned ? $t('sharingBar.unpin') : $t('sharingBar.pin')"
             @click="togglePin"
           >
             <UIcon
@@ -24,7 +24,7 @@
               class="sharing-navbar__icon"
             />
           </button>
-          <button class="sharing-navbar__btn" title="Połączenie">
+          <button class="sharing-navbar__btn" :title="$t('sharingBar.connection')">
             <UIcon name="i-lucide-wifi" class="sharing-navbar__icon" />
           </button>
         </div>
@@ -34,7 +34,7 @@
           <span class="sharing-navbar__name">{{ props.hostName }}</span>
           <button
             class="sharing-navbar__btn sharing-navbar__btn--tools"
-            title="Tools"
+            :title="$t('sharingBar.tools')"
             @click="openMenu"
           >
             <UIcon name="i-lucide-settings" class="sharing-navbar__icon" />
@@ -42,12 +42,16 @@
         </div>
 
         <div class="sharing-navbar__right">
-          <button class="sharing-navbar__btn" title="Minimalizuj" @click="handleMinimize">
+          <button
+            class="sharing-navbar__btn"
+            :title="$t('sharingBar.minimize')"
+            @click="handleMinimize"
+          >
             <UIcon name="i-lucide-minus" class="sharing-navbar__icon" />
           </button>
           <button
             class="sharing-navbar__btn sharing-navbar__btn--close"
-            title="Zamknij"
+            :title="$t('sharingBar.close')"
             @click="handleClose"
           >
             <UIcon name="i-lucide-x" class="sharing-navbar__icon" />
@@ -58,7 +62,7 @@
       <template v-else>
         <button
           class="sharing-navbar__btn sharing-navbar__btn--restore"
-          title="Przywróć"
+          :title="$t('sharingBar.restore')"
           @click="handleRestore"
         >
           <UIcon name="i-lucide-users" class="sharing-navbar__icon" />
@@ -70,7 +74,7 @@
   <section
     v-if="isMenuOpen"
     class="shortcuts-overlay"
-    aria-label="Menu skrótów systemowych"
+    :aria-label="$t('sharingBar.shortcutsAriaLabel')"
     @click.self="closeMenu"
   >
     <div class="shortcuts-overlay__backdrop" />
@@ -81,18 +85,18 @@
       </button>
 
       <header class="shortcuts-panel__header">
-        <h2>Panel szybkich akcji</h2>
-        <p>Wszystkie kluczowe skróty i narzędzia w twoim zasięgu</p>
+        <h2>{{ $t('sharingBar.quickActionsPanel') }}</h2>
+        <p>{{ $t('sharingBar.quickActionsDescription') }}</p>
       </header>
 
       <div class="shortcuts-layout">
         <article class="shortcuts-group shortcuts-group--system">
           <h3>
             <UIcon name="i-lucide-keyboard" />
-            Skróty systemowe
+            {{ $t('sharingBar.systemShortcuts') }}
           </h3>
 
-          <p class="shortcuts-group__meta">Zarządzanie systemem</p>
+          <p class="shortcuts-group__meta">{{ $t('sharingBar.systemManagement') }}</p>
           <button
             v-for="item in managementShortcuts"
             :key="item.id"
@@ -114,7 +118,7 @@
             <small class="shortcut-btn__hint">{{ item.description }}</small>
           </button>
 
-          <p class="shortcuts-group__meta">Otwieranie</p>
+          <p class="shortcuts-group__meta">{{ $t('sharingBar.opening') }}</p>
           <button
             v-for="item in availableShortcuts"
             :key="item.id"
@@ -140,9 +144,9 @@
         <article class="shortcuts-group shortcuts-group--folders">
           <h3>
             <UIcon name="i-lucide-folder" />
-            Skróty dostępne
+            {{ $t('sharingBar.availableShortcuts') }}
           </h3>
-          <p class="shortcuts-group__meta">Otwieranie</p>
+          <p class="shortcuts-group__meta">{{ $t('sharingBar.opening') }}</p>
           <div class="shortcuts-folder-grid">
             <button
               v-for="item in folderButtons"
@@ -163,7 +167,7 @@
         <article class="shortcuts-group shortcuts-group--power">
           <h3>
             <UIcon name="i-lucide-power" />
-            Kontrola zasilania
+            {{ $t('sharingBar.powerControl') }}
           </h3>
           <div class="shortcuts-power-row">
             <button
@@ -178,7 +182,9 @@
                   :name="getPowerIcon(item.id)"
                   class="shortcut-btn__mini-icon shortcut-btn__mini-icon--power"
                 />
-                <span class="shortcut-btn__label">{{ item.label }} komputer</span>
+                <span class="shortcut-btn__label"
+                  >{{ item.label }} {{ $t('sharingBar.computerSuffix') }}</span
+                >
               </span>
             </button>
           </div>
@@ -190,6 +196,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 type MenuAction = {
   id: string
@@ -206,6 +213,8 @@ const props = withDefaults(
     hostName: 'Kamil Gruca'
   }
 )
+
+const { t } = useI18n()
 
 // Core UI state: navbar visibility, pin/minimize mode, and tools overlay.
 const isMenuOpen = ref(false)
@@ -231,132 +240,138 @@ const wrapperStyle = computed(() => ({
 }))
 
 // Full list of actions rendered in the tools panel.
-const shortcutButtons: MenuAction[] = [
+const shortcutButtons = computed<MenuAction[]>(() => [
   {
     id: 'ctrl-shift-esc',
     label: 'Ctrl + Shift + Esc',
-    description: 'Bezpośrednio otwiera Menedżer zadań.'
+    description: t('sharingBar.shortcuts.ctrlShiftEsc')
   },
   {
     id: 'ctrl-alt-delete',
     label: 'Ctrl + Alt + Delete',
-    description: 'Otwiera menu bezpieczeństwa.'
+    description: t('sharingBar.shortcuts.ctrlAltDelete')
   },
   {
     id: 'win-l',
     label: 'Win + L',
-    description: 'Blokuje komputer.'
+    description: t('sharingBar.shortcuts.winL')
   },
   {
     id: 'win-d',
     label: 'Win + D',
-    description: 'Pokaż / ukryj pulpit.'
+    description: t('sharingBar.shortcuts.winD')
   },
   {
     id: 'win-m',
     label: 'Win + M',
-    description: 'Minimalizuj wszystkie okna.'
+    description: t('sharingBar.shortcuts.winM')
   },
   {
     id: 'win-e',
     label: 'Win + E',
-    description: 'Otwiera eksplorator plików.'
+    description: t('sharingBar.shortcuts.winE')
   },
   {
     id: 'win-r',
     label: 'Win + R',
-    description: 'Otwiera okno Uruchamianie (Run).'
+    description: t('sharingBar.shortcuts.winR')
   },
   {
     id: 'win-i',
     label: 'Win + I',
-    description: 'Otwiera ustawienia systemu.'
+    description: t('sharingBar.shortcuts.winI')
   },
   {
     id: 'win-x',
     label: 'Win + X',
-    description: 'Menu administratora'
+    description: t('sharingBar.shortcuts.winX')
   },
   {
     id: 'win-shift-s',
     label: 'Win + Shift + S',
-    description: 'Narzędzie do zaznaczania fragmentu ekranu.'
+    description: t('sharingBar.shortcuts.winShiftS')
   }
-]
+])
 
-const powerButtons: MenuAction[] = [
+const powerButtons = computed<MenuAction[]>(() => [
   {
     id: 'shutdown',
-    label: 'Wyłącz',
-    description: 'Wyłącz komputer.',
+    label: t('sharingBar.power.shutdownLabel'),
+    description: t('sharingBar.power.shutdownDescription'),
     requiresConfirmation: true
   },
   {
     id: 'restart',
-    label: 'Zresetuj',
-    description: 'Zresetuj komputer.',
+    label: t('sharingBar.power.restartLabel'),
+    description: t('sharingBar.power.restartDescription'),
     requiresConfirmation: true
   },
   {
     id: 'sleep',
-    label: 'Uśpij',
-    description: 'Uśpij komputer.',
+    label: t('sharingBar.power.sleepLabel'),
+    description: t('sharingBar.power.sleepDescription'),
     requiresConfirmation: true
   }
-]
+])
 
-const folderButtons: MenuAction[] = [
+const folderButtons = computed<MenuAction[]>(() => [
   {
     id: 'this-pc',
-    label: 'Ten komputer',
-    description: 'Folder systemowy: Ten komputer.'
+    label: t('sharingBar.folders.thisPcLabel'),
+    description: t('sharingBar.folders.thisPcDescription')
   },
   {
     id: 'downloads',
-    label: 'Pobrane',
-    description: 'Folder: Pobrane.'
+    label: t('sharingBar.folders.downloadsLabel'),
+    description: t('sharingBar.folders.downloadsDescription')
   },
   {
     id: 'documents',
-    label: 'Dokumenty',
-    description: 'Folder: Dokumenty.'
+    label: t('sharingBar.folders.documentsLabel'),
+    description: t('sharingBar.folders.documentsDescription')
   },
   {
     id: 'pictures',
-    label: 'Obrazy',
-    description: 'Folder: Obrazy.'
+    label: t('sharingBar.folders.picturesLabel'),
+    description: t('sharingBar.folders.picturesDescription')
   },
   {
     id: 'music',
-    label: 'Muzyka',
-    description: 'Folder: Muzyka.'
+    label: t('sharingBar.folders.musicLabel'),
+    description: t('sharingBar.folders.musicDescription')
   },
   {
     id: 'profile',
-    label: 'Profil (%userprofile%)',
-    description: 'Folder profilu użytkownika.'
+    label: t('sharingBar.folders.profileLabel'),
+    description: t('sharingBar.folders.profileDescription')
   }
-]
+])
 
 // Split shortcuts into two groups to match the system panel layout.
-const managementShortcuts = shortcutButtons.filter(
-  (item) => item.id === 'ctrl-shift-esc' || item.id === 'ctrl-alt-delete'
+const managementShortcuts = computed(() =>
+  shortcutButtons.value.filter(
+    (item) => item.id === 'ctrl-shift-esc' || item.id === 'ctrl-alt-delete'
+  )
 )
-const availableShortcuts = shortcutButtons.filter(
-  (item) => item.id !== 'ctrl-shift-esc' && item.id !== 'ctrl-alt-delete'
+const availableShortcuts = computed(() =>
+  shortcutButtons.value.filter(
+    (item) => item.id !== 'ctrl-shift-esc' && item.id !== 'ctrl-alt-delete'
+  )
 )
 
 function handleAction(action: MenuAction): void {
   // Power actions require confirmation before we log the usage.
   if (action.requiresConfirmation) {
-    const confirmed = window.confirm(`Potwierdź akcję: ${action.label}`)
+    const confirmed = window.confirm(`${t('sharingBar.confirmAction')}: ${action.label}`)
     if (!confirmed) {
-      console.log(`[Menu Skrótów] Anulowano: ${action.label}`)
+      console.log(
+        `[${t('sharingBar.logPrefix')}] ${t('sharingBar.actionCanceled')}: ${action.label}`
+      )
       return
     }
   }
 
-  console.log(`[Menu Skrótów] Użyto przycisku: ${action.label}`)
+  console.log(`[${t('sharingBar.logPrefix')}] ${t('sharingBar.buttonUsed')}: ${action.label}`)
 }
 
 // Open and close the full-screen tools overlay.
