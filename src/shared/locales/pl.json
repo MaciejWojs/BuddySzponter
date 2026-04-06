@@ -30,7 +30,23 @@
     "version": "Wersja aplikacji",
     "logout": "Wyloguj się",
     "settings": "Ustawienia",
-    "profile": "Profil"
+    "profile": "Profil",
+    "yourAccount": "Twoje konto",
+    "sessionRecordings": "Nagrania sesji",
+    "userPanelTitle": "Panel użytkownika",
+    "emailLabel": "Adres email",
+    "nicknameLabel": "Pseudonim",
+    "resetPassword": "Resetowanie hasła",
+    "changeAvatar": "Zmień awatar",
+    "deleteAccount": "Usuń konto",
+    "defaultUser": "Użytkownik",
+    "avatarAlt": "Awatar użytkownika",
+    "resetPasswordSent": "Link do resetu hasła został wysłany na adres",
+    "avatarChangedTo": "Awatar został zmieniony na",
+    "avatarChangeError": "Wystąpił błąd podczas zmiany awatara.",
+    "deleteAccountConfirm": "Czy na pewno chcesz usunąć konto? Tej operacji nie można cofnąć.",
+    "deleteAccountAccepted": "Żądanie usunięcia konta zostało przyjęte.",
+    "deleteAccountCancelled": "Usuwanie konta anulowane."
   },
   "validation": {
     "invalidEmail": "Wprowadź poprawny adres e-mail",
@@ -58,7 +74,8 @@
     "sessionCode": "Kod sesji",
     "sessionPassword": "Hasło sesji",
     "joinButton": "Dołącz",
-    "timeToJoin": "Pozostały czas:"
+    "timeToJoin": "Pozostały czas:",
+    "copySessionCode": "Skopiuj kod sesji"
   },
   "alert": {
     "success": "Sukces",
@@ -86,6 +103,171 @@
       "bd": "Bengalski",
       "br": "Brazylijski",
       "us": "Amerykański"
+    }
+  },
+  "common": {
+    "logoAlt": "Logo BuddySzponter",
+    "showPassword": "Pokaż hasło",
+    "hidePassword": "Ukryj hasło"
+  },
+  "register": {
+    "successCreated": "Sukces, konto zostało utworzone"
+  },
+  "shared": {
+    "waitingSignal": "Czekam na sygnał..."
+  },
+  "updateRequired": {
+    "title": "Wymagana aktualizacja aplikacji",
+    "description": "Ta wersja nie jest już wspierana. Zainstaluj najnowszą wersję, aby odblokować aplikację.",
+    "statusLine": "Status wersji",
+    "retry": "Sprawdź ponownie"
+  },
+  "userVersion": {
+    "modalTitle": "Panel kontroli wersji",
+    "currentVersion": "Aktualna wersja",
+    "availableVersions": "Dostępne wersje",
+    "versionStatus": "Status wersji",
+    "currentVersionLabel": "Aktualna wersja aplikacji",
+    "availableVersionsLabel": "Dostępne wersje",
+    "versionStatusLabel": "Status wersji",
+    "noAvailableVersions": "Brak dostępnych wersji.",
+    "fetchError": "Błąd pobierania wersji",
+    "statusError": "Błąd sprawdzania statusu wersji"
+  },
+  "apiTestPanel": {
+    "title": "Panel Testowy API (Auth)",
+    "loading": "Ładowanie...",
+    "fetchingCurrentUser": "Pobieranie danych aktualnego użytkownika...",
+    "waitingForFileSelection": "Oczekiwanie na wybór pliku...",
+    "readingFile": "Czytanie pliku do pamięci...",
+    "noFilesFound": "Nie znaleziono plików.",
+    "notImageFile": "To nie jest plik obrazu!",
+    "waitingAction": "Czekam na akcję...",
+    "electronResult": "Wynik z Electrona:",
+    "registration": {
+      "title": "Rejestracja",
+      "nicknamePlaceholder": "Nickname (min 3 znaki)",
+      "passwordPlaceholder": "Hasło (min 8 znaków)",
+      "passwordConfirmPlaceholder": "Powtórz hasło",
+      "submit": "Zarejestruj"
+    },
+    "login": {
+      "title": "Logowanie",
+      "passwordPlaceholder": "Hasło",
+      "submit": "Zaloguj"
+    },
+    "sessionActions": {
+      "title": "Akcje Sesji",
+      "description": "Przetestuj z tokenem i bez:",
+      "getMe": "Pobierz Profil (/me)",
+      "logout": "Wyloguj"
+    },
+    "profile": {
+      "title": "Twój Profil",
+      "getCurrentUser": "Pobierz Aktualnego Usera",
+      "avatarAlt": "Avatar użytkownika",
+      "roleLabel": "Rola",
+      "banned": "Zbanowany",
+      "deleted": "Usunięty",
+      "emptyState": "Brak załadowanych danych. Kliknij przycisk powyżej lub zaloguj się."
+    },
+    "avatarManagement": {
+      "title": "Zarządzanie Użytkownikiem (Avatar)",
+      "dragHint": "Przeciągnij zdjęcie tutaj lub użyj przycisku ->",
+      "dropNow": "UPUŚĆ TERAZ!",
+      "selectFile": "Wybierz plik"
+    },
+    "core": {
+      "title": "Języki / Core",
+      "supportedVersions": "Supported Versions",
+      "languages": "Lista Języków",
+      "getLocale": "Pobierz Locale (pl)"
+    },
+    "versions": {
+      "title": "Wersje",
+      "currentVersion": "Aktualna wersja",
+      "availableVersions": "Dostępne wersje",
+      "versionStatus": "Status wersji"
+    }
+  },
+  "sharingBar": {
+    "pin": "Przypnij",
+    "unpin": "Odepnij",
+    "connection": "Połączenie",
+    "tools": "Narzędzia",
+    "minimize": "Minimalizuj",
+    "close": "Zamknij",
+    "restore": "Przywróć",
+    "shortcutsAriaLabel": "Menu skrótów systemowych",
+    "quickActionsPanel": "Panel szybkich akcji",
+    "quickActionsDescription": "Wszystkie kluczowe skróty i narzędzia w twoim zasięgu",
+    "systemShortcuts": "Skróty systemowe",
+    "systemManagement": "Zarządzanie systemem",
+    "opening": "Otwieranie",
+    "availableShortcuts": "Skróty dostępne",
+    "powerControl": "Kontrola zasilania",
+    "computerSuffix": "komputer",
+    "confirmAction": "Potwierdź akcję",
+    "logPrefix": "Menu Skrótów",
+    "actionCanceled": "Anulowano",
+    "buttonUsed": "Użyto przycisku",
+    "shortcuts": {
+      "ctrlShiftEsc": "Bezpośrednio otwiera Menedżer zadań.",
+      "ctrlAltDelete": "Otwiera menu bezpieczeństwa.",
+      "winL": "Blokuje komputer.",
+      "winD": "Pokaż / ukryj pulpit.",
+      "winM": "Minimalizuj wszystkie okna.",
+      "winE": "Otwiera eksplorator plików.",
+      "winR": "Otwiera okno Uruchamianie (Run).",
+      "winI": "Otwiera ustawienia systemu.",
+      "winX": "Menu administratora",
+      "winShiftS": "Narzędzie do zaznaczania fragmentu ekranu."
+    },
+    "power": {
+      "shutdownLabel": "Wyłącz",
+      "shutdownDescription": "Wyłącz komputer.",
+      "restartLabel": "Zresetuj",
+      "restartDescription": "Zresetuj komputer.",
+      "sleepLabel": "Uśpij",
+      "sleepDescription": "Uśpij komputer."
+    },
+    "folders": {
+      "thisPcLabel": "Ten komputer",
+      "thisPcDescription": "Folder systemowy: Ten komputer.",
+      "downloadsLabel": "Pobrane",
+      "downloadsDescription": "Folder: Pobrane.",
+      "documentsLabel": "Dokumenty",
+      "documentsDescription": "Folder: Dokumenty.",
+      "picturesLabel": "Obrazy",
+      "picturesDescription": "Folder: Obrazy.",
+      "musicLabel": "Muzyka",
+      "musicDescription": "Folder: Muzyka.",
+      "profileLabel": "Profil (%userprofile%)",
+      "profileDescription": "Folder profilu użytkownika."
+    }
+  },
+  "linuxSharingBar": {
+    "shortcuts": {
+      "superL": "Blokada komputera",
+      "ctrlAltDelete": "Wylogowanie / wyłączenie (zależne od systemu)",
+      "ctrlAltT": "Otwiera terminal",
+      "superD": "Pokaż / ukryj pulpit",
+      "altTab": "Przełączanie między oknami",
+      "altF4": "Zamknij okno",
+      "superH": "Ukryj okno",
+      "superArrowUp": "Maksymalizuj okno",
+      "superArrowDown": "Minimalizuj okno",
+      "superE": "Menedżer plików",
+      "altF2": "Uruchamianie programu",
+      "shiftPrintScreen": "Zrzut zaznaczonego obszaru"
+    },
+    "folders": {
+      "home": "Katalog domowy użytkownika",
+      "root": "Cały system (root)",
+      "downloads": "Pobrane",
+      "documents": "Dokumenty",
+      "pictures": "Obrazy",
+      "music": "Muzyka"
     }
   }
 }

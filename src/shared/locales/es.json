@@ -30,7 +30,23 @@
     "version": "Versión de la aplicación",
     "logout": "Cerrar sesión",
     "settings": "Configuración",
-    "profile": "Perfil"
+    "profile": "Perfil",
+    "yourAccount": "Tu cuenta",
+    "sessionRecordings": "Grabaciones de sesión",
+    "userPanelTitle": "Panel de usuario",
+    "emailLabel": "Correo electrónico",
+    "nicknameLabel": "Apodo",
+    "resetPassword": "Restablecer contraseña",
+    "changeAvatar": "Cambiar avatar",
+    "deleteAccount": "Eliminar cuenta",
+    "defaultUser": "Usuario",
+    "avatarAlt": "Avatar del usuario",
+    "resetPasswordSent": "Enlace para restablecer contraseña enviado a",
+    "avatarChangedTo": "Avatar cambiado a",
+    "avatarChangeError": "Ocurrió un error al cambiar el avatar.",
+    "deleteAccountConfirm": "¿Seguro que quieres eliminar la cuenta? Esta acción no se puede deshacer.",
+    "deleteAccountAccepted": "La solicitud de eliminación de cuenta ha sido aceptada.",
+    "deleteAccountCancelled": "Eliminación de cuenta cancelada."
   },
   "validation": {
     "invalidEmail": "Introduce una dirección de correo válida",
@@ -58,7 +74,8 @@
     "sessionCode": "Código de sesión",
     "sessionPassword": "Contraseña de sesión",
     "joinButton": "Unirse",
-    "timeToJoin": "Tiempo restante:"
+    "timeToJoin": "Tiempo restante:",
+    "copySessionCode": "Copiar código de sesión"
   },
   "alert": {
     "success": "Éxito",
@@ -86,6 +103,171 @@
       "bd": "Bengalí",
       "br": "Brasileño",
       "us": "Estadounidense"
+    }
+  },
+  "common": {
+    "logoAlt": "Logo de BuddySzponter",
+    "showPassword": "Mostrar contraseña",
+    "hidePassword": "Ocultar contraseña"
+  },
+  "register": {
+    "successCreated": "Éxito, la cuenta ha sido creada"
+  },
+  "shared": {
+    "waitingSignal": "Esperando señal..."
+  },
+  "updateRequired": {
+    "title": "Actualización de la aplicación requerida",
+    "description": "Esta versión ya no es compatible. Instala la última versión para desbloquear la aplicación.",
+    "statusLine": "Estado de versión",
+    "retry": "Comprobar de nuevo"
+  },
+  "userVersion": {
+    "modalTitle": "Panel de control de versiones",
+    "currentVersion": "Versión actual",
+    "availableVersions": "Versiones disponibles",
+    "versionStatus": "Estado de versión",
+    "currentVersionLabel": "Versión actual de la aplicación",
+    "availableVersionsLabel": "Versiones disponibles",
+    "versionStatusLabel": "Estado de versión",
+    "noAvailableVersions": "No hay versiones disponibles.",
+    "fetchError": "Error al obtener versiones",
+    "statusError": "Error al comprobar estado de versión"
+  },
+  "apiTestPanel": {
+    "title": "Panel de Pruebas API (Auth)",
+    "loading": "Cargando...",
+    "fetchingCurrentUser": "Obteniendo datos del usuario actual...",
+    "waitingForFileSelection": "Esperando selección de archivo...",
+    "readingFile": "Leyendo archivo en memoria...",
+    "noFilesFound": "No se encontraron archivos.",
+    "notImageFile": "¡Este no es un archivo de imagen!",
+    "waitingAction": "Esperando acción...",
+    "electronResult": "Resultado de Electron:",
+    "registration": {
+      "title": "Registro",
+      "nicknamePlaceholder": "Nombre de usuario (mín. 3 caracteres)",
+      "passwordPlaceholder": "Contraseña (mín. 8 caracteres)",
+      "passwordConfirmPlaceholder": "Confirmar contraseña",
+      "submit": "Registrarse"
+    },
+    "login": {
+      "title": "Inicio de sesión",
+      "passwordPlaceholder": "Contraseña",
+      "submit": "Iniciar sesión"
+    },
+    "sessionActions": {
+      "title": "Acciones de sesión",
+      "description": "Prueba con token y sin token:",
+      "getMe": "Obtener perfil (/me)",
+      "logout": "Cerrar sesión"
+    },
+    "profile": {
+      "title": "Tu perfil",
+      "getCurrentUser": "Obtener usuario actual",
+      "avatarAlt": "Avatar del usuario",
+      "roleLabel": "Rol",
+      "banned": "Bloqueado",
+      "deleted": "Eliminado",
+      "emptyState": "No hay datos cargados. Haz clic en el botón de arriba o inicia sesión."
+    },
+    "avatarManagement": {
+      "title": "Gestión de usuario (Avatar)",
+      "dragHint": "Arrastra una foto aquí o usa el botón ->",
+      "dropNow": "¡SUELTA AHORA!",
+      "selectFile": "Seleccionar archivo"
+    },
+    "core": {
+      "title": "Idiomas / Core",
+      "supportedVersions": "Versiones soportadas",
+      "languages": "Lista de idiomas",
+      "getLocale": "Obtener locale (es)"
+    },
+    "versions": {
+      "title": "Versiones",
+      "currentVersion": "Versión actual",
+      "availableVersions": "Versiones disponibles",
+      "versionStatus": "Estado de versión"
+    }
+  },
+  "sharingBar": {
+    "pin": "Fijar",
+    "unpin": "Desfijar",
+    "connection": "Conexión",
+    "tools": "Herramientas",
+    "minimize": "Minimizar",
+    "close": "Cerrar",
+    "restore": "Restaurar",
+    "shortcutsAriaLabel": "Menú de atajos del sistema",
+    "quickActionsPanel": "Panel de acciones rápidas",
+    "quickActionsDescription": "Todos los atajos y herramientas clave a tu alcance",
+    "systemShortcuts": "Atajos del sistema",
+    "systemManagement": "Gestión del sistema",
+    "opening": "Abrir",
+    "availableShortcuts": "Atajos disponibles",
+    "powerControl": "Control de energía",
+    "computerSuffix": "equipo",
+    "confirmAction": "Confirmar acción",
+    "logPrefix": "Menú de Atajos",
+    "actionCanceled": "Cancelado",
+    "buttonUsed": "Botón usado",
+    "shortcuts": {
+      "ctrlShiftEsc": "Abre directamente el Administrador de tareas.",
+      "ctrlAltDelete": "Abre el menú de seguridad.",
+      "winL": "Bloquea el equipo.",
+      "winD": "Mostrar / ocultar escritorio.",
+      "winM": "Minimiza todas las ventanas.",
+      "winE": "Abre el explorador de archivos.",
+      "winR": "Abre la ventana Ejecutar.",
+      "winI": "Abre la configuración del sistema.",
+      "winX": "Menú de administrador",
+      "winShiftS": "Herramienta de recorte de pantalla."
+    },
+    "power": {
+      "shutdownLabel": "Apagar",
+      "shutdownDescription": "Apagar el equipo.",
+      "restartLabel": "Reiniciar",
+      "restartDescription": "Reiniciar el equipo.",
+      "sleepLabel": "Suspender",
+      "sleepDescription": "Poner el equipo en suspensión."
+    },
+    "folders": {
+      "thisPcLabel": "Este equipo",
+      "thisPcDescription": "Carpeta del sistema: Este equipo.",
+      "downloadsLabel": "Descargas",
+      "downloadsDescription": "Carpeta: Descargas.",
+      "documentsLabel": "Documentos",
+      "documentsDescription": "Carpeta: Documentos.",
+      "picturesLabel": "Imágenes",
+      "picturesDescription": "Carpeta: Imágenes.",
+      "musicLabel": "Música",
+      "musicDescription": "Carpeta: Música.",
+      "profileLabel": "Perfil (%userprofile%)",
+      "profileDescription": "Carpeta de perfil del usuario."
+    }
+  },
+  "linuxSharingBar": {
+    "shortcuts": {
+      "superL": "Bloquear equipo",
+      "ctrlAltDelete": "Cerrar sesión / apagar (según sistema)",
+      "ctrlAltT": "Abrir terminal",
+      "superD": "Mostrar / ocultar escritorio",
+      "altTab": "Cambiar entre ventanas",
+      "altF4": "Cerrar ventana",
+      "superH": "Ocultar ventana",
+      "superArrowUp": "Maximizar ventana",
+      "superArrowDown": "Minimizar ventana",
+      "superE": "Administrador de archivos",
+      "altF2": "Ejecutar aplicación",
+      "shiftPrintScreen": "Capturar área seleccionada"
+    },
+    "folders": {
+      "home": "Directorio personal del usuario",
+      "root": "Sistema completo (root)",
+      "downloads": "Descargas",
+      "documents": "Documentos",
+      "pictures": "Imágenes",
+      "music": "Música"
     }
   }
 }

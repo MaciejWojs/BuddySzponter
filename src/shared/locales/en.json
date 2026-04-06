@@ -30,7 +30,23 @@
     "version": "App version",
     "logout": "Log out",
     "settings": "Settings",
-    "profile": "Profile"
+    "profile": "Profile",
+    "yourAccount": "Your account",
+    "sessionRecordings": "Session recordings",
+    "userPanelTitle": "User panel",
+    "emailLabel": "Email",
+    "nicknameLabel": "Nickname",
+    "resetPassword": "Reset password",
+    "changeAvatar": "Change avatar",
+    "deleteAccount": "Delete account",
+    "defaultUser": "User",
+    "avatarAlt": "User avatar",
+    "resetPasswordSent": "Password reset link sent to",
+    "avatarChangedTo": "Avatar changed to",
+    "avatarChangeError": "An error occurred while changing avatar.",
+    "deleteAccountConfirm": "Are you sure you want to delete your account? This action cannot be undone.",
+    "deleteAccountAccepted": "Account deletion request has been accepted.",
+    "deleteAccountCancelled": "Account deletion canceled."
   },
   "validation": {
     "invalidEmail": "Enter a valid email address",
@@ -58,7 +74,8 @@
     "sessionCode": "Session code",
     "sessionPassword": "Session password",
     "joinButton": "Join",
-    "timeToJoin": "Time left:"
+    "timeToJoin": "Time left:",
+    "copySessionCode": "Copy session code"
   },
   "alert": {
     "success": "Success",
@@ -86,6 +103,171 @@
       "bd": "Bengali",
       "br": "Brazilian",
       "us": "American"
+    }
+  },
+  "common": {
+    "logoAlt": "BuddySzponter logo",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password"
+  },
+  "register": {
+    "successCreated": "Success, account has been created"
+  },
+  "shared": {
+    "waitingSignal": "Waiting for signal..."
+  },
+  "updateRequired": {
+    "title": "Application update required",
+    "description": "This version is no longer supported. Install the latest version to unlock the application.",
+    "statusLine": "Version status",
+    "retry": "Check again"
+  },
+  "userVersion": {
+    "modalTitle": "Version control panel",
+    "currentVersion": "Current version",
+    "availableVersions": "Available versions",
+    "versionStatus": "Version status",
+    "currentVersionLabel": "Current app version",
+    "availableVersionsLabel": "Available versions",
+    "versionStatusLabel": "Version status",
+    "noAvailableVersions": "No available versions.",
+    "fetchError": "Version fetch error",
+    "statusError": "Version status check error"
+  },
+  "apiTestPanel": {
+    "title": "API Test Panel (Auth)",
+    "loading": "Loading...",
+    "fetchingCurrentUser": "Fetching current user data...",
+    "waitingForFileSelection": "Waiting for file selection...",
+    "readingFile": "Reading file into memory...",
+    "noFilesFound": "No files found.",
+    "notImageFile": "This is not an image file!",
+    "waitingAction": "Waiting for action...",
+    "electronResult": "Result from Electron:",
+    "registration": {
+      "title": "Registration",
+      "nicknamePlaceholder": "Nickname (min 3 chars)",
+      "passwordPlaceholder": "Password (min 8 chars)",
+      "passwordConfirmPlaceholder": "Confirm password",
+      "submit": "Register"
+    },
+    "login": {
+      "title": "Login",
+      "passwordPlaceholder": "Password",
+      "submit": "Log in"
+    },
+    "sessionActions": {
+      "title": "Session Actions",
+      "description": "Test with token and without:",
+      "getMe": "Get Profile (/me)",
+      "logout": "Log out"
+    },
+    "profile": {
+      "title": "Your Profile",
+      "getCurrentUser": "Get Current User",
+      "avatarAlt": "User Avatar",
+      "roleLabel": "Role",
+      "banned": "Banned",
+      "deleted": "Deleted",
+      "emptyState": "No data loaded. Click the button above or log in."
+    },
+    "avatarManagement": {
+      "title": "User Management (Avatar)",
+      "dragHint": "Drag a photo here or use the button ->",
+      "dropNow": "DROP NOW!",
+      "selectFile": "Choose file"
+    },
+    "core": {
+      "title": "Languages / Core",
+      "supportedVersions": "Supported Versions",
+      "languages": "Language List",
+      "getLocale": "Get Locale (en)"
+    },
+    "versions": {
+      "title": "Versions",
+      "currentVersion": "Current version",
+      "availableVersions": "Available versions",
+      "versionStatus": "Version status"
+    }
+  },
+  "sharingBar": {
+    "pin": "Pin",
+    "unpin": "Unpin",
+    "connection": "Connection",
+    "tools": "Tools",
+    "minimize": "Minimize",
+    "close": "Close",
+    "restore": "Restore",
+    "shortcutsAriaLabel": "System shortcuts menu",
+    "quickActionsPanel": "Quick actions panel",
+    "quickActionsDescription": "All key shortcuts and tools within your reach",
+    "systemShortcuts": "System shortcuts",
+    "systemManagement": "System management",
+    "opening": "Opening",
+    "availableShortcuts": "Available shortcuts",
+    "powerControl": "Power control",
+    "computerSuffix": "computer",
+    "confirmAction": "Confirm action",
+    "logPrefix": "Shortcuts Menu",
+    "actionCanceled": "Canceled",
+    "buttonUsed": "Button used",
+    "shortcuts": {
+      "ctrlShiftEsc": "Directly opens Task Manager.",
+      "ctrlAltDelete": "Opens security menu.",
+      "winL": "Locks the computer.",
+      "winD": "Show / hide desktop.",
+      "winM": "Minimize all windows.",
+      "winE": "Opens file explorer.",
+      "winR": "Opens Run dialog.",
+      "winI": "Opens system settings.",
+      "winX": "Admin menu",
+      "winShiftS": "Snippet tool for screen capture."
+    },
+    "power": {
+      "shutdownLabel": "Shutdown",
+      "shutdownDescription": "Turn off the computer.",
+      "restartLabel": "Restart",
+      "restartDescription": "Restart the computer.",
+      "sleepLabel": "Sleep",
+      "sleepDescription": "Put the computer to sleep."
+    },
+    "folders": {
+      "thisPcLabel": "This PC",
+      "thisPcDescription": "System folder: This PC.",
+      "downloadsLabel": "Downloads",
+      "downloadsDescription": "Folder: Downloads.",
+      "documentsLabel": "Documents",
+      "documentsDescription": "Folder: Documents.",
+      "picturesLabel": "Pictures",
+      "picturesDescription": "Folder: Pictures.",
+      "musicLabel": "Music",
+      "musicDescription": "Folder: Music.",
+      "profileLabel": "Profile (%userprofile%)",
+      "profileDescription": "User profile folder."
+    }
+  },
+  "linuxSharingBar": {
+    "shortcuts": {
+      "superL": "Lock computer",
+      "ctrlAltDelete": "Logout / shutdown (depends on system)",
+      "ctrlAltT": "Open terminal",
+      "superD": "Show / hide desktop",
+      "altTab": "Switch between windows",
+      "altF4": "Close window",
+      "superH": "Hide window",
+      "superArrowUp": "Maximize window",
+      "superArrowDown": "Minimize window",
+      "superE": "File manager",
+      "altF2": "Run application",
+      "shiftPrintScreen": "Capture selected area"
+    },
+    "folders": {
+      "home": "User home directory",
+      "root": "Entire system (root)",
+      "downloads": "Downloads",
+      "documents": "Documents",
+      "pictures": "Pictures",
+      "music": "Music"
     }
   }
 }
