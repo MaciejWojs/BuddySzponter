@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useSettingsStore } from '@renderer/stores/settingsStore'
 import { useUserStore } from '@renderer/stores/userStore'
+const { t } = useI18n()
 
 const toaster = { position: 'top-right', duration: 3000, dismissible: true, max: 3, expand: false }
 
@@ -35,13 +36,13 @@ async function retryVersionCheck(): Promise<void> {
       aria-modal="true"
     >
       <div class="update-required-card">
-        <h2>Wymagana aktualizacja aplikacji</h2>
+        <h2>{{ t('updateRequired.title') }}</h2>
         <p>
-          Ta wersja nie jest juz wspierana. Zainstaluj najnowsza wersje, aby odblokowac aplikacje.
+          {{ t('updateRequired.description') }}
         </p>
-        <p class="status-line">Status wersji: {{ versionStatus }}</p>
+        <p class="status-line">{{ t('updateRequired.statusLine') }}: {{ versionStatus }}</p>
         <button type="button" class="retry-button" @click="retryVersionCheck">
-          Sprawdz ponownie
+          {{ t('updateRequired.retry') }}
         </button>
       </div>
     </div>
