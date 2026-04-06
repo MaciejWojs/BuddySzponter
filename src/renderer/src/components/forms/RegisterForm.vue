@@ -87,6 +87,10 @@
       </template>
     </GrayButton>
 
+    <div>
+      <div class="text-red-500 text-sm mt-1 h-2">{{ genericError }}</div>
+    </div>
+
     <div class="w-full max-w-sm space-y-1 text-center mt-2">
       <div class="flex items-center justify-center gap-1 text-sm text-white opacity-80">
         <span>{{ t('login.haveAccount') || 'Posiadasz już konto?' }}</span>
@@ -106,6 +110,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { storeToRefs } from 'pinia'
 const { t } = useI18n()
 
 // Custom svg components
@@ -113,15 +118,18 @@ import Mail from '@images/components/mail.svg?component'
 import { useAppToast } from '@renderer/composables/useAppToast'
 import buddySzponterLogo from '@images/buddyszponterLogo.png'
 import zxcvbn from 'zxcvbn'
+import { useUserStore } from '@renderer/stores/userStore'
 
 import { useRouter } from 'vue-router'
 const { custom: toastCustom } = useAppToast()
 const router = useRouter()
+const userStore = useUserStore()
+const { isRegistering, errorMessage, fieldErrors } = storeToRefs(userStore)
 
 // State
 const showPassword = ref(false)
 const showConfirmPassword = ref(false)
-const isLoading = ref(false)
+const isLoading = computed(() => isRegistering.value)
 
 // validator
 const registerValidator = computed(() =>
@@ -146,7 +154,7 @@ const registerValidator = computed(() =>
   )
 )
 
-const { errors, defineField, handleSubmit } = useForm({
+const { errors, defineField, handleSubmit, setErrors } = useForm({
   validationSchema: registerValidator,
   initialValues: {
     email: '',
@@ -163,24 +171,28 @@ const [confirmPassword] = defineField('confirmPassword')
 
 const strong = computed(() => zxcvbn(password.value ?? '').score)
 
-// Generic error state for register failures
-const genericError = ref<string | null>(null)
+const genericError = computed(() => errorMessage.value)
 
-const handleRegister = handleSubmit((values) => {
-  console.log('Register values:', values)
+const handleRegister = handleSubmit(async (values) => {
+  const success = await userStore.register({
+    email: values.email,
+    nickname: values.nickname,
+    password: values.password,
+    confirmPassword: values.confirmPassword
+  })
 
-  try {
-    isLoading.value = true
-    setTimeout(() => {
-      toastCustom('Sukces, konto zostało utworzone', '')
-      genericError.value = null
-      isLoading.value = false
-    }, 2000)
-  } catch (apiError: unknown) {
-    console.error('Register error:', apiError)
-    genericError.value = 'Coś poszło nie tak po stronie serwera. Spróbuj później.'
-    isLoading.value = false
+  if (!success) {
+    setErrors({
+      email: fieldErrors.value.email,
+      nickname: fieldErrors.value.nickname,
+      password: fieldErrors.value.password,
+      confirmPassword: fieldErrors.value.passwordConfirm || fieldErrors.value.confirmPassword
+    })
+    return
   }
+
+  toastCustom('Sukces, konto zostalo utworzone', '')
+  await router.push('/login')
 })
 
 function goToLogin(): void {
