@@ -6,6 +6,30 @@ import { i18n, type AppMessages } from '@renderer/i18n'
 
 const toAppMessages = (value: Translation): AppMessages => value as AppMessages
 
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+
+const mergeMessages = (
+  base: Record<string, unknown>,
+  override: Record<string, unknown>
+): Record<string, unknown> => {
+  const result: Record<string, unknown> = { ...base }
+
+  for (const key of Object.keys(override)) {
+    const baseValue = result[key]
+    const overrideValue = override[key]
+
+    if (isPlainObject(baseValue) && isPlainObject(overrideValue)) {
+      result[key] = mergeMessages(baseValue, overrideValue)
+      continue
+    }
+
+    result[key] = overrideValue
+  }
+
+  return result
+}
+
 export class LanguageService {
   constructor(
     private selectedLanguageRef: Ref<AppLanguage>,
@@ -33,11 +57,17 @@ export class LanguageService {
         this.availableLanguagesRef.value = availableLangsRes.data
       }
 
-      // --- NOWE (vue-i18n) ---
+      // Keep bundled locale as base and layer API translations on top.
       if (initialTranslations) {
-        i18n.global.setLocaleMessage(savedLang, toAppMessages(initialTranslations))
-        i18n.global.locale.value = savedLang as unknown as 'en'
+        const baseMessages = i18n.global.getLocaleMessage(savedLang as unknown as 'en')
+        const mergedMessages = mergeMessages(
+          baseMessages as Record<string, unknown>,
+          toAppMessages(initialTranslations) as unknown as Record<string, unknown>
+        )
+        i18n.global.setLocaleMessage(savedLang, mergedMessages as unknown as AppMessages)
       }
+
+      i18n.global.locale.value = savedLang as unknown as 'en'
     } catch (error) {
       console.error('[LanguageService] Failed to initialize:', error)
     } finally {
@@ -59,7 +89,13 @@ export class LanguageService {
       this.selectedLanguageRef.value = lang
       this.translationsRef.value = newTranslations
 
-      i18n.global.setLocaleMessage(lang, toAppMessages(newTranslations))
+      const baseMessages = i18n.global.getLocaleMessage(lang as unknown as 'en')
+      const mergedMessages = mergeMessages(
+        baseMessages as Record<string, unknown>,
+        toAppMessages(newTranslations) as unknown as Record<string, unknown>
+      )
+
+      i18n.global.setLocaleMessage(lang, mergedMessages as unknown as AppMessages)
       i18n.global.locale.value = lang as unknown as 'en'
     } catch (error) {
       console.error(`[LanguageService] Error changing language:`, error)
