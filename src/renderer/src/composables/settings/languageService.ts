@@ -2,7 +2,9 @@
 import type { Ref } from 'vue'
 import type { AppLanguage, Translation } from '@shared/schemas/langSchemas'
 
-import { i18n } from '@renderer/i18n'
+import { i18n, type AppMessages } from '@renderer/i18n'
+
+const toAppMessages = (value: Translation): AppMessages => value as AppMessages
 
 export class LanguageService {
   constructor(
@@ -33,7 +35,7 @@ export class LanguageService {
 
       // --- NOWE (vue-i18n) ---
       if (initialTranslations) {
-        i18n.global.setLocaleMessage(savedLang, initialTranslations)
+        i18n.global.setLocaleMessage(savedLang, toAppMessages(initialTranslations))
         i18n.global.locale.value = savedLang as unknown as 'en'
       }
     } catch (error) {
@@ -57,7 +59,7 @@ export class LanguageService {
       this.selectedLanguageRef.value = lang
       this.translationsRef.value = newTranslations
 
-      i18n.global.setLocaleMessage(lang, newTranslations)
+      i18n.global.setLocaleMessage(lang, toAppMessages(newTranslations))
       i18n.global.locale.value = lang as unknown as 'en'
     } catch (error) {
       console.error(`[LanguageService] Error changing language:`, error)
