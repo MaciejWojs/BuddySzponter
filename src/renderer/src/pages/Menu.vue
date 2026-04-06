@@ -1,4 +1,3 @@
-import UserNoLogin from '@renderer/components/simpleComponents/UserNoLogin.vue'
 <script setup lang="ts">
 // --- Component and asset imports ---
 import GuestForm from '@renderer/components/forms/GuestForm.vue'
@@ -8,7 +7,14 @@ import type { NavBarItem } from '@renderer/components/UI/NavBar.vue'
 import DevicesButton from '@renderer/components/simpleComponents/DevicesButton.vue'
 import HomeButton from '@renderer/components/simpleComponents/HomeButton.vue'
 import SettingButton from '@renderer/components/simpleComponents/SettingButton.vue'
+import UserIcon from '@renderer/components/simpleComponents/UserIcon.vue'
+import UserNoLogin from '@renderer/components/simpleComponents/UserNoLogin.vue'
+import { useUserStore } from '@renderer/stores/userStore'
+import { storeToRefs } from 'pinia'
 import buddySzponterLogo from '@images/buddyszponterLogo.png'
+
+const userStore = useUserStore()
+const { isAuthenticated } = storeToRefs(userStore)
 
 // --- Navigation state: currently active tab ---
 const activeNav = ref('home')
@@ -39,7 +45,8 @@ const navItems: NavBarItem[] = [
   -->
   <section class="menu-page">
     <!-- User profile icon in top right corner -->
-    <UserIcon />
+    <UserIcon v-if="isAuthenticated" />
+    <UserNoLogin v-else />
     <header class="menu-topbar">
       <!-- Navigation bar with icon buttons -->
       <NavBar v-model="activeNav" :items="navItems" />
