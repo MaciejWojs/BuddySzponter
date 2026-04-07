@@ -19,7 +19,7 @@ import {
   CreateConnectionRequestSchema,
   JoinConnectionRequestSchema
 } from '../shared/schemas/connection'
-import addon from './screen_capture_addon.node'
+import { ScreenCapture } from '@maciejwojs/screen-capture'
 
 interface SharedHandleInfo {
   handle: unknown // Używamy unknown, bo niżej i tak rzutujesz to na 'bigint'
@@ -202,7 +202,7 @@ if (process.contextIsolated) {
 
     contextBridge.exposeInMainWorld('capture', {
       start: () => {
-        if (!capturer) capturer = new addon.ScreenCapture()
+        if (!capturer) capturer = new ScreenCapture()
         capturer!.start()
       },
       stop: () => {
