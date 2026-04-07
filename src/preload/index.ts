@@ -22,9 +22,16 @@ import {
 import { ScreenCapture } from '@maciejwojs/screen-capture'
 
 interface SharedHandleInfo {
-  handle: unknown // Używamy unknown, bo niżej i tak rzutujesz to na 'bigint'
+  handle: unknown
   width: number
   height: number
+  bufferType?: number
+  chunkSize?: number | bigint
+  pixelFormat?: number
+  modifier?: unknown
+  stride?: number
+  offset?: number
+  planeSize?: unknown
 }
 
 // Opisujemy dostępne metody w klasie addona
@@ -197,8 +204,22 @@ if (process.contextIsolated) {
     contextBridge.exposeInMainWorld('electron', electronAPI)
     contextBridge.exposeInMainWorld('api', api)
 
-   const handleBuffer = Buffer.allocUnsafe(8)
-   let capturer: ScreenCaptureInstance | null = null
+    const holdReleaseUntilFrameClose = (frame: VideoFrame, release: () => void): VideoFrame => {
+      const originalClose = frame.close.bind(frame)
+
+      frame.close = () => {
+        try {
+          originalClose()
+        } finally {
+          release()
+        }
+      }
+
+      return frame
+    }
+
+    const handleBuffer = Buffer.allocUnsafe(8)
+    let capturer: ScreenCaptureInstance | null = null
 
     contextBridge.exposeInMainWorld('capture', {
       start: () => {
@@ -209,22 +230,73 @@ if (process.contextIsolated) {
         if (capturer) capturer.stop()
       },
       getFrame: () => {
+        console.log(process.platform)
         if (!capturer) return null
 
         const info = capturer.getSharedHandle()
         if (!info || !info.handle) return null
 
+        const chunkSize = typeof info.chunkSize === 'bigint' ? Number(info.chunkSize) : info.chunkSize
+        console.log('Buffer Type:', info.bufferType, 'Chunk Size:', chunkSize)
+
+
+        if (process.platform === 'linux') {
+          console.log('Shared handle info:', info)
+          if (info.bufferType !== 2 && info.bufferType !== 3) {
+            console.warn('Unsupported buffer type:', info.bufferType)
+            return null
+          }
+
+          if (typeof info.stride !== 'number' || typeof info.offset !== 'number') return null
+
+          const fd = Number(info.handle as bigint)
+          const spaFormat = typeof info.pixelFormat === 'number' ? info.pixelFormat : 0
+          const pixelFormat =
+            spaFormat === 10 || spaFormat === 7
+              ? 'rgba'
+              : spaFormat === 11 || spaFormat === 8
+                ? 'bgra'
+                : 'bgra'
+          const modifierHex =
+            typeof info.modifier === 'bigint' ? `0x${info.modifier.toString(16)}` : '0x0'
+          const planeSize =
+            typeof info.planeSize === 'bigint'
+              ? Number(info.planeSize)
+              : info.stride * info.height
+
+          const imported = sharedTexture.subtle.importSharedTexture({
+            pixelFormat,
+            codedSize: { width: info.width, height: info.height },
+            handle: {
+              nativePixmap: {
+                planes: [
+                  {
+                    fd,
+                    stride: info.stride,
+                    offset: info.offset,
+                    size: planeSize
+                  }
+                ],
+                modifier: modifierHex,
+                supportsZeroCopyWebGpuImport: false
+              }
+            }
+          })
+
+          const frame = imported.getVideoFrame()
+          return holdReleaseUntilFrameClose(frame, () => imported.release())
+        }
+
         handleBuffer.writeBigUInt64LE(info.handle as bigint, 0)
 
-        const st = sharedTexture.subtle.importSharedTexture({
+        const imported = sharedTexture.subtle.importSharedTexture({
           pixelFormat: 'bgra',
           codedSize: { width: info.width, height: info.height },
           handle: { ntHandle: handleBuffer }
         })
 
-        const frame = st.getVideoFrame()
-        st.release()
-        return frame
+        const frame = imported.getVideoFrame()
+        return holdReleaseUntilFrameClose(frame, () => imported.release())
       }
     })
   } catch (error) {
