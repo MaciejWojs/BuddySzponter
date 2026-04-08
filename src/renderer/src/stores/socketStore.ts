@@ -1,59 +1,74 @@
-import { wsService } from '@renderer/composables/connection/webSocketService'
+// renderer/src/stores/socketStore.ts
+
+import { defineStore } from 'pinia'
+import { ref } from 'vue'
 import { useWebRtcStore } from './webRtcStore'
-import { WsActionResponse, WsConnectResponse, WsServerEvents } from '@shared/schemas/ipc'
 import { useConnectionStore } from './connectionStore'
+import { wsService } from '@renderer/composables/connection/webSocketService'
+import { WsRequestAccess } from '@shared/schemas/ws'
+import { WsActionResponse, WsConnectResponse } from '@shared/schemas/ipc'
 
 export const useSocketStore = defineStore('socket', () => {
   const isConnected = ref(false)
-  const incomingRequest = ref<WsServerEvents['ws:request-access'] | null>(null)
-  const accessStatus = ref<'accepted' | 'rejected' | null>(null)
+  const incomingRequest = ref<WsRequestAccess | null>(null)
   const isAcknowledged = ref(false)
 
-  const resetLocalState = (): void => {
-    isAcknowledged.value = false
-    accessStatus.value = null
-    incomingRequest.value = null
+  const init = (): void => {
+    const rtcStore = useWebRtcStore()
+    const connectionStore = useConnectionStore()
+
+    wsService.setupConnection({
+      onConnected: () => {
+        isConnected.value = true
+      },
+      onDisconnected: () => {
+        isConnected.value = false
+        isAcknowledged.value = false
+        rtcStore.forceDisconnect()
+      },
+      onConnectError: (err) => console.error('[SocketStore]', err.message)
+    })
+
+    wsService.setupAccess({
+      onRequest: (data) => {
+        incomingRequest.value = data
+        console.log('[SocketStore] Otrzymano żądanie dostępu:', data)
+      },
+      onAccepted: (data) => {
+        console.log('[SocketStore] Żądanie dostępu zaakceptowane:', data)
+        // connectionStore.handleAccessAccepted(data)
+      },
+      onRejected: () => {
+        resetLocalState()
+
+        const connectionStore = useConnectionStore()
+        connectionStore.handleAccessRejected()
+      },
+      onError: (err) => console.error('[SocketStore]', err.message)
+    })
+
+    wsService.setupHandshake({
+      onAcknowledged: () => {
+        isAcknowledged.value = true
+        if (connectionStore.isHost) {
+          // wsService.hostAcknowledge()
+          rtcStore.startConnectionAsHost()
+        }
+      }
+    })
+
+    wsService.setupWebRtc({
+      onOffer: (data) => rtcStore.handleOffer(data),
+      onAnswer: (data) => rtcStore.handleAnswer(data),
+      onIceCandidate: (data) => rtcStore.handleCandidate(data),
+      onReady: () => console.log('[SocketStore] P2P Ready!')
+    })
   }
 
-  // --- LISTENERS ---
-
-  wsService.onConnected(() => {
-    isConnected.value = true
-  })
-
-  wsService.onDisconnected(() => {
-    console.warn('[SocketStore] WebSocket rozłączony awaryjnie. Zabijam sesję P2P.')
-
-    isConnected.value = false
-
-    const rtcStore = useWebRtcStore()
-    rtcStore.forceDisconnect()
-
-    resetLocalState()
-  })
-
-  wsService.onRequestAccess((data) => {
-    incomingRequest.value = data
-  })
-
-  wsService.onAccessAccepted(() => {
-    accessStatus.value = 'accepted'
-    wsService.guestAcknowledge()
-  })
-
-  wsService.onAcknowledged(() => {
-    if (!isAcknowledged.value) {
-      isAcknowledged.value = true
-      const connectionStore = useConnectionStore()
-
-      if (connectionStore.isHost) {
-        wsService.hostAcknowledge()
-        useWebRtcStore().startConnectionAsHost()
-      }
-    }
-  })
-
-  // --- ACTIONS ---
+  const resetLocalState = (): void => {
+    incomingRequest.value = null
+    isAcknowledged.value = false
+  }
 
   const connect = async (token: string): Promise<WsConnectResponse> => {
     resetLocalState()
@@ -61,32 +76,29 @@ export const useSocketStore = defineStore('socket', () => {
   }
 
   const disconnect = async (): Promise<WsActionResponse> => {
+    const rtcStore = useWebRtcStore()
+    await rtcStore.disconnect()
+
+    const res = await wsService.disconnect()
     isConnected.value = false
     resetLocalState()
-
-    await useWebRtcStore().disconnect()
-    resetLocalState()
-    return await wsService.disconnect()
+    return res
   }
 
   const respondToRequest = async (accept: boolean): Promise<void> => {
-    if (!incomingRequest.value) return
-    if (accept) {
-      await wsService.respondAccept()
-    } else {
-      await wsService.respondReject()
-    }
+    if (accept) await wsService.respondAccept()
+    else await wsService.respondReject()
     incomingRequest.value = null
   }
 
   return {
     isConnected,
     incomingRequest,
-    accessStatus,
     isAcknowledged,
+    wsService,
+    init,
     connect,
     disconnect,
-    respondToRequest,
-    wsService
+    respondToRequest
   }
 })
