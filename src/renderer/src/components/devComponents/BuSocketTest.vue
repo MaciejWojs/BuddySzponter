@@ -312,14 +312,6 @@ onUnmounted(() => {
           ></video>
 
           <div
-            v-if="webRtcStore.remoteMouse && webRtcStore.remoteStream"
-            class="absolute w-4 h-4 bg-rose-500 rounded-full blur-[2px] transition-transform duration-75 ease-linear pointer-events-none shadow-[0_0_10px_#f43f5e] z-50 origin-center"
-            :style="{
-              transform: `translate(calc(${webRtcStore.remoteMouse.x}% - 50%), calc(${webRtcStore.remoteMouse.y}% - 50%))`
-            }"
-          ></div>
-
-          <div
             v-if="!webRtcStore.remoteStream"
             class="flex flex-col items-center gap-3 text-gray-500 z-10 p-5 text-center"
           >
