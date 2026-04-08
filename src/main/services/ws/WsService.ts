@@ -1,6 +1,7 @@
 // main/services/ws/WsService.ts
 
 import { Socket } from 'socket.io-client'
+import { ipcMain } from 'electron'
 import {
   WsActionResponse,
   WsConnectResponse,
@@ -19,7 +20,7 @@ import {
   WsWebRTCReady
 } from '../../../shared/schemas/ws'
 
-import { disconnect, setupConnectionListeners, connect } from '../../handlers/socket/connection'
+import { setupConnectionListeners, connect } from '../../handlers/socket/connection'
 import {
   sendGuestAcknowledge,
   sendHostAcknowledge,
@@ -39,7 +40,7 @@ import {
   setupWebRtcListeners
 } from '../../handlers/socket/webrtc'
 import { notifyFrontend } from '../../utils/notify'
-import { ipcMain } from 'electron'
+import { showAccessRequestNotification } from '../../utils/systemNotification'
 
 export class WsService {
   private static instance: WsService
@@ -65,6 +66,60 @@ export class WsService {
     )
   }
 
+  // --- HANDLERS INITIALIZATION ---
+
+  public registerWsHandlers(): void {
+    ipcMain.handle('ws:connect', async (_, { connectionToken }) => {
+      return await this.initConnection(connectionToken)
+    })
+
+    ipcMain.handle('ws:disconnect', async () => {
+      this.closeConnection()
+      return { success: true }
+    })
+
+    // --- ACCESS ---
+    ipcMain.handle('ws:respond-accept', async () => {
+      return this.respondAccept()
+    })
+
+    ipcMain.handle('ws:respond-reject', async () => {
+      return this.respondReject()
+    })
+
+    ipcMain.handle('ws:request-access', async (_, { sessionId }) => {
+      return this.requestAccess(sessionId)
+    })
+
+    // --- HANDSHAKE ---
+    ipcMain.handle('ws:acknowledge', async () => {
+      return this.guestAcknowledge()
+    })
+
+    ipcMain.handle('ws:acknowledged', async () => {
+      return this.hostAcknowledge()
+    })
+
+    // --- WEBRTC ---
+    ipcMain.handle('ws:webrtc-offer', async (_, data) => {
+      return this.webrtcOffer(data)
+    })
+
+    ipcMain.handle('ws:webrtc-answer', async (_, data) => {
+      return this.webrtcAnswer(data)
+    })
+
+    ipcMain.handle('ws:webrtc-ice-candidate', async (_, data) => {
+      return this.webrtcIceCandidate(data)
+    })
+
+    ipcMain.handle('ws:webrtc-ready', async (_, data) => {
+      return this.webrtcReady(data)
+    })
+  }
+
+  // --- INITIALIZATION ---
+
   public async initConnection(token: string): Promise<WsConnectResponse> {
     try {
       if (this.socket) {
@@ -87,7 +142,8 @@ export class WsService {
 
   public closeConnection(): void {
     if (this.socket) {
-      disconnect(this.socket)
+      this.socket.disconnect()
+
       this.socket = null
       this.currentSessionId = null
       console.log('[WsService] Połączenie zamknięte i stan wyczyszczony.')
@@ -170,12 +226,26 @@ export class WsService {
 
   public handleRequestAccess(payload: WsRequestAccess): void {
     this.currentSessionId = payload.sessionId
+    console.log('[WsService] Otrzymano żądanie dostępu dla sesji:', payload.sessionId)
+
     this.notify('ws:access', 'request-access', payload)
+
+    showAccessRequestNotification({
+      onAccept: () => {
+        console.log('[WsService] Zaakceptowano z poziomu powiadomienia OS')
+        this.respondAccept()
+      },
+      onReject: () => {
+        console.log('[WsService] Odrzucono z poziomu powiadomienia OS')
+        this.respondReject()
+      }
+    })
   }
 
   public handleAccessAccepted(payload: WsConnectionAccepted): void {
     this.currentSessionId = payload.sessionId
     this.notify('ws:access', 'accepted', payload)
+    this.guestAcknowledge()
   }
 
   public handleAccessRejected(payload: WsConnectionRejected): void {
@@ -189,6 +259,7 @@ export class WsService {
 
   public handleAcknowledged(payload: WsAcknowledged): void {
     this.notify('ws:handshake', 'acknowledged', payload)
+    this.hostAcknowledge()
   }
 
   public handleWebRTCOffer(payload: WsWebRTCOffer): void {
@@ -205,57 +276,6 @@ export class WsService {
 
   public handleWebRTCReady(payload: WsWebRTCReady): void {
     this.notify('ws:webrtc', 'ready', payload)
-  }
-
-  public registerWsHandlers(): void {
-    // --- POŁĄCZENIE ---
-    ipcMain.handle('ws:connect', async (_, { connectionToken }) => {
-      return await wsService.initConnection(connectionToken)
-    })
-
-    ipcMain.handle('ws:disconnect', async () => {
-      wsService.closeConnection()
-      return { success: true }
-    })
-
-    // --- DOSTĘP (Access) ---
-    ipcMain.handle('ws:respond-accept', async () => {
-      return wsService.respondAccept()
-    })
-
-    ipcMain.handle('ws:respond-reject', async () => {
-      return wsService.respondReject()
-    })
-
-    ipcMain.handle('ws:request-access', async (_, { sessionId }) => {
-      return wsService.requestAccess(sessionId)
-    })
-
-    // --- HANDSHAKE ---
-    ipcMain.handle('ws:acknowledge', async () => {
-      return wsService.guestAcknowledge()
-    })
-
-    ipcMain.handle('ws:acknowledged', async () => {
-      return wsService.hostAcknowledge()
-    })
-
-    // --- WEBRTC SIGNALING ---
-    ipcMain.handle('ws:webrtc-offer', async (_, data) => {
-      return wsService.webrtcOffer(data)
-    })
-
-    ipcMain.handle('ws:webrtc-answer', async (_, data) => {
-      return wsService.webrtcAnswer(data)
-    })
-
-    ipcMain.handle('ws:webrtc-ice-candidate', async (_, data) => {
-      return wsService.webrtcIceCandidate(data)
-    })
-
-    ipcMain.handle('ws:webrtc-ready', async (_, data) => {
-      return wsService.webrtcReady(data)
-    })
   }
 }
 
