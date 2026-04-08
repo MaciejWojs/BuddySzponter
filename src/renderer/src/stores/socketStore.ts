@@ -21,10 +21,13 @@ export const useSocketStore = defineStore('socket', () => {
     isConnected.value = true
   })
 
-  wsService.onDisconnected(async () => {
-    console.warn('[SocketStore] WebSocket rozłączony.')
+  wsService.onDisconnected(() => {
+    console.warn('[SocketStore] WebSocket rozłączony awaryjnie. Zabijam sesję P2P.')
+
     isConnected.value = false
-    await useWebRtcStore().disconnect()
+
+    const rtcStore = useWebRtcStore()
+    rtcStore.forceDisconnect()
 
     resetLocalState()
   })
