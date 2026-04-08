@@ -5,6 +5,7 @@ Main shortcut bar for Linux (GNOME) system actions, window management, file loca
 Displays a draggable navbar and a modal overlay with categorized shortcut buttons.
 -->
 <template>
+  <!-- Sekcja widoku komponentu LinuxSharingBar: definiuje strukturę renderowaną w interfejsie użytkownika. -->
   <!--
     Top draggable navbar for quick access and window control.
     Handles pinning, minimizing, restoring, and drag events.
@@ -230,6 +231,7 @@ Displays a draggable navbar and a modal overlay with categorized shortcut button
 </template>
 
 <script setup lang="ts">
+// Sekcja logiki komponentu LinuxSharingBar: zarządza danymi, zdarzeniami i zachowaniem widoku.
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import ToolsIcon from '@renderer/assets/images/components/tools.svg?component'
 import { useI18n } from 'vue-i18n'

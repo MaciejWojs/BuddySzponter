@@ -1,4 +1,5 @@
 <template>
+  <!-- Sekcja widoku komponentu SelectButton: definiuje strukturę renderowaną w interfejsie użytkownika. -->
   <button
     :type="buttonType"
     :disabled="props.disabled || props.loading"
@@ -19,6 +20,7 @@
 </template>
 
 <script setup lang="ts">
+// Sekcja logiki komponentu SelectButton: zarządza danymi, zdarzeniami i zachowaniem widoku.
 const buttonType = computed(() => props.type as 'button' | 'submit' | 'reset')
 
 const emit = defineEmits<{

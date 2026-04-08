@@ -1,4 +1,5 @@
 <template>
+  <!-- Sekcja widoku komponentu HomeButton: definiuje strukturę renderowaną w interfejsie użytkownika. -->
   <button
     :type="buttonType"
     :disabled="props.disabled || props.loading"
@@ -18,6 +19,7 @@
 </template>
 
 <script setup lang="ts">
+// Sekcja logiki komponentu HomeButton: zarządza danymi, zdarzeniami i zachowaniem widoku.
 import HomeIcon from '@renderer/assets/images/ui/home.svg?component'
 
 const props = defineProps({
