@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain, session, desktopCapturer } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, session, desktopCapturer, dialog } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
@@ -60,6 +60,7 @@ if (!gotTheLock && !import.meta.env.DEV) {
       if (mainWindow.isMinimized()) mainWindow.restore()
       mainWindow.focus()
     }
+    dialog.showErrorBox('Welcome Back', 'Another instance of the app was attempted to be opened, but it has been prevented. The existing instance has been focused instead.')
   })
 
   // This method will be called when Electron has finished
