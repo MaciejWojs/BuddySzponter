@@ -36,7 +36,7 @@
     "@fontsource-variable/jetbrains-mono": "^5.2.8",
     "@fontsource-variable/plus-jakarta-sans": "^5.2.8",
     "@iconify-json/lucide": "^1.2.99",
-    "@maciejwojs/screen-capture": "^0.1.5",
+    "@maciejwojs/screen-capture": "^0.1.6",
     "@nuxt/ui": "^4.6.0",
     "@types/electron-store": "^3.2.2",
     "electron-store": "^11.0.2",

@@ -10,7 +10,7 @@
         "@fontsource-variable/jetbrains-mono": "^5.2.8",
         "@fontsource-variable/plus-jakarta-sans": "^5.2.8",
         "@iconify-json/lucide": "^1.2.99",
-        "@maciejwojs/screen-capture": "^0.1.5",
+        "@maciejwojs/screen-capture": "^0.1.6",
         "@nuxt/ui": "^4.6.0",
         "@types/electron-store": "^3.2.2",
         "electron-store": "^11.0.2",
@@ -305,7 +305,7 @@
 
     "@jridgewell/trace-mapping": ["@jridgewell/trace-mapping@0.3.31", "", { "dependencies": { "@jridgewell/resolve-uri": "^3.1.0", "@jridgewell/sourcemap-codec": "^1.4.14" } }, "sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw=="],
 
-    "@maciejwojs/screen-capture": ["@maciejwojs/screen-capture@0.1.5", "", { "dependencies": { "node-addon-api": "^8.7.0", "node-gyp-build": "^4.8.4" }, "peerDependencies": { "typescript": "^5" }, "os": [ "linux", "win32", "darwin", ] }, "sha512-aNagIBcxvBoO0ib00WGT1c/0ZyZUBLeZZUsDPSR3Qdgay9BBYCvJFMRZUupvJxu3Lh2M2wSbCw93nsgrgiDmYw=="],
+    "@maciejwojs/screen-capture": ["@maciejwojs/screen-capture@0.1.6", "", { "dependencies": { "node-addon-api": "^8.7.0", "node-gyp-build": "^4.8.4" }, "peerDependencies": { "typescript": "^5" }, "os": [ "linux", "win32", "darwin", ] }, "sha512-pxbYqlErWalJo4K8FDt0piAfbV1WYjji7UISois2iyN0oRtgipj927GqLM5w1UGHyo47IPegpgBeU1sH6S/Pxw=="],
 
     "@malept/cross-spawn-promise": ["@malept/cross-spawn-promise@2.0.0", "", { "dependencies": { "cross-spawn": "^7.0.1" } }, "sha512-1DpKU0Z5ThltBwjNySMC14g0CkbyhCaz9FkhxqNsZI6uAPJXFS8cMXlBKo26FJ8ZuW6S9GCMcR9IO5k2X5/9Fg=="],
 
