@@ -1,16 +1,77 @@
-import { path } from 'node:path'
-import { AppLanguageSchema } from '../shared/schemas/langSchemas'
+// src/preload/index.d.ts (lub inny plik .d.ts w Twoim projekcie)
+
 import { ElectronAPI } from '@electron-toolkit/preload'
+import { AppLanguage, Translation } from '../shared/schemas/langSchemas'
+import {
+  WsActionResponse,
+  WsConnectResponse,
+  WsConnectionEvent,
+  WsAccessEvent,
+  WsHandshakeEvent,
+  WsWebRtcEvent,
+  IpcResponse,
+  GetLocaleResponse,
+  GetAvailableLanguagesResponse,
+  GetSupportedVersionsResponse,
+  GetCurrentUserResponse,
+  UploadAvatarResponse,
+  CreateConnectionResponse,
+  JoinConnectionResponse,
+  DesktopSource
+} from '../shared/schemas/ipc'
+import {
+  WsRequestAccess,
+  WsConnectionAccepted,
+  WsConnectionRejected,
+  WsConnectionError,
+  WsAcknowledged,
+  WsWebRTCOffer,
+  WsWebRTCAnswer,
+  WsWebRTCIceCandidate,
+  WsWebRTCReady,
+  WsConnectionDisconnected
+} from '../shared/schemas/ws'
+import {
+  CreateConnectionRequestSchema,
+  JoinConnectionRequestSchema
+} from '../shared/schemas/connection'
+
+// --- DEFINICJE CALLBACKÓW DLA MAGISTRAL ---
+
+interface WsConnectionListeners {
+  onConnected: (data: { socketId: string }) => void
+  onDisconnected: (data: WsConnectionDisconnected) => void
+  onConnectError: (data: { message: string }) => void
+}
+
+interface WsAccessListeners {
+  onRequest: (data: WsRequestAccess) => void
+  onAccepted: (data: WsConnectionAccepted) => void
+  onRejected: (data: WsConnectionRejected) => void
+  onError: (data: WsConnectionError) => void
+}
+
+interface WsHandshakeListeners {
+  onAcknowledged: (data: WsAcknowledged) => void
+}
+
+interface WsWebRtcListeners {
+  onOffer: (data: WsWebRTCOffer) => void
+  onAnswer: (data: WsWebRTCAnswer) => void
+  onIceCandidate: (data: WsWebRTCIceCandidate) => void
+  onReady: (data: WsWebRTCReady) => void
+}
 
 declare global {
   interface Window {
     electron: ElectronAPI
     api: {
       auth: {
-        register: (data: RegisterInput) => Promise<ApiResponse<RegisterResponse>>
-        login: (credentials: LoginInput) => Promise<ApiResponse<LoginResponse>>
-        logout: () => Promise<ApiResponse<void>>
-        getMe: () => Promise<ApiResponse<unknown>>
+        register: (data: RegisterInput) => Promise<IpcResponse>
+        login: (credentials: LoginInput) => Promise<IpcResponse<{ accessTokenSaved: boolean }>>
+        logout: () => Promise<IpcResponse>
+        getMe: () => Promise<IpcResponse<unknown>>
+        refresh: () => Promise<void>
       }
       settings: {
         getLanguage: () => Promise<AppLanguage>
@@ -19,10 +80,10 @@ declare global {
         getHardwareId: () => Promise<string>
       }
       core: {
-        getLocale: (lang: string) => Promise<GetLocaleResponse>
+        getLocale: (lang: AppLanguage) => Promise<GetLocaleResponse>
         getAvailableLanguages: () => Promise<GetAvailableLanguagesResponse>
         getSupportedVersions: () => Promise<GetSupportedVersionsResponse>
-        getAppVersion: () => GetAppVersionResponse
+        getAppVersion: () => Promise<string>
       }
       users: {
         uploadAvatar: (userId: string | null) => Promise<UploadAvatarResponse>
@@ -35,43 +96,30 @@ declare global {
         getCurrentUser: () => Promise<GetCurrentUserResponse>
       }
       connection: {
-        create: (data: CreateConnectionRequestSchema) => Promise<CreateConnectionResponseSchema>
-        join: (data: JoinConnectionRequestSchema) => Promise<JoinConnectionResponseSchema>
+        create: (data: CreateConnectionRequestSchema) => Promise<CreateConnectionResponse>
+        join: (data: JoinConnectionRequestSchema) => Promise<JoinConnectionResponse>
       }
       ws: {
-        // --- ACTIONS ---
         connect: (token: string) => Promise<WsConnectResponse>
         disconnect: () => Promise<WsActionResponse>
-        respondAccept: (data: WsServerEvents['ws:access-accepted']) => Promise<WsActionResponse>
-        respondReject: (data: WsServerEvents['ws:access-rejected']) => Promise<WsActionResponse>
-        requestAccess: (data: WsServerEvents['ws:request-access']) => Promise<WsActionResponse>
-        hostAcknowledge: (data: WsServerEvents['ws:acknowledged']) => Promise<WsActionResponse>
-        guestAcknowledge: (data: WsServerEvents['ws:acknowledge']) => Promise<WsActionResponse>
-        webrtcOffer: (data: WsServerEvents['webrtc:offer']) => Promise<WsActionResponse>
-        webrtcAnswer: (data: WsServerEvents['webrtc:answer']) => Promise<WsActionResponse>
-        webrtcIceCandidate: (
-          data: WsServerEvents['webrtc:ice-candidate']
-        ) => Promise<WsActionResponse>
-        webrtcReady: (data: WsServerEvents['webrtc:ready']) => Promise<WsActionResponse>
 
-        // --- LISTENERS ---
-        onConnected: (callback: (data: WsServerEvents['ws:connected']) => void) => void
-        onDisconnected: (callback: (data: WsServerEvents['ws:disconnected']) => void) => void
-        onConnectError: (callback: (data: WsServerEvents['ws:connect_error']) => void) => void
-        onMessage: (callback: (data: WsServerEvents['ws:message']) => void) => void
+        respondAccept: () => Promise<WsActionResponse>
+        respondReject: () => Promise<WsActionResponse>
+        requestAccess: (sessionId: string) => Promise<WsActionResponse>
 
-        onRequestAccess: (callback: (data: WsServerEvents['ws:request-access']) => void) => void
-        onAccessAccepted: (callback: (data: WsServerEvents['ws:access-accepted']) => void) => void
-        onAccessRejected: (callback: (data: WsServerEvents['ws:access-rejected']) => void) => void
-        onServerError: (callback: (data: WsServerEvents['ws:server-error']) => void) => void
-        onAcknowledged: (callback: (data: WsServerEvents['ws:acknowledged']) => void) => void
+        hostAcknowledge: () => Promise<WsActionResponse>
+        guestAcknowledge: () => Promise<WsActionResponse>
 
-        onWebRTCOffer: (callback: (data: WsServerEvents['webrtc:offer']) => void) => void
-        onWebRTCAnswer: (callback: (data: WsServerEvents['webrtc:answer']) => void) => void
-        onWebRTCIceCandidate: (
-          callback: (data: WsServerEvents['webrtc:ice-candidate']) => void
-        ) => void
-        onWebRTCReady: (callback: (data: WsServerEvents['webrtc:ready']) => void) => void
+        webrtcOffer: (data: WsWebRTCOffer) => Promise<WsActionResponse>
+        webrtcAnswer: (data: WsWebRTCAnswer) => Promise<WsActionResponse>
+        webrtcIceCandidate: (data: WsWebRTCIceCandidate) => Promise<WsActionResponse>
+        webrtcReady: (data: WsWebRTCReady) => Promise<WsActionResponse>
+
+        // --- LISTENERY (Magistrale) ---
+        connection: (callbacks: WsConnectionListeners) => void
+        access: (callbacks: WsAccessListeners) => void
+        handshake: (callbacks: WsHandshakeListeners) => void
+        webrtc: (callbacks: WsWebRtcListeners) => void
 
         // --- CLEANUP ---
         removeAllListeners: () => void
