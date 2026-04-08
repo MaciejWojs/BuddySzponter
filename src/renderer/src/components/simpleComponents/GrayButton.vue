@@ -1,4 +1,5 @@
 <template>
+  <!-- Sekcja widoku komponentu GrayButton: definiuje strukturę renderowaną w interfejsie użytkownika. -->
   <button
     :type="buttonType"
     :disabled="props.disabled || props.loading"
@@ -15,6 +16,7 @@
 </template>
 
 <script setup lang="ts">
+// Sekcja logiki komponentu GrayButton: zarządza danymi, zdarzeniami i zachowaniem widoku.
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 

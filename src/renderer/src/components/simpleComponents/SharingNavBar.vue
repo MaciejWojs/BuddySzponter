@@ -1,4 +1,5 @@
 <template>
+  <!-- Sekcja widoku komponentu SharingNavBar: definiuje strukturę renderowaną w interfejsie użytkownika. -->
   <div
     class="sharing-navbar-wrapper"
     :style="wrapperStyle"
@@ -195,6 +196,7 @@
 </template>
 
 <script setup lang="ts">
+// Sekcja logiki komponentu SharingNavBar: zarządza danymi, zdarzeniami i zachowaniem widoku.
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
