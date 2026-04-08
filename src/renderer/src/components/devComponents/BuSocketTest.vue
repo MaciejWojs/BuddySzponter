@@ -217,6 +217,14 @@ watch(
       if (connectionStore.isHost && !videoService.isRunning) {
         startCapture()
       }
+
+      if (
+        connectionStore.isHost &&
+        webRtcStore.rtcStatus === 'disconnected' &&
+        webRtcStore.localStream
+      ) {
+        webRtcStore.startConnectionAsHost()
+      }
     }
   }
 )
