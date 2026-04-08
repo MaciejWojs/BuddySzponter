@@ -1,28 +1,27 @@
+// renderer/src/stores/connectionStore.ts
+
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
-import { CreateConnectionRequestSchema } from '@shared/schemas/connection'
+import { ref, watch } from 'vue'
+import {
+  CreateConnectionRequestSchema,
+  JoinConnectionRequestSchema
+} from '@shared/schemas/connection'
 import { connectionService } from '@renderer/composables/connection/connectionService'
-import { WsConnectResponse } from '@shared/schemas/ipc'
 import { useSocketStore } from './socketStore'
+import { CreateConnectionResponse, JoinConnectionResponse } from '@shared/schemas/ipc'
 
 export const useConnectionStore = defineStore('connection', () => {
   const isHost = ref<boolean>(false)
   const connectionCode = ref<string>('')
-  const socketStore = useSocketStore()
 
   let refreshTimer: ReturnType<typeof setTimeout> | null = null
 
-  watch(
-    () => socketStore.accessStatus,
-    async (status) => {
-      if (status === 'rejected' && !isHost.value) {
-        await clearConnection()
-      }
-    }
-  )
+  const getSocketStore = (): ReturnType<typeof useSocketStore> => useSocketStore()
+
+  // --- WATCHERS ---
 
   watch(
-    () => socketStore.isConnected,
+    () => getSocketStore().isConnected,
     (connected) => {
       if (!connected && connectionCode.value) {
         stopAutoRefresh()
@@ -49,7 +48,7 @@ export const useConnectionStore = defineStore('connection', () => {
     const timeUntilRefresh = Math.max(expiresAt - now - 5000, 0)
 
     refreshTimer = setTimeout(async () => {
-      if (socketStore.accessStatus === 'accepted') {
+      if (getSocketStore().isAcknowledged) {
         console.log('[ConnectionStore] Sesja w toku. Ignoruję odświeżanie PINu.')
         return
       }
@@ -63,17 +62,17 @@ export const useConnectionStore = defineStore('connection', () => {
 
   const createHostConnection = async (
     data: CreateConnectionRequestSchema
-  ): Promise<WsConnectResponse | undefined> => {
-    if (socketStore.isConnected) {
+  ): Promise<CreateConnectionResponse | undefined> => {
+    if (getSocketStore().isConnected) {
       await clearConnection()
     }
 
     const response = await connectionService.createConnection(data)
-    if (response?.success) {
+
+    if (response?.success && response.data) {
       isHost.value = true
       connectionCode.value = response.data.code
       scheduleAutoRefresh(data)
-      await socketStore.connect(response.data.token)
     } else {
       connectionCode.value = ''
     }
@@ -81,26 +80,18 @@ export const useConnectionStore = defineStore('connection', () => {
   }
 
   const joinGuestConnection = async (
-    code: string,
-    password: string
-  ): Promise<WsConnectResponse | undefined> => {
-    if (socketStore.isConnected) {
+    data: JoinConnectionRequestSchema
+  ): Promise<JoinConnectionResponse | undefined> => {
+    if (getSocketStore().isConnected) {
       await clearConnection()
     }
 
     stopAutoRefresh()
 
-    const response = await connectionService.joinConnection(code, password)
+    const response = await connectionService.joinConnection(data.connectionCode, data.password)
 
-    if (response?.success && response.data) {
+    if (response?.success) {
       isHost.value = false
-
-      const result = await socketStore.connect(response.data.token)
-      console.log('[ConnectionStore] Połączenie WebSocket po dołączeniu:', result)
-
-      if (result.success) {
-        await socketStore.wsService.requestAccess(response.data.connectionUUID)
-      }
     }
     return response
   }
@@ -109,7 +100,13 @@ export const useConnectionStore = defineStore('connection', () => {
     stopAutoRefresh()
     isHost.value = false
     connectionCode.value = ''
-    await socketStore.disconnect()
+    await getSocketStore().disconnect()
+  }
+
+  const handleAccessRejected = async (): Promise<void> => {
+    if (!isHost.value) {
+      await clearConnection()
+    }
   }
 
   return {
@@ -117,6 +114,7 @@ export const useConnectionStore = defineStore('connection', () => {
     connectionCode,
     createHostConnection,
     joinGuestConnection,
-    clearConnection
+    clearConnection,
+    handleAccessRejected
   }
 })
