@@ -1,7 +1,7 @@
 // composables/webrtc/useP2PCommander.ts
 
 import { P2PMessage } from '@renderer/schemas/p2pProtocol'
-import { webRtcService } from '../connection/WebRTCService'
+import { webRtcService } from '../connection/webRTCService'
 
 export const useP2PCommander = (): {
   sendChatMessage: (text: string, sender: string) => void

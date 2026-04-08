@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import { CreateConnectionRequestSchema } from '@shared/schemas/connection'
 import { connectionService } from '@renderer/composables/connection/connectionService'
 import { WsConnectResponse } from '@shared/schemas/ipc'
-import { useSocketStore } from './useSocketStore'
+import { useSocketStore } from './socketStore'
 
 export const useConnectionStore = defineStore('connection', () => {
   const isHost = ref<boolean>(false)

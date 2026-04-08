@@ -59,7 +59,7 @@
 
 <script setup lang="ts">
 import { useConnectionStore } from '@renderer/stores/connectionStore'
-import { useSocketStore } from '@renderer/stores/useSocketStore'
+import { useSocketStore } from '@renderer/stores/socketStore'
 import { ref } from 'vue'
 
 const emit = defineEmits<{

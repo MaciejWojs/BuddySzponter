@@ -60,7 +60,7 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { useWebRtcStore } from '@renderer/stores/useWebRtcStore'
+import { useWebRtcStore } from '@renderer/stores/webRtcStore'
 
 const webRtcStore = useWebRtcStore()
 

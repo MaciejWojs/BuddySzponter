@@ -93,7 +93,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useWebRtcStore } from '@renderer/stores/useWebRtcStore'
+import { useWebRtcStore } from '@renderer/stores/webRtcStore'
 import { useP2PCommander } from '@renderer/composables/webrtc/P2PCommander'
 
 const webRtcStore = useWebRtcStore()

@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import { wsService } from '@renderer/composables/connection/webSocketService'
 import type { WsActionResponse, WsConnectResponse, WsServerEvents } from '@shared/schemas/ipc'
 import { useConnectionStore } from './connectionStore'
-import { useWebRtcStore } from './useWebRtcStore'
+import { useWebRtcStore } from './webRtcStore'
 
 export const useSocketStore = defineStore('socket', () => {
   // ==========================================

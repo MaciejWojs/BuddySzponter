@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, shallowRef } from 'vue'
-import { useSocketStore } from './useSocketStore'
-import { webRtcService } from '@renderer/composables/connection/WebRTCService'
+import { useSocketStore } from './socketStore'
+import { webRtcService } from '@renderer/composables/connection/webRTCService'
 import { P2PMessage } from '@renderer/schemas/p2pProtocol'
 
 // KROK 1: Definiujemy typ dla ekranów, żeby pozbyć się "any"

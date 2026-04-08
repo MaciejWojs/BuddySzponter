@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, watch, onUnmounted } from 'vue'
 import { useConnectionStore } from '@renderer/stores/connectionStore'
-import { useSocketStore } from '@renderer/stores/useSocketStore'
-import { useWebRtcStore } from '@renderer/stores/useWebRtcStore'
+import { useSocketStore } from '@renderer/stores/socketStore'
+import { useWebRtcStore } from '@renderer/stores/webRtcStore'
 
 // --- STORES & EMITS ---
 const connectionStore = useConnectionStore()
