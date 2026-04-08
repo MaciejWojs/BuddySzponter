@@ -80,7 +80,8 @@ export const useSocketStore = defineStore('socket', () => {
       },
       onAccepted: (data) => {
         console.log('[SocketStore] Żądanie dostępu zaakceptowane:', data)
-        // connectionStore.handleAccessAccepted(data)
+        isAcknowledged.value = true
+        incomingRequest.value = null
       },
       onRejected: () => {
         resetLocalState()
