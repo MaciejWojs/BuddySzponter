@@ -1,4 +1,5 @@
 <template>
+  <!-- Sekcja widoku komponentu UserIcon: definiuje strukturę renderowaną w interfejsie użytkownika. -->
   <div class="user-container" @mouseenter="menuOpen = true" @mouseleave="menuOpen = false">
     <div
       v-if="isUpdateRequired"
@@ -125,6 +126,7 @@
 </template>
 
 <script setup lang="ts">
+// Sekcja logiki komponentu UserIcon: zarządza danymi, zdarzeniami i zachowaniem widoku.
 import { computed, onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useSettingsStore } from '@renderer/stores/settingsStore'

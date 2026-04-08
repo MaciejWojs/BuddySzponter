@@ -1,4 +1,5 @@
 <template>
+  <!-- Sekcja widoku komponentu UserNoLogin: definiuje strukturę renderowaną w interfejsie użytkownika. -->
   <div class="user-container" @mouseenter="menuOpen = true" @mouseleave="menuOpen = false">
     <div :class="['dropdown-bg', { 'is-open': menuOpen }]" />
 
@@ -45,6 +46,7 @@
 </template>
 
 <script setup lang="ts">
+// Sekcja logiki komponentu UserNoLogin: zarządza danymi, zdarzeniami i zachowaniem widoku.
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'

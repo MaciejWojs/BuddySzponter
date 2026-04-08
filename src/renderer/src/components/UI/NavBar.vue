@@ -1,4 +1,5 @@
 <template>
+  <!-- Sekcja widoku komponentu NavBar: definiuje strukturę renderowaną w interfejsie użytkownika. -->
   <nav class="navbar">
     <component
       :is="item.component"
@@ -22,6 +23,7 @@ export interface NavBarItem {
 </script>
 
 <script setup lang="ts">
+// Sekcja logiki komponentu NavBar: zarządza danymi, zdarzeniami i zachowaniem widoku.
 defineProps<{
   items: NavBarItem[]
   modelValue: string
