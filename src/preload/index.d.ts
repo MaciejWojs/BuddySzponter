@@ -83,7 +83,7 @@ declare global {
     capture: {
       start: () => void
       stop: () => void
-      getFrame: () => VideoFrame | null
+      getFrame: () => { frame: VideoFrame; release: () => void } | null
     }
   }
 }
