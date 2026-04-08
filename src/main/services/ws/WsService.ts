@@ -234,6 +234,7 @@ export class WsService {
       onAccept: () => {
         console.log('[WsService] Zaakceptowano z poziomu powiadomienia OS')
         this.respondAccept()
+        this.hostAcknowledge()
       },
       onReject: () => {
         console.log('[WsService] Odrzucono z poziomu powiadomienia OS')
