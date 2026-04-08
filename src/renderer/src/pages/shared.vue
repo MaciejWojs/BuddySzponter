@@ -1,4 +1,5 @@
 <template>
+  <!-- Widok sesji współdzielonej: pasek sterowania i obszar docelowy dla strumienia obrazu. -->
   <div class="main-container">
     <SharingNavBar />
     <div id="video-container" ref="videoContainer" class="video-container">
@@ -8,6 +9,7 @@
 </template>
 
 <script setup lang="ts">
+// Logika widoku współdzielenia: referencje kontenera wideo i stan aktywności strumienia.
 import { ref } from 'vue'
 import SharingNavBar from '../components/simpleComponents/SharingNavBar.vue'
 
@@ -16,7 +18,7 @@ const streamActive = ref(false)
 
 defineExpose({ videoContainer, streamActive })
 
-// Wymuszanie pełnego ekranu po zamontowaniu widoku (tylko frontend)
+// Po zamontowaniu widoku aplikacja próbuje przejść w tryb pełnoekranowy.
 import { onMounted } from 'vue'
 onMounted(() => {
   if (document.fullscreenEnabled) {

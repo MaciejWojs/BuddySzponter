@@ -1,13 +1,17 @@
+// Store Pinia zarządzający stanem użytkownika oraz obsługą logowania, rejestracji i sesji.
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
+// Typy odpowiedzi i walidacji powiązane z IPC i backendem.
 import type { ValidationErrorCause } from '@shared/schemas/ipc'
 import type { UserResponseSchema } from '@shared/schemas/user'
 
+// Dane wymagane do logowania użytkownika.
 type LoginPayload = {
   email: string
   password: string
 }
 
+// Dane wymagane do rejestracji nowego użytkownika.
 type RegisterPayload = {
   email: string
   nickname: string
@@ -17,25 +21,32 @@ type RegisterPayload = {
 
 export const useUserStore = defineStore('user', () => {
   const currentUser = ref<UserResponseSchema | null>(null)
+  // Czy store został zainicjalizowany (np. po odświeżeniu aplikacji).
   const initialized = ref(false)
 
+  // Flagi stanu asynchronicznych operacji użytkownika.
   const isInitializing = ref(false)
   const isRegistering = ref(false)
   const isLoggingIn = ref(false)
   const isLoggingOut = ref(false)
   const isFetchingUser = ref(false)
 
+  // Komunikaty błędów globalnych i walidacyjnych.
   const errorMessage = ref<string | null>(null)
   const fieldErrors = ref<Record<string, string>>({})
+  // Obietnica inicjalizacji sesji (zapobiega wyścigom).
   let initSessionPromise: Promise<void> | null = null
 
+  // Czy użytkownik jest zalogowany (computed na podstawie currentUser).
   const isAuthenticated = computed(() => currentUser.value !== null)
 
+  // Czyści wszystkie błędy (globalne i walidacyjne).
   const clearErrors = (): void => {
     errorMessage.value = null
     fieldErrors.value = {}
   }
 
+  // Przypisuje komunikaty błędów na podstawie odpowiedzi z backendu.
   const applyError = (message?: string, cause?: ValidationErrorCause[]): void => {
     errorMessage.value = message || 'Wystapil nieoczekiwany blad.'
 
@@ -52,6 +63,7 @@ export const useUserStore = defineStore('user', () => {
     fieldErrors.value = nextErrors
   }
 
+  // Pobiera aktualnego użytkownika z backendu (np. po odświeżeniu strony).
   const fetchCurrentUser = async (silently = false): Promise<boolean> => {
     isFetchingUser.value = true
     try {
@@ -79,6 +91,7 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
+  // Inicjalizuje sesję użytkownika (np. przy starcie aplikacji).
   const initSession = async (): Promise<void> => {
     if (initialized.value) {
       return
@@ -105,6 +118,7 @@ export const useUserStore = defineStore('user', () => {
     await initSessionPromise
   }
 
+  // Loguje użytkownika na podstawie podanych danych.
   const login = async (payload: LoginPayload): Promise<boolean> => {
     isLoggingIn.value = true
     clearErrors()
@@ -131,6 +145,7 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
+  // Rejestruje nowego użytkownika na podstawie podanych danych.
   const register = async (payload: RegisterPayload): Promise<boolean> => {
     isRegistering.value = true
     clearErrors()
@@ -157,6 +172,7 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
+  // Wylogowuje użytkownika i czyści stan sesji.
   const logout = async (): Promise<boolean> => {
     isLoggingOut.value = true
     clearErrors()

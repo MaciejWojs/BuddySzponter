@@ -1,3 +1,4 @@
+// Schemat odpowiedzi użytkownika zwracanej przez backend (np. po logowaniu lub pobraniu profilu).
 import z from 'zod'
 
 export const UserResponseSchema = z.object({
