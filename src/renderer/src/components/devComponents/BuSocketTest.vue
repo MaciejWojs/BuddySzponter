@@ -267,12 +267,6 @@ onUnmounted(() => {
             >
               Zmniejsz Jakość
             </button>
-            <button
-              class="px-3 py-1.5 bg-rose-600/20 border border-rose-500/50 hover:bg-rose-500 text-rose-400 hover:text-white rounded text-xs font-bold transition-all"
-              @click="webRtcStore.disconnect()"
-            >
-              Zakończ Sesję
-            </button>
           </div>
         </div>
         <div class="flex gap-3 mb-4">

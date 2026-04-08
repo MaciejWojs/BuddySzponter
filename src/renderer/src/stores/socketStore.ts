@@ -71,7 +71,7 @@ export const useSocketStore = defineStore('socket', () => {
   }
 
   const disconnect = async (): Promise<WsActionResponse> => {
-    useWebRtcStore().disconnect()
+    await useWebRtcStore().disconnect()
     return await wsService.disconnect()
   }
 
