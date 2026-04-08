@@ -1,11 +1,14 @@
+// Serwis singleton obsługujący operacje użytkownika (np. upload avatara, pobieranie profilu).
 import { ipcMain } from 'electron'
 import { coreService } from './CoreService'
 
+// Odpowiedź zwracana, gdy wersja aplikacji jest nieobsługiwana.
 const updateBlockedResponse = {
   success: false as const,
   message: 'Ta wersja aplikacji nie jest wspierana. Zaktualizuj aplikacje, aby kontynuowac.'
 }
 
+// Klasa singleton obsługująca rejestrację handlerów IPC dla operacji użytkownika (avatar, profil).
 export class UserService {
   private static instance: UserService
 
@@ -20,6 +23,7 @@ export class UserService {
     return UserService.instance
   }
 
+  // Rejestruje handlery IPC dla operacji użytkownika (avatar, pobieranie profilu).
   public registerHandler(): void {
     ipcMain.handle('user:uploadAvatar', async (_event, userID: string | null) => {
       if (await coreService.isUpdateRequired()) {

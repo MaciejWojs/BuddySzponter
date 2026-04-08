@@ -1,7 +1,8 @@
-// src/schemas/authSchemas.ts
+// Schematy walidacji danych logowania i rejestracji użytkownika (Zod).
 import { z } from 'zod'
 import zxcvbn from 'zxcvbn'
 
+// Schemat rejestracji: nickname, email, hasło, powtórzenie hasła, walidacja siły hasła.
 export const registerInputSchema = z
   .object({
     nickname: z
@@ -27,6 +28,7 @@ export const registerInputSchema = z
     path: ['passwordConfirm']
   })
 
+// Schemat logowania: email, hasło, fingerprint, opcjonalnie system i nazwa urządzenia.
 export const loginInputSchema = z.object({
   email: z.email({ message: 'Please provide a valid email address' }),
   password: z.string().min(1, { message: 'Password cannot be empty' }),
@@ -35,12 +37,12 @@ export const loginInputSchema = z.object({
   name: z.string().optional().default('')
 })
 
+// Schemat ciasteczka z tokenem odświeżania.
 export const refreshTokenCookieSchema = z.object({
   refreshToken: z.jwt()
 })
 
+// Typy wejściowe dla logowania i rejestracji.
 export type RefreshTokenCookie = z.infer<typeof refreshTokenCookieSchema>
-
 export type LoginInput = z.infer<typeof loginInputSchema>
-
 export type RegisterInput = z.infer<typeof registerInputSchema>

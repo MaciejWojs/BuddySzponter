@@ -1,4 +1,5 @@
 <template>
+  <!-- Sekcja widoku komponentu LoginForm: definiuje strukturę renderowaną w interfejsie użytkownika. -->
   <div class="flex flex-col items-center gap-5">
     <div class="flex flex-col justify-items-center items-center gap-2">
       <p class="w-full max-w-sm text-left text-white text-base font-medium opacity-90">
@@ -73,6 +74,7 @@
 </template>
 
 <script setup lang="ts">
+// Sekcja logiki komponentu LoginForm: zarządza danymi, zdarzeniami i zachowaniem widoku.
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'

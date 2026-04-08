@@ -1,4 +1,5 @@
 <template>
+  <!-- Sekcja widoku komponentu RegisterForm: definiuje strukturę renderowaną w interfejsie użytkownika. -->
   <div class="flex flex-col items-center gap-6">
     <div class="flex flex-col justify-items-center items-center gap-2">
       <p class="w-full max-w-sm text-left text-white text-base font-medium opacity-90">
@@ -105,6 +106,7 @@
 </template>
 
 <script setup lang="ts">
+// Sekcja logiki komponentu RegisterForm: zarządza danymi, zdarzeniami i zachowaniem widoku.
 import { ref } from 'vue'
 import { storeToRefs } from 'pinia'
 const { t } = useI18n()

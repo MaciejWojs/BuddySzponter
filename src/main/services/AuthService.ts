@@ -1,3 +1,4 @@
+// Serwis odpowiedzialny za obsługę logowania, rejestracji, wylogowania i zarządzania tokenami JWT.
 import { ipcMain } from 'electron'
 import { LoginInput, RegisterInput } from '../schemas/authSchemas'
 import { register } from '../handlers/auth/register'
@@ -11,22 +12,27 @@ import { refresh } from '../handlers/auth/refresh'
 import { UserResponseSchema } from '../../shared/schemas/user'
 import { coreService } from './CoreService'
 
+// Odpowiedź zwracana, gdy wersja aplikacji jest nieobsługiwana.
 const updateBlockedResponse = {
   success: false as const,
   message: 'Ta wersja aplikacji nie jest wspierana. Zaktualizuj aplikacje, aby kontynuowac.'
 }
 
+// Klasa singleton obsługująca logikę autoryzacji użytkownika (logowanie, rejestracja, wylogowanie, odświeżanie tokenów).
 export class AuthService {
+  // Instancja singletona serwisu.
   private static instance: AuthService
+  // Timer do automatycznego odświeżania tokenu JWT.
   private refreshTimeout: NodeJS.Timeout | null = null
+  // Dane aktualnie zalogowanego użytkownika.
   public currentUser: UserResponseSchema | null = null
 
   private constructor() {
     console.log('[AuthService] Initializing service...')
-
     this.currentUser = this.getCurrentUserData()
   }
 
+  // Zwraca instancję singletona serwisu.
   public static getInstance(): AuthService {
     if (!AuthService.instance) {
       AuthService.instance = new AuthService()
@@ -34,8 +40,9 @@ export class AuthService {
     return AuthService.instance
   }
 
-  // --- TOKEN MANAGEMENT ---
+  // --- ZARZĄDZANIE TOKENAMI ---
 
+  // Ustawia nowy token JWT i planuje jego automatyczne odświeżenie.
   async setAccessToken(token: string): Promise<void> {
     authStore.set('accessToken', token)
 

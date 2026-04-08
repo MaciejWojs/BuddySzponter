@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+// Sekcja logiki komponentu GuestForm: zarządza danymi, zdarzeniami i zachowaniem widoku.
 import { ref } from 'vue'
 
 const { t } = useI18n()
@@ -123,6 +124,7 @@ function onPasswordBlur(): void {
 </script>
 
 <template>
+  <!-- Sekcja widoku komponentu GuestForm: definiuje strukturę renderowaną w interfejsie użytkownika. -->
   <div>
     <div id="sessionCode" class="flex flex-col items-center">
       <h3>{{ $t('guestForm.sessionCode') }}</h3>
