@@ -1,4 +1,10 @@
+// main/services/ConnectionService.ts
+
 import { ipcMain } from 'electron'
+import { wsService } from './ws/WsService'
+import { createConnection } from '../handlers/connection/create'
+import { joinConnection } from '../handlers/connection/join'
+import { CreateConnectionResponse, JoinConnectionResponse } from '../../shared/schemas/ipc'
 
 export class ConnectionService {
   private constructor() {
@@ -16,13 +22,39 @@ export class ConnectionService {
 
   public registerHandlers(): void {
     console.log('[ConnectionService] Registering handlers...')
-    ipcMain.handle('connection:create', async (_event, params) => {
-      const { createConnection } = await import('../handlers/connection/create')
-      return await createConnection(params)
-    })
-    ipcMain.handle('connection:join', async (_event, params) => {
-      const { joinConnection } = await import('../handlers/connection/join')
-      return await joinConnection(params)
+
+    // --- CREATE (HOST) ---
+    ipcMain.handle(
+      'connection:create',
+      async (_event, params): Promise<CreateConnectionResponse> => {
+        const response = await createConnection(params)
+
+        if (response.success && response.data) {
+          const wsResult = await wsService.initConnection(response.data.token)
+
+          if (!wsResult.success) {
+            return { success: false, message: 'Błąd połączenia WebSocket: ' + wsResult.message }
+          }
+        }
+        return response
+      }
+    )
+
+    // --- JOIN (GUEST) ---
+    ipcMain.handle('connection:join', async (_event, params): Promise<JoinConnectionResponse> => {
+      const response = await joinConnection(params)
+
+      if (response.success && response.data) {
+        const wsResult = await wsService.initConnection(response.data.token)
+
+        if (!wsResult.success) {
+          return { success: false, message: 'Błąd połączenia WebSocket po dołączeniu.' }
+        }
+
+        wsService.requestAccess(response.data.connectionUUID)
+      }
+
+      return response
     })
   }
 }
