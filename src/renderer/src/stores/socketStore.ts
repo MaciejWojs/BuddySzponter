@@ -1,31 +1,32 @@
-import { defineStore } from 'pinia'
-import { ref } from 'vue'
 import { wsService } from '@renderer/composables/connection/webSocketService'
-import type { WsActionResponse, WsConnectResponse, WsServerEvents } from '@shared/schemas/ipc'
-import { useConnectionStore } from './connectionStore'
 import { useWebRtcStore } from './webRtcStore'
+import { WsActionResponse, WsConnectResponse, WsServerEvents } from '@shared/schemas/ipc'
+import { useConnectionStore } from './connectionStore'
 
 export const useSocketStore = defineStore('socket', () => {
-  // ==========================================
-  // --- STAN REAKTYWNY (To czyta UI) ---
-  // ==========================================
   const isConnected = ref(false)
   const incomingRequest = ref<WsServerEvents['ws:request-access'] | null>(null)
   const accessStatus = ref<'accepted' | 'rejected' | null>(null)
   const isAcknowledged = ref(false)
 
-  // ==========================================
-  // --- INICJALIZACJA NASŁUCHIWANIA ---
-  // ==========================================
+  const resetLocalState = (): void => {
+    isAcknowledged.value = false
+    accessStatus.value = null
+    incomingRequest.value = null
+  }
+
+  // --- LISTENERS ---
 
   wsService.onConnected(() => {
     isConnected.value = true
   })
 
-  wsService.onDisconnected(() => {
-    console.warn('[SocketStore] Rozłączono gniazdko WebSocket. Jeśli sesja P2P trwa, zignoruj to!')
+  wsService.onDisconnected(async () => {
+    console.warn('[SocketStore] WebSocket rozłączony.')
     isConnected.value = false
-    incomingRequest.value = null
+    await useWebRtcStore().disconnect()
+
+    resetLocalState()
   })
 
   wsService.onRequestAccess((data) => {
@@ -37,47 +38,33 @@ export const useSocketStore = defineStore('socket', () => {
     wsService.guestAcknowledge()
   })
 
-  wsService.onAccessRejected(() => {
-    accessStatus.value = 'rejected'
-  })
-
   wsService.onAcknowledged(() => {
-    if (isAcknowledged.value === false) {
+    if (!isAcknowledged.value) {
       isAcknowledged.value = true
-
       const connectionStore = useConnectionStore()
 
       if (connectionStore.isHost) {
         wsService.hostAcknowledge()
-
-        const webRtcStore = useWebRtcStore()
-        webRtcStore.startConnectionAsHost()
+        useWebRtcStore().startConnectionAsHost()
       }
     }
   })
 
-  wsService.onDisconnected(() => {
-    isAcknowledged.value = false
-    accessStatus.value = null
-    useWebRtcStore().disconnect()
-  })
-
-  // ==========================================
-  // --- AKCJE (To wywołuje UI) ---
-  // ==========================================
+  // --- ACTIONS ---
 
   const connect = async (token: string): Promise<WsConnectResponse> => {
+    resetLocalState()
     return await wsService.connect(token)
   }
 
   const disconnect = async (): Promise<WsActionResponse> => {
     await useWebRtcStore().disconnect()
+    resetLocalState()
     return await wsService.disconnect()
   }
 
   const respondToRequest = async (accept: boolean): Promise<void> => {
     if (!incomingRequest.value) return
-
     if (accept) {
       await wsService.respondAccept()
     } else {
