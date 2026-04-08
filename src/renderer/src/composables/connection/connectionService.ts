@@ -1,3 +1,5 @@
+// renderer/src/composables/connection/connectionService.ts
+
 import { CreateConnectionRequestSchema } from '@shared/schemas/connection'
 import { CreateConnectionResponse, JoinConnectionResponse } from '@shared/schemas/ipc'
 
@@ -34,9 +36,10 @@ export class ConnectionService {
   async createConnection(data: CreateConnectionRequestSchema): Promise<CreateConnectionResponse> {
     try {
       const response = await window.api.connection.create(data)
-      if (response.success) {
+
+      if (response.success && response.data) {
         this.connectionCode = response.data.code
-        this.connectionUUID = response.data.uuid
+        this.connectionUUID = response.data.connectionUUID
         this.connectionToken = response.data.token
         this.expiresDate = new Date(response.data.expiresAt)
         console.log('[ConnectionService] Connection created successfully')
@@ -53,11 +56,14 @@ export class ConnectionService {
   async joinConnection(code: string, password: string): Promise<JoinConnectionResponse> {
     try {
       const response = await window.api.connection.join({ connectionCode: code, password })
-      if (response.success) {
+
+      if (response.success && response.data) {
         this.connectionCode = code
-        this.connectionUUID = response.data.uuid
+        this.connectionUUID = response.data.connectionUUID
         this.connectionToken = response.data.token
-        this.expiresDate = new Date(response.data.expiresAt)
+
+        this.expiresDate = null
+
         console.log('[ConnectionService] Joined connection successfully')
       } else {
         console.error('[ConnectionService] Failed to join connection:', response.message)
