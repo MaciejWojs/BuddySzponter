@@ -34,8 +34,9 @@ export class WsService {
 
     const sessionId = secureStore.getSecure('sessionId')
     const authToken = authService.getAccessToken()
-
-    this.socket = io(import.meta.env.VITE_API_WS, {
+    const isRemote = import.meta.env.VITE_WEBRTC_REMOTE === 'true'
+    const url = isRemote ? import.meta.env.VITE_API_WS : 'http://localhost'
+    this.socket = io(url, {
       auth: {
         authToken: `Bearer ${authToken}`,
         connectionToken: connectionToken,
