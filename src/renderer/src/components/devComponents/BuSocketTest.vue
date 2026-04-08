@@ -3,6 +3,7 @@ import { ref, watch, onUnmounted } from 'vue'
 import { useConnectionStore } from '@renderer/stores/connectionStore'
 import { useSocketStore } from '@renderer/stores/socketStore'
 import { useWebRtcStore } from '@renderer/stores/webRtcStore'
+import { videoService } from '@renderer/composables/video/videoService'
 
 // --- STORES & EMITS ---
 const connectionStore = useConnectionStore()
@@ -13,133 +14,57 @@ const emit = defineEmits<{
   (e: 'log-result', action: string, data: unknown, source?: 'api' | 'socket'): void
 }>()
 
-interface MediaStreamTrackGeneratorInit {
-  kind: 'video' | 'audio'
-}
-
-interface MediaStreamTrackGenerator extends MediaStreamTrack {
-  writable: WritableStream<VideoFrame>
-}
-
-interface WindowWithGenerator extends Window {
-  MediaStreamTrackGenerator: {
-    new (init: MediaStreamTrackGeneratorInit): MediaStreamTrackGenerator
-  }
-}
-
 // ==========================================
-// --- LOGIKA HOSTA (PRZECHWYTYWANIE ADDON) ---
+// --- LOGIKA HOSTA (PRZECHWYTYWANIE WIDEO) ---
 // ==========================================
-const videoCanvas = ref<HTMLCanvasElement | null>(null)
-const isCapturing = ref(false)
-
-const TARGET_FPS = 60
-const FRAME_INTERVAL = 1000 / TARGET_FPS
-
-let trackWriter: WritableStreamDefaultWriter<VideoFrame> | null = null
+// Używamy referencji do tagu <video> zamiast <canvas>
+const localVideoRef = ref<HTMLVideoElement | null>(null)
 
 function startCapture(): void {
-  if (isCapturing.value) return
-  emit('log-result', 'NATIVE_CAPTURE', 'Rozpoczynanie przechwytywania (Addon)...', 'api')
+  if (videoService.isRunning) return
+  emit('log-result', 'NATIVE_CAPTURE', 'Rozpoczynanie przechwytywania (Service)...', 'api')
 
   try {
-    if (!window.capture) throw new Error('Brak obiektu window.capture!')
+    // 1. Uruchamiamy nagrywanie przez serwis i odbieramy gotowy strumień
+    const stream = videoService.start()
 
-    const Generator = (window as unknown as WindowWithGenerator).MediaStreamTrackGenerator
-    if (!Generator) {
-      throw new Error('Twoja wersja Electrona nie obsługuje MediaStreamTrackGenerator')
+    // 2. Podpinamy strumień pod lokalny podgląd (tag <video> Hosta)
+    if (localVideoRef.value) {
+      localVideoRef.value.srcObject = stream
     }
 
-    const generator = new Generator({ kind: 'video' })
-    trackWriter = generator.writable.getWriter()
-
-    const customStream = new MediaStream([generator])
-
-    // ZMIANA: Zamiast przypisania, używamy nowej metody wypychającej strumień do P2P
+    // 3. Wypychamy strumień do WebRTC
     if (webRtcStore.rtcStatus === 'disconnected') {
-      // Jeśli P2P nie jest włączone, po prostu zapisz i zostaw dla przyszłego połączenia
-      webRtcStore.localStream = customStream
+      // Jeśli P2P nie jest jeszcze włączone, zapisujemy na później
+      webRtcStore.localStream = stream
     } else {
-      // Jeśli jesteśmy połączeni, wymuś renegocjację, żeby obraz zaczął lecieć od razu
-      webRtcStore.publishLocalStream(customStream)
+      // Jeśli jesteśmy połączeni, wymuszamy renegocjację
+      webRtcStore.publishLocalStream(stream)
     }
-
-    // Start Addona
-    window.capture.start()
-    isCapturing.value = true
-
-    // Zastąpienie rAF niezależnym timerem
-    renderLoop()
   } catch (err) {
     console.error(err)
-    isCapturing.value = false
+    emit('log-result', 'ERROR', `Błąd przechwytywania: ${err}`, 'api')
   }
-}
-
-function renderLoop(): void {
-  if (!isCapturing.value) return
-
-  const timestamp = performance.now()
-
-  try {
-    const frame = window.capture.getFrame() as VideoFrame | null
-
-    if (frame) {
-      if (trackWriter) {
-        trackWriter.write(frame.clone()).catch(() => {})
-      }
-
-      const canvas = videoCanvas.value
-      if (canvas) {
-        const ctx = canvas.getContext('2d')
-        if (ctx) {
-          if (canvas.width !== frame.displayWidth || canvas.height !== frame.displayHeight) {
-            canvas.width = frame.displayWidth
-            canvas.height = frame.displayHeight
-          }
-          ctx.drawImage(frame, 0, 0, canvas.width, canvas.height)
-        }
-      }
-
-      frame.close() // Krytyczne dla pamięci!
-    }
-  } catch (error) {
-    console.error(error)
-  }
-
-  const elapsed = performance.now() - timestamp
-  const nextDelay = Math.max(0, FRAME_INTERVAL - elapsed)
-
-  window.setTimeout(renderLoop, nextDelay)
 }
 
 function stopCapture(): void {
-  if (!isCapturing.value) return
-  isCapturing.value = false
+  if (!videoService.isRunning) return
 
   emit('log-result', 'NATIVE_CAPTURE', 'Zatrzymano przechwytywanie ekranu.', 'api')
 
-  if (trackWriter) {
-    trackWriter.close().catch(() => {})
-    trackWriter = null
+  // 1. Zatrzymujemy serwis natywny
+  videoService.stop()
+
+  // 2. Czyścimy podgląd lokalny u Hosta
+  if (localVideoRef.value) {
+    localVideoRef.value.srcObject = null
   }
 
-  // Wymuszamy zatrzymanie wysyłania (czyszcząc stan stora)
+  // 3. Wymuszamy zatrzymanie wysyłania u Gościa (czyszcząc stan stora)
   if (webRtcStore.localStream) {
     webRtcStore.localStream.getTracks().forEach((t) => t.stop())
   }
   webRtcStore.localStream = null
-
-  if (videoCanvas.value) {
-    const ctx = videoCanvas.value.getContext('2d')
-    if (ctx) ctx.clearRect(0, 0, videoCanvas.value.width, videoCanvas.value.height)
-  }
-
-  try {
-    window.capture.stop()
-  } catch (e) {
-    console.error(e)
-  }
 }
 
 const placeholderAction = (name: string): void => {
@@ -215,9 +140,11 @@ watch(
 // ==========================================
 const handleRespond = async (accept: boolean): Promise<void> => {
   emit('log-result', 'WS_SENDING_RESPONSE', `Odpowiedź: ${accept}`, 'socket')
+
   if (accept) {
     startCapture()
   }
+
   await socketStore.respondToRequest(accept)
 }
 
@@ -350,14 +277,7 @@ onUnmounted(() => {
         </div>
         <div class="flex gap-3 mb-4">
           <button
-            :disabled="isCapturing"
-            class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-700 disabled:text-gray-500 disabled:cursor-not-allowed rounded text-white text-sm font-bold transition-colors"
-            @click="startCapture"
-          >
-            ▶ Uruchom Addon C++
-          </button>
-          <button
-            :disabled="!isCapturing"
+            :disabled="!videoService.isRunning"
             class="px-4 py-2 bg-[#333] hover:bg-[#444] disabled:bg-gray-800 disabled:text-gray-600 disabled:cursor-not-allowed rounded text-white text-sm font-bold transition-colors border border-[#444]"
             @click="stopCapture"
           >
@@ -368,16 +288,19 @@ onUnmounted(() => {
           class="bg-black border border-[#444] rounded-lg overflow-hidden aspect-video relative flex items-center justify-center shadow-[0_0_15px_rgba(0,0,0,0.5)]"
         >
           <div
-            v-if="!isCapturing"
+            v-if="!videoService.isRunning"
             class="text-gray-500 text-xs font-mono absolute z-10 pointer-events-none"
           >
             Brak strumienia. Uruchom przechwytywanie przed akceptacją gościa.
           </div>
-          <canvas
-            v-show="isCapturing"
-            ref="videoCanvas"
+          <video
+            v-show="videoService.isRunning"
+            ref="localVideoRef"
+            autoplay
+            playsinline
+            muted
             class="w-full h-full object-contain absolute inset-0"
-          ></canvas>
+          ></video>
         </div>
       </div>
 
