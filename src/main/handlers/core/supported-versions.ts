@@ -5,6 +5,7 @@ import { secureStore } from '../../store/secureStore'
 import { execute } from '../../utils/execute'
 import { z } from 'zod'
 import { decryptData } from '../../utils/api/crypt'
+import { buildRoute } from '../../utils/api/path'
 
 export const SupportedVersionSchema = z.object({
   version: z.string(),
@@ -15,7 +16,7 @@ export const SupportedVersionSchema = z.object({
 export const SupportedVersionsResponseSchema = z.array(SupportedVersionSchema)
 
 export async function getSupportedVersions(): Promise<GetSupportedVersionsResponse> {
-  const url = `${import.meta.env.VITE_API_BASE_URL}${API_ROUTES.CORE.SUPPORTED_VERSIONS}`
+  const url = buildRoute(API_ROUTES.CORE.SUPPORTED_VERSIONS)
 
   const requestHeaders: Record<string, string> = {
     'Content-Type': 'application/json'

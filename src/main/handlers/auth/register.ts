@@ -5,10 +5,11 @@ import { secureStore } from '../../store/secureStore'
 import { encryptData, decryptData } from '../../utils/api/crypt'
 import { execute } from '../../utils/execute'
 import { RegisterRendererResponse } from '../../../shared/schemas/ipc'
+import { buildRoute } from '../../utils/api/path'
 
 export async function register(data: RegisterInput): Promise<RegisterRendererResponse> {
   try {
-    const url = `${import.meta.env.VITE_API_BASE_URL}${API_ROUTES.AUTH.REGISTER}`
+    const url = buildRoute(API_ROUTES.AUTH.REGISTER)
     const isEncryptionEnabled = import.meta.env.VITE_ENCRYPT_DATA === 'true'
 
     const requestHeaders: Record<string, string> = {

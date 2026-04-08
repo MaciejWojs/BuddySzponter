@@ -22,15 +22,19 @@ export class WebRTCService {
     const serverPass = import.meta.env.VITE_ICE_SERVER_PASS || '1234'
 
     const config: RTCConfiguration = {
-      iceServers: [
+      iceServers: []
+    }
+
+    if (isRemote && server) {
+      config.iceServers = [
         { urls: `stun:${server}:3478` },
         { urls: `turn:${server}:3478`, username: serverUser, credential: serverPass },
         { urls: `turns:${server}:443`, username: serverUser, credential: serverPass },
         { urls: `turns:${server}:5349`, username: serverUser, credential: serverPass }
       ]
+    } else {
+      config.iceServers = [{ urls: 'stun:stun.l.google.com:19302' }]
     }
-
-    console.log(`[WebRTC] Inicjalizacja w trybie: ${isRemote ? 'REMOTE' : 'LOCAL'}`)
 
     this.peerConnection = new RTCPeerConnection(config)
 

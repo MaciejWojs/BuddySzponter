@@ -7,6 +7,7 @@ import { decryptData, encryptData } from '../../utils/api/crypt'
 import { execute } from '../../utils/execute'
 import { LoginRendererResponse } from '../../../shared/schemas/ipc'
 import { authService } from '../../services/AuthService'
+import { buildRoute } from '../../utils/api/path'
 
 export async function login(data: LoginInput): Promise<LoginRendererResponse> {
   try {
@@ -21,7 +22,8 @@ export async function login(data: LoginInput): Promise<LoginRendererResponse> {
       name: deviceName
     })
 
-    const url = `${import.meta.env.VITE_API_BASE_URL}${API_ROUTES.AUTH.LOGIN}`
+    const url = buildRoute(API_ROUTES.AUTH.LOGIN)
+
     const isEncryptionEnabled = import.meta.env.VITE_ENCRYPT_DATA === 'true'
 
     const requestHeaders: Record<string, string> = {

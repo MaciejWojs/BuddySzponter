@@ -6,7 +6,10 @@ import { authStore } from '../../store/localStore'
 import { execute } from '../../utils/execute'
 
 export async function logout(): Promise<LogoutRendererResponse> {
-  const url = `${import.meta.env.VITE_API_BASE_URL}${API_ROUTES.AUTH.LOGOUT}`
+  const isRemote = import.meta.env.VITE_WEBRTC_REMOTE === 'true'
+  const url = isRemote
+    ? `${import.meta.env.VITE_API_BASE_URL}${API_ROUTES.AUTH.LOGOUT}`
+    : 'http://localhost/api/v1' + API_ROUTES.AUTH.LOGOUT
 
   const requestHeaders: Record<string, string> = {
     'Content-Type': 'application/json'
