@@ -5,7 +5,7 @@ import { EncryptedPayload } from '../../schemas/encryptedPayload.schema'
 import { secureStore } from '../../store/secureStore'
 import { authService } from '../AuthService'
 import { WsActionResponse, WsConnectResponse, WsServerEvents } from '../../../shared/schemas/ipc'
-
+import { Notification } from 'electron'
 export class WsService {
   private static instance: WsService
   private socket: Socket | null = null
@@ -76,6 +76,49 @@ export class WsService {
     // --- BIZNESOWE ---
     this.socket.on('connection:request-access', async (data: unknown) => {
       const payload = await this.decryptIfNeeded<WsServerEvents['ws:request-access']>(data)
+      const notification = new Notification({
+    title: 'Incoming Connection Request',
+    body: 'Do you want to accept the connection request?',
+    actions: [
+      { type: 'button', text: 'Accept' },
+      { type: 'button', text: 'Reject' }
+    ],
+       closeButtonText: 'Close'
+     });
+
+     let actionHandled = false;
+
+      notification.on('action', async (_event, index) => {
+        if (!this.socket) return;
+        const sessionId = secureStore.getSecure('sessionId')
+        const payload = {
+          sessionId: sessionId,
+        }
+        console.log(`payload for response:`, payload)
+          if (index === 0) {
+              console.log('Użytkownik zaakceptował prośbę o dostęp.')
+          const payloadToSend = this.isEncryptionEnabled
+            ? await encryptData(payload)
+            : payload
+            this.socket.emit('connection:accept', payloadToSend)
+          }
+          if (index === 1) {
+            console.log('Użytkownik odrzucił prośbę o dostęp.')
+              const payloadToSend = this.isEncryptionEnabled
+        ? await encryptData(payload)
+        : payload
+      this.socket.emit('connection:reject', payloadToSend)
+          }
+        console.log(`Kliknięto przycisk ${index}`);
+        actionHandled = true;
+      });
+
+      notification.on('close', () => {
+        console.log('Powiadomienie zamknięte');
+      });
+
+      notification.show();
+      if (!actionHandled)
       this.notifyFrontend('ws:request-access', payload)
     })
 
