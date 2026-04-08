@@ -1,19 +1,54 @@
-import { io, Socket } from 'socket.io-client'
-import { ipcMain, BrowserWindow } from 'electron'
-import { decryptData, encryptData } from '../../utils/api/crypt'
-import { EncryptedPayload } from '../../schemas/encryptedPayload.schema'
-import { secureStore } from '../../store/secureStore'
-import { authService } from '../AuthService'
-import { WsActionResponse, WsConnectResponse, WsServerEvents } from '../../../shared/schemas/ipc'
-import { Notification } from 'electron'
+// main/services/ws/WsService.ts
+
+import { Socket } from 'socket.io-client'
+import {
+  WsActionResponse,
+  WsConnectResponse,
+  WsServerEvents,
+  WsCategory
+} from '../../../shared/schemas/ipc'
+import {
+  WsRequestAccess,
+  WsConnectionAccepted,
+  WsConnectionRejected,
+  WsConnectionError,
+  WsAcknowledged,
+  WsWebRTCOffer,
+  WsWebRTCAnswer,
+  WsWebRTCIceCandidate,
+  WsWebRTCReady
+} from '../../../shared/schemas/ws'
+
+import { disconnect, setupConnectionListeners, connect } from '../../handlers/socket/connection'
+import {
+  sendGuestAcknowledge,
+  sendHostAcknowledge,
+  setupHandshakeListeners
+} from '../../handlers/socket/handshake'
+import {
+  sendRequestAccess,
+  sendRespondAccept,
+  sendRespondReject,
+  setupAccessListeners
+} from '../../handlers/socket/access'
+import {
+  sendWebRTCAnswer,
+  sendWebRTCIceCandidate,
+  sendWebRTCOffer,
+  sendWebRTCReady,
+  setupWebRtcListeners
+} from '../../handlers/socket/webrtc'
+import { notifyFrontend } from '../../utils/notify'
+import { ipcMain } from 'electron'
+
 export class WsService {
   private static instance: WsService
-  private socket: Socket | null = null
 
-  private isEncryptionEnabled: boolean = import.meta.env.VITE_ENCRYPT_DATA === 'true'
+  public socket: Socket | null = null
+  public currentSessionId: string | null = null
 
   private constructor() {
-    console.log('[WsService] Initializing service...')
+    console.log('[WsService] Serwis zainicjalizowany.')
   }
 
   public static getInstance(): WsService {
@@ -23,248 +58,203 @@ export class WsService {
     return WsService.instance
   }
 
-  /**
-   * Inicjalizacja połączenia WebSocket
-   */
-  public connect(connectionToken: string): void {
-    if (this.socket?.connected) {
-      console.warn('[WsService] Socket is already connected. Disconnecting old instance...')
-      this.disconnect()
-    }
-
-    const sessionId = secureStore.getSecure('sessionId')
-    const authToken = authService.getAccessToken()
-    const isRemote = import.meta.env.VITE_WEBRTC_REMOTE === 'true'
-    const url = isRemote ? import.meta.env.VITE_API_WS : 'http://localhost'
-    this.socket = io(url, {
-      auth: {
-        authToken: `Bearer ${authToken}`,
-        connectionToken: connectionToken,
-        sessionId: sessionId
-      },
-      reconnection: true,
-      withCredentials: true,
-      transports: ['websocket']
-    })
-
-    this.setupSocketListeners()
+  private notify<T>(category: WsCategory, type: string, data: T): void {
+    notifyFrontend(
+      category as keyof WsServerEvents,
+      { type, data } as WsServerEvents[keyof WsServerEvents]
+    )
   }
 
-  public disconnect(): void {
-    if (this.socket) {
-      this.socket.emit('disconnect')
-      this.socket.disconnect()
-      this.socket = null
-    }
-  }
-
-  private setupSocketListeners(): void {
-    if (!this.socket) return
-
-    this.socket.on('connect', () => {
-      this.notifyFrontend('ws:connected', { socketId: this.socket?.id || '' })
-    })
-
-    this.socket.on('disconnect', (reason: string) => {
-      this.notifyFrontend('ws:disconnected', { reason })
-    })
-
-    this.socket.on('connect_error', (err: Error) => {
-      this.notifyFrontend('ws:connect_error', { message: err.message })
-    })
-
-    // --- BIZNESOWE ---
-    this.socket.on('connection:request-access', async (data: unknown) => {
-      const payload = await this.decryptIfNeeded<WsServerEvents['ws:request-access']>(data)
-      const notification = new Notification({
-    title: 'Incoming Connection Request',
-    body: 'Do you want to accept the connection request?',
-    actions: [
-      { type: 'button', text: 'Accept' },
-      { type: 'button', text: 'Reject' }
-    ],
-       closeButtonText: 'Close'
-     });
-
-     let actionHandled = false;
-
-      notification.on('action', async (_event, index) => {
-        if (!this.socket) return;
-        const sessionId = secureStore.getSecure('sessionId')
-        const payload = {
-          sessionId: sessionId,
-        }
-        console.log(`payload for response:`, payload)
-          if (index === 0) {
-              console.log('Użytkownik zaakceptował prośbę o dostęp.')
-          const payloadToSend = this.isEncryptionEnabled
-            ? await encryptData(payload)
-            : payload
-            this.socket.emit('connection:accept', payloadToSend)
-          }
-          if (index === 1) {
-            console.log('Użytkownik odrzucił prośbę o dostęp.')
-              const payloadToSend = this.isEncryptionEnabled
-        ? await encryptData(payload)
-        : payload
-      this.socket.emit('connection:reject', payloadToSend)
-          }
-        console.log(`Kliknięto przycisk ${index}`);
-        actionHandled = true;
-      });
-
-      notification.on('close', () => {
-        console.log('Powiadomienie zamknięte');
-      });
-
-      notification.show();
-      if (!actionHandled)
-      this.notifyFrontend('ws:request-access', payload)
-    })
-
-    this.socket.on('connection:accepted', async (data: unknown) => {
-      const payload = await this.decryptIfNeeded<WsServerEvents['ws:access-accepted']>(data)
-      this.notifyFrontend('ws:access-accepted', payload)
-    })
-
-    this.socket.on('connection:rejected', async (data: unknown) => {
-      const payload = await this.decryptIfNeeded<WsServerEvents['ws:access-rejected']>(data)
-      this.notifyFrontend('ws:access-rejected', payload)
-    })
-
-    this.socket.on('connection:error', async (data: unknown) => {
-      const payload = await this.decryptIfNeeded<WsServerEvents['ws:server-error']>(data)
-      this.notifyFrontend('ws:server-error', payload)
-    })
-
-    this.socket.on('connection:acknowledged', async (data: unknown) => {
-      const payload = await this.decryptIfNeeded<WsServerEvents['ws:acknowledged']>(data)
-      this.notifyFrontend('ws:acknowledged', payload)
-    })
-
-    // --- WebRTC ---
-    this.socket.on('webrtc:offer', async (data: unknown) => {
-      const payload = await this.decryptIfNeeded<WsServerEvents['webrtc:offer']>(data)
-      this.notifyFrontend('webrtc:offer', payload)
-    })
-
-    this.socket.on('webrtc:answer', async (data: unknown) => {
-      const payload = await this.decryptIfNeeded<WsServerEvents['webrtc:answer']>(data)
-      this.notifyFrontend('webrtc:answer', payload)
-    })
-
-    this.socket.on('webrtc:ice-candidate', async (data: unknown) => {
-      const payload = await this.decryptIfNeeded<WsServerEvents['webrtc:ice-candidate']>(data)
-      this.notifyFrontend('webrtc:ice-candidate', payload)
-    })
-
-    this.socket.on('webrtc:ready', async (data: unknown) => {
-      const payload = await this.decryptIfNeeded<WsServerEvents['webrtc:ready']>(data)
-      this.notifyFrontend('webrtc:ready', payload)
-    })
-  }
-
-  private notifyFrontend<K extends keyof WsServerEvents>(
-    channel: K,
-    payload: WsServerEvents[K]
-  ): void {
-    const windows = BrowserWindow.getAllWindows()
-    windows.forEach((win) => {
-      if (!win.isDestroyed()) {
-        win.webContents.send(channel, payload)
+  public async initConnection(token: string): Promise<WsConnectResponse> {
+    try {
+      if (this.socket) {
+        this.closeConnection()
       }
-    })
+
+      this.socket = await connect(token)
+
+      setupConnectionListeners(this.socket, this)
+      setupAccessListeners(this.socket, this)
+      setupHandshakeListeners(this.socket, this)
+      setupWebRtcListeners(this.socket, this)
+
+      return { success: true }
+    } catch (error: unknown) {
+      console.error('[WsService] Błąd podczas łączenia:', error)
+      return { success: false, message: (error as Error).message || 'Błąd połączenia' }
+    }
   }
 
-  private async decryptIfNeeded<T>(data: unknown): Promise<T> {
-    return this.isEncryptionEnabled
-      ? ((await decryptData(data as EncryptedPayload)) as T)
-      : (data as T)
+  public closeConnection(): void {
+    if (this.socket) {
+      disconnect(this.socket)
+      this.socket = null
+      this.currentSessionId = null
+      console.log('[WsService] Połączenie zamknięte i stan wyczyszczony.')
+    }
   }
 
-  public registerHandlers(): void {
-    console.log('[WsService] Registering IPC handlers...')
+  // --- ACTIONS ---
 
-    ipcMain.handle('ws:connect', async (_, { connectionToken }): Promise<WsConnectResponse> => {
-      this.connect(connectionToken)
-      return { success: true }
-    })
+  public requestAccess(sessionId: string): WsActionResponse {
+    if (!this.socket) return { success: false, message: 'Brak gniazdka' }
+    this.currentSessionId = sessionId
+    sendRequestAccess(this.socket, sessionId)
+    return { success: true }
+  }
 
-    ipcMain.handle('ws:respond-accept', async (_, payload): Promise<WsActionResponse> => {
-      if (!this.socket) return { success: false, message: 'No socket connection' }
-      const payloadToSend = this.isEncryptionEnabled
-        ? await encryptData(payload.data)
-        : payload.data
-      this.socket.emit('connection:accept', payloadToSend)
-      return { success: true }
-    })
+  public respondAccept(): WsActionResponse {
+    if (!this.socket || !this.currentSessionId) return { success: false }
+    sendRespondAccept(this.socket, this.currentSessionId)
+    return { success: true }
+  }
 
-    ipcMain.handle('ws:respond-reject', async (_, payload): Promise<WsActionResponse> => {
-      if (!this.socket) return { success: false, message: 'No socket connection' }
-      const payloadToSend = this.isEncryptionEnabled
-        ? await encryptData(payload.data)
-        : payload.data
-      this.socket.emit('connection:reject', payloadToSend)
-      return { success: true }
-    })
+  public respondReject(): WsActionResponse {
+    if (!this.socket || !this.currentSessionId) return { success: false }
+    sendRespondReject(this.socket, this.currentSessionId)
+    this.currentSessionId = null
+    return { success: true }
+  }
 
-    ipcMain.handle('ws:acknowledge', async (_, payload): Promise<WsActionResponse> => {
-      if (!this.socket) return { success: false, message: 'No socket connection' }
-      const payloadToSend = this.isEncryptionEnabled ? await encryptData(payload) : payload
-      this.socket.emit('connection:acknowledge', payloadToSend)
-      return { success: true }
-    })
+  public guestAcknowledge(): WsActionResponse {
+    if (!this.socket || !this.currentSessionId) return { success: false }
+    sendGuestAcknowledge(this.socket, this.currentSessionId)
+    return { success: true }
+  }
 
-    ipcMain.handle('ws:acknowledged', async (_, payload): Promise<WsActionResponse> => {
-      if (!this.socket) return { success: false, message: 'No socket connection' }
-      const payloadToSend = this.isEncryptionEnabled ? await encryptData(payload) : payload
-      this.socket.emit('connection:acknowledged', payloadToSend)
-      return { success: true }
-    })
+  public hostAcknowledge(): WsActionResponse {
+    if (!this.socket || !this.currentSessionId) return { success: false }
+    sendHostAcknowledge(this.socket, this.currentSessionId)
+    return { success: true }
+  }
 
-    ipcMain.handle('ws:request-access', async (_event, data) => {
-      if (!this.socket) return { success: false, message: 'No socket connection' }
+  public webrtcOffer(data: WsWebRTCOffer): WsActionResponse {
+    if (!this.socket) return { success: false }
+    sendWebRTCOffer(this.socket, data)
+    return { success: true }
+  }
 
-      console.log('[WsService] Wysyłanie prośby o dostęp (Guest -> Host)', data)
-      const payloadToSend = this.isEncryptionEnabled ? await encryptData(data || {}) : data || {}
+  public webrtcAnswer(data: WsWebRTCAnswer): WsActionResponse {
+    if (!this.socket) return { success: false }
+    sendWebRTCAnswer(this.socket, data)
+    return { success: true }
+  }
 
-      this.socket.emit('connection:request-access', payloadToSend)
-      return { success: true }
+  public webrtcIceCandidate(data: WsWebRTCIceCandidate): WsActionResponse {
+    if (!this.socket) return { success: false }
+    sendWebRTCIceCandidate(this.socket, data)
+    return { success: true }
+  }
+
+  public webrtcReady(data: WsWebRTCReady): WsActionResponse {
+    if (!this.socket) return { success: false }
+    sendWebRTCReady(this.socket, data)
+    return { success: true }
+  }
+
+  // --- HANDLERS ---
+
+  public handleConnected(socketId: string): void {
+    this.notify('ws:connection', 'connected', { socketId })
+  }
+
+  public handleDisconnected(reason: string): void {
+    this.socket = null
+    this.currentSessionId = null
+    this.notify('ws:connection', 'disconnected', { reason })
+  }
+
+  public handleConnectError(message: string): void {
+    this.notify('ws:connection', 'connect_error', { message })
+  }
+
+  public handleRequestAccess(payload: WsRequestAccess): void {
+    this.currentSessionId = payload.sessionId
+    this.notify('ws:access', 'request-access', payload)
+  }
+
+  public handleAccessAccepted(payload: WsConnectionAccepted): void {
+    this.currentSessionId = payload.sessionId
+    this.notify('ws:access', 'accepted', payload)
+  }
+
+  public handleAccessRejected(payload: WsConnectionRejected): void {
+    this.currentSessionId = null
+    this.notify('ws:access', 'rejected', payload)
+  }
+
+  public handleServerError(payload: WsConnectionError): void {
+    this.notify('ws:access', 'server-error', payload)
+  }
+
+  public handleAcknowledged(payload: WsAcknowledged): void {
+    this.notify('ws:handshake', 'acknowledged', payload)
+  }
+
+  public handleWebRTCOffer(payload: WsWebRTCOffer): void {
+    this.notify('ws:webrtc', 'offer', payload)
+  }
+
+  public handleWebRTCAnswer(payload: WsWebRTCAnswer): void {
+    this.notify('ws:webrtc', 'answer', payload)
+  }
+
+  public handleWebRTCIceCandidate(payload: WsWebRTCIceCandidate): void {
+    this.notify('ws:webrtc', 'ice-candidate', payload)
+  }
+
+  public handleWebRTCReady(payload: WsWebRTCReady): void {
+    this.notify('ws:webrtc', 'ready', payload)
+  }
+
+  public registerWsHandlers(): void {
+    // --- POŁĄCZENIE ---
+    ipcMain.handle('ws:connect', async (_, { connectionToken }) => {
+      return await wsService.initConnection(connectionToken)
     })
 
     ipcMain.handle('ws:disconnect', async () => {
-      this.disconnect()
+      wsService.closeConnection()
       return { success: true }
     })
 
-    // -- WebRTC --
-
-    ipcMain.handle('ws:webrtc-offer', async (_event, data) => {
-      if (!this.socket) return { success: false, message: 'No socket connection' }
-      const payloadToSend = this.isEncryptionEnabled ? await encryptData(data) : data
-      this.socket.emit('webrtc:offer', payloadToSend)
-      return { success: true }
+    // --- DOSTĘP (Access) ---
+    ipcMain.handle('ws:respond-accept', async () => {
+      return wsService.respondAccept()
     })
 
-    ipcMain.handle('ws:webrtc-answer', async (_event, data) => {
-      if (!this.socket) return { success: false, message: 'No socket connection' }
-      const payloadToSend = this.isEncryptionEnabled ? await encryptData(data) : data
-      this.socket.emit('webrtc:answer', payloadToSend)
-      return { success: true }
+    ipcMain.handle('ws:respond-reject', async () => {
+      return wsService.respondReject()
     })
 
-    ipcMain.handle('ws:webrtc-ice-candidate', async (_event, data) => {
-      if (!this.socket) return { success: false, message: 'No socket connection' }
-      const payloadToSend = this.isEncryptionEnabled ? await encryptData(data) : data
-      this.socket.emit('webrtc:ice-candidate', payloadToSend)
-      return { success: true }
+    ipcMain.handle('ws:request-access', async (_, { sessionId }) => {
+      return wsService.requestAccess(sessionId)
     })
 
-    ipcMain.handle('ws:webrtc-ready', async (_event, data) => {
-      if (!this.socket) return { success: false, message: 'No socket connection' }
-      const payloadToSend = this.isEncryptionEnabled ? await encryptData(data) : data
-      this.socket.emit('webrtc:ready', payloadToSend)
-      return { success: true }
+    // --- HANDSHAKE ---
+    ipcMain.handle('ws:acknowledge', async () => {
+      return wsService.guestAcknowledge()
+    })
+
+    ipcMain.handle('ws:acknowledged', async () => {
+      return wsService.hostAcknowledge()
+    })
+
+    // --- WEBRTC SIGNALING ---
+    ipcMain.handle('ws:webrtc-offer', async (_, data) => {
+      return wsService.webrtcOffer(data)
+    })
+
+    ipcMain.handle('ws:webrtc-answer', async (_, data) => {
+      return wsService.webrtcAnswer(data)
+    })
+
+    ipcMain.handle('ws:webrtc-ice-candidate', async (_, data) => {
+      return wsService.webrtcIceCandidate(data)
+    })
+
+    ipcMain.handle('ws:webrtc-ready', async (_, data) => {
+      return wsService.webrtcReady(data)
     })
   }
 }
