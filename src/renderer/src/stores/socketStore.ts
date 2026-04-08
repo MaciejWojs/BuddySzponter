@@ -95,6 +95,7 @@ export const useSocketStore = defineStore('socket', () => {
     wsService.setupHandshake({
       onAcknowledged: () => {
         isAcknowledged.value = true
+        incomingRequest.value = null
         if (connectionStore.isHost && rtcStore.localStream) {
           rtcStore.startConnectionAsHost()
         }
