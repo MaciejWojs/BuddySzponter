@@ -23,8 +23,8 @@ export class VersionsService {
     }
   }
 
-  getVersion(): string {
-    return window.api.core.getAppVersion()
+  async getVersion(): Promise<string> {
+    return await window.api.core.getAppVersion()
   }
 
   public async init(): Promise<void> {

@@ -18,11 +18,9 @@ export class LanguageService {
   public async init(): Promise<void> {
     this.isLoadingTranslationsRef.value = true
     try {
-      const [savedLang, availableLangsRes, initialTranslations] = await Promise.all([
-        window.api.settings.getLanguage(),
-        window.api.core.getAvailableLanguages(),
-        window.api.settings.getTranslation()
-      ])
+      const savedLang = await window.api.settings.getLanguage()
+      const availableLangsRes = await window.api.core.getAvailableLanguages()
+      const initialTranslations = await window.api.settings.getTranslation()
 
       this.selectedLanguageRef.value = savedLang
       this.translationsRef.value = initialTranslations
@@ -31,10 +29,13 @@ export class LanguageService {
         this.availableLanguagesRef.value = availableLangsRes.data
       }
 
-      // --- NOWE (vue-i18n) ---
       if (initialTranslations) {
-        i18n.global.setLocaleMessage(savedLang, initialTranslations)
-        i18n.global.locale.value = savedLang as unknown as 'er'
+        // Magia TypeScriptu: pobieramy idealny typ bezpośrednio z metody i18n
+        type I18nMessageType = Parameters<typeof i18n.global.setLocaleMessage>[1]
+
+        i18n.global.setLocaleMessage(savedLang, initialTranslations as unknown as I18nMessageType)
+        // Bezpieczne przypisanie języka
+        ;(i18n.global.locale as { value: string }).value = savedLang
       }
     } catch (error) {
       console.error('[LanguageService] Failed to initialize:', error)
@@ -57,8 +58,13 @@ export class LanguageService {
       this.selectedLanguageRef.value = lang
       this.translationsRef.value = newTranslations
 
-      i18n.global.setLocaleMessage(lang, newTranslations)
-      i18n.global.locale.value = lang as unknown as 'er'
+      if (newTranslations) {
+        // To samo bezpieczne rzutowanie
+        type I18nMessageType = Parameters<typeof i18n.global.setLocaleMessage>[1]
+
+        i18n.global.setLocaleMessage(lang, newTranslations as unknown as I18nMessageType)
+        ;(i18n.global.locale as { value: string }).value = lang
+      }
     } catch (error) {
       console.error(`[LanguageService] Error changing language:`, error)
     } finally {
