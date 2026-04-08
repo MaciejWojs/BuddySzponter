@@ -23,6 +23,11 @@ export const P2PMessageSchema = z.discriminatedUnion('type', [
     payload: z.object({
       action: z.enum(['PAUSE_VIDEO', 'RESUME_VIDEO', 'LOWER_QUALITY'])
     })
+  }),
+
+  z.object({
+    type: z.literal('DISCONNECT'),
+    payload: z.object({})
   })
 ])
 

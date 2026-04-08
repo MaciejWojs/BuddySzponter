@@ -8,23 +8,22 @@ export const useP2PCommander = (): {
   sendMousePosition: (x: number, y: number) => void
   sendVideoCommand: (action: 'PAUSE_VIDEO' | 'RESUME_VIDEO' | 'LOWER_QUALITY') => void
 } => {
-  // Główna funkcja pakująca
-  const send = (msg: P2PMessage): void => {
-    if (webRtcService.systemChannel?.readyState === 'open') {
-      webRtcService.systemChannel.send(JSON.stringify(msg))
+  const sendToChannel = (channel: RTCDataChannel | null, msg: P2PMessage): void => {
+    if (channel?.readyState === 'open') {
+      channel.send(JSON.stringify(msg))
     }
   }
 
   const sendChatMessage = (text: string, sender: string): void => {
-    send({ type: 'CHAT', payload: { text, sender } })
+    sendToChannel(webRtcService.chatChannel, { type: 'CHAT', payload: { text, sender } })
   }
 
   const sendMousePosition = (x: number, y: number): void => {
-    send({ type: 'MOUSE_MOVE', payload: { x, y } })
+    sendToChannel(webRtcService.mouseChannel, { type: 'MOUSE_MOVE', payload: { x, y } })
   }
 
   const sendVideoCommand = (action: 'PAUSE_VIDEO' | 'RESUME_VIDEO' | 'LOWER_QUALITY'): void => {
-    send({ type: 'CONTROL', payload: { action } })
+    sendToChannel(webRtcService.controlChannel, { type: 'CONTROL', payload: { action } })
   }
 
   return {
