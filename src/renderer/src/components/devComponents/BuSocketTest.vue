@@ -215,6 +215,9 @@ watch(
 // ==========================================
 const handleRespond = async (accept: boolean): Promise<void> => {
   emit('log-result', 'WS_SENDING_RESPONSE', `Odpowiedź: ${accept}`, 'socket')
+  if (accept) {
+    startCapture()
+  }
   await socketStore.respondToRequest(accept)
 }
 
