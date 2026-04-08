@@ -149,16 +149,20 @@ export const useWebRtcStore = defineStore('webrtc', () => {
   const forceDisconnect = (): void => {
     if (rtcStatus.value === 'disconnected') return
 
-    console.log('[WebRtcStore] Force Disconnect: czyszczenie zasobów.')
-    webRtcService.cleanup()
+    console.log('[WebRtcStore] UI: Status -> Disconnected')
+
     rtcStatus.value = 'disconnected'
+
+    webRtcService.cleanup()
 
     if (localStream.value) {
       localStream.value.getTracks().forEach((track) => track.stop())
       localStream.value = null
     }
+
     remoteStream.value = null
     chatMessages.value = []
+    remoteMouse.value = { x: 0, y: 0 }
   }
 
   const publishLocalStream = async (stream: MediaStream): Promise<void> => {
