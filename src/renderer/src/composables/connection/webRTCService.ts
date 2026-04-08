@@ -110,7 +110,6 @@ export class WebRTCService {
   public async createOffer(): Promise<RTCSessionDescriptionInit> {
     if (!this.peerConnection) throw new Error('Brak PeerConnection')
 
-    // ZMIANA 2: Tworzymy kanały tylko za pierwszym razem! (Chroni przed crashami przy renegocjacji wideo)
     if (!this.controlChannel) {
       const controlChannel = this.peerConnection.createDataChannel('control-channel', {
         ordered: true
