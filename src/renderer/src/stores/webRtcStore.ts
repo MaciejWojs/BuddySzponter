@@ -123,6 +123,10 @@ export const useWebRtcStore = defineStore('webrtc', () => {
     connectionMetrics.setLocalPreviewFps(fps)
   }
 
+  const setLocalPreviewQuality = (quality: 'low' | 'medium' | 'high' | null): void => {
+    connectionMetrics.setLocalPreviewQuality(quality)
+  }
+
   return {
     rtcStatus,
     chatMessages,
@@ -138,6 +142,7 @@ export const useWebRtcStore = defineStore('webrtc', () => {
     disconnect,
     forceDisconnect,
     publishLocalStream,
-    setLocalPreviewFps
+    setLocalPreviewFps,
+    setLocalPreviewQuality
   }
 })

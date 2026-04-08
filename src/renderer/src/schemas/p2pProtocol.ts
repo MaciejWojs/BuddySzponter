@@ -29,6 +29,7 @@ export const P2PMessageSchema = z.discriminatedUnion('type', [
     type: z.literal('METRICS'),
     payload: z.object({
       fps: z.number().nullable(),
+      qualityPreset: z.enum(['low', 'medium', 'high']).nullable(),
       rttMs: z.number().nullable(),
       cpuLoadPct: z.number().nullable(),
       timestamp: z.number().int()

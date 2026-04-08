@@ -6,6 +6,7 @@ type RtcStatus = 'disconnected' | 'connecting' | 'connected'
 
 type BasicMetrics = {
   fps: number | null
+  qualityPreset: 'low' | 'medium' | 'high' | null
   rttMs: number | null
   cpuLoadPct: number | null
 }
@@ -17,11 +18,13 @@ type UseConnectionMetricsReturn = {
   stop: () => void
   reset: () => void
   setLocalPreviewFps: (fps: number | null) => void
+  setLocalPreviewQuality: (quality: 'low' | 'medium' | 'high' | null) => void
   handleIncoming: (msg: P2PMessage, channelLabel: string) => boolean
 }
 
 const emptyMetrics = (): BasicMetrics => ({
   fps: null,
+  qualityPreset: null,
   rttMs: null,
   cpuLoadPct: null
 })
@@ -30,6 +33,7 @@ export const useConnectionMetrics = (rtcStatus: Ref<RtcStatus>): UseConnectionMe
   const localMetrics = ref<BasicMetrics>(emptyMetrics())
   const remoteMetrics = ref<BasicMetrics>(emptyMetrics())
   const localPreviewFps = ref<number | null>(null)
+  const localPreviewQuality = ref<'low' | 'medium' | 'high' | null>(null)
   let metricsInterval: ReturnType<typeof setInterval> | null = null
 
   const stop = (): void => {
@@ -41,12 +45,17 @@ export const useConnectionMetrics = (rtcStatus: Ref<RtcStatus>): UseConnectionMe
 
   const reset = (): void => {
     localPreviewFps.value = null
+    localPreviewQuality.value = null
     localMetrics.value = emptyMetrics()
     remoteMetrics.value = emptyMetrics()
   }
 
   const setLocalPreviewFps = (fps: number | null): void => {
     localPreviewFps.value = fps
+  }
+
+  const setLocalPreviewQuality = (quality: 'low' | 'medium' | 'high' | null): void => {
+    localPreviewQuality.value = quality
   }
 
   const start = (): void => {
@@ -58,6 +67,7 @@ export const useConnectionMetrics = (rtcStatus: Ref<RtcStatus>): UseConnectionMe
       const metrics = await webRtcService.collectLocalMetrics()
       localMetrics.value = {
         fps: localPreviewFps.value,
+        qualityPreset: localPreviewQuality.value,
         rttMs: metrics.rttMs,
         cpuLoadPct: metrics.cpuLoadPct
       }
@@ -68,6 +78,7 @@ export const useConnectionMetrics = (rtcStatus: Ref<RtcStatus>): UseConnectionMe
           type: 'METRICS',
           payload: {
             fps: localPreviewFps.value,
+            qualityPreset: localPreviewQuality.value,
             rttMs: metrics.rttMs,
             cpuLoadPct: metrics.cpuLoadPct,
             timestamp: metrics.timestamp
@@ -81,6 +92,7 @@ export const useConnectionMetrics = (rtcStatus: Ref<RtcStatus>): UseConnectionMe
     if (channelLabel === 'metrics' && msg.type === 'METRICS') {
       remoteMetrics.value = {
         fps: msg.payload.fps,
+        qualityPreset: msg.payload.qualityPreset,
         rttMs: msg.payload.rttMs,
         cpuLoadPct: msg.payload.cpuLoadPct
       }
@@ -97,6 +109,7 @@ export const useConnectionMetrics = (rtcStatus: Ref<RtcStatus>): UseConnectionMe
     stop,
     reset,
     setLocalPreviewFps,
+    setLocalPreviewQuality,
     handleIncoming
   }
 }

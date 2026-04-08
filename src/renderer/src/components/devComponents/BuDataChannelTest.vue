@@ -123,6 +123,9 @@
           <div class="bg-black/40 border border-[#333] rounded p-3">
             <p class="m-0 text-gray-400 mb-2">Lokalne</p>
             <p class="m-0 text-white">FPS: {{ webRtcStore.localMetrics.fps ?? '-' }}</p>
+            <p class="m-0 text-white">
+              Jakość: {{ webRtcStore.localMetrics.qualityPreset ?? '-' }}
+            </p>
             <p class="m-0 text-white">RTT: {{ webRtcStore.localMetrics.rttMs ?? '-' }} ms</p>
             <p class="m-0 text-white">CPU: {{ webRtcStore.localMetrics.cpuLoadPct ?? '-' }}%</p>
           </div>
@@ -130,6 +133,9 @@
           <div class="bg-black/40 border border-[#333] rounded p-3">
             <p class="m-0 text-gray-400 mb-2">Zdalne</p>
             <p class="m-0 text-white">FPS: {{ webRtcStore.remoteMetrics.fps ?? '-' }}</p>
+            <p class="m-0 text-white">
+              Jakość: {{ webRtcStore.remoteMetrics.qualityPreset ?? '-' }}
+            </p>
             <p class="m-0 text-white">RTT: {{ webRtcStore.remoteMetrics.rttMs ?? '-' }} ms</p>
             <p class="m-0 text-white">CPU: {{ webRtcStore.remoteMetrics.cpuLoadPct ?? '-' }}%</p>
           </div>

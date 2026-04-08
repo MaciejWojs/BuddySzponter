@@ -21,6 +21,21 @@ const localVideoRef = ref<HTMLVideoElement | null>(null)
 let stopLocalFpsMonitor: (() => void) | null = null
 let stopRemoteFpsMonitor: (() => void) | null = null
 
+const computeQualityPreset = (
+  width: number,
+  height: number,
+  fps: number | null
+): 'low' | 'medium' | 'high' | null => {
+  if (width <= 0 || height <= 0) return null
+
+  const pixels = width * height
+  const currentFps = fps ?? 0
+
+  if (pixels >= 1280 * 720 && currentFps >= 24) return 'high'
+  if (pixels >= 854 * 480 && currentFps >= 18) return 'medium'
+  return 'low'
+}
+
 const startFpsMonitor = (
   video: HTMLVideoElement,
   onFps: (fps: number | null) => void
@@ -90,11 +105,19 @@ const restartLocalFpsMonitor = (): void => {
   if (stopLocalFpsMonitor) stopLocalFpsMonitor()
   if (!localVideoRef.value) {
     webRtcStore.setLocalPreviewFps(null)
+    webRtcStore.setLocalPreviewQuality(null)
     return
   }
 
   stopLocalFpsMonitor = startFpsMonitor(localVideoRef.value, (fps) => {
     webRtcStore.setLocalPreviewFps(fps)
+
+    const qualityPreset = computeQualityPreset(
+      localVideoRef.value?.videoWidth ?? 0,
+      localVideoRef.value?.videoHeight ?? 0,
+      fps
+    )
+    webRtcStore.setLocalPreviewQuality(qualityPreset)
   })
 }
 
@@ -145,6 +168,9 @@ function stopCapture(): void {
     stopLocalFpsMonitor()
     stopLocalFpsMonitor = null
   }
+
+  webRtcStore.setLocalPreviewFps(null)
+  webRtcStore.setLocalPreviewQuality(null)
 
   if (webRtcStore.localStream) {
     webRtcStore.localStream.getTracks().forEach((t) => t.stop())
@@ -255,6 +281,8 @@ const handleManualDisconnect = async (): Promise<void> => {
 onUnmounted(() => {
   if (stopLocalFpsMonitor) stopLocalFpsMonitor()
   if (stopRemoteFpsMonitor) stopRemoteFpsMonitor()
+  webRtcStore.setLocalPreviewFps(null)
+  webRtcStore.setLocalPreviewQuality(null)
   stopCapture()
 })
 </script>
