@@ -52,7 +52,7 @@ export class WsService {
 
   public disconnect(): void {
     if (this.socket) {
-      this.socket.emit('connection:disconnect')
+      this.socket.emit('disconnect')
       this.socket.disconnect()
       this.socket = null
     }

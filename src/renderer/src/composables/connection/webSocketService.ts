@@ -149,10 +149,6 @@ export class WebSocketService {
     window.api.ws.onServerError(callback)
   }
 
-  onDisconnect(callback: (data: WsServerEvents['ws:disconnected']) => void): void {
-    window.api.ws.onDisconnected(callback)
-  }
-
   // business
   onRequestAccess(callback: (data: WsServerEvents['ws:request-access']) => void): void {
     window.api.ws.onRequestAccess(callback)

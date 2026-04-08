@@ -135,6 +135,18 @@ watch(
   }
 )
 
+watch(
+  () => socketStore.wsService.onDisconnected,
+  (disconnectedData) => {
+    if (disconnectedData) {
+      emit('log-result', 'WS_DISCONNECTED_EVENT', `Rozłączono: ${disconnectedData}`, 'socket')
+      webRtcStore.disconnect()
+    } else {
+      emit('log-result', 'WS_DISCONNECTED_EVENT', 'Rozłączono: brak danych', 'socket')
+    }
+  }
+)
+
 // ==========================================
 // --- NAKŁADKI NA AKCJE ---
 // ==========================================
