@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useSettingsStore } from '@renderer/stores/settingsStore'
-import { useUserStore } from '@renderer/stores/userStore'
-const { t } = useI18n()
 
 const toaster = { position: 'top-right', duration: 3000, dismissible: true, max: 3, expand: false }
 
@@ -22,30 +20,7 @@ async function retryVersionCheck(): Promise<void> {
 </script>
 <template>
   <UApp :toaster="toaster">
-    <div :class="['app-shell', { blurred: isUpdateRequired }]">
-      <router-view v-if="isSessionReady" />
-      <div v-else class="session-loader" role="status" aria-live="polite">
-        <div class="session-loader-spinner" />
-      </div>
-    </div>
-
-    <div
-      v-if="isUpdateRequired"
-      class="update-required-overlay"
-      role="alertdialog"
-      aria-modal="true"
-    >
-      <div class="update-required-card">
-        <h2>{{ t('updateRequired.title') }}</h2>
-        <p>
-          {{ t('updateRequired.description') }}
-        </p>
-        <p class="status-line">{{ t('updateRequired.statusLine') }}: {{ versionStatus }}</p>
-        <button type="button" class="retry-button" @click="retryVersionCheck">
-          {{ t('updateRequired.retry') }}
-        </button>
-      </div>
-    </div>
+    <router-view />
   </UApp>
 </template>
 

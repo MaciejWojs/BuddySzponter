@@ -8,7 +8,7 @@
         <UserIconSvg class="avatar-fallback" />
       </div>
 
-      <div class="user-name">{{ displayName }}</div>
+      <div class="user-name">{{ $t('userMenu.guest') }}</div>
 
       <Transition name="fade-slide">
         <div v-if="menuOpen" class="menu-items">

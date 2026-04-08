@@ -30,23 +30,7 @@
     "version": "Wersja aplikacji",
     "logout": "Wyloguj się",
     "settings": "Ustawienia",
-    "profile": "Profil",
-    "yourAccount": "Twoje konto",
-    "sessionRecordings": "Nagrania sesji",
-    "userPanelTitle": "Panel użytkownika",
-    "emailLabel": "Adres email",
-    "nicknameLabel": "Pseudonim",
-    "resetPassword": "Resetowanie hasła",
-    "changeAvatar": "Zmień awatar",
-    "deleteAccount": "Usuń konto",
-    "defaultUser": "Użytkownik",
-    "avatarAlt": "Awatar użytkownika",
-    "resetPasswordSent": "Link do resetu hasła został wysłany na adres",
-    "avatarChangedTo": "Awatar został zmieniony na",
-    "avatarChangeError": "Wystąpił błąd podczas zmiany awatara.",
-    "deleteAccountConfirm": "Czy na pewno chcesz usunąć konto? Tej operacji nie można cofnąć.",
-    "deleteAccountAccepted": "Żądanie usunięcia konta zostało przyjęte.",
-    "deleteAccountCancelled": "Usuwanie konta anulowane."
+    "profile": "Profil"
   },
   "validation": {
     "invalidEmail": "Wprowadź poprawny adres e-mail",
@@ -74,8 +58,7 @@
     "sessionCode": "Kod sesji",
     "sessionPassword": "Hasło sesji",
     "joinButton": "Dołącz",
-    "timeToJoin": "Pozostały czas:",
-    "copySessionCode": "Skopiuj kod sesji"
+    "timeToJoin": "Pozostały czas:"
   },
   "alert": {
     "success": "Sukces",

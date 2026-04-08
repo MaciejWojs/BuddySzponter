@@ -59,12 +59,8 @@ export class LanguageService {
 
       // Keep bundled locale as base and layer API translations on top.
       if (initialTranslations) {
-        const baseMessages = i18n.global.getLocaleMessage(savedLang as unknown as 'en')
-        const mergedMessages = mergeMessages(
-          baseMessages as Record<string, unknown>,
-          toAppMessages(initialTranslations) as unknown as Record<string, unknown>
-        )
-        i18n.global.setLocaleMessage(savedLang, mergedMessages as unknown as AppMessages)
+        i18n.global.setLocaleMessage(savedLang, initialTranslations)
+        i18n.global.locale.value = savedLang as unknown as 'en'
       }
 
       i18n.global.locale.value = savedLang as unknown as 'en'
@@ -89,13 +85,7 @@ export class LanguageService {
       this.selectedLanguageRef.value = lang
       this.translationsRef.value = newTranslations
 
-      const baseMessages = i18n.global.getLocaleMessage(lang as unknown as 'en')
-      const mergedMessages = mergeMessages(
-        baseMessages as Record<string, unknown>,
-        toAppMessages(newTranslations) as unknown as Record<string, unknown>
-      )
-
-      i18n.global.setLocaleMessage(lang, mergedMessages as unknown as AppMessages)
+      i18n.global.setLocaleMessage(lang, newTranslations)
       i18n.global.locale.value = lang as unknown as 'en'
     } catch (error) {
       console.error(`[LanguageService] Error changing language:`, error)

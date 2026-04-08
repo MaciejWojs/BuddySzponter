@@ -1,8 +1,6 @@
 // src/renderer/i18n.ts
 import { createI18n } from 'vue-i18n'
 import enTranslations from '../../shared/locales/en.json'
-import plTranslations from '../../shared/locales/pl.json'
-import esTranslations from '../../shared/locales/es.json'
 import type { AppLanguage } from '@shared/schemas/langSchemas'
 
 // IMPORTUJEMY TWÓJ TYP
@@ -17,8 +15,6 @@ export const i18n = createI18n({
   fallbackLocale: 'en' as AppLanguage,
 
   messages: {
-    en: enTranslations,
-    pl: plTranslations,
-    es: esTranslations
+    en: enTranslations
   }
 })

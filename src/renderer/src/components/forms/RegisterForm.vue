@@ -3,7 +3,7 @@
   <div class="flex flex-col items-center gap-6">
     <div class="flex flex-col justify-items-center items-center gap-2">
       <p class="w-full max-w-sm text-left text-white text-base font-medium opacity-90">
-        {{ t('login.email') }}
+        {{ t('login.email') || t('login.email') || 'Email address' }}
       </p>
       <BuInput v-model="email" :placeholder="t('login.email')" :error="!!errors.email">
         <template #prefix>
@@ -14,15 +14,19 @@
 
     <div class="flex flex-col justify-items-center items-center gap-2">
       <p class="w-full max-w-sm text-left text-white text-base font-medium opacity-90">
-        {{ t('login.nickname') }}
+        {{ t('login.nickname') || 'Nickname' }}
       </p>
-      <BuInput v-model="nickname" :placeholder="$t('login.nickname')" :error="!!errors.nickname" />
+      <BuInput
+        v-model="nickname"
+        :placeholder="$t('login.nickname') || 'Nickname'"
+        :error="!!errors.nickname"
+      />
       <div class="text-red-500 text-sm mt-1 h-2">{{ errors.nickname }}</div>
     </div>
 
     <div class="flex flex-col justify-items-center items-center gap-2">
       <p class="w-full max-w-sm text-left text-white text-base font-medium opacity-90">
-        {{ t('login.password') }}
+        {{ t('login.password') || t('login.password') || 'Password' }}
       </p>
       <BuInput
         v-model="password"
@@ -54,7 +58,7 @@
 
     <div class="flex flex-col justify-items-center items-center gap-2">
       <p class="w-full max-w-sm text-left text-white text-base font-medium opacity-90">
-        {{ t('login.confirm') }}
+        {{ t('login.confirm') || 'Confirm password' }}
       </p>
       <BuInput
         v-model="confirmPassword"
@@ -90,13 +94,13 @@
 
     <div class="w-full max-w-sm space-y-1 text-center mt-2">
       <div class="flex items-center justify-center gap-1 text-sm text-white opacity-80">
-        <span>{{ t('login.haveAccount') }}</span>
+        <span>{{ t('login.haveAccount') || 'Posiadasz już konto?' }}</span>
         <button
           type="button"
           class="text-white text-sm opacity-80 hover:opacity-100 hover:underline underline-offset-2 transition-opacity"
           @click="goToLogin"
         >
-          {{ t('login.button') }}
+          {{ t('login.button') || 'Zaloguj się' }}
         </button>
       </div>
     </div>
