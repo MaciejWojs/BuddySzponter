@@ -138,13 +138,37 @@ export const useWebRtcStore = defineStore('webrtc', () => {
   }
 
   // ==========================================
+  // NOWE: DYNAMICZNE WSTRZYKIWANIE WIDEO
+  // ==========================================
+  const publishLocalStream = async (stream: MediaStream): Promise<void> => {
+    localStream.value = stream
+
+    // Jeśli nie jesteśmy połączeni, po prostu zapisujemy strumień.
+    if (rtcStatus.value === 'disconnected') return
+
+    try {
+      console.log('[WebRtcStore] Wstrzykiwanie nowego strumienia do aktywnego połączenia...')
+
+      // 1. Dodajemy strumień do instancji WebRTC
+      webRtcService.addLocalStream(stream)
+
+      // 2. KRYTYCZNE: Renegocjacja! Wysyłamy nową ofertę, by zaktualizować wideo u partnera.
+      if (rtcStatus.value === 'connected') {
+        const offer = await webRtcService.createOffer()
+        await socketStore.wsService.webrtcOffer({ sdp: JSON.stringify(offer) })
+      }
+    } catch (e) {
+      console.error('[WebRtcStore] Błąd podczas dynamicznego dodawania strumienia:', e)
+    }
+  }
+
+  // ==========================================
   // AKCJE STARTOWE I KOŃCOWE WEBRTC
   // ==========================================
 
   // KROK 2: Dodajemy explicite typ zwracany "Promise<void>"
   const fetchScreens = async (): Promise<void> => {
     try {
-      // KROK 3: Wyjaśniamy dlaczego ignorujemy (obiekt dodany w locie przez contextBridge)
       // @ts-ignore: window.api is injected via Electron preload script and might lack strict types here
       availableScreens.value = await window.api.desktop.getSources()
     } catch (e) {
@@ -153,10 +177,9 @@ export const useWebRtcStore = defineStore('webrtc', () => {
   }
 
   const startConnectionAsHost = async (): Promise<void> => {
-    console.log('[WebRtcStore] Host uruchamia P2P i tworzy ofertę...')
+    webRtcService.cleanup()
     webRtcService.initialize()
 
-    // KRYTYCZNE: Zanim Host wygeneruje ofertę, musi wpiąć swój ekran z C++ Addona!
     if (localStream.value) {
       webRtcService.addLocalStream(localStream.value)
     }
@@ -191,6 +214,7 @@ export const useWebRtcStore = defineStore('webrtc', () => {
     sendChatMessage,
     sendMousePosition,
     startConnectionAsHost,
-    disconnect
+    disconnect,
+    publishLocalStream
   }
 })

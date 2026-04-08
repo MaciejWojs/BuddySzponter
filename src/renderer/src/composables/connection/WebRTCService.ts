@@ -148,7 +148,17 @@ export class WebRTCService {
 
   public async addIceCandidate(candidate: RTCIceCandidateInit): Promise<void> {
     if (!this.peerConnection) return
-    await this.peerConnection.addIceCandidate(new RTCIceCandidate(candidate))
+
+    if (!this.peerConnection.remoteDescription) {
+      console.warn('[WebRTCService] Odrzucono kandydata ICE - brak remoteDescription.')
+      return
+    }
+
+    try {
+      await this.peerConnection.addIceCandidate(new RTCIceCandidate(candidate))
+    } catch (error) {
+      console.error('[WebRTCService] Błąd podczas dodawania ICE:', error)
+    }
   }
 
   public cleanup(): void {

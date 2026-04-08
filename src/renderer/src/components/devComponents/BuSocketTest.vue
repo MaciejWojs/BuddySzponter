@@ -13,7 +13,6 @@ const emit = defineEmits<{
   (e: 'log-result', action: string, data: unknown, source?: 'api' | 'socket'): void
 }>()
 
-// Definicje dla Insertable Streams API (WebCodecs)
 interface MediaStreamTrackGeneratorInit {
   kind: 'video' | 'audio'
 }
@@ -22,12 +21,12 @@ interface MediaStreamTrackGenerator extends MediaStreamTrack {
   writable: WritableStream<VideoFrame>
 }
 
-// Typ dla okna zawierającego konstruktor
 interface WindowWithGenerator extends Window {
   MediaStreamTrackGenerator: {
     new (init: MediaStreamTrackGeneratorInit): MediaStreamTrackGenerator
   }
 }
+
 // ==========================================
 // --- LOGIKA HOSTA (PRZECHWYTYWANIE ADDON) ---
 // ==========================================
@@ -46,9 +45,7 @@ function startCapture(): void {
   try {
     if (!window.capture) throw new Error('Brak obiektu window.capture!')
 
-    // BEZPIECZNE RZUTOWANIE:
     const Generator = (window as unknown as WindowWithGenerator).MediaStreamTrackGenerator
-
     if (!Generator) {
       throw new Error('Twoja wersja Electrona nie obsługuje MediaStreamTrackGenerator')
     }
@@ -56,9 +53,16 @@ function startCapture(): void {
     const generator = new Generator({ kind: 'video' })
     trackWriter = generator.writable.getWriter()
 
-    // Podpinamy wideo do Store'a
     const customStream = new MediaStream([generator])
-    webRtcStore.localStream = customStream
+
+    // ZMIANA: Zamiast przypisania, używamy nowej metody wypychającej strumień do P2P
+    if (webRtcStore.rtcStatus === 'disconnected') {
+      // Jeśli P2P nie jest włączone, po prostu zapisz i zostaw dla przyszłego połączenia
+      webRtcStore.localStream = customStream
+    } else {
+      // Jeśli jesteśmy połączeni, wymuś renegocjację, żeby obraz zaczął lecieć od razu
+      webRtcStore.publishLocalStream(customStream)
+    }
 
     // Start Addona
     window.capture.start()
@@ -78,16 +82,13 @@ function renderLoop(): void {
   const timestamp = performance.now()
 
   try {
-    // @ts-ignore: capture.getFrame() returns a native VideoFrame
     const frame = window.capture.getFrame() as VideoFrame | null
-    
+
     if (frame) {
-      // Zawsze wysyłamy przez WebRTC
       if (trackWriter) {
         trackWriter.write(frame.clone()).catch(() => {})
       }
 
-      // Rysowanie opcjonalne - tylko jeśli istnieje canvas (podgląd hosta)
       const canvas = videoCanvas.value
       if (canvas) {
         const ctx = canvas.getContext('2d')
@@ -100,25 +101,22 @@ function renderLoop(): void {
         }
       }
 
-      // MUSISZ zamykać ramkę by uniknąć wycieków pamięci
-      frame.close()
+      frame.close() // Krytyczne dla pamięci!
     }
   } catch (error) {
     console.error(error)
   }
 
-  // Kalkulacja pozostałego czasu by utrzymać odpowiedni interwał (60 FPS)
   const elapsed = performance.now() - timestamp
   const nextDelay = Math.max(0, FRAME_INTERVAL - elapsed)
 
-  // Niezależny licznik podtrzymujący obieg, niewrażliwy na minimalizację okna
   window.setTimeout(renderLoop, nextDelay)
 }
 
 function stopCapture(): void {
   if (!isCapturing.value) return
-  isCapturing.value = false // Pętla renderLoop zatrzyma się naturalnie podczas następnego tiku timeoutu
-  
+  isCapturing.value = false
+
   emit('log-result', 'NATIVE_CAPTURE', 'Zatrzymano przechwytywanie ekranu.', 'api')
 
   if (trackWriter) {
@@ -126,6 +124,10 @@ function stopCapture(): void {
     trackWriter = null
   }
 
+  // Wymuszamy zatrzymanie wysyłania (czyszcząc stan stora)
+  if (webRtcStore.localStream) {
+    webRtcStore.localStream.getTracks().forEach((t) => t.stop())
+  }
   webRtcStore.localStream = null
 
   if (videoCanvas.value) {
@@ -134,7 +136,6 @@ function stopCapture(): void {
   }
 
   try {
-    // @ts-ignore: window.capture is injected via Electron preload
     window.capture.stop()
   } catch (e) {
     console.error(e)
@@ -169,47 +170,43 @@ watch(
 watch(
   () => socketStore.isConnected,
   (isConnected) => {
-    if (isConnected) {
-      emit('log-result', 'WS_CONNECTED', 'Nawiązano fizyczne połączenie z gniazdkiem.', 'socket')
-    } else {
-      emit('log-result', 'WS_DISCONNECTED', 'Rozłączono z gniazdkiem.', 'socket')
-    }
+    emit(
+      'log-result',
+      isConnected ? 'WS_CONNECTED' : 'WS_DISCONNECTED',
+      isConnected ? 'Nawiązano połączenie' : 'Rozłączono',
+      'socket'
+    )
   }
 )
 
 watch(
   () => socketStore.incomingRequest,
   (request) => {
-    if (request) {
-      emit('log-result', 'WS_INCOMING_REQUEST', request, 'socket')
-    }
+    if (request) emit('log-result', 'WS_INCOMING_REQUEST', request, 'socket')
   }
 )
 
 watch(
   () => socketStore.accessStatus,
   (status) => {
-    if (status === 'accepted') {
-      emit('log-result', 'WS_ACCESS_ACCEPTED', 'Dostęp przyznany. Odsyłam ACK.', 'socket')
-    } else if (status === 'rejected') {
-      emit('log-result', 'WS_ACCESS_REJECTED', 'Dostęp odrzucony.', 'socket')
-    }
+    if (status === 'accepted')
+      emit('log-result', 'WS_ACCESS_ACCEPTED', 'Dostęp przyznany', 'socket')
+    else if (status === 'rejected')
+      emit('log-result', 'WS_ACCESS_REJECTED', 'Dostęp odrzucony', 'socket')
   }
 )
 
 watch(
   () => connectionStore.connectionCode,
   (code) => {
-    if (code) emit('log-result', 'CONNECTION_CODE_SET', `Kod ustawiony: ${code}`, 'api')
+    if (code) emit('log-result', 'CONNECTION_CODE_SET', `Kod: ${code}`, 'api')
   }
 )
 
 watch(
   () => socketStore.isAcknowledged,
   (ack) => {
-    if (ack) {
-      emit('log-result', 'WS_ACK_RECEIVED', 'Handshake zakończony!', 'socket')
-    }
+    if (ack) emit('log-result', 'WS_ACK_RECEIVED', 'Handshake zakończony!', 'socket')
   }
 )
 
@@ -217,17 +214,17 @@ watch(
 // --- NAKŁADKI NA AKCJE ---
 // ==========================================
 const handleRespond = async (accept: boolean): Promise<void> => {
-  emit('log-result', 'WS_SENDING_RESPONSE', `Odsyłanie odpowiedzi: ${accept}`, 'socket')
+  emit('log-result', 'WS_SENDING_RESPONSE', `Odpowiedź: ${accept}`, 'socket')
   await socketStore.respondToRequest(accept)
 }
 
 const handleManualConnect = async (): Promise<void> => {
-  emit('log-result', 'WS_MANUAL_CONNECT', 'Ręczne połączenie...', 'socket')
+  emit('log-result', 'WS_MANUAL_CONNECT', 'Łączenie...', 'socket')
   await socketStore.connect('awaryjny-token-z-palca')
 }
 
 const handleManualDisconnect = async (): Promise<void> => {
-  emit('log-result', 'WS_MANUAL_DISCONNECT', 'Ręczne rozłączenie.', 'socket')
+  emit('log-result', 'WS_MANUAL_DISCONNECT', 'Rozłączanie...', 'socket')
   await socketStore.disconnect()
 }
 
@@ -245,9 +242,9 @@ onUnmounted(() => {
         <h2 class="text-xl font-bold text-white m-0">Panel Połączenia P2P</h2>
         <p class="text-[11px] text-gray-500 uppercase tracking-widest font-semibold mt-1">
           Rola:
-          <span :class="connectionStore.isHost ? 'text-purple-400' : 'text-blue-400'">{{
-            connectionStore.isHost ? 'Host' : 'Gość'
-          }}</span>
+          <span :class="connectionStore.isHost ? 'text-purple-400' : 'text-blue-400'">
+            {{ connectionStore.isHost ? 'Host' : 'Gość' }}
+          </span>
         </p>
       </div>
 
@@ -261,9 +258,9 @@ onUnmounted(() => {
               socketStore.isConnected ? 'bg-emerald-500 shadow-[0_0_8px_#10b981]' : 'bg-rose-500'
             "
           ></div>
-          <span class="text-xs font-mono uppercase tracking-wider text-gray-300"
-            >WS: {{ socketStore.isConnected ? 'POŁĄCZONO' : 'ROZŁĄCZONO' }}</span
-          >
+          <span class="text-xs font-mono uppercase tracking-wider text-gray-300">
+            WS: {{ socketStore.isConnected ? 'POŁĄCZONO' : 'ROZŁĄCZONO' }}
+          </span>
         </div>
         <div
           class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/40 border border-[#444] shadow-inner"
@@ -278,9 +275,9 @@ onUnmounted(() => {
               'bg-gray-600': webRtcStore.rtcStatus === 'disconnected'
             }"
           ></div>
-          <span class="text-xs font-mono uppercase tracking-wider text-gray-300"
-            >P2P: {{ webRtcStore.rtcStatus.toUpperCase() }}</span
-          >
+          <span class="text-xs font-mono uppercase tracking-wider text-gray-300">
+            P2P: {{ webRtcStore.rtcStatus.toUpperCase() }}
+          </span>
         </div>
       </div>
     </header>
