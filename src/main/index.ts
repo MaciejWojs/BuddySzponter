@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain, session, desktopCapturer, dialog } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, session, desktopCapturer, dialog, Tray, Menu } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
@@ -15,6 +15,8 @@ import { wsService } from './services/ws/WsService'
 import { screenService } from './services/screenService'
 
 let mainWindow: BrowserWindow | null = null
+let tray: Tray | null = null
+let isQuitting = false
 
 function createWindow(): void {
   // Create the browser window.
@@ -35,6 +37,13 @@ function createWindow(): void {
     mainWindow?.show()
   })
 
+  mainWindow.on('close', (event) => {
+    if (!isQuitting) {
+      event.preventDefault()
+      mainWindow?.hide()
+    }
+  })
+
   mainWindow.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url)
     return { action: 'deny' }
@@ -50,6 +59,10 @@ function createWindow(): void {
 }
 
 const gotTheLock = app.requestSingleInstanceLock()
+
+app.on('before-quit', () => {
+  isQuitting = true
+})
 
 if (!gotTheLock && !import.meta.env.DEV) {
   app.quit()
@@ -110,6 +123,30 @@ if (!gotTheLock && !import.meta.env.DEV) {
   )
 
   createWindow()
+
+  tray = new Tray(icon)
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: 'Show App',
+      click: () => {
+        mainWindow?.show()
+      }
+    },
+    {
+      label: 'Close App',
+      click: () => {
+        isQuitting = true
+        app.quit()
+      }
+    }
+  ])
+
+  tray.setToolTip('Electron App')
+  tray.setContextMenu(contextMenu)
+
+  tray.on('click', () => {
+    mainWindow?.show()
+  })
 
   try {
     const baseURL = import.meta.env.VITE_API_BASE_URL
