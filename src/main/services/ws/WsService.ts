@@ -238,7 +238,12 @@ export class WsService {
       },
       onReject: () => {
         console.log('[WsService] Odrzucono z poziomu powiadomienia OS')
+        const sessionId = this.currentSessionId
         this.respondReject()
+
+        if (sessionId) {
+          this.handleAccessRejected({ sessionId })
+        }
       }
     })
   }
