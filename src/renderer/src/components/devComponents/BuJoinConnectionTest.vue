@@ -4,7 +4,7 @@
 
     <div v-if="connectionStore.connectionCode && !connectionStore.isHost" class="mb-4 text-center">
       <div
-        v-if="socketStore.accessStatus === 'accepted'"
+        v-if="socketStore.isAcknowledged"
         class="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg"
       >
         <p class="text-xs text-emerald-400 font-bold">
@@ -12,7 +12,7 @@
         </p>
       </div>
       <div
-        v-else-if="socketStore.accessStatus === 'rejected'"
+        v-else-if="socketStore.isAcknowledged === false"
         class="p-3 bg-rose-500/10 border border-rose-500/30 rounded-lg"
       >
         <p class="text-xs text-rose-400 font-bold">Host odrzucił prośbę o dostęp.</p>
@@ -82,10 +82,10 @@ const handleJoinConnection = async (): Promise<void> => {
   emit('log-result', 'WS_JOIN_CONNECTION', 'api')
 
   try {
-    const res = await connectionStore.joinGuestConnection(
-      form.value.connectionCode,
-      form.value.password
-    )
+    const res = await connectionStore.joinGuestConnection({
+      connectionCode: form.value.connectionCode,
+      password: form.value.password
+    })
 
     if (res?.success) {
       emit('log-result', 'WS_JOIN_SUCCESS', 'api')

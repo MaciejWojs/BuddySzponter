@@ -17,7 +17,6 @@ const emit = defineEmits<{
 // ==========================================
 // --- LOGIKA HOSTA (PRZECHWYTYWANIE WIDEO) ---
 // ==========================================
-// Używamy referencji do tagu <video> zamiast <canvas>
 const localVideoRef = ref<HTMLVideoElement | null>(null)
 
 function startCapture(): void {
@@ -25,20 +24,15 @@ function startCapture(): void {
   emit('log-result', 'NATIVE_CAPTURE', 'Rozpoczynanie przechwytywania (Service)...', 'api')
 
   try {
-    // 1. Uruchamiamy nagrywanie przez serwis i odbieramy gotowy strumień
     const stream = videoService.start()
 
-    // 2. Podpinamy strumień pod lokalny podgląd (tag <video> Hosta)
     if (localVideoRef.value) {
       localVideoRef.value.srcObject = stream
     }
 
-    // 3. Wypychamy strumień do WebRTC
     if (webRtcStore.rtcStatus === 'disconnected') {
-      // Jeśli P2P nie jest jeszcze włączone, zapisujemy na później
       webRtcStore.localStream = stream
     } else {
-      // Jeśli jesteśmy połączeni, wymuszamy renegocjację
       webRtcStore.publishLocalStream(stream)
     }
   } catch (err) {
@@ -52,15 +46,12 @@ function stopCapture(): void {
 
   emit('log-result', 'NATIVE_CAPTURE', 'Zatrzymano przechwytywanie ekranu.', 'api')
 
-  // 1. Zatrzymujemy serwis natywny
   videoService.stop()
 
-  // 2. Czyścimy podgląd lokalny u Hosta
   if (localVideoRef.value) {
     localVideoRef.value.srcObject = null
   }
 
-  // 3. Wymuszamy zatrzymanie wysyłania u Gościa (czyszcząc stan stora)
   if (webRtcStore.localStream) {
     webRtcStore.localStream.getTracks().forEach((t) => t.stop())
   }
@@ -112,16 +103,6 @@ watch(
 )
 
 watch(
-  () => socketStore.accessStatus,
-  (status) => {
-    if (status === 'accepted')
-      emit('log-result', 'WS_ACCESS_ACCEPTED', 'Dostęp przyznany', 'socket')
-    else if (status === 'rejected')
-      emit('log-result', 'WS_ACCESS_REJECTED', 'Dostęp odrzucony', 'socket')
-  }
-)
-
-watch(
   () => connectionStore.connectionCode,
   (code) => {
     if (code) emit('log-result', 'CONNECTION_CODE_SET', `Kod: ${code}`, 'api')
@@ -132,18 +113,6 @@ watch(
   () => socketStore.isAcknowledged,
   (ack) => {
     if (ack) emit('log-result', 'WS_ACK_RECEIVED', 'Handshake zakończony!', 'socket')
-  }
-)
-
-watch(
-  () => socketStore.wsService.onDisconnected,
-  (disconnectedData) => {
-    if (disconnectedData) {
-      emit('log-result', 'WS_DISCONNECTED_EVENT', `Rozłączono: ${disconnectedData}`, 'socket')
-      webRtcStore.disconnect()
-    } else {
-      emit('log-result', 'WS_DISCONNECTED_EVENT', 'Rozłączono: brak danych', 'socket')
-    }
   }
 )
 
@@ -311,6 +280,22 @@ onUnmounted(() => {
       </div>
 
       <div v-else>
+        <div v-if="connectionStore.connectionCode" class="mb-4 text-center">
+          <div
+            v-if="socketStore.isAcknowledged"
+            class="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg"
+          >
+            <p class="text-xs text-emerald-400 font-bold">
+              Połączono z sesją: {{ connectionStore.connectionCode }}
+            </p>
+          </div>
+          <div v-else class="p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+            <p class="text-xs text-blue-400 font-bold animate-pulse">
+              Oczekiwanie na akceptację przez Hosta...
+            </p>
+          </div>
+        </div>
+
         <h3 class="text-sm font-bold text-blue-400 uppercase tracking-widest mb-4">
           Zdalny Ekran Partnera
         </h3>
@@ -325,6 +310,15 @@ onUnmounted(() => {
             class="w-full h-full object-contain absolute inset-0 transition-opacity duration-500"
             :class="webRtcStore.remoteStream ? 'opacity-100' : 'opacity-0'"
           ></video>
+
+          <div
+            v-if="webRtcStore.remoteMouse && webRtcStore.remoteStream"
+            class="absolute w-4 h-4 bg-rose-500 rounded-full blur-[2px] transition-transform duration-75 ease-linear pointer-events-none shadow-[0_0_10px_#f43f5e] z-50 origin-center"
+            :style="{
+              transform: `translate(calc(${webRtcStore.remoteMouse.x}% - 50%), calc(${webRtcStore.remoteMouse.y}% - 50%))`
+            }"
+          ></div>
+
           <div
             v-if="!webRtcStore.remoteStream"
             class="flex flex-col items-center gap-3 text-gray-500 z-10 p-5 text-center"
