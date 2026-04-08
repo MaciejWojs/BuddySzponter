@@ -211,7 +211,13 @@ watch(
 watch(
   () => socketStore.isAcknowledged,
   (ack) => {
-    if (ack) emit('log-result', 'WS_ACK_RECEIVED', 'Handshake zakończony!', 'socket')
+    if (ack) {
+      emit('log-result', 'WS_ACK_RECEIVED', 'Handshake zakończony!', 'socket')
+
+      if (connectionStore.isHost && !videoService.isRunning) {
+        startCapture()
+      }
+    }
   }
 )
 
