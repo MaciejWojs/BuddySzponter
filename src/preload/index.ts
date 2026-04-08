@@ -204,20 +204,6 @@ if (process.contextIsolated) {
     contextBridge.exposeInMainWorld('electron', electronAPI)
     contextBridge.exposeInMainWorld('api', api)
 
-    const holdReleaseUntilFrameClose = (frame: VideoFrame, release: () => void): VideoFrame => {
-      const originalClose = frame.close.bind(frame)
-
-      frame.close = () => {
-        try {
-          originalClose()
-        } finally {
-          release()
-        }
-      }
-
-      return frame
-    }
-
     const handleBuffer = Buffer.allocUnsafe(8)
     let capturer: ScreenCaptureInstance | null = null
 
@@ -284,7 +270,7 @@ if (process.contextIsolated) {
           })
 
           const frame = imported.getVideoFrame()
-          return holdReleaseUntilFrameClose(frame, () => imported.release())
+          return { frame, release: () => imported.release() }
         }
 
         handleBuffer.writeBigUInt64LE(info.handle as bigint, 0)
@@ -296,7 +282,7 @@ if (process.contextIsolated) {
         })
 
         const frame = imported.getVideoFrame()
-        return holdReleaseUntilFrameClose(frame, () => imported.release())
+        return { frame, release: () => imported.release() }
       }
     })
   } catch (error) {

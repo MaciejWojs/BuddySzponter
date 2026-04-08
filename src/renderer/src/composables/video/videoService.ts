@@ -15,7 +15,7 @@ interface WindowWithGenerator extends Window {
   capture: {
     start: () => void
     stop: () => void
-    getFrame: () => VideoFrame | null
+    getFrame: () => { frame: VideoFrame; release: () => void } | null
   }
 }
 
@@ -94,13 +94,14 @@ class VideoService {
     const win = window as unknown as WindowWithGenerator
 
     try {
-      const frame = win.capture.getFrame() as VideoFrame | null
+      const data = win.capture.getFrame()
 
-      if (frame) {
+      if (data && data.frame) {
         if (this.trackWriter) {
-          this.trackWriter.write(frame.clone()).catch(() => {})
+          this.trackWriter.write(data.frame.clone()).catch(() => {})
         }
-        frame.close()
+        data.frame.close()
+        data.release()
       }
     } catch (error) {
       console.error('[VideoService] Błąd cyklu renderowania:', error)
