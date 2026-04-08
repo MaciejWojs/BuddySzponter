@@ -56,6 +56,12 @@ export const useSocketStore = defineStore('socket', () => {
     }
   })
 
+  wsService.onDisconnected(() => {
+    isAcknowledged.value = false
+    accessStatus.value = null
+    useWebRtcStore().disconnect()
+  })
+
   // ==========================================
   // --- AKCJE (To wywołuje UI) ---
   // ==========================================
@@ -65,6 +71,7 @@ export const useSocketStore = defineStore('socket', () => {
   }
 
   const disconnect = async (): Promise<WsActionResponse> => {
+    useWebRtcStore().disconnect()
     return await wsService.disconnect()
   }
 
