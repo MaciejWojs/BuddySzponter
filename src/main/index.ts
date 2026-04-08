@@ -1,4 +1,14 @@
-import { app, shell, BrowserWindow, ipcMain, session, desktopCapturer, dialog, Tray, Menu } from 'electron'
+import {
+  app,
+  shell,
+  BrowserWindow,
+  ipcMain,
+  session,
+  desktopCapturer,
+  dialog,
+  Tray,
+  Menu
+} from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
@@ -11,8 +21,8 @@ import { authService } from './services/AuthService'
 import { coreService } from './services/CoreService'
 import { userService } from './services/UserService'
 import { connectionService } from './services/ConnectionService'
-import { wsService } from './services/ws/WsService'
 import { screenService } from './services/screenService'
+import { wsService } from './services/ws/WsService'
 
 let mainWindow: BrowserWindow | null = null
 let tray: Tray | null = null
@@ -58,130 +68,137 @@ function createWindow(): void {
   }
 }
 
-const gotTheLock = app.requestSingleInstanceLock()
+const useSingleInstanceLock = !import.meta.env.DEV
+
+const gotTheLock = useSingleInstanceLock ? app.requestSingleInstanceLock() : true
 
 app.on('before-quit', () => {
   isQuitting = true
 })
 
-if (!gotTheLock && !import.meta.env.DEV) {
+if (!gotTheLock) {
   app.quit()
 } else {
-  app.on('second-instance', (_event, _commandLine, _workingDirectory) => {
-    // Ktoś próbował uruchomić drugą instancję, więc przywracamy pierwszą
-    if (mainWindow) {
-      if (mainWindow.isMinimized()) mainWindow.restore()
-      mainWindow.focus()
-    }
-    dialog.showErrorBox('Welcome Back', 'Another instance of the app was attempted to be opened, but it has been prevented. The existing instance has been focused instead.')
-  })
+  if (useSingleInstanceLock) {
+    app.on('second-instance', () => {
+      // Ktoś próbował uruchomić drugą instancję, więc przywracamy pierwszą
+      if (mainWindow) {
+        if (mainWindow.isMinimized()) mainWindow.restore()
+        mainWindow.focus()
+      }
+      dialog.showErrorBox(
+        'Welcome Back',
+        'Another instance of the app was attempted to be opened, but it has been prevented. The existing instance has been focused instead.'
+      )
+    })
+  }
 
   // This method will be called when Electron has finished
   // initialization and is ready to create browser windows.
   // Some APIs can only be used after this event occurs.
   app.whenReady().then(async () => {
-  // Set app user model id for windows
-  electronApp.setAppUserModelId('com.electron')
+    // Set app user model id for windows
+    electronApp.setAppUserModelId('com.electron')
 
-  app.commandLine.appendSwitch('disable-renderer-backgrounding')
-  app.commandLine.appendSwitch('disable-background-timer-throttling')
+    app.commandLine.appendSwitch('disable-renderer-backgrounding')
+    app.commandLine.appendSwitch('disable-background-timer-throttling')
 
-  // Default open or close DevTools by F12 in development
-  // and ignore CommandOrControl + R in production.
-  // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
-  app.on('browser-window-created', (_, window) => {
-    optimizer.watchWindowShortcuts(window)
-  })
+    // Default open or close DevTools by F12 in development
+    // and ignore CommandOrControl + R in production.
+    // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
+    app.on('browser-window-created', (_, window) => {
+      optimizer.watchWindowShortcuts(window)
+    })
 
-  // IPC test
-  ipcMain.on('ping', () => console.log('pong'))
+    // IPC test
+    ipcMain.on('ping', () => console.log('pong'))
 
-  if (import.meta.env.VITE_CLEAR_STORES === 'true') {
-    clearLocalStore()
-    secureStore.clearSession()
-    console.log('Stores cleared on startup due to VITE_CLEAR_STORES=true')
-  }
-  authService.registerHandler()
-  appSettings.registerHandlers()
-  coreService.registerHandlers()
-  userService.registerHandler()
-  connectionService.registerHandlers()
-  wsService.registerHandlers()
-  screenService.registerHandlers()
-
-  session.defaultSession.setDisplayMediaRequestHandler(
-    (_request, callback) => {
-      desktopCapturer.getSources({ types: ['screen'] }).then((sources) => {
-        console.log(
-          'Available screens for capture:',
-          sources.map((s) => s.name)
-        )
-        callback({ video: sources[0], audio: 'loopback' })
-      })
-    },
-    { useSystemPicker: true }
-  )
-
-  createWindow()
-
-  tray = new Tray(icon)
-  const contextMenu = Menu.buildFromTemplate([
-    {
-      label: 'Show App',
-      click: () => {
-        mainWindow?.show()
-      }
-    },
-    {
-      label: 'Close App',
-      click: () => {
-        isQuitting = true
-        app.quit()
-      }
+    if (import.meta.env.VITE_CLEAR_STORES === 'true') {
+      clearLocalStore()
+      secureStore.clearSession()
+      console.log('Stores cleared on startup due to VITE_CLEAR_STORES=true')
     }
-  ])
+    authService.registerHandler()
+    appSettings.registerHandlers()
+    coreService.registerHandlers()
+    userService.registerHandler()
+    connectionService.registerHandlers()
+    screenService.registerHandlers()
+    wsService.registerWsHandlers()
 
-  tray.setToolTip(import.meta.env.VITE_APP_NAME || 'Electron App')
-  tray.setContextMenu(contextMenu)
+    session.defaultSession.setDisplayMediaRequestHandler(
+      (_request, callback) => {
+        desktopCapturer.getSources({ types: ['screen'] }).then((sources) => {
+          console.log(
+            'Available screens for capture:',
+            sources.map((s) => s.name)
+          )
+          callback({ video: sources[0], audio: 'loopback' })
+        })
+      },
+      { useSystemPicker: true }
+    )
 
-  tray.on('click', () => {
-    mainWindow?.show()
+    createWindow()
+
+    tray = new Tray(icon)
+    const contextMenu = Menu.buildFromTemplate([
+      {
+        label: 'Show App',
+        click: () => {
+          mainWindow?.show()
+        }
+      },
+      {
+        label: 'Close App',
+        click: () => {
+          isQuitting = true
+          app.quit()
+        }
+      }
+    ])
+
+    tray.setToolTip(import.meta.env.VITE_APP_NAME || 'Electron App')
+    tray.setContextMenu(contextMenu)
+
+    tray.on('click', () => {
+      mainWindow?.show()
+    })
+
+    try {
+      const baseURL = import.meta.env.VITE_API_BASE_URL
+      const url = `${baseURL}${API_ROUTES.CRYPTO.HANDSHAKE}`
+
+      const r = await handshake(url)
+
+      secureStore.setSecure('sessionId', r.sessionId)
+      secureStore.setSecure('aesKey', r.aesKey)
+
+      console.log('Handshake completed, sessionId and aesKey stored securely')
+    } catch (error) {
+      console.error('Error during handshake:', error)
+    }
+
+    //! Test handshake and encryption
+    // handshake()
+    //   .then((r) => console.log('Handshake completed'))
+    //   .catch((e) => console.error('Handshake failed:', e))
+
+    app.on('activate', function () {
+      // On macOS it's common to re-create a window in the app when the
+      // dock icon is clicked and there are no other windows open.
+      if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    })
   })
 
-  try {
-    const baseURL = import.meta.env.VITE_API_BASE_URL
-    const url = `${baseURL}${API_ROUTES.CRYPTO.HANDSHAKE}`
-
-    const r = await handshake(url)
-
-    secureStore.setSecure('sessionId', r.sessionId)
-    secureStore.setSecure('aesKey', r.aesKey)
-
-    console.log('Handshake completed, sessionId and aesKey stored securely')
-  } catch (error) {
-    console.error('Error during handshake:', error)
-  }
-
-  //! Test handshake and encryption
-  // handshake()
-  //   .then((r) => console.log('Handshake completed'))
-  //   .catch((e) => console.error('Handshake failed:', e))
-
-  app.on('activate', function () {
-    // On macOS it's common to re-create a window in the app when the
-    // dock icon is clicked and there are no other windows open.
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+  // Quit when all windows are closed, except on macOS. There, it's common
+  // for applications and their menu bar to stay active until the user quits
+  // explicitly with Cmd + Q.
+  app.on('window-all-closed', () => {
+    if (process.platform !== 'darwin') {
+      app.quit()
+    }
   })
-})
-
-// Quit when all windows are closed, except on macOS. There, it's common
-// for applications and their menu bar to stay active until the user quits
-// explicitly with Cmd + Q.
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit()
-  }
-})
 }
 
 // In this file you can include the rest of your app's specific main process
