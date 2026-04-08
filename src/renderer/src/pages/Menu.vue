@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// --- Component and asset imports ---
+// Importy komponentów i zasobów używanych przez widok głównego menu.
 import GuestForm from '@renderer/components/forms/GuestForm.vue'
 import HostForm from '@renderer/components/forms/HostForm.vue'
 import NavBar from '@renderer/components/UI/NavBar.vue'
@@ -17,10 +17,10 @@ import buddySzponterLogo from '@images/buddyszponterLogo.png'
 const userStore = useUserStore()
 const { isAuthenticated } = storeToRefs(userStore)
 
-// --- Navigation state: currently active tab ---
+// Stan aktywnej zakładki w dolnym pasku nawigacji.
 const activeNav = ref('home')
 
-// --- Navigation items: icon buttons for NavBar ---
+// Definicja pozycji nawigacji przekazywanych do komponentu NavBar.
 const navItems: NavBarItem[] = [
   {
     name: 'settings',
@@ -38,36 +38,31 @@ const navItems: NavBarItem[] = [
 </script>
 
 <template>
-  <!--
-    Main menu view:
-    - Top navigation bar (NavBar)
-    - Two columns: Share Control / Take Control
-    - Footer with logo
-  -->
+  <!-- Główny widok menu: górna nawigacja, dwie kolumny akcji i stopka z logo. -->
   <section class="menu-page">
-    <!-- Language selector in top left corner -->
+    <!-- Selektor języka osadzony w lewym górnym rogu ekranu. -->
     <div class="menu-lang-selector">
       <BuLanguageSelector />
     </div>
 
-    <!-- User profile icon in top right corner -->
+    <!-- Ikona użytkownika zależna od statusu zalogowania. -->
     <UserIcon v-if="isAuthenticated" />
     <UserNoLogin v-else />
     <header class="menu-topbar">
-      <!-- Navigation bar with icon buttons -->
+      <!-- Pasek nawigacyjny z ikonowymi przyciskami sekcji. -->
       <NavBar v-model="activeNav" :items="navItems" />
     </header>
 
     <main class="menu-content">
       <article class="menu-column">
-        <!-- GuestForm: Share control with a friend -->
+        <!-- Sekcja gościa: udostępnienie sterowania przez kod sesji. -->
         <h2>{{ $t('guestForm.title') }}</h2>
         <p>{{ $t('guestForm.description') }}</p>
         <GuestForm />
       </article>
 
       <article class="menu-column">
-        <!-- HostForm: Take control using code/password -->
+        <!-- Sekcja hosta: przejęcie sterowania z użyciem kodu i hasła. -->
         <h2>{{ $t('hostForm.title') }}</h2>
         <p>{{ $t('hostForm.description') }}</p>
         <HostForm />
@@ -75,7 +70,7 @@ const navItems: NavBarItem[] = [
     </main>
 
     <footer class="menu-footer">
-      <!-- Application logo in footer -->
+      <!-- Logo aplikacji prezentowane w stopce widoku. -->
       <img :src="buddySzponterLogo" :alt="$t('common.logoAlt')" class="menu-logo" />
     </footer>
   </section>
@@ -83,13 +78,11 @@ const navItems: NavBarItem[] = [
 
 <style scoped>
 /*
-  --- Styles for Menu view ---
-  .menu-page      - main container
-  .menu-topbar    - top navigation bar
-  .menu-content   - main content (two columns)
-  .menu-footer    - footer with logo
-  .menu-logo      - application logo
-  Media queries   - responsive adjustments
+  Style widoku Menu:
+  .menu-page    - główny kontener strony
+  .menu-topbar  - obszar górnej nawigacji
+  .menu-content - sekcja kolumn formularzy
+  .menu-footer  - stopka z logo aplikacji
 */
 .menu-lang-selector {
   position: absolute;

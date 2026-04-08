@@ -1,4 +1,5 @@
 <template>
+  <!-- Widok logowania: prezentuje kartę z formularzem autoryzacji użytkownika. -->
   <section class="login-page">
     <div class="login-card">
       <h1 class="login-title">{{ $t('login.title') }}</h1>
