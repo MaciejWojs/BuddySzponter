@@ -2,27 +2,27 @@
 export class WebRTCService {
   public peerConnection: RTCPeerConnection | null = null
 
-  // Mamy teraz 3 dedykowane kanały
   public chatChannel: RTCDataChannel | null = null
   public mouseChannel: RTCDataChannel | null = null
   public controlChannel: RTCDataChannel | null = null
 
   public onConnectionFailed?: () => void
   public onConnectionClosed?: () => void
-
   public onIceCandidateGenerated?: (candidate: RTCIceCandidate) => void
   public onDataChannelOpened?: () => void
   public onMessageReceived?: (data: string) => void
   public onRemoteStreamReceived?: (stream: MediaStream) => void
 
   private isIntentionallyClosing = false
+  private iceCandidateQueue: RTCIceCandidateInit[] = []
 
   constructor() {
-    // Konstruktor jest teraz pusty, inicjalizacja następuje w metodzie initialize()
+    //
   }
 
   public initialize(): void {
     this.isIntentionallyClosing = false
+    this.iceCandidateQueue = []
 
     const isRemote = import.meta.env.VITE_WEBRTC_REMOTE === 'true'
     const server = import.meta.env.VITE_ICE_SERVER
@@ -89,13 +89,11 @@ export class WebRTCService {
   private setupChannel(channel: RTCDataChannel): void {
     channel.onopen = () => {
       console.log(`[WebRTCService] Kanał OTWARTY: ${channel.label}`)
-      // Odpalamy callback gotowości tylko gdy główny kanał kontrolny jest otwarty
       if (channel.label === 'control-channel' && this.onDataChannelOpened) {
         this.onDataChannelOpened()
       }
     }
 
-    // Wszystkie kanały zrzucają dane do tego samego parsera w Store (odróżniamy je po type)
     channel.onmessage = (event) => {
       if (this.onMessageReceived) this.onMessageReceived(event.data)
     }
@@ -104,42 +102,36 @@ export class WebRTCService {
       console.log(`[WebRTCService] Kanał ZAMKNIĘTY: ${channel.label}`)
     }
 
-    // Zapisujemy referencje do odpowiednich zmiennych
-    if (channel.label === 'chat-channel') {
-      this.chatChannel = channel
-    } else if (channel.label === 'mouse-channel') {
-      this.mouseChannel = channel
-    } else if (channel.label === 'control-channel') {
-      this.controlChannel = channel
-    }
+    if (channel.label === 'chat-channel') this.chatChannel = channel
+    else if (channel.label === 'mouse-channel') this.mouseChannel = channel
+    else if (channel.label === 'control-channel') this.controlChannel = channel
   }
 
   public async createOffer(): Promise<RTCSessionDescriptionInit> {
     if (!this.peerConnection) throw new Error('Brak PeerConnection')
 
-    // 1. Kanał do Czuwania i Zarządzania (Priorytet)
-    const controlChannel = this.peerConnection.createDataChannel('control-channel', {
-      ordered: true
-    })
-    this.setupChannel(controlChannel)
+    // ZMIANA 2: Tworzymy kanały tylko za pierwszym razem! (Chroni przed crashami przy renegocjacji wideo)
+    if (!this.controlChannel) {
+      const controlChannel = this.peerConnection.createDataChannel('control-channel', {
+        ordered: true
+      })
+      this.setupChannel(controlChannel)
 
-    // 2. Kanał do Czatu
-    const chatChannel = this.peerConnection.createDataChannel('chat-channel', { ordered: true })
-    this.setupChannel(chatChannel)
+      const chatChannel = this.peerConnection.createDataChannel('chat-channel', { ordered: true })
+      this.setupChannel(chatChannel)
 
-    // 3. Kanał do Myszki (Nieuporządkowany, szybki, bez retransmisji)
-    const mouseChannel = this.peerConnection.createDataChannel('mouse-channel', {
-      ordered: false,
-      maxRetransmits: 0
-    })
-    this.setupChannel(mouseChannel)
+      const mouseChannel = this.peerConnection.createDataChannel('mouse-channel', {
+        ordered: false,
+        maxRetransmits: 0
+      })
+      this.setupChannel(mouseChannel)
+    }
 
     const offer = await this.peerConnection.createOffer()
     await this.peerConnection.setLocalDescription(offer)
     return offer
   }
 
-  // Uproszczona metoda wysyłania ogólnego, ale w store i tak odwołujemy się bezpośrednio
   public sendData(
     channelLabel: 'chat-channel' | 'mouse-channel' | 'control-channel',
     message: string
@@ -159,6 +151,7 @@ export class WebRTCService {
   ): Promise<RTCSessionDescriptionInit> {
     if (!this.peerConnection) throw new Error('Brak PeerConnection')
     await this.peerConnection.setRemoteDescription(new RTCSessionDescription(offer))
+    await this.flushIceQueue()
     const answer = await this.peerConnection.createAnswer()
     await this.peerConnection.setLocalDescription(answer)
     return answer
@@ -167,14 +160,36 @@ export class WebRTCService {
   public async handleAnswer(answer: RTCSessionDescriptionInit): Promise<void> {
     if (!this.peerConnection) throw new Error('Brak PeerConnection')
     await this.peerConnection.setRemoteDescription(new RTCSessionDescription(answer))
+    await this.flushIceQueue()
   }
 
   public async addIceCandidate(candidate: RTCIceCandidateInit): Promise<void> {
-    if (!this.peerConnection?.remoteDescription) return
+    if (!this.peerConnection) return
+    if (!this.peerConnection.remoteDescription) {
+      console.log('[WebRTCService] Zbyt wczesny kandydat ICE. Dodaję do kolejki...')
+      this.iceCandidateQueue.push(candidate)
+      return
+    }
+
     try {
       await this.peerConnection.addIceCandidate(new RTCIceCandidate(candidate))
     } catch (e) {
       console.error('[WebRTCService] Błąd podczas dodawania kandydata ICE:', e)
+    }
+  }
+
+  private async flushIceQueue(): Promise<void> {
+    if (!this.peerConnection || !this.peerConnection.remoteDescription) return
+
+    while (this.iceCandidateQueue.length > 0) {
+      const candidate = this.iceCandidateQueue.shift()
+      if (candidate) {
+        try {
+          await this.peerConnection.addIceCandidate(new RTCIceCandidate(candidate))
+        } catch (e) {
+          console.error('[WebRTCService] Błąd podczas przetwarzania kolejki ICE:', e)
+        }
+      }
     }
   }
 
