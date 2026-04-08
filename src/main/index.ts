@@ -141,7 +141,7 @@ if (!gotTheLock && !import.meta.env.DEV) {
     }
   ])
 
-  tray.setToolTip('Electron App')
+  tray.setToolTip(import.meta.env.VITE_APP_NAME || 'Electron App')
   tray.setContextMenu(contextMenu)
 
   tray.on('click', () => {
