@@ -18,6 +18,94 @@ const emit = defineEmits<{
 // --- LOGIKA HOSTA (PRZECHWYTYWANIE WIDEO) ---
 // ==========================================
 const localVideoRef = ref<HTMLVideoElement | null>(null)
+let stopLocalFpsMonitor: (() => void) | null = null
+let stopRemoteFpsMonitor: (() => void) | null = null
+
+const startFpsMonitor = (
+  video: HTMLVideoElement,
+  onFps: (fps: number | null) => void
+): (() => void) => {
+  type VideoWithFrameCallback = HTMLVideoElement & {
+    requestVideoFrameCallback?: (
+      callback: (now: number, metadata: { presentedFrames: number }) => void
+    ) => number
+    cancelVideoFrameCallback?: (handle: number) => void
+  }
+
+  const videoWithCallback = video as VideoWithFrameCallback
+
+  if (
+    typeof videoWithCallback.requestVideoFrameCallback === 'function' &&
+    typeof videoWithCallback.cancelVideoFrameCallback === 'function'
+  ) {
+    let frameHandle: number | null = null
+    let lastNow: number | null = null
+    let lastPresentedFrames: number | null = null
+
+    const tick = (now: number, metadata: { presentedFrames: number }): void => {
+      if (lastNow !== null && lastPresentedFrames !== null) {
+        const deltaTimeMs = now - lastNow
+        const deltaFrames = metadata.presentedFrames - lastPresentedFrames
+        if (deltaTimeMs > 0 && deltaFrames >= 0) {
+          const fps = (deltaFrames * 1000) / deltaTimeMs
+          onFps(Math.round(fps))
+        }
+      }
+
+      lastNow = now
+      lastPresentedFrames = metadata.presentedFrames
+      frameHandle = videoWithCallback.requestVideoFrameCallback!(tick)
+    }
+
+    frameHandle = videoWithCallback.requestVideoFrameCallback(tick)
+
+    return () => {
+      if (frameHandle !== null) {
+        videoWithCallback.cancelVideoFrameCallback!(frameHandle)
+      }
+      onFps(null)
+    }
+  }
+
+  let lastFrames = 0
+  const interval = window.setInterval(() => {
+    const quality = video.getVideoPlaybackQuality?.()
+    if (!quality) {
+      onFps(null)
+      return
+    }
+
+    const deltaFrames = quality.totalVideoFrames - lastFrames
+    lastFrames = quality.totalVideoFrames
+    onFps(deltaFrames >= 0 ? deltaFrames : null)
+  }, 1000)
+
+  return () => {
+    window.clearInterval(interval)
+    onFps(null)
+  }
+}
+
+const restartLocalFpsMonitor = (): void => {
+  if (stopLocalFpsMonitor) stopLocalFpsMonitor()
+  if (!localVideoRef.value) {
+    webRtcStore.setLocalPreviewFps(null)
+    return
+  }
+
+  stopLocalFpsMonitor = startFpsMonitor(localVideoRef.value, (fps) => {
+    webRtcStore.setLocalPreviewFps(fps)
+  })
+}
+
+const restartRemoteFpsMonitor = (): void => {
+  if (stopRemoteFpsMonitor) stopRemoteFpsMonitor()
+  if (!remoteVideoRef.value) return
+
+  stopRemoteFpsMonitor = startFpsMonitor(remoteVideoRef.value, () => {
+    // Remote FPS jest już otrzymywany z metrics od partnera.
+  })
+}
 
 function startCapture(): void {
   if (videoService.isRunning) return
@@ -28,6 +116,7 @@ function startCapture(): void {
 
     if (localVideoRef.value) {
       localVideoRef.value.srcObject = stream
+      restartLocalFpsMonitor()
     }
 
     if (webRtcStore.rtcStatus === 'disconnected') {
@@ -52,6 +141,11 @@ function stopCapture(): void {
     localVideoRef.value.srcObject = null
   }
 
+  if (stopLocalFpsMonitor) {
+    stopLocalFpsMonitor()
+    stopLocalFpsMonitor = null
+  }
+
   if (webRtcStore.localStream) {
     webRtcStore.localStream.getTracks().forEach((t) => t.stop())
   }
@@ -73,8 +167,13 @@ watch(
   (stream) => {
     if (remoteVideoRef.value && stream) {
       remoteVideoRef.value.srcObject = stream
+      restartRemoteFpsMonitor()
     } else if (remoteVideoRef.value && !stream) {
       remoteVideoRef.value.srcObject = null
+      if (stopRemoteFpsMonitor) {
+        stopRemoteFpsMonitor()
+        stopRemoteFpsMonitor = null
+      }
     }
   },
   { immediate: true }
@@ -140,6 +239,8 @@ const handleManualDisconnect = async (): Promise<void> => {
 }
 
 onUnmounted(() => {
+  if (stopLocalFpsMonitor) stopLocalFpsMonitor()
+  if (stopRemoteFpsMonitor) stopRemoteFpsMonitor()
   stopCapture()
 })
 </script>
@@ -199,7 +300,7 @@ onUnmounted(() => {
         class="relative p-4 mb-5 bg-blue-950/30 border border-blue-500/50 rounded-xl shadow-lg shadow-blue-500/10 overflow-hidden"
       >
         <div
-          class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-400 to-indigo-500"
+          class="absolute top-0 left-0 w-full h-1 bg-linear-to-r from-blue-400 to-indigo-500"
         ></div>
         <div class="flex items-start gap-3">
           <div class="p-2 bg-blue-500/20 rounded-lg text-xl animate-bounce">🔔</div>

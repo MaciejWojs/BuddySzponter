@@ -1,16 +1,24 @@
 // composables/webrtc/webRtcService.ts
+export type DataChannelLabel = 'chat-channel' | 'hid-control' | 'system-events' | 'metrics'
+export type ConnectionMetrics = {
+  rttMs: number | null
+  cpuLoadPct: number | null
+  timestamp: number
+}
+
 export class WebRTCService {
   public peerConnection: RTCPeerConnection | null = null
 
   public chatChannel: RTCDataChannel | null = null
-  public mouseChannel: RTCDataChannel | null = null
-  public controlChannel: RTCDataChannel | null = null
+  public hidControlChannel: RTCDataChannel | null = null
+  public systemEventsChannel: RTCDataChannel | null = null
+  public metricsChannel: RTCDataChannel | null = null
 
   public onConnectionFailed?: () => void
   public onConnectionClosed?: () => void
   public onIceCandidateGenerated?: (candidate: RTCIceCandidate) => void
   public onDataChannelOpened?: () => void
-  public onMessageReceived?: (data: string) => void
+  public onMessageReceived?: (data: string, channelLabel: string) => void
   public onRemoteStreamReceived?: (stream: MediaStream) => void
 
   private isIntentionallyClosing = false
@@ -89,13 +97,13 @@ export class WebRTCService {
   private setupChannel(channel: RTCDataChannel): void {
     channel.onopen = () => {
       console.log(`[WebRTCService] Kanał OTWARTY: ${channel.label}`)
-      if (channel.label === 'control-channel' && this.onDataChannelOpened) {
+      if (channel.label === 'system-events' && this.onDataChannelOpened) {
         this.onDataChannelOpened()
       }
     }
 
     channel.onmessage = (event) => {
-      if (this.onMessageReceived) this.onMessageReceived(event.data)
+      if (this.onMessageReceived) this.onMessageReceived(event.data, channel.label)
     }
 
     channel.onclose = () => {
@@ -103,27 +111,33 @@ export class WebRTCService {
     }
 
     if (channel.label === 'chat-channel') this.chatChannel = channel
-    else if (channel.label === 'mouse-channel') this.mouseChannel = channel
-    else if (channel.label === 'control-channel') this.controlChannel = channel
+    else if (channel.label === 'hid-control') this.hidControlChannel = channel
+    else if (channel.label === 'system-events') this.systemEventsChannel = channel
+    else if (channel.label === 'metrics') this.metricsChannel = channel
   }
 
   public async createOffer(): Promise<RTCSessionDescriptionInit> {
     if (!this.peerConnection) throw new Error('Brak PeerConnection')
 
-    if (!this.controlChannel) {
-      const controlChannel = this.peerConnection.createDataChannel('control-channel', {
+    if (!this.systemEventsChannel) {
+      const hidControlChannel = this.peerConnection.createDataChannel('hid-control', {
+        ordered: true,
+        maxRetransmits: 0
+      })
+      this.setupChannel(hidControlChannel)
+
+      const systemEventsChannel = this.peerConnection.createDataChannel('system-events', {
         ordered: true
       })
-      this.setupChannel(controlChannel)
+      this.setupChannel(systemEventsChannel)
 
       const chatChannel = this.peerConnection.createDataChannel('chat-channel', { ordered: true })
       this.setupChannel(chatChannel)
 
-      const mouseChannel = this.peerConnection.createDataChannel('mouse-channel', {
-        ordered: false,
-        maxRetransmits: 0
+      const metricsChannel = this.peerConnection.createDataChannel('metrics', {
+        ordered: false
       })
-      this.setupChannel(mouseChannel)
+      this.setupChannel(metricsChannel)
     }
 
     const offer = await this.peerConnection.createOffer()
@@ -131,18 +145,54 @@ export class WebRTCService {
     return offer
   }
 
-  public sendData(
-    channelLabel: 'chat-channel' | 'mouse-channel' | 'control-channel',
-    message: string
-  ): void {
+  public sendData(channelLabel: DataChannelLabel, message: string): void {
     let channel: RTCDataChannel | null = null
     if (channelLabel === 'chat-channel') channel = this.chatChannel
-    else if (channelLabel === 'mouse-channel') channel = this.mouseChannel
-    else if (channelLabel === 'control-channel') channel = this.controlChannel
+    else if (channelLabel === 'hid-control') channel = this.hidControlChannel
+    else if (channelLabel === 'system-events') channel = this.systemEventsChannel
+    else if (channelLabel === 'metrics') channel = this.metricsChannel
 
     if (channel && channel.readyState === 'open') {
       channel.send(message)
     }
+  }
+
+  public async collectLocalMetrics(): Promise<ConnectionMetrics> {
+    const metrics: ConnectionMetrics = {
+      rttMs: null,
+      cpuLoadPct: null,
+      timestamp: Date.now()
+    }
+
+    if (!this.peerConnection) {
+      return metrics
+    }
+
+    try {
+      const stats = await this.peerConnection.getStats()
+
+      for (const report of stats.values()) {
+        if (report.type !== 'candidate-pair') continue
+
+        const candidatePair = report as RTCIceCandidatePairStats
+        if (
+          candidatePair.state === 'succeeded' &&
+          typeof candidatePair.currentRoundTripTime === 'number'
+        ) {
+          metrics.rttMs = Math.round(candidatePair.currentRoundTripTime * 1000)
+          break
+        }
+      }
+
+      const probeStart = performance.now()
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+      const lagMs = performance.now() - probeStart
+      metrics.cpuLoadPct = Math.max(0, Math.min(100, Math.round((lagMs / 16.67) * 100)))
+    } catch (e) {
+      console.error('[WebRTCService] Błąd zbierania metrics:', e)
+    }
+
+    return metrics
   }
 
   public async handleOfferAndCreateAnswer(
@@ -199,8 +249,9 @@ export class WebRTCService {
       this.peerConnection.close()
       this.peerConnection = null
       this.chatChannel = null
-      this.mouseChannel = null
-      this.controlChannel = null
+      this.hidControlChannel = null
+      this.systemEventsChannel = null
+      this.metricsChannel = null
     }
 
     if (this.onConnectionClosed) this.onConnectionClosed()

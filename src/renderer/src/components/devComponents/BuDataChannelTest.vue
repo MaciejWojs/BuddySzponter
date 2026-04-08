@@ -63,7 +63,7 @@
         </div>
 
         <div class="flex-1 flex flex-col gap-3">
-          <h3 class="text-sm font-bold text-rose-400 m-0">🖱️ Radar Myszki (mouse-channel)</h3>
+          <h3 class="text-sm font-bold text-rose-400 m-0">🖱️ HID Control (hid-control)</h3>
           <p class="text-xs text-gray-500 leading-tight m-0">
             Ruszaj kursorem po czarnym polu. Poniżej widać kursor partnera!
           </p>
@@ -91,9 +91,7 @@
       </div>
 
       <div class="pt-4 border-t border-[#333]">
-        <h3 class="text-sm font-bold text-yellow-400 mb-3 m-0">
-          ⚙️ Narzędzia Systemowe (control-channel)
-        </h3>
+        <h3 class="text-sm font-bold text-yellow-400 mb-3 m-0">⚙️ System Events (system-events)</h3>
         <div class="flex gap-3">
           <button
             class="px-4 py-2 bg-[#222] border border-[#444] hover:bg-[#333] hover:border-yellow-500 text-gray-300 hover:text-yellow-400 rounded text-xs font-bold transition-all"
@@ -115,9 +113,27 @@
           </button>
         </div>
         <p class="text-[10px] text-gray-500 mt-2">
-          Te przyciski wysyłają natychmiastowe sygnały priorytetowym kanałem (omijając kolejkę
-          czatu/myszki). Otwórz konsolę (F12) u partnera, by zobaczyć odbiór komendy!
+          Te przyciski wysyłają niezawodne zdarzenia systemowe (np. komendy), niezależnie od ruchu
+          HID/czatu. Otwórz konsolę (F12) u partnera, by zobaczyć odbiór komendy!
         </p>
+      </div>
+      <div class="pt-4 border-t border-[#333]">
+        <h3 class="text-sm font-bold text-cyan-400 mb-3 m-0">📊 Metrics (metrics)</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+          <div class="bg-black/40 border border-[#333] rounded p-3">
+            <p class="m-0 text-gray-400 mb-2">Lokalne</p>
+            <p class="m-0 text-white">FPS: {{ webRtcStore.localMetrics.fps ?? '-' }}</p>
+            <p class="m-0 text-white">RTT: {{ webRtcStore.localMetrics.rttMs ?? '-' }} ms</p>
+            <p class="m-0 text-white">CPU: {{ webRtcStore.localMetrics.cpuLoadPct ?? '-' }}%</p>
+          </div>
+
+          <div class="bg-black/40 border border-[#333] rounded p-3">
+            <p class="m-0 text-gray-400 mb-2">Zdalne</p>
+            <p class="m-0 text-white">FPS: {{ webRtcStore.remoteMetrics.fps ?? '-' }}</p>
+            <p class="m-0 text-white">RTT: {{ webRtcStore.remoteMetrics.rttMs ?? '-' }} ms</p>
+            <p class="m-0 text-white">CPU: {{ webRtcStore.remoteMetrics.cpuLoadPct ?? '-' }}%</p>
+          </div>
+        </div>
       </div>
     </div>
   </div>

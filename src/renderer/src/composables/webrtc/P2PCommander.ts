@@ -19,11 +19,11 @@ export const useP2PCommander = (): {
   }
 
   const sendMousePosition = (x: number, y: number): void => {
-    sendToChannel(webRtcService.mouseChannel, { type: 'MOUSE_MOVE', payload: { x, y } })
+    sendToChannel(webRtcService.hidControlChannel, { type: 'MOUSE_MOVE', payload: { x, y } })
   }
 
   const sendVideoCommand = (action: 'PAUSE_VIDEO' | 'RESUME_VIDEO' | 'LOWER_QUALITY'): void => {
-    sendToChannel(webRtcService.controlChannel, { type: 'CONTROL', payload: { action } })
+    sendToChannel(webRtcService.systemEventsChannel, { type: 'CONTROL', payload: { action } })
   }
 
   return {

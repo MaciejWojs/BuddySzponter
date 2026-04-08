@@ -4,6 +4,7 @@ import { defineStore } from 'pinia'
 import { ref, shallowRef } from 'vue'
 import { useSocketStore } from './socketStore'
 import { webRtcService } from '@renderer/composables/connection/webRTCService'
+import { useConnectionMetrics } from '@renderer/composables/connection/useConnectionMetrics'
 import { P2PMessage } from '@renderer/schemas/p2pProtocol'
 import { WsWebRTCOffer, WsWebRTCAnswer, WsWebRTCIceCandidate } from '@shared/schemas/ws'
 
@@ -11,9 +12,11 @@ export const useWebRtcStore = defineStore('webrtc', () => {
   const getSocketStore = (): typeof getSocketStore => useSocketStore()
 
   const rtcStatus = ref<'disconnected' | 'connecting' | 'connected'>('disconnected')
+  const connectionMetrics = useConnectionMetrics(rtcStatus)
 
   const chatMessages = ref<string[]>([])
   const remoteMouse = ref({ x: 0, y: 0 })
+  const { localMetrics, remoteMetrics } = connectionMetrics
 
   const localStream = shallowRef<MediaStream | null>(null)
   const remoteStream = shallowRef<MediaStream | null>(null)
@@ -44,11 +47,18 @@ export const useWebRtcStore = defineStore('webrtc', () => {
     await getSocketStore().wsService.sendIceCandidate({ candidate: JSON.stringify(candidate) })
   }
 
-  webRtcService.onMessageReceived = (data: string) => {
-    const msg = JSON.parse(data) as P2PMessage
-    if (msg.type === 'CHAT') chatMessages.value.push(`${msg.payload.sender}: ${msg.payload.text}`)
-    if (msg.type === 'MOUSE_MOVE') remoteMouse.value = { x: msg.payload.x, y: msg.payload.y }
-    if (msg.type === 'DISCONNECT') forceDisconnect()
+  webRtcService.onMessageReceived = (data: string, channelLabel: string) => {
+    try {
+      const msg = JSON.parse(data) as P2PMessage
+
+      if (connectionMetrics.handleIncoming(msg, channelLabel)) return
+
+      if (msg.type === 'CHAT') chatMessages.value.push(`${msg.payload.sender}: ${msg.payload.text}`)
+      if (msg.type === 'MOUSE_MOVE') remoteMouse.value = { x: msg.payload.x, y: msg.payload.y }
+      if (msg.type === 'DISCONNECT') forceDisconnect()
+    } catch (e) {
+      console.error('[WebRtcStore] Nie udało się sparsować wiadomości P2P:', e)
+    }
   }
 
   webRtcService.onRemoteStreamReceived = (stream) => {
@@ -57,6 +67,7 @@ export const useWebRtcStore = defineStore('webrtc', () => {
 
   webRtcService.onDataChannelOpened = () => {
     rtcStatus.value = 'connected'
+    connectionMetrics.start()
   }
 
   // --- ACTIONS ---
@@ -72,6 +83,7 @@ export const useWebRtcStore = defineStore('webrtc', () => {
   }
 
   const forceDisconnect = (): void => {
+    connectionMetrics.stop()
     rtcStatus.value = 'disconnected'
     webRtcService.cleanup()
     if (localStream.value) {
@@ -80,12 +92,13 @@ export const useWebRtcStore = defineStore('webrtc', () => {
     }
     remoteStream.value = null
     remoteMouse.value = { x: 0, y: 0 }
+    connectionMetrics.reset()
   }
 
   const disconnect = async (): Promise<void> => {
     if (rtcStatus.value === 'disconnected') return
 
-    webRtcService.sendData('control-channel', JSON.stringify({ type: 'DISCONNECT', payload: {} }))
+    webRtcService.sendData('system-events', JSON.stringify({ type: 'DISCONNECT', payload: {} }))
 
     forceDisconnect()
   }
@@ -106,18 +119,25 @@ export const useWebRtcStore = defineStore('webrtc', () => {
     }
   }
 
+  const setLocalPreviewFps = (fps: number | null): void => {
+    connectionMetrics.setLocalPreviewFps(fps)
+  }
+
   return {
     rtcStatus,
     chatMessages,
     localStream,
     remoteStream,
     remoteMouse,
+    localMetrics,
+    remoteMetrics,
     handleOffer,
     handleAnswer,
     handleCandidate,
     startConnectionAsHost,
     disconnect,
     forceDisconnect,
-    publishLocalStream
+    publishLocalStream,
+    setLocalPreviewFps
   }
 })
