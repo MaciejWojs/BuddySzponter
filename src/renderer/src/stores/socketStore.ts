@@ -9,9 +9,41 @@ import { WsRequestAccess } from '@shared/schemas/ws'
 import { WsActionResponse, WsConnectResponse } from '@shared/schemas/ipc'
 
 export const useSocketStore = defineStore('socket', () => {
+  const RECONNECT_MAX_ATTEMPTS = 4
+  const RECONNECT_BASE_DELAY_MS = 1000
+
   const isConnected = ref(false)
   const incomingRequest = ref<WsRequestAccess | null>(null)
   const isAcknowledged = ref(false)
+  const isReconnecting = ref(false)
+
+  let lastConnectionToken: string | null = null
+  let skipNextDisconnectHandler = false
+
+  const wait = (ms: number): Promise<void> =>
+    new Promise((resolve) => {
+      setTimeout(resolve, ms)
+    })
+
+  const tryReconnect = async (): Promise<boolean> => {
+    if (!lastConnectionToken) return false
+
+    isReconnecting.value = true
+
+    for (let attempt = 1; attempt <= RECONNECT_MAX_ATTEMPTS; attempt += 1) {
+      const res = await wsService.connect(lastConnectionToken)
+      if (res.success) {
+        isReconnecting.value = false
+        return true
+      }
+
+      const delayMs = RECONNECT_BASE_DELAY_MS * 2 ** (attempt - 1)
+      await wait(delayMs)
+    }
+
+    isReconnecting.value = false
+    return false
+  }
 
   const init = (): void => {
     const rtcStore = useWebRtcStore()
@@ -21,10 +53,22 @@ export const useSocketStore = defineStore('socket', () => {
       onConnected: () => {
         isConnected.value = true
       },
-      onDisconnected: () => {
+      onDisconnected: async () => {
+        if (skipNextDisconnectHandler) {
+          skipNextDisconnectHandler = false
+          return
+        }
+
         isConnected.value = false
         isAcknowledged.value = false
+
+        const reconnected = await tryReconnect()
+        if (reconnected) {
+          return
+        }
+
         rtcStore.forceDisconnect()
+        connectionStore.resetState()
       },
       onConnectError: (err) => console.error('[SocketStore]', err.message)
     })
@@ -71,11 +115,15 @@ export const useSocketStore = defineStore('socket', () => {
   }
 
   const connect = async (token: string): Promise<WsConnectResponse> => {
+    lastConnectionToken = token
     resetLocalState()
     return await wsService.connect(token)
   }
 
   const disconnect = async (): Promise<WsActionResponse> => {
+    skipNextDisconnectHandler = true
+    lastConnectionToken = null
+
     const rtcStore = useWebRtcStore()
     await rtcStore.disconnect()
 
@@ -95,6 +143,7 @@ export const useSocketStore = defineStore('socket', () => {
     isConnected,
     incomingRequest,
     isAcknowledged,
+    isReconnecting,
     wsService,
     init,
     connect,

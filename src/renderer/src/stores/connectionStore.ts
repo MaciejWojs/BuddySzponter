@@ -109,9 +109,16 @@ export const useConnectionStore = defineStore('connection', () => {
     }
   }
 
+  const resetState = (): void => {
+    stopAutoRefresh()
+    isHost.value = false
+    connectionCode.value = ''
+  }
+
   return {
     isHost,
     connectionCode,
+    resetState,
     createHostConnection,
     joinGuestConnection,
     clearConnection,

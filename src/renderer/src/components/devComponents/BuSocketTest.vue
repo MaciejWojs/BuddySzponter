@@ -357,6 +357,13 @@ onUnmounted(() => {
         >
           Rozłącz gniazdko
         </button>
+        <button
+          v-if="webRtcStore.rtcStatus === 'connected'"
+          class="px-4 py-2 bg-transparent border border-[#444] hover:border-rose-500 hover:text-rose-400 text-gray-400 text-xs font-semibold rounded transition-colors"
+          @click="webRtcStore.disconnect()"
+        >
+          Rozłącz p2p
+        </button>
       </div>
     </footer>
   </div>

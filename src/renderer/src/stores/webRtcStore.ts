@@ -84,6 +84,9 @@ export const useWebRtcStore = defineStore('webrtc', () => {
 
   const disconnect = async (): Promise<void> => {
     if (rtcStatus.value === 'disconnected') return
+
+    webRtcService.sendData('control-channel', JSON.stringify({ type: 'DISCONNECT', payload: {} }))
+
     forceDisconnect()
   }
 
