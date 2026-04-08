@@ -76,6 +76,9 @@ declare global {
         // --- CLEANUP ---
         removeAllListeners: () => void
       }
+      desktop: {
+        getSources: () => Promise<DesktopSource[]>
+      }
     }
     capture: {
       start: () => void
