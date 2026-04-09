@@ -135,8 +135,15 @@ export const useSocketStore = defineStore('socket', () => {
   }
 
   const respondToRequest = async (accept: boolean): Promise<void> => {
-    if (accept) await wsService.respondAccept()
-    else await wsService.respondReject()
+    if (accept) {
+      await wsService.respondAccept()
+    } else {
+      const res = await wsService.respondReject()
+      if (res.success) {
+        const connectionStore = useConnectionStore()
+        await connectionStore.handleAccessRejected()
+      }
+    }
     incomingRequest.value = null
   }
 

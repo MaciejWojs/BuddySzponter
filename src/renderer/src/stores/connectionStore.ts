@@ -13,6 +13,7 @@ import { CreateConnectionResponse, JoinConnectionResponse } from '@shared/schema
 export const useConnectionStore = defineStore('connection', () => {
   const isHost = ref<boolean>(false)
   const connectionCode = ref<string>('')
+  const connectionPassword = ref<string>('')
 
   let refreshTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -38,7 +39,7 @@ export const useConnectionStore = defineStore('connection', () => {
     }
   }
 
-  const scheduleAutoRefresh = (originalData: CreateConnectionRequestSchema): void => {
+  const scheduleAutoRefresh = (): void => {
     stopAutoRefresh()
 
     const expiresAt = connectionService.connectionExpiresDate?.getTime()
@@ -54,15 +55,19 @@ export const useConnectionStore = defineStore('connection', () => {
       }
 
       console.log('[ConnectionStore] Token wygasa! Odświeżam połączenie...')
-      await createHostConnection(originalData)
+      await createHostConnection()
     }, timeUntilRefresh)
   }
 
   // --- Główne Akcje ---
 
-  const createHostConnection = async (
-    data: CreateConnectionRequestSchema
-  ): Promise<CreateConnectionResponse | undefined> => {
+  const createHostConnection = async (): Promise<CreateConnectionResponse | undefined> => {
+    const data = {
+      password: connectionPassword.value
+    } as CreateConnectionRequestSchema
+
+    //TODO: dodać userId ze stora
+
     if (getSocketStore().isConnected) {
       await clearConnection()
     }
@@ -72,9 +77,11 @@ export const useConnectionStore = defineStore('connection', () => {
     if (response?.success && response.data) {
       isHost.value = true
       connectionCode.value = response.data.code
-      scheduleAutoRefresh(data)
+      connectionPassword.value = data.password
+      scheduleAutoRefresh()
     } else {
       connectionCode.value = ''
+      connectionPassword.value = ''
     }
     return response
   }
@@ -100,12 +107,20 @@ export const useConnectionStore = defineStore('connection', () => {
     stopAutoRefresh()
     isHost.value = false
     connectionCode.value = ''
+    connectionPassword.value = ''
     await getSocketStore().disconnect()
   }
 
   const handleAccessRejected = async (): Promise<void> => {
     if (!isHost.value) {
       await clearConnection()
+      return
+    }
+
+    if (connectionPassword.value) {
+      await createHostConnection()
+    } else {
+      console.warn('[ConnectionStore] Brak hasła hosta. Nie mogę wygenerować nowego kodu.')
     }
   }
 
@@ -113,11 +128,13 @@ export const useConnectionStore = defineStore('connection', () => {
     stopAutoRefresh()
     isHost.value = false
     connectionCode.value = ''
+    connectionPassword.value = ''
   }
 
   return {
     isHost,
     connectionCode,
+    connectionPassword,
     resetState,
     createHostConnection,
     joinGuestConnection,

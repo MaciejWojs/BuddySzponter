@@ -86,10 +86,6 @@ export const useWebRtcStore = defineStore('webrtc', () => {
     connectionMetrics.stop()
     rtcStatus.value = 'disconnected'
     webRtcService.cleanup()
-    if (localStream.value) {
-      localStream.value.getTracks().forEach((t) => t.stop())
-      localStream.value = null
-    }
     remoteStream.value = null
     remoteMouse.value = { x: 0, y: 0 }
     connectionMetrics.reset()
