@@ -22,6 +22,7 @@
           <BuSystemInfo @log-result="logResult" />
           <BuSocketTest @log-result="logResult" />
           <BuDataChannelTest @log-result="logResult" />
+          <BuScreenCaptureTest />
         </div>
 
         <div class="flex-1 flex flex-col gap-5 min-w-[350px] min-h-0">
@@ -78,6 +79,7 @@ import BuJoinConnectionTest from './BuJoinConnectionTest.vue'
 import BuSystemInfo from './BuSystemInfo.vue'
 import BuSocketTest from './BuSocketTest.vue'
 import BuDataChannelTest from './BuDataChannelTest.vue'
+import BuScreenCaptureTest from './BuScreenCaptureTest.vue'
 // Stan Aplikacji
 const outputLog = ref<string>('')
 const wsLog = ref<string>('')
