@@ -1,4 +1,4 @@
-import { desktopCapturer, ipcMain, sharedTexture, MessagePortMain } from 'electron'
+import { desktopCapturer, ipcMain, sharedTexture, MessagePortMain, WebFrameMain } from 'electron'
 import { ScreenCapture } from '@maciejwojs/screen-capture'
 
 interface SharedTextureHandle {
@@ -15,7 +15,6 @@ interface SharedTextureImportTextureInfo {
 
 export class ScreenService {
   private capturer: any | null = null
-  private currentBufferString: string | null = null
   private captureInterval: NodeJS.Timeout | null = null
   private activeFrames: WebFrameMain[] = []
 
