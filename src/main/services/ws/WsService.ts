@@ -265,7 +265,6 @@ export class WsService {
 
   public handleAcknowledged(payload: WsAcknowledged): void {
     this.notify('ws:handshake', 'acknowledged', payload)
-    this.hostAcknowledge()
   }
 
   public handleWebRTCOffer(payload: WsWebRTCOffer): void {
