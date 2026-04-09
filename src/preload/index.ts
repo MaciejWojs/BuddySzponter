@@ -201,7 +201,6 @@ if (process.contextIsolated) {
         if (capturer) capturer.stop()
       },
       getFrame: () => {
-        console.log(process.platform)
         if (!capturer) return null
 
         const info = capturer.getSharedHandle()
