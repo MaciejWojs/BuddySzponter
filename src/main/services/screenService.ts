@@ -1,5 +1,5 @@
-import { desktopCapturer, ipcMain, sharedTexture, MessagePortMain, WebFrameMain } from 'electron'
-import { ScreenCapture } from '@maciejwojs/screen-capture'
+import { desktopCapturer, ipcMain, sharedTexture, WebFrameMain } from 'electron'
+import { IScreenCapture, ScreenCapture } from '@maciejwojs/screen-capture'
 
 interface SharedTextureHandle {
   ntHandle?: Buffer
@@ -8,13 +8,13 @@ interface SharedTextureHandle {
 }
 
 interface SharedTextureImportTextureInfo {
-  pixelFormat: string
+  pixelFormat: 'bgra' | 'rgba' | 'rgbaf16' | 'nv12'
   codedSize: { width: number; height: number }
   handle: SharedTextureHandle
 }
 
 export class ScreenService {
-  private capturer: any | null = null
+  private capturer: IScreenCapture | null = null
   private captureInterval: NodeJS.Timeout | null = null
   private activeFrames: WebFrameMain[] = []
 
@@ -92,8 +92,6 @@ export class ScreenService {
       this.capturer = null
     }
 
-    this.currentBufferString = null
-
     // Notify frames and close them
     this.activeFrames = []
   }
@@ -104,7 +102,7 @@ export class ScreenService {
     let info: SharedTextureImportTextureInfo | null = null
 
     if (typeof this.capturer.getSharedTextureInfo === 'function') {
-      info = this.capturer.getSharedTextureInfo()
+      info = this.capturer.getSharedTextureInfo() as unknown as SharedTextureImportTextureInfo
     } else if (typeof this.capturer.getSharedHandle === 'function') {
       const legacy = this.capturer.getSharedHandle()
       if (legacy && legacy.handle) {
