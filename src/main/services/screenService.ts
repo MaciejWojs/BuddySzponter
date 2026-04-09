@@ -103,11 +103,9 @@ export class ScreenService {
 
     let info: SharedTextureImportTextureInfo | null = null
 
-    // Sprawdzenie, czy natywny moduł C++ został już skompilowany w nowej wersji
     if (typeof this.capturer.getSharedTextureInfo === 'function') {
       info = this.capturer.getSharedTextureInfo()
     } else if (typeof this.capturer.getSharedHandle === 'function') {
-      // Fallback do starego API (legacy), jeżeli addon nie jest zrebuildowany
       const legacy = this.capturer.getSharedHandle()
       if (legacy && legacy.handle) {
         let buffer: Buffer
@@ -143,7 +141,6 @@ export class ScreenService {
       )
         .catch((e) => console.error('[Capture] Błąd wysyłania sharedTexture do ramki:', e))
         .finally(() => {
-          // Zwalnianie głównej referencji w Main po obietnicy (gdy renderer przejmie własną referencję)
           importedTexture.release()
         })
     } catch (e) {
