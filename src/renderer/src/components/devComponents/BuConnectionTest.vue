@@ -62,12 +62,8 @@ const form = ref({
 const handleCreateConnection = async (): Promise<void> => {
   emit('log-result', 'WS_CREATE_CONNECTION', 'Tworzenie sesji HTTP...', 'api')
 
-  const requestData = {
-    password: form.value.password,
-    ...(form.value.userId ? { userId: form.value.userId } : {})
-  }
-
-  const response = await connectionStore.createHostConnection(requestData)
+  connectionStore.connectionPassword = form.value.password
+  const response = await connectionStore.createHostConnection()
   if (response?.success) {
     emit('log-result', 'WS_CREATE_SUCCESS', 'api')
   } else {

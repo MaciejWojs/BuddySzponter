@@ -130,6 +130,34 @@ const restartRemoteFpsMonitor = (): void => {
   })
 }
 
+const syncLocalPreview = (stream: MediaStream | null): void => {
+  if (!localVideoRef.value) return
+
+  if (stream) {
+    localVideoRef.value.srcObject = stream
+    restartLocalFpsMonitor()
+    return
+  }
+
+  localVideoRef.value.srcObject = null
+  if (stopLocalFpsMonitor) {
+    stopLocalFpsMonitor()
+    stopLocalFpsMonitor = null
+  }
+}
+
+watch(
+  [localVideoRef, () => webRtcStore.localStream],
+  ([videoElement, stream]) => {
+    if (videoElement && stream && videoService.isRunning) {
+      syncLocalPreview(stream)
+    } else if (videoElement && !stream) {
+      syncLocalPreview(null)
+    }
+  },
+  { immediate: true }
+)
+
 function startCapture(): void {
   if (videoService.isRunning) return
   emit('log-result', 'NATIVE_CAPTURE', 'Rozpoczynanie przechwytywania (Service)...', 'api')
@@ -137,10 +165,7 @@ function startCapture(): void {
   try {
     const stream = videoService.start()
 
-    if (localVideoRef.value) {
-      localVideoRef.value.srcObject = stream
-      restartLocalFpsMonitor()
-    }
+    syncLocalPreview(stream)
 
     if (webRtcStore.rtcStatus === 'disconnected') {
       webRtcStore.localStream = stream
@@ -263,6 +288,8 @@ const handleRespond = async (accept: boolean): Promise<void> => {
 
   if (accept) {
     startCapture()
+  } else if (!accept && connectionStore.isHost) {
+    emit('log-result', 'WS_REJECT_REGENERATE', `Nowy kod będzie wygenerowany...`, 'socket')
   }
 
   await socketStore.respondToRequest(accept)
