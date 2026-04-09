@@ -12,7 +12,7 @@ export interface LanguageDetails {
 
 export const useSettingsStore = defineStore('settings', () => {
   // --- 1. STATE  ---
-  const selectedLanguage = ref<AppLanguage>('er')
+  const selectedLanguage = ref<AppLanguage>('en')
   const availableLanguages = ref<AppLanguage[]>([])
   const isLoadingTranslations = ref<boolean>(true)
   const translations = ref<Translation | null>(null)
