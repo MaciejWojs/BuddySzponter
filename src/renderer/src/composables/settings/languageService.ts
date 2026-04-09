@@ -2,33 +2,7 @@
 import type { Ref } from 'vue'
 import type { AppLanguage, Translation } from '@shared/schemas/langSchemas'
 
-import { i18n, type AppMessages } from '@renderer/i18n'
-
-const toAppMessages = (value: Translation): AppMessages => value as AppMessages
-
-const isPlainObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value)
-
-const mergeMessages = (
-  base: Record<string, unknown>,
-  override: Record<string, unknown>
-): Record<string, unknown> => {
-  const result: Record<string, unknown> = { ...base }
-
-  for (const key of Object.keys(override)) {
-    const baseValue = result[key]
-    const overrideValue = override[key]
-
-    if (isPlainObject(baseValue) && isPlainObject(overrideValue)) {
-      result[key] = mergeMessages(baseValue, overrideValue)
-      continue
-    }
-
-    result[key] = overrideValue
-  }
-
-  return result
-}
+import { i18n } from '@renderer/i18n'
 
 export class LanguageService {
   constructor(
@@ -57,10 +31,11 @@ export class LanguageService {
         this.availableLanguagesRef.value = availableLangsRes.data
       }
 
-      // Keep bundled locale as base and layer API translations on top.
       if (initialTranslations) {
-        i18n.global.setLocaleMessage(savedLang, initialTranslations)
-        i18n.global.locale.value = savedLang as unknown as 'en'
+        type I18nMessageType = Parameters<typeof i18n.global.setLocaleMessage>[1]
+
+        i18n.global.setLocaleMessage(savedLang, initialTranslations as unknown as I18nMessageType)
+        ;(i18n.global.locale as { value: string }).value = savedLang
       }
 
       i18n.global.locale.value = savedLang as unknown as 'en'
@@ -85,8 +60,12 @@ export class LanguageService {
       this.selectedLanguageRef.value = lang
       this.translationsRef.value = newTranslations
 
-      i18n.global.setLocaleMessage(lang, newTranslations)
-      i18n.global.locale.value = lang as unknown as 'en'
+      if (newTranslations) {
+        type I18nMessageType = Parameters<typeof i18n.global.setLocaleMessage>[1]
+
+        i18n.global.setLocaleMessage(lang, newTranslations as unknown as I18nMessageType)
+        ;(i18n.global.locale as { value: string }).value = lang
+      }
     } catch (error) {
       console.error(`[LanguageService] Error changing language:`, error)
     } finally {

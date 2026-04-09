@@ -47,7 +47,7 @@
 
 <script setup lang="ts">
 // Sekcja logiki komponentu UserNoLogin: zarządza danymi, zdarzeniami i zachowaniem widoku.
-import { computed, ref } from 'vue'
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useSettingsStore } from '@renderer/stores/settingsStore'
@@ -63,8 +63,8 @@ const router = useRouter()
 const settingsStore = useSettingsStore()
 const userStore = useUserStore()
 const { supportedVersions } = storeToRefs(settingsStore)
-const { isAuthenticated, currentUser } = storeToRefs(userStore)
-const displayName = computed(() => currentUser.value?.nickname || t('userMenu.guest'))
+const { isAuthenticated } = storeToRefs(userStore)
+// const displayName = computed(() => currentUser.value?.nickname || t('userMenu.guest'))
 
 function goToLogin(): void {
   if (isAuthenticated.value) {

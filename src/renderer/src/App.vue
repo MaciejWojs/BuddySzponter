@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+// import { computed } from 'vue'
 import { useSettingsStore } from '@renderer/stores/settingsStore'
+import { useUserStore } from './stores/userStore'
 
 const toaster = { position: 'top-right', duration: 3000, dismissible: true, max: 3, expand: false }
 
@@ -10,13 +11,13 @@ store.initSettings()
 const userStore = useUserStore()
 void userStore.initSession()
 
-const isUpdateRequired = computed(() => store.isUpdateRequired)
-const versionStatus = computed(() => store.versionStatus)
-const isSessionReady = computed(() => userStore.initialized && !userStore.isInitializing)
+// const isUpdateRequired = computed(() => store.isUpdateRequired)
+// const versionStatus = computed(() => store.versionStatus)
+// const isSessionReady = computed(() => userStore.initialized && !userStore.isInitializing)
 
-async function retryVersionCheck(): Promise<void> {
-  await store.checkVersionStatus()
-}
+// async function retryVersionCheck(): Promise<void> {
+//   await store.checkVersionStatus()
+// }
 </script>
 <template>
   <UApp :toaster="toaster">

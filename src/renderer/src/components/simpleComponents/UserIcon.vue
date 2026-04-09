@@ -156,7 +156,7 @@ const userAvatarUrl = computed(() => {
   if (!currentUser.value?.avatar) {
     return null
   }
-  return `http://localhost/avatar/${currentUser.value.avatar}/256.webp`
+  return `${import.meta.env.VITE_PHOTOS_BASE_URL}/avatar/${currentUser.value.avatar}/256.webp`
 })
 
 onMounted(() => {
