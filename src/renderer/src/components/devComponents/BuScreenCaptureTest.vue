@@ -30,8 +30,8 @@
     <div
       class="border border-[#444] rounded overflow-hidden bg-black/80 aspect-video relative flex items-center justify-center"
     >
-      <canvas ref="canvasRef" class="w-full h-full object-contain" v-show="isCapturing"></canvas>
-      <p v-if="!isCapturing" class="text-gray-500 font-medium absolute">Podgląd zablokowany</p>
+      <canvas ref="canvasRef" class="w-full h-full object-contain" v-if="isCapturing"></canvas>
+      <p v-else class="text-gray-500 font-medium absolute">Podgląd zablokowany</p>
     </div>
   </div>
 </template>
@@ -41,60 +41,63 @@ import { ref, onBeforeUnmount } from 'vue'
 
 const isCapturing = ref(false)
 const canvasRef = ref<HTMLCanvasElement | null>(null)
-let animationFrameId: number | null = null
+let stopStream: (() => void) | null = null
 
-const startCapture = () => {
+const startCapture = async () => {
   if (isCapturing.value) return
 
   try {
-    window.capture.start()
+    await window.capture.start()
     isCapturing.value = true
-    loop()
+
+    stopStream = window.capture.subscribeStream((frame: VideoFrame) => {
+      if (isCapturing.value && canvasRef.value) {
+        const canvas = canvasRef.value
+        const width = frame.displayWidth || frame.codedWidth || canvas.width
+        const height = frame.displayHeight || frame.codedHeight || canvas.height
+
+        if (canvas.width !== width || canvas.height !== height) {
+          canvas.width = width
+          canvas.height = height
+        }
+
+        const ctx = canvas.getContext('2d')
+        if (ctx) {
+          ctx.drawImage(frame, 0, 0, canvas.width, canvas.height)
+        }
+      }
+      
+      frame.close()
+    })
   } catch (error) {
     console.error('Failed to start capture:', error)
   }
 }
 
-const stopCapture = () => {
+const stopCapture = async () => {
   if (!isCapturing.value) return
 
   try {
-    window.capture.stop()
     isCapturing.value = false
-    if (animationFrameId !== null) {
-      cancelAnimationFrame(animationFrameId)
-      animationFrameId = null
+    
+    if (stopStream) {
+      stopStream()
+      stopStream = null
     }
+
+    if (canvasRef.value) {
+      const ctx = canvasRef.value.getContext('2d')
+      if (ctx) {
+        canvasRef.value.width = 1
+        canvasRef.value.height = 1
+        ctx.clearRect(0, 0, 1, 1)
+      }
+    }
+
+    await window.capture.stop()
   } catch (error) {
     console.error('Failed to stop capture:', error)
   }
-}
-
-const loop = () => {
-  if (!isCapturing.value) return
-
-  const result = window.capture.getFrame()
-  if (result && result.frame && canvasRef.value) {
-    const frame = result.frame
-    const canvas = canvasRef.value
-
-    const width = frame.displayWidth || frame.codedWidth || canvas.width
-    const height = frame.displayHeight || frame.codedHeight || canvas.height
-
-    if (canvas.width !== width || canvas.height !== height) {
-      canvas.width = width
-      canvas.height = height
-    }
-
-    const ctx = canvas.getContext('2d')
-    if (ctx) {
-      ctx.drawImage(frame, 0, 0, canvas.width, canvas.height)
-    }
-
-    result.release()
-  }
-
-  animationFrameId = requestAnimationFrame(loop)
 }
 
 onBeforeUnmount(() => {

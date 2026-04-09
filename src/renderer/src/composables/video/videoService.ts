@@ -8,36 +8,33 @@ interface MediaStreamTrackGenerator extends MediaStreamTrack {
   writable: WritableStream<VideoFrame>
 }
 
-interface WindowWithGenerator extends Window {
+interface WindowWithCapture extends Window {
   MediaStreamTrackGenerator: {
     new (init: MediaStreamTrackGeneratorInit): MediaStreamTrackGenerator
   }
   capture: {
-    start: () => void
-    stop: () => void
-    getFrame: () => { frame: VideoFrame; release: () => void } | null
+    start: () => Promise<void>
+    stop: () => Promise<void>
+    subscribeStream: (onFrame: (frame: VideoFrame) => void) => () => void
   }
 }
 
 class VideoService {
   private isCapturing = false
   private trackWriter: WritableStreamDefaultWriter<VideoFrame> | null = null
-  private loopTimeoutId: number | null = null
   private activeStream: MediaStream | null = null
-
-  private readonly TARGET_FPS = 60
-  private readonly FRAME_INTERVAL = 1000 / this.TARGET_FPS
+  private stopStream: (() => void) | null = null
 
   public get isRunning(): boolean {
     return this.isCapturing
   }
 
-  public start(): MediaStream {
+  public async start(): Promise<MediaStream> {
     if (this.isCapturing && this.activeStream) {
       return this.activeStream
     }
 
-    const win = window as unknown as WindowWithGenerator
+    const win = window as unknown as WindowWithCapture
 
     if (!win.capture) {
       throw new Error('Brak wstrzykniętego obiektu window.capture (addon C++)!')
@@ -52,21 +49,26 @@ class VideoService {
     this.trackWriter = generator.writable.getWriter()
     this.activeStream = new MediaStream([generator])
 
-    win.capture.start()
+    await win.capture.start()
     this.isCapturing = true
 
-    this.renderLoop()
+    this.stopStream = win.capture.subscribeStream((frame: VideoFrame) => {
+      if (this.isCapturing && this.trackWriter) {
+         this.trackWriter.write(frame.clone()).catch(() => {})
+      }
+      frame.close()
+    })
 
     return this.activeStream
   }
 
-  public stop(): void {
+  public async stop(): Promise<void> {
     if (!this.isCapturing) return
     this.isCapturing = false
 
-    if (this.loopTimeoutId !== null) {
-      window.clearTimeout(this.loopTimeoutId)
-      this.loopTimeoutId = null
+    if (this.stopStream) {
+      this.stopStream()
+      this.stopStream = null
     }
 
     if (this.trackWriter) {
@@ -80,37 +82,11 @@ class VideoService {
     }
 
     try {
-      const win = window as unknown as WindowWithGenerator
-      if (win.capture) win.capture.stop()
+      const win = window as unknown as WindowWithCapture
+      if (win.capture) await win.capture.stop()
     } catch (e) {
       console.error('[VideoService] Błąd podczas zatrzymywania addona:', e)
     }
-  }
-
-  private renderLoop = (): void => {
-    if (!this.isCapturing) return
-
-    const timestamp = performance.now()
-    const win = window as unknown as WindowWithGenerator
-
-    try {
-      const data = win.capture.getFrame()
-
-      if (data && data.frame) {
-        if (this.trackWriter) {
-          this.trackWriter.write(data.frame.clone()).catch(() => {})
-        }
-        data.frame.close()
-        data.release()
-      }
-    } catch (error) {
-      console.error('[VideoService] Błąd cyklu renderowania:', error)
-    }
-
-    const elapsed = performance.now() - timestamp
-    const nextDelay = Math.max(0, this.FRAME_INTERVAL - elapsed)
-
-    this.loopTimeoutId = window.setTimeout(this.renderLoop, nextDelay)
   }
 }
 

@@ -129,9 +129,9 @@ declare global {
       }
     }
     capture: {
-      start: () => void
-      stop: () => void
-      getFrame: () => { frame: VideoFrame; release: () => void } | null
+      start: () => Promise<void>
+      stop: () => Promise<void>
+      subscribeStream: (onFrame: (frame: VideoFrame) => void) => () => void
     }
   }
 }

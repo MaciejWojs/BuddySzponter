@@ -158,12 +158,12 @@ watch(
   { immediate: true }
 )
 
-function startCapture(): void {
+async function startCapture(): Promise<void> {
   if (videoService.isRunning) return
   emit('log-result', 'NATIVE_CAPTURE', 'Rozpoczynanie przechwytywania (Service)...', 'api')
 
   try {
-    const stream = videoService.start()
+    const stream = await videoService.start()
 
     syncLocalPreview(stream)
 
@@ -178,12 +178,12 @@ function startCapture(): void {
   }
 }
 
-function stopCapture(): void {
+async function stopCapture(): Promise<void> {
   if (!videoService.isRunning) return
 
   emit('log-result', 'NATIVE_CAPTURE', 'Zatrzymano przechwytywanie ekranu.', 'api')
 
-  videoService.stop()
+  await videoService.stop()
 
   if (localVideoRef.value) {
     localVideoRef.value.srcObject = null
@@ -261,12 +261,12 @@ watch(
 
 watch(
   () => socketStore.isAcknowledged,
-  (ack) => {
+  async (ack) => {
     if (ack) {
       emit('log-result', 'WS_ACK_RECEIVED', 'Handshake zakończony!', 'socket')
 
       if (connectionStore.isHost && !videoService.isRunning) {
-        startCapture()
+        await startCapture()
       }
 
       if (
@@ -287,7 +287,7 @@ const handleRespond = async (accept: boolean): Promise<void> => {
   emit('log-result', 'WS_SENDING_RESPONSE', `Odpowiedź: ${accept}`, 'socket')
 
   if (accept) {
-    startCapture()
+    await startCapture()
   } else if (!accept && connectionStore.isHost) {
     emit('log-result', 'WS_REJECT_REGENERATE', `Nowy kod będzie wygenerowany...`, 'socket')
   }
@@ -310,7 +310,7 @@ onUnmounted(() => {
   if (stopRemoteFpsMonitor) stopRemoteFpsMonitor()
   webRtcStore.setLocalPreviewFps(null)
   webRtcStore.setLocalPreviewQuality(null)
-  stopCapture()
+  videoService.stop().catch(() => {})
 })
 </script>
 
