@@ -1,4 +1,16 @@
 {
+  "userVersion": {
+    "modalTitle": "Version control panel",
+    "currentVersion": "Current version",
+    "availableVersions": "Available versions",
+    "versionStatus": "Version status",
+    "currentVersionLabel": "Current app version",
+    "availableVersionsLabel": "Available versions",
+    "versionStatusLabel": "Version status",
+    "noAvailableVersions": "No available versions.",
+    "fetchError": "Error fetching version",
+    "statusError": "Error checking version status"
+  },
   "login": {
     "title": "Log in to BuddySzponter",
     "email": "Email address",

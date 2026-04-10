@@ -1,4 +1,16 @@
 {
+  "userVersion": {
+    "modalTitle": "Panel kontroli wersji",
+    "currentVersion": "Aktualna wersja",
+    "availableVersions": "Dostępne wersje",
+    "versionStatus": "Status wersji",
+    "currentVersionLabel": "Aktualna wersja aplikacji",
+    "availableVersionsLabel": "Dostępne wersje",
+    "versionStatusLabel": "Status wersji",
+    "noAvailableVersions": "Brak dostępnych wersji.",
+    "fetchError": "Błąd pobierania wersji",
+    "statusError": "Błąd sprawdzania statusu wersji"
+  },
   "login": {
     "title": "Zaloguj się do BuddySzponter",
     "email": "Adres e-mail",
