@@ -3,9 +3,10 @@ import { ref, computed, shallowRef, watch } from 'vue'
 import { useConnectionStore } from './connectionStore'
 import { useSocketStore } from './socketStore'
 import { useWebRtcStore } from './webRtcStore'
-import { useLogStore } from './devStores/logStore'
+import { useLogStore } from './devStores/logStore' // Upewnij się, że ta ścieżka jest poprawna
 import { videoService } from '@renderer/composables/video/videoService'
 
+// Zmieniono nazwę na useSessionStore (konwencja Vue)
 export const SessionStore = defineStore('session', () => {
   const connectionStore = useConnectionStore()
   const socketStore = useSocketStore()
@@ -17,21 +18,23 @@ export const SessionStore = defineStore('session', () => {
 
   const sharedTextureStream = shallowRef<MediaStream | null>(null)
   const currentCaptureMode = ref<'host-shared' | 'host-native' | 'guest-mic' | null>(null)
-  const isCapturing = computed(() => videoService.isRunning || !!sharedTextureStream.value)
+  const isCapturing = computed((): boolean => videoService.isRunning || !!sharedTextureStream.value)
   const sharedTextureCaptureFps = 120
 
   let stopFrameSubscription: (() => void) | null = null
   let hiddenCanvas: HTMLCanvasElement | null = null
 
+  // Dodano typ zwracany : boolean
   const hasLocalAudioTrack = (hint: 'speech' | 'music'): boolean => {
     return !!webRtcStore.localStream?.getAudioTracks().some((t) => t.contentHint === hint)
   }
 
-  const assignLocalStream = (stream: MediaStream): void => {
+  // FIX: Funkcja musi być async, aby obsłużyć re-negocjację WebRTC
+  const assignLocalStream = async (stream: MediaStream): Promise<void> => {
     if (webRtcStore.rtcStatus === 'disconnected') {
       webRtcStore.localStream = stream
     } else {
-      webRtcStore.publishLocalStream(stream)
+      await webRtcStore.publishLocalStream(stream)
     }
   }
 
@@ -57,7 +60,9 @@ export const SessionStore = defineStore('session', () => {
       stopFrameSubscription?.()
       stopFrameSubscription = window.screenCapture.onFrameReceived((frameData) => {
         try {
-          ctx.drawImage(frameData, 0, 0, hiddenCanvas!.width, hiddenCanvas!.height)
+          if (hiddenCanvas) {
+            ctx.drawImage(frameData, 0, 0, hiddenCanvas.width, hiddenCanvas.height)
+          }
         } catch (e) {
           logStore.addLog('ERROR', `Błąd renderowania klatki: ${e}`, 'api')
         } finally {
@@ -87,7 +92,7 @@ export const SessionStore = defineStore('session', () => {
       webRtcStore.setLocalPreviewQuality('high')
       currentCaptureMode.value = 'host-shared'
 
-      assignLocalStream(sharedTextureStream.value)
+      await assignLocalStream(sharedTextureStream.value)
       window.screenCapture.requestStream()
     } catch (e) {
       logStore.addLog('ERROR', `Błąd sharedTexture: ${e}`, 'api')
@@ -119,7 +124,7 @@ export const SessionStore = defineStore('session', () => {
         microphoneVolume: webRtcStore.localMicrophoneVolume
       })
       currentCaptureMode.value = 'host-native'
-      assignLocalStream(stream)
+      await assignLocalStream(stream)
     } catch (err) {
       logStore.addLog('ERROR', `Błąd przechwytywania: ${err}`, 'api')
     }
@@ -145,7 +150,7 @@ export const SessionStore = defineStore('session', () => {
         microphoneVolume: webRtcStore.localMicrophoneVolume
       })
       currentCaptureMode.value = 'guest-mic'
-      assignLocalStream(stream)
+      await assignLocalStream(stream)
     } catch (err) {
       logStore.addLog('ERROR', `Błąd mikrofonu: ${err}`, 'api')
     }
@@ -190,7 +195,7 @@ export const SessionStore = defineStore('session', () => {
 
   watch(
     () => connectionStore.isHost,
-    (isHost) => {
+    (isHost): void => {
       webRtcStore.setLocalPublishProfile(isHost ? 'host' : 'guest')
     },
     { immediate: true }
@@ -198,7 +203,7 @@ export const SessionStore = defineStore('session', () => {
 
   watch(
     () => socketStore.isConnected,
-    (connected) => {
+    (connected): void => {
       logStore.addLog(
         connected ? 'WS_CONNECTED' : 'WS_DISCONNECTED',
         connected ? 'Połączono' : 'Rozłączono',
@@ -209,7 +214,7 @@ export const SessionStore = defineStore('session', () => {
 
   watch(
     () => socketStore.isAcknowledged,
-    async (ack) => {
+    async (ack): Promise<void> => {
       if (!ack) return
       logStore.addLog('WS_ACK_RECEIVED', 'Handshake zakończony!', 'socket')
 
@@ -222,18 +227,20 @@ export const SessionStore = defineStore('session', () => {
         webRtcStore.rtcStatus === 'disconnected' &&
         webRtcStore.localStream
       ) {
-        webRtcStore.startConnectionAsHost()
+        await webRtcStore.startConnectionAsHost()
       }
     }
   )
 
-  watch(includeMicrophone, (isEnabled) => {
+  watch(includeMicrophone, (isEnabled): void => {
     webRtcStore.toggleMicrophone(!isEnabled)
     if (!isEnabled || connectionStore.isHost || !socketStore.isAcknowledged) return
     if (!hasLocalAudioTrack('speech')) void startMicrophoneCaptureForGuest()
   })
 
-  watch(includeSystemAudio, (isMuted) => webRtcStore.toggleSystemAudio(!isMuted))
+  watch(includeSystemAudio, (isMuted): void => {
+    webRtcStore.toggleSystemAudio(!isMuted)
+  })
 
   return {
     includeSystemAudio,
