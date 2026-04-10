@@ -3,29 +3,33 @@ import { computed, onUnmounted } from 'vue'
 import { useConnectionStore } from '@renderer/stores/connectionStore'
 import { useSocketStore } from '@renderer/stores/socketStore'
 import { useWebRtcStore } from '@renderer/stores/webRtcStore'
-import { SessionStore } from '@renderer/stores/sessionStore'
-import RemoteStreamView from '../p2p/RemoteStreamView.vue'
+import { SessionStore } from '@renderer/stores/sessionStore' // Używamy poprawnej nazwy composable z Pinii
+
+import RemoteAudioPlayer from '../p2p/RemoteAudioPlayer.vue'
+import VideoPlayer from '../p2p/VideoPlayer.vue'
 
 const connectionStore = useConnectionStore()
 const socketStore = useSocketStore()
 const webRtcStore = useWebRtcStore()
 const sessionStore = SessionStore()
 
+// FIX: Dodane : void do każdej z tych funkcji dla ESLint
 const handleManualConnect = (): void => void socketStore.connect('awaryjny-token-z-palca')
 const handleManualDisconnect = (): void => void socketStore.disconnect()
 const placeholderAction = (name: string): void => alert(`Funkcja "${name}" jest w przygotowaniu!`)
 
-// Mapowanie do diagnostyki (Czysto widokowa sprawa, więc zostaje w komponencie UI)
+// Mapowanie do diagnostyki
+// FIX: Dodany typ zwracany z funkcji
 const mapStreamToDebug = (
   stream: MediaStream | null
 ): Array<{
   id: string
   source: 'screen' | 'system-audio' | 'microphone'
-  kind: MediaStreamTrack['kind']
+  kind: string
   contentHint: string
   enabled: boolean
   muted: boolean
-  readyState: MediaStreamTrack['readyState']
+  readyState: string
 }> => {
   if (!stream) return []
   return stream.getTracks().map((track) => ({
@@ -43,6 +47,7 @@ const mapStreamToDebug = (
     readyState: track.readyState
   }))
 }
+
 const localTrackDiagnostics = computed(() => mapStreamToDebug(webRtcStore.localStream))
 const remoteTrackDiagnostics = computed(() => mapStreamToDebug(webRtcStore.remoteStream))
 
@@ -238,6 +243,25 @@ onUnmounted(() => {
           </div>
         </div>
 
+        <div class="grid grid-cols-1 gap-3 mb-4">
+          <div class="px-4 py-3 rounded-lg border border-[#444] bg-black/40 flex flex-col gap-3">
+            <div class="flex justify-between items-center text-xs text-gray-300 font-medium">
+              <span>Odsłuch Gościa (Jego mikrofon)</span>
+              <span class="font-mono text-cyan-400"
+                >{{ Math.round(webRtcStore.remoteMicVolume * 100) }}%</span
+              >
+            </div>
+            <input
+              v-model.number="webRtcStore.remoteMicVolume"
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              class="custom-slider cyan-slider"
+            />
+          </div>
+        </div>
+
         <VideoPlayer
           v-if="sessionStore.isCapturing"
           :stream="webRtcStore.localStream"
@@ -429,7 +453,7 @@ onUnmounted(() => {
       </div>
     </footer>
 
-    <remote-stream-view />
+    <RemoteAudioPlayer />
   </div>
 </template>
 

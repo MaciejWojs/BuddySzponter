@@ -1,27 +1,61 @@
 <script setup lang="ts">
-import { ref, watchEffect } from 'vue'
+import { ref, shallowRef, watchEffect } from 'vue'
+import { useWebRtcStore } from '@renderer/stores/webRtcStore'
 
-const props = defineProps<{
-  stream: MediaStream | null
-  volume: number
-}>()
+const webRtcStore = useWebRtcStore()
 
-const audioRef = ref<HTMLAudioElement | null>(null)
+const micAudioRef = ref<HTMLAudioElement | null>(null)
+const sysAudioRef = ref<HTMLAudioElement | null>(null)
+
+const micStream = shallowRef<MediaStream | null>(null)
+const sysStream = shallowRef<MediaStream | null>(null)
 
 watchEffect(() => {
-  if (!audioRef.value) return
+  const stream = webRtcStore.remoteStream
 
-  audioRef.value.srcObject = props.stream
+  if (!stream) {
+    micStream.value = null
+    sysStream.value = null
+    return
+  }
 
-  const vol = Math.max(0, Math.min(1, props.volume))
-  audioRef.value.volume = vol
-  audioRef.value.muted = vol <= 0
+  const audioTracks = stream.getAudioTracks()
+  const micTrack = audioTracks.find((t) => t.contentHint === 'speech')
+  const sysTrack = audioTracks.find((t) => t.contentHint === 'music')
+
+  micStream.value = micTrack ? new MediaStream([micTrack]) : null
+  sysStream.value = sysTrack ? new MediaStream([sysTrack]) : null
+})
+
+watchEffect(() => {
+  if (!micAudioRef.value) return
+  micAudioRef.value.srcObject = micStream.value
+
+  const vol = Math.max(0, Math.min(1, webRtcStore.remoteMicVolume))
+  micAudioRef.value.volume = vol
+  micAudioRef.value.muted = vol <= 0
+})
+
+// 3. Obsługa Głośności Zdalnego Systemu (Pobierana prosto ze Store!)
+watchEffect(() => {
+  if (!sysAudioRef.value) return
+  sysAudioRef.value.srcObject = sysStream.value
+
+  const vol = Math.max(0, Math.min(1, webRtcStore.remoteSystemVolume))
+  sysAudioRef.value.volume = vol
+  sysAudioRef.value.muted = vol <= 0
 })
 </script>
 
 <template>
   <audio
-    ref="audioRef"
+    ref="micAudioRef"
+    autoplay
+    playsinline
+    class="opacity-0 pointer-events-none absolute w-0 h-0"
+  ></audio>
+  <audio
+    ref="sysAudioRef"
     autoplay
     playsinline
     class="opacity-0 pointer-events-none absolute w-0 h-0"
