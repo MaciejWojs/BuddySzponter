@@ -1,7 +1,7 @@
 // renderer/src/stores/webRtcStore.ts
 
 import { defineStore } from 'pinia'
-import { ref, shallowRef } from 'vue'
+import { ref, shallowRef, watch } from 'vue' // Zwróć uwagę na import watch!
 import { useSocketStore } from './socketStore'
 import {
   guestTrackPolicy,
@@ -14,6 +14,9 @@ import { ChatChannel } from '@renderer/composables/channels/ChatChannel'
 import { HidChannel } from '@renderer/composables/channels/HidChannel'
 import { SystemEventsChannel } from '@renderer/composables/channels/SystemEventsChannel'
 
+// Importujemy videoService, bo Store będzie nim teraz bezpośrednio sterował głośnością
+import { videoService } from '@renderer/composables/video/videoService'
+
 export const useWebRtcStore = defineStore('webrtc', () => {
   const getSocketStore = (): ReturnType<typeof useSocketStore> => useSocketStore()
 
@@ -22,6 +25,16 @@ export const useWebRtcStore = defineStore('webrtc', () => {
   const localStream = shallowRef<MediaStream | null>(null)
   const remoteStream = shallowRef<MediaStream | null>(null)
   const localPublishProfile = ref<'host' | 'guest'>('host')
+
+  // --- audio volume controls ---
+  const remoteMicVolume = ref<number>(1)
+  const remoteSystemVolume = ref<number>(1)
+
+  const localSystemAudioVolume = ref<number>(1)
+  const localMicrophoneVolume = ref<number>(1)
+
+  watch(localSystemAudioVolume, (val) => videoService.setSystemAudioVolume(val))
+  watch(localMicrophoneVolume, (val) => videoService.setMicrophoneVolume(val))
 
   const connectionMetrics = useConnectionMetrics(rtcStatus)
   const chat = ChatChannel()
@@ -71,7 +84,7 @@ export const useWebRtcStore = defineStore('webrtc', () => {
           if (msg.type === 'MOUSE_MOVE') hid.handleIncomingMessage(msg.payload)
           break
         case 'system-events':
-          system.handleIncomingMessage(msg.payload)
+          system.handleIncomingMessage(msg)
           break
         case 'metrics':
           if (msg.type === 'METRICS') connectionMetrics.applyRemoteMetrics(msg.payload)
@@ -113,6 +126,11 @@ export const useWebRtcStore = defineStore('webrtc', () => {
     hid.remoteMouse.value = { x: 0, y: 0 }
     localPublishProfile.value = 'host'
     connectionMetrics.reset()
+
+    remoteMicVolume.value = 1
+    remoteSystemVolume.value = 1
+    localSystemAudioVolume.value = 1
+    localMicrophoneVolume.value = 1
   }
 
   const disconnect = async (): Promise<void> => {
@@ -192,6 +210,11 @@ export const useWebRtcStore = defineStore('webrtc', () => {
     localStream,
     remoteStream,
     localPublishProfile,
+
+    remoteMicVolume,
+    remoteSystemVolume,
+    localSystemAudioVolume,
+    localMicrophoneVolume,
 
     chatMessages: chat.chatMessages,
     remoteMouse: hid.remoteMouse,
