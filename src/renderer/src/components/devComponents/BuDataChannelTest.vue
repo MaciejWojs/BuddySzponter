@@ -33,7 +33,7 @@
         <div class="flex-1 flex flex-col gap-3 md:border-r border-[#333] md:pr-5">
           <h3 class="text-sm font-bold text-blue-400 m-0">💬 Szybki Czat (chat-channel)</h3>
           <div
-            class="bg-black/50 border border-[#222] rounded p-3 h-[150px] overflow-y-auto text-sm font-mono flex flex-col gap-1 shadow-inner"
+            class="bg-black/50 border border-[#222] rounded p-3 h-37.5 overflow-y-auto text-sm font-mono flex flex-col gap-1 shadow-inner"
           >
             <div
               v-for="(msg, i) in webRtcStore.chatMessages"
@@ -69,7 +69,7 @@
           </p>
 
           <div
-            class="relative h-[150px] bg-black border border-[#444] rounded cursor-crosshair overflow-hidden shadow-inner"
+            class="relative h-37.5 bg-black border border-[#444] rounded cursor-crosshair overflow-hidden shadow-inner"
             @mousemove="handleMouseMove"
           >
             <div
@@ -95,19 +95,19 @@
         <div class="flex gap-3">
           <button
             class="px-4 py-2 bg-[#222] border border-[#444] hover:bg-[#333] hover:border-yellow-500 text-gray-300 hover:text-yellow-400 rounded text-xs font-bold transition-all"
-            @click="commander.sendVideoCommand('PAUSE_VIDEO')"
+            @click="webRtcStore.sendVideoCommand('PAUSE_VIDEO')"
           >
             ⏸ Pauzuj Wideo
           </button>
           <button
             class="px-4 py-2 bg-[#222] border border-[#444] hover:bg-[#333] hover:border-emerald-500 text-gray-300 hover:text-emerald-400 rounded text-xs font-bold transition-all"
-            @click="commander.sendVideoCommand('RESUME_VIDEO')"
+            @click="webRtcStore.sendVideoCommand('RESUME_VIDEO')"
           >
             ▶ Wznów Wideo
           </button>
           <button
             class="px-4 py-2 bg-[#222] border border-[#444] hover:bg-[#333] hover:border-blue-500 text-gray-300 hover:text-blue-400 rounded text-xs font-bold transition-all"
-            @click="commander.sendVideoCommand('LOWER_QUALITY')"
+            @click="webRtcStore.sendVideoCommand('LOWER_QUALITY')"
           >
             📉 Wymuś Zrzut Jakości
           </button>
@@ -148,18 +148,14 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useWebRtcStore } from '@renderer/stores/webRtcStore'
-import { useP2PCommander } from '@renderer/composables/webrtc/P2PCommander'
 
 const webRtcStore = useWebRtcStore()
-const commander = useP2PCommander()
 
 const chatInput = ref('')
 
 const handleSend = (): void => {
   if (chatInput.value.trim()) {
-    commander.sendChatMessage(chatInput.value, 'Rozmówca')
-
-    webRtcStore.chatMessages.push(`Ja: ${chatInput.value}`)
+    webRtcStore.sendChatMessage(chatInput.value, 'Rozmówca')
 
     chatInput.value = ''
   }
@@ -174,6 +170,6 @@ const handleMouseMove = (e: MouseEvent): void => {
   const x = Math.round(((e.clientX - rect.left) / rect.width) * 100)
   const y = Math.round(((e.clientY - rect.top) / rect.height) * 100)
 
-  commander.sendMousePosition(x, y)
+  webRtcStore.sendMousePosition(x, y)
 }
 </script>
