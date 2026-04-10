@@ -28,8 +28,13 @@ const hiddenCanvas = ref<HTMLCanvasElement | null>(null)
 const sharedTextureStream = shallowRef<MediaStream | null>(null)
 const isCapturing = computed(() => videoService.isRunning || !!sharedTextureStream.value)
 const sharedTextureCaptureFps = 120
+const currentCaptureMode = ref<'host-shared' | 'host-native' | 'guest-mic' | null>(null)
 
 let stopFrameSubscription: (() => void) | null = null
+
+const hasLocalAudioTrack = (hint: 'speech' | 'music'): boolean => {
+  return !!webRtcStore.localStream?.getAudioTracks().some((t) => t.contentHint === hint)
+}
 
 // ==========================================
 // 1. ZARZĄDZANIE REAKTYWNYM WIDEO (VUE WAY)
@@ -43,7 +48,12 @@ watchEffect(() => {
 // 2. GŁÓWNE AKCJE (CAPTURE)
 // ==========================================
 const startCapture = async (): Promise<void> => {
-  if (isCapturing.value) return
+  if (
+    isCapturing.value &&
+    (currentCaptureMode.value === 'host-shared' || currentCaptureMode.value === 'host-native')
+  )
+    return
+  if (isCapturing.value) await stopCapture()
   webRtcStore.setLocalPublishProfile('host')
   emit('log-result', 'NATIVE_CAPTURE', 'Rozpoczynanie przechwytywania (Host)...', 'api')
 
@@ -60,6 +70,7 @@ const startCapture = async (): Promise<void> => {
       systemAudioVolume: systemAudioVolume.value,
       microphoneVolume: microphoneVolume.value
     })
+    currentCaptureMode.value = 'host-native'
     assignLocalStream(stream)
   } catch (err) {
     emit('log-result', 'ERROR', `Błąd przechwytywania: ${err}`, 'api')
@@ -98,11 +109,28 @@ const startSharedTextureCapture = async (): Promise<void> => {
       }
     })
 
-    sharedTextureStream.value = canvas.captureStream(sharedTextureCaptureFps)
+    const canvasStream = canvas.captureStream(sharedTextureCaptureFps)
+    const canvasVideoTrack = canvasStream.getVideoTracks()[0]
+    if (!canvasVideoTrack) {
+      emit('log-result', 'ERROR', 'Brak video tracka z canvas captureStream.', 'api')
+      return
+    }
+
+    sharedTextureStream.value = await videoService.startWithExternalVideoTrack(canvasVideoTrack, {
+      includeSystemAudio: includeSystemAudio.value,
+      includeMicrophone: includeMicrophone.value,
+      systemAudioVolume: systemAudioVolume.value,
+      microphoneVolume: microphoneVolume.value
+    })
+
     const videoTrack = sharedTextureStream.value.getVideoTracks()[0]
     if (videoTrack) {
       videoTrack.enabled = true
     }
+
+    webRtcStore.setLocalPreviewFps(sharedTextureCaptureFps)
+    webRtcStore.setLocalPreviewQuality('high')
+    currentCaptureMode.value = 'host-shared'
 
     assignLocalStream(sharedTextureStream.value)
     window.screenCapture.requestStream()
@@ -112,7 +140,10 @@ const startSharedTextureCapture = async (): Promise<void> => {
 }
 
 const startMicrophoneCaptureForGuest = async (): Promise<void> => {
-  if (videoService.isRunning) return
+  const hasSpeechTrack = hasLocalAudioTrack('speech')
+  if (isCapturing.value && currentCaptureMode.value === 'guest-mic' && hasSpeechTrack) return
+  if (isCapturing.value) await stopCapture()
+
   webRtcStore.setLocalPublishProfile('guest')
   emit('log-result', 'MIC_CAPTURE', 'Uruchamianie mikrofonu (Gość)...', 'api')
 
@@ -123,6 +154,7 @@ const startMicrophoneCaptureForGuest = async (): Promise<void> => {
       includeMicrophone: includeMicrophone.value,
       microphoneVolume: microphoneVolume.value
     })
+    currentCaptureMode.value = 'guest-mic'
     assignLocalStream(stream)
   } catch (err) {
     emit('log-result', 'ERROR', `Błąd mikrofonu: ${err}`, 'api')
@@ -153,6 +185,8 @@ const stopCapture = async (): Promise<void> => {
     sharedTextureStream.value = null
   }
 
+  currentCaptureMode.value = null
+
   await videoService.stop()
   webRtcStore.localStream = null
   webRtcStore.setLocalPreviewFps(null)
@@ -164,7 +198,17 @@ const stopCapture = async (): Promise<void> => {
 // ==========================================
 // Zamiast restartować cały ekran (co zrywa WebRTC),
 // po prostu wyciszamy konkretną ścieżkę (Soft Mute)!
-watch(includeMicrophone, (isMuted) => webRtcStore.toggleMicrophone(!isMuted))
+watch(includeMicrophone, (isEnabled) => {
+  webRtcStore.toggleMicrophone(!isEnabled)
+
+  if (!isEnabled) return
+  if (connectionStore.isHost) return
+  if (!socketStore.isAcknowledged) return
+
+  if (!hasLocalAudioTrack('speech')) {
+    void startMicrophoneCaptureForGuest()
+  }
+})
 watch(includeSystemAudio, (isMuted) => webRtcStore.toggleSystemAudio(!isMuted))
 
 watch(microphoneVolume, (val) => videoService.setMicrophoneVolume(val))
@@ -206,7 +250,7 @@ watch(
     if (!ack) return
     emit('log-result', 'WS_ACK_RECEIVED', 'Handshake zakończony!', 'socket')
 
-    if (!videoService.isRunning) {
+    if (!isCapturing.value) {
       connectionStore.isHost ? await startCapture() : await startMicrophoneCaptureForGuest()
     }
 

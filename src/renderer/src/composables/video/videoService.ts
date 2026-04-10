@@ -75,6 +75,36 @@ class VideoService {
     return this.activeStream
   }
 
+  public async startWithExternalVideoTrack(
+    externalVideoTrack: MediaStreamTrack,
+    options: Omit<VideoCaptureOptions, 'includeScreen'> = {}
+  ): Promise<MediaStream> {
+    if (this.isCapturing) {
+      await this.stop()
+    }
+
+    this.isCapturing = true
+    this.activeStream = new MediaStream()
+
+    const clonedVideoTrack = externalVideoTrack.clone()
+    clonedVideoTrack.contentHint = 'detail'
+    this.activeStream.addTrack(clonedVideoTrack)
+
+    const wantsSystemAudio = options.includeSystemAudio ?? true
+    if (wantsSystemAudio) {
+      const vol = options.systemAudioVolume ?? 1
+      await this.addSystemAudioTrack(vol)
+    }
+
+    const wantsMic = options.includeMicrophone ?? true
+    if (wantsMic) {
+      const vol = options.microphoneVolume ?? 1
+      await this.addMicrophoneTrack(options.microphoneDeviceId, vol)
+    }
+
+    return this.activeStream
+  }
+
   private async addScreenVideoTrack(): Promise<void> {
     const win = window as unknown as WindowWithCapture
 
