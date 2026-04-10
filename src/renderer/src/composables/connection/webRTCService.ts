@@ -6,6 +6,27 @@ export type ConnectionMetrics = {
   timestamp: number
 }
 
+export type LocalTrackPolicy = {
+  allowVideo: boolean
+  allowSystemAudio: boolean
+  allowMicrophoneAudio: boolean
+  allowUnclassifiedAudio: boolean
+}
+
+export const hostTrackPolicy: LocalTrackPolicy = {
+  allowVideo: true,
+  allowSystemAudio: true,
+  allowMicrophoneAudio: true,
+  allowUnclassifiedAudio: true
+}
+
+export const guestTrackPolicy: LocalTrackPolicy = {
+  allowVideo: false,
+  allowSystemAudio: false,
+  allowMicrophoneAudio: true,
+  allowUnclassifiedAudio: false
+}
+
 export class WebRTCService {
   public peerConnection: RTCPeerConnection | null = null
 
@@ -23,6 +44,7 @@ export class WebRTCService {
 
   private isIntentionallyClosing = false
   private iceCandidateQueue: RTCIceCandidateInit[] = []
+  private localSenders: RTCRtpSender[] = []
 
   constructor() {
     //
@@ -87,11 +109,49 @@ export class WebRTCService {
     }
   }
 
-  public addLocalStream(stream: MediaStream): void {
+  public publishLocalStream(stream: MediaStream, policy: LocalTrackPolicy = hostTrackPolicy): void {
     if (!this.peerConnection) throw new Error('Brak PeerConnection!')
+
+    this.clearLocalSenders()
+
     stream.getTracks().forEach((track) => {
-      this.peerConnection?.addTrack(track, stream)
+      if (!this.shouldPublishTrack(track, policy)) {
+        return
+      }
+
+      const sender = this.peerConnection?.addTrack(track, stream)
+      if (sender) this.localSenders.push(sender)
     })
+  }
+
+  private clearLocalSenders(): void {
+    if (!this.peerConnection || this.localSenders.length === 0) return
+
+    this.localSenders.forEach((sender) => {
+      try {
+        this.peerConnection?.removeTrack(sender)
+      } catch (e) {
+        console.warn('[WebRTCService] Nie udało się usunąć sendera:', e)
+      }
+    })
+
+    this.localSenders = []
+  }
+
+  private shouldPublishTrack(track: MediaStreamTrack, policy: LocalTrackPolicy): boolean {
+    if (track.kind === 'video') {
+      return policy.allowVideo
+    }
+
+    if (track.kind !== 'audio') {
+      return false
+    }
+
+    const hint = track.contentHint
+    if (hint === 'music') return policy.allowSystemAudio
+    if (hint === 'speech') return policy.allowMicrophoneAudio
+
+    return policy.allowUnclassifiedAudio
   }
 
   private setupChannel(channel: RTCDataChannel): void {
@@ -244,6 +304,8 @@ export class WebRTCService {
 
   public cleanup(): void {
     this.isIntentionallyClosing = true
+
+    this.clearLocalSenders()
 
     if (this.peerConnection) {
       this.peerConnection.close()
