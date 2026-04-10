@@ -30,7 +30,22 @@
     "version": "Wersja aplikacji",
     "logout": "Wyloguj się",
     "settings": "Ustawienia",
-    "profile": "Profil"
+    "profile": "Profil",
+    "yourAccount": "Twoje konto",
+    "sessionRecordings": "Nagrania sesji",
+    "userPanelTitle": "Panel użytkownika",
+    "emailLabel": "E-mail",
+    "nicknameLabel": "Nazwa użytkownika",
+    "resetPassword": "Zresetuj hasło",
+    "changeAvatar": "Zmień avatar",
+    "deleteAccount": "Usuń konto",
+    "resetPasswordSent": "Link do resetu hasła wysłany",
+    "avatarChangedTo": "Avatar zmieniony na",
+    "avatarAlt": "Avatar użytkownika",
+    "deleteAccountConfirm": "Czy na pewno chcesz usunąć konto?",
+    "deleteAccountAccepted": "Konto zostało usunięte",
+    "deleteAccountCancelled": "Usunięcie konta anulowane",
+    "defaultUser": "Użytkownik"
   },
   "validation": {
     "invalidEmail": "Wprowadź poprawny adres e-mail",

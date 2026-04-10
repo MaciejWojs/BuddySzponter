@@ -30,7 +30,22 @@
     "version": "App version",
     "logout": "Log out",
     "settings": "Settings",
-    "profile": "Profile"
+    "profile": "Profile",
+    "yourAccount": "Your account",
+    "sessionRecordings": "Session recordings",
+    "userPanelTitle": "User panel",
+    "emailLabel": "E-mail",
+    "nicknameLabel": "Username",
+    "resetPassword": "Reset password",
+    "changeAvatar": "Change avatar",
+    "deleteAccount": "Delete account",
+    "resetPasswordSent": "Password reset link sent",
+    "avatarChangedTo": "Avatar changed to",
+    "avatarAlt": "User avatar",
+    "deleteAccountConfirm": "Are you sure you want to delete your account?",
+    "deleteAccountAccepted": "Account has been deleted",
+    "deleteAccountCancelled": "Account deletion cancelled",
+    "defaultUser": "User"
   },
   "validation": {
     "invalidEmail": "Enter a valid email address",
