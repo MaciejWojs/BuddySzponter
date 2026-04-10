@@ -24,7 +24,7 @@ export const guestTrackPolicy: LocalTrackPolicy = {
   allowVideo: false,
   allowSystemAudio: false,
   allowMicrophoneAudio: true,
-  allowUnclassifiedAudio: false
+  allowUnclassifiedAudio: true
 }
 
 export class WebRTCService {

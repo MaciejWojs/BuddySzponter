@@ -157,7 +157,10 @@ export const useWebRtcStore = defineStore('webrtc', () => {
   const toggleMicrophone = (isMuted: boolean): void => {
     if (!localStream.value) return
 
-    const micTrack = localStream.value.getAudioTracks().find((t) => t.contentHint === 'speech')
+    const audioTracks = localStream.value.getAudioTracks()
+    const micTrack =
+      audioTracks.find((t) => t.contentHint === 'speech') ||
+      (audioTracks.length === 1 ? audioTracks[0] : null)
 
     if (micTrack) {
       micTrack.enabled = !isMuted
