@@ -3,7 +3,7 @@
 import { useSettingsStore } from '@renderer/stores/settingsStore'
 import { useUserStore } from './stores/userStore'
 
-const toaster = { position: 'top-right', duration: 3000, dismissible: true, max: 3, expand: false }
+const toaster = { position: 'top-left', duration: 3000, dismissible: true, max: 3, expand: false }
 
 const store = useSettingsStore()
 store.initSettings()

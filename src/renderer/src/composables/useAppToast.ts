@@ -1,27 +1,52 @@
+import { useI18n } from 'vue-i18n'
+
 export function useAppToast(): {
   success: (title: string, description?: string) => void
   error: (title: string, description?: string) => void
   custom: (title: string, description?: string) => void
 } {
   const toast = useToast()
+  const { t } = useI18n()
+
+  function resolveText(text?: string): string | undefined {
+    if (!text?.trim()) return undefined
+    // Jeśli wygląda jak klucz i18n, tłumacz
+    const looksLikeI18nKey = /^[a-z0-9_-]+(?:\.[a-z0-9_-]+)+$/i.test(text.trim())
+    return looksLikeI18nKey ? t(text) : text
+  }
 
   const baseUi = {
-    root: 'backdrop-blur-md bg-[#120A2A]/94 border border-[#9b7ef8]/35 rounded-xl text-white shadow-[0_14px_40px_-18px_rgba(83,34,148,0.95)]',
-    icon: 'text-[#c9b2ff]',
-    title: 'text-white font-semibold tracking-[0.01em]',
-    description: 'text-[#c8bddf] font-normal'
+    root: [
+      'relative',
+      'backdrop-blur-xl',
+      'bg-[#18102c]/62',
+      'border border-[#ffffff]/10',
+      'rounded-xl',
+      'shadow-[0_4px_14px_-10px_rgba(62,42,120,0.34)]',
+      'text-white',
+      'px-4 py-2.5',
+      'overflow-hidden',
+      'min-w-[220px]',
+      'max-w-[64vw]',
+      'before:absolute before:top-1.5 before:left-3.5 before:right-3.5 before:h-px before:rounded-full before:bg-white/22',
+      'after:absolute after:bottom-1.5 after:left-3.5 after:right-3.5 after:h-px after:rounded-full after:bg-white/22'
+    ].join(' '),
+    title:
+      'text-white font-medium text-[1.08rem] leading-tight tracking-[0.003em] drop-shadow-[0_1px_3px_rgba(255,255,255,0.1)]',
+    description: 'text-[#d7d0e6] font-normal text-[0.72rem] mt-0.5 opacity-75',
+    icon: 'text-white/75 size-[18px] shrink-0 mt-0.5'
   }
 
   function success(title: string, description?: string): void {
     toast.add({
       ui: {
         ...baseUi,
-        root: `${baseUi.root} border-[#49d4a8]/45 shadow-[0_14px_40px_-18px_rgba(28,166,124,0.95)]`,
-        icon: 'text-[#7af0c6]'
+        root: `${baseUi.root} border-[#62cfae]/18 shadow-[0_4px_12px_-10px_rgba(24,122,92,0.26)]`,
+        icon: 'text-[#9be6cd]/78 size-[18px] shrink-0 mt-0.5'
       },
-      title,
-      description,
-      icon: 'i-lucide-check-circle',
+      title: resolveText(title),
+      description: resolveText(description),
+      icon: 'i-lucide-info',
       color: 'success'
     })
   }
@@ -30,12 +55,12 @@ export function useAppToast(): {
     toast.add({
       ui: {
         ...baseUi,
-        root: `${baseUi.root} border-[#ff7a94]/45 shadow-[0_14px_40px_-18px_rgba(184,38,78,0.95)]`,
-        icon: 'text-[#ff8fa6]'
+        root: `${baseUi.root} border-[#ff9aae]/18 shadow-[0_4px_12px_-10px_rgba(148,52,79,0.26)]`,
+        icon: 'text-[#ffc2cf]/78 size-[18px] shrink-0 mt-0.5'
       },
-      title,
-      description,
-      icon: 'i-lucide-x-circle',
+      title: resolveText(title),
+      description: resolveText(description),
+      icon: 'i-lucide-info',
       color: 'error'
     })
   }
@@ -44,12 +69,12 @@ export function useAppToast(): {
     toast.add({
       ui: {
         ...baseUi,
-        root: `${baseUi.root} border-[#9b7ef8]/45`,
-        icon: 'text-[#bda4ff]'
+        root: `${baseUi.root} border-[#b89ff8]/16 shadow-[0_4px_12px_-10px_rgba(89,66,154,0.26)]`,
+        icon: 'text-[#d6c7ff]/78 size-[18px] shrink-0 mt-0.5'
       },
-      title,
-      description,
-      icon: 'i-lucide-wifi',
+      title: resolveText(title),
+      description: resolveText(description),
+      icon: 'i-lucide-info',
       color: 'neutral'
     })
   }

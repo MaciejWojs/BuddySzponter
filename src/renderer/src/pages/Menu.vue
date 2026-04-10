@@ -7,7 +7,7 @@ import type { NavBarItem } from '@renderer/components/UI/NavBar.vue'
 import DevicesButton from '@renderer/components/simpleComponents/DevicesButton.vue'
 import HomeButton from '@renderer/components/simpleComponents/HomeButton.vue'
 import SettingButton from '@renderer/components/simpleComponents/SettingButton.vue'
-import BuLanguageSelector from '@renderer/components/simpleComponents/BuLanguageSelector.vue'
+// import BuLanguageSelector from '@renderer/components/simpleComponents/BuLanguageSelector.vue'
 import UserIcon from '@renderer/components/simpleComponents/UserIcon.vue'
 import UserNoLogin from '@renderer/components/simpleComponents/UserNoLogin.vue'
 import { useUserStore } from '@renderer/stores/userStore'
@@ -41,9 +41,9 @@ const navItems: NavBarItem[] = [
   <!-- Główny widok menu: górna nawigacja, dwie kolumny akcji i stopka z logo. -->
   <section class="menu-page">
     <!-- Selektor języka osadzony w lewym górnym rogu ekranu. -->
-    <div class="menu-lang-selector">
+    <!-- <div class="menu-lang-selector">
       <BuLanguageSelector />
-    </div>
+    </div> -->
 
     <!-- Ikona użytkownika zależna od statusu zalogowania. -->
     <UserIcon v-if="isAuthenticated" />
