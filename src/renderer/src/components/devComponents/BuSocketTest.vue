@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch, watchEffect, onUnmounted } from 'vue'
+import { computed, ref, shallowRef, watch, watchEffect, onUnmounted } from 'vue'
 import { useConnectionStore } from '@renderer/stores/connectionStore'
 import { useSocketStore } from '@renderer/stores/socketStore'
 import { useWebRtcStore } from '@renderer/stores/webRtcStore'
@@ -23,6 +23,13 @@ const remotePlaybackVolume = ref(1)
 
 const localVideoRef = ref<HTMLVideoElement | null>(null)
 const remoteVideoRef = ref<HTMLVideoElement | null>(null)
+const hiddenCanvas = ref<HTMLCanvasElement | null>(null)
+
+const sharedTextureStream = shallowRef<MediaStream | null>(null)
+const isCapturing = computed(() => videoService.isRunning || !!sharedTextureStream.value)
+const sharedTextureCaptureFps = 120
+
+let stopFrameSubscription: (() => void) | null = null
 
 // ==========================================
 // 1. ZARZĄDZANIE REAKTYWNYM WIDEO (VUE WAY)
@@ -36,9 +43,14 @@ watchEffect(() => {
 // 2. GŁÓWNE AKCJE (CAPTURE)
 // ==========================================
 const startCapture = async (): Promise<void> => {
-  if (videoService.isRunning) return
+  if (isCapturing.value) return
   webRtcStore.setLocalPublishProfile('host')
   emit('log-result', 'NATIVE_CAPTURE', 'Rozpoczynanie przechwytywania (Host)...', 'api')
+
+  if (window.screenCapture) {
+    await startSharedTextureCapture()
+    return
+  }
 
   try {
     const stream = await videoService.start({
@@ -51,6 +63,51 @@ const startCapture = async (): Promise<void> => {
     assignLocalStream(stream)
   } catch (err) {
     emit('log-result', 'ERROR', `Błąd przechwytywania: ${err}`, 'api')
+  }
+}
+
+const startSharedTextureCapture = async (): Promise<void> => {
+  try {
+    window.screenCapture.registerReceiver()
+
+    const canvas = hiddenCanvas.value || document.createElement('canvas')
+    canvas.classList.remove('hidden')
+    canvas.width = 1920
+    canvas.height = 1080
+    hiddenCanvas.value = canvas
+
+    const ctx = canvas.getContext('2d', { alpha: false })
+    if (!ctx) {
+      emit('log-result', 'ERROR', 'Brak kontekstu 2D dla canvasa.', 'api')
+      return
+    }
+
+    ctx.fillStyle = 'black'
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+    stopFrameSubscription?.()
+    stopFrameSubscription = window.screenCapture.onFrameReceived((frameData) => {
+      try {
+        ctx.drawImage(frameData, 0, 0, canvas.width, canvas.height)
+      } catch (e) {
+        emit('log-result', 'ERROR', `Błąd renderowania klatki: ${e}`, 'api')
+      } finally {
+        if (frameData && typeof frameData.close === 'function') {
+          frameData.close()
+        }
+      }
+    })
+
+    sharedTextureStream.value = canvas.captureStream(sharedTextureCaptureFps)
+    const videoTrack = sharedTextureStream.value.getVideoTracks()[0]
+    if (videoTrack) {
+      videoTrack.enabled = true
+    }
+
+    assignLocalStream(sharedTextureStream.value)
+    window.screenCapture.requestStream()
+  } catch (e) {
+    emit('log-result', 'ERROR', `Błąd sharedTexture: ${e}`, 'api')
   }
 }
 
@@ -81,8 +138,20 @@ const assignLocalStream = (stream: MediaStream): void => {
 }
 
 const stopCapture = async (): Promise<void> => {
-  if (!videoService.isRunning) return
+  if (!isCapturing.value) return
   emit('log-result', 'NATIVE_CAPTURE', 'Zatrzymano wideo/audio.', 'api')
+
+  stopFrameSubscription?.()
+  stopFrameSubscription = null
+
+  if (window.screenCapture) {
+    window.screenCapture.stopStream()
+  }
+
+  if (sharedTextureStream.value) {
+    sharedTextureStream.value.getTracks().forEach((t) => t.stop())
+    sharedTextureStream.value = null
+  }
 
   await videoService.stop()
   webRtcStore.localStream = null
@@ -206,6 +275,11 @@ const remoteTrackDiagnostics = computed(() => mapStreamToDebug(webRtcStore.remot
 
 // Zatrzymanie przy niszczeniu komponentu
 onUnmounted(() => {
+  stopFrameSubscription?.()
+  stopFrameSubscription = null
+  if (window.screenCapture) {
+    window.screenCapture.stopStream()
+  }
   videoService.stop().catch(() => {})
 })
 </script>
@@ -319,7 +393,7 @@ onUnmounted(() => {
 
         <div class="flex gap-3 mb-4">
           <button
-            :disabled="!videoService.isRunning"
+            :disabled="!isCapturing"
             class="px-4 py-2 bg-[#333] hover:bg-[#444] disabled:bg-gray-800 disabled:text-gray-600 disabled:cursor-not-allowed rounded text-white text-sm font-bold transition-colors border border-[#444]"
             @click="stopCapture"
           >
@@ -400,13 +474,13 @@ onUnmounted(() => {
           class="bg-black border border-[#444] rounded-lg overflow-hidden aspect-video relative flex items-center justify-center shadow-[0_0_15px_rgba(0,0,0,0.5)]"
         >
           <div
-            v-if="!videoService.isRunning"
+            v-if="!isCapturing"
             class="text-gray-500 text-xs font-mono absolute z-10 pointer-events-none"
           >
             Brak strumienia. Uruchom przechwytywanie przed akceptacją gościa.
           </div>
           <video
-            v-show="videoService.isRunning"
+            v-show="isCapturing"
             ref="localVideoRef"
             autoplay
             playsinline
@@ -601,6 +675,12 @@ onUnmounted(() => {
         </button>
       </div>
     </footer>
+
+    <canvas
+      ref="hiddenCanvas"
+      class="fixed top-0 left-0 w-px h-px opacity-0 pointer-events-none"
+      aria-hidden="true"
+    ></canvas>
   </div>
 </template>
 

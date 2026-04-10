@@ -1,11 +1,11 @@
 import { desktopCapturer, ipcMain, sharedTexture, WebFrameMain } from 'electron'
-import { IScreenCapture, ScreenCapture } from '@maciejwojs/screen-capture'
+import { IScreenCapture, ScreenCapture, SharedTextureHandle } from '@maciejwojs/screen-capture'
 
-interface SharedTextureHandle {
-  ntHandle?: Buffer
-  nativePixmap?: any
-  ioSurface?: Buffer
-}
+// interface SharedTextureHandle {
+//   ntHandle?: Buffer
+//   nativePixmap?: any
+//   ioSurface?: Buffer
+// }
 
 interface SharedTextureImportTextureInfo {
   pixelFormat: 'bgra' | 'rgba' | 'rgbaf16' | 'nv12'
@@ -17,6 +17,8 @@ export class ScreenService {
   private capturer: IScreenCapture | null = null
   private captureInterval: NodeJS.Timeout | null = null
   private activeFrames: { frame: WebFrameMain; wc: Electron.WebContents }[] = []
+  private isProcessingFrame = false
+  private readonly captureFps = 144
 
   private constructor() {
     console.log('[ScreenService] Initializing service...')
@@ -78,7 +80,7 @@ export class ScreenService {
     if (!this.captureInterval) {
       this.captureInterval = setInterval(() => {
         this.processFrame()
-      }, 1000 / 60) // 60 FPS target
+      }, 1000 / this.captureFps)
     }
   }
 
@@ -95,13 +97,16 @@ export class ScreenService {
 
     // Notify frames and close them
     this.activeFrames = []
+    this.isProcessingFrame = false
   }
 
   private processFrame(): void {
+    if (this.isProcessingFrame) return
+
     this.activeFrames = this.activeFrames.filter(({ frame, wc }) => {
       const wcValid = wc && !wc.isDestroyed()
       const frameValid = frame && typeof frame.isDestroyed === 'function' && !frame.isDestroyed()
-      // Usuwamy ramkę z listy jeśli webContents załadował już nową ramkę główną 
+      // Usuwamy ramkę z listy jeśli webContents załadował już nową ramkę główną
       // (co oznacza, że stara, ta z którą zaczynaliśmy, właśnie traci kontekst po reload/navigate)
       return wcValid && frameValid && frame === wc.mainFrame
     })
@@ -119,7 +124,10 @@ export class ScreenService {
           buffer = legacy.handle
         } else if (typeof legacy.handle === 'bigint' || typeof legacy.handle === 'number') {
           buffer = Buffer.allocUnsafe(8)
-          buffer.writeBigUInt64LE(typeof legacy.handle === 'bigint' ? legacy.handle : BigInt(legacy.handle), 0)
+          buffer.writeBigUInt64LE(
+            typeof legacy.handle === 'bigint' ? legacy.handle : BigInt(legacy.handle),
+            0
+          )
         } else {
           return
         }
@@ -135,31 +143,38 @@ export class ScreenService {
     if (!info || !info.handle) return
 
     try {
+      this.isProcessingFrame = true
       const importedTexture = sharedTexture.importSharedTexture({ textureInfo: info })
 
-      Promise.all(
-        this.activeFrames.map(({ frame }) => {
-          try {
-            return sharedTexture.sendSharedTexture({
-              frame,
-              importedSharedTexture: importedTexture
-            }).catch((e: any) => {
-              console.warn('[Capture] Odpięto zepsutą/przestarzałą ramkę (timeout/błąd):', e.message)
-              this.activeFrames = this.activeFrames.filter((f) => f.frame !== frame)
-            })
-          } catch(e: any) {
-            console.warn('[Capture] Synchroniczny błąd wysyłania (usunięto ramkę):', e.message)
-            this.activeFrames = this.activeFrames.filter(f => f.frame !== frame)
-            return Promise.resolve()
+      const sends = this.activeFrames.map(({ frame }) => {
+        try {
+          return sharedTexture.sendSharedTexture({
+            frame,
+            importedSharedTexture: importedTexture
+          })
+        } catch (e: unknown) {
+          console.warn('[Capture] Ignored frame (disposed?):', e)
+          this.activeFrames = this.activeFrames.filter((f) => f.frame !== frame)
+          return Promise.reject(e)
+        }
+      })
+
+      void Promise.allSettled(sends)
+        .then((results) => {
+          const allFailed = results.every((r) => r.status === 'rejected')
+
+          if (allFailed) {
+            const firstError = results.find((r) => r.status === 'rejected')
+            console.error('[Capture] Błąd wysyłania sharedTexture do ramki:', firstError)
+            importedTexture.release()
           }
         })
-      )
-        .catch((e) => console.error('[Capture] Główny błąd wysyłania sharedTexture do ramek:', e))
         .finally(() => {
-          importedTexture.release()
+          this.isProcessingFrame = false
         })
     } catch (e) {
       console.error('[Capture] Główny błąd importSharedTexture:', e)
+      this.isProcessingFrame = false
     }
   }
 }

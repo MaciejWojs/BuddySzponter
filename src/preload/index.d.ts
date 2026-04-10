@@ -133,5 +133,11 @@ declare global {
       stop: () => Promise<void>
       subscribeStream: (onFrame: (frame: VideoFrame) => void) => () => void
     }
+    screenCapture: {
+      requestStream: () => void
+      stopStream: () => void
+      registerReceiver: () => void
+      onFrameReceived: (callback: (frameData: VideoFrame) => void) => () => void
+    }
   }
 }

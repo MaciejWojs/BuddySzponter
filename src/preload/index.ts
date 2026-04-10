@@ -162,6 +162,16 @@ const api = {
 
 let currentOnFrame: ((frame: VideoFrame) => void) | null = null
 
+const registerSharedTextureReceiver = (): void => {
+  const receiverApi = sharedTexture as unknown as {
+    registerReceiver?: () => void
+  }
+
+  if (receiverApi && typeof receiverApi.registerReceiver === 'function') {
+    receiverApi.registerReceiver()
+  }
+}
+
 try {
   sharedTexture.setSharedTextureReceiver(async (data) => {
     try {
@@ -196,7 +206,7 @@ if (process.contextIsolated) {
       subscribeStream: (onFrame: (frame: VideoFrame) => void) => {
         currentOnFrame = onFrame
 
-        const cleanup = () => {
+        const cleanup = (): void => {
           if (currentOnFrame) {
             currentOnFrame = null
             ipcRenderer.postMessage('capture:stop-stream', null)
@@ -210,6 +220,29 @@ if (process.contextIsolated) {
         return () => {
           window.removeEventListener('beforeunload', cleanup)
           cleanup()
+        }
+      }
+    })
+
+    contextBridge.exposeInMainWorld('screenCapture', {
+      requestStream: () => {
+        void ipcRenderer.invoke('capture:start')
+        ipcRenderer.postMessage('capture:request-stream', null)
+      },
+      stopStream: () => {
+        ipcRenderer.postMessage('capture:stop-stream', null)
+        void ipcRenderer.invoke('capture:stop')
+      },
+      registerReceiver: () => {
+        registerSharedTextureReceiver()
+      },
+      onFrameReceived: (callback: (frame: VideoFrame) => void) => {
+        currentOnFrame = callback
+
+        return () => {
+          if (currentOnFrame === callback) {
+            currentOnFrame = null
+          }
         }
       }
     })
