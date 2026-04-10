@@ -160,6 +160,28 @@ const api = {
   }
 }
 
+let currentOnFrame: ((frame: VideoFrame) => void) | null = null
+
+try {
+  sharedTexture.setSharedTextureReceiver(async (data) => {
+    try {
+      if (currentOnFrame) {
+        const frame = data.importedSharedTexture.getVideoFrame()
+        if (frame) {
+          currentOnFrame(frame)
+        }
+      }
+    } catch (e) {
+      console.error('[Preload] Odbiór klatki sharedTexture:', e)
+    } finally {
+      // Must release the shared texture regardless
+      data.importedSharedTexture.release()
+    }
+  })
+} catch (e) {
+  console.error('[Preload] Failed to set shared texture receiver:', e)
+}
+
 // Use `contextBridge` APIs to expose Electron APIs to
 // renderer only if context isolation is enabled, otherwise
 // just add to the DOM global.
@@ -172,31 +194,13 @@ if (process.contextIsolated) {
       start: () => ipcRenderer.invoke('capture:start'),
       stop: () => ipcRenderer.invoke('capture:stop'),
       subscribeStream: (onFrame: (frame: VideoFrame) => void) => {
-        let isReceiving = true
-
-        sharedTexture.setSharedTextureReceiver(async (data) => {
-          if (!isReceiving) {
-            data.importedSharedTexture.release()
-            return
-          }
-
-          try {
-            const frame = data.importedSharedTexture.getVideoFrame()
-            if (frame) {
-              onFrame(frame)
-            }
-          } catch (e) {
-            console.error('[Preload] Odbiór klatki sharedTexture:', e)
-          } finally {
-            data.importedSharedTexture.release()
-          }
-        })
+        currentOnFrame = onFrame
 
         // Request main to start sending frames to this frame
         ipcRenderer.postMessage('capture:request-stream', null)
 
         return () => {
-          isReceiving = false
+          currentOnFrame = null
           ipcRenderer.postMessage('capture:stop-stream', null)
         }
       }

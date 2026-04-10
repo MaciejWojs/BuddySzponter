@@ -97,6 +97,7 @@ export class ScreenService {
   }
 
   private processFrame(): void {
+    this.activeFrames = this.activeFrames.filter(frame => frame !== null && typeof frame.isDestroyed === 'function' && !frame.isDestroyed())
     if (!this.capturer || this.activeFrames.length === 0) return
 
     let info: SharedTextureImportTextureInfo | null = null
