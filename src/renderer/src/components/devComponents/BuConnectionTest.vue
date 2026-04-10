@@ -44,7 +44,7 @@
 <script setup lang="ts">
 import { useConnectionStore } from '@renderer/stores/connectionStore'
 import { useSocketStore } from '@renderer/stores/socketStore'
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 
 const emit = defineEmits<{
   (e: 'log-result', action: string, data: unknown, source?: 'api' | 'socket'): void
@@ -70,4 +70,13 @@ const handleCreateConnection = async (): Promise<void> => {
     emit('log-result', 'WS_CREATE_ERROR', response?.message, 'api')
   }
 }
+
+watch(
+  () => connectionStore.connectionCode,
+  (newCode) => {
+    if (newCode) {
+      emit('log-result', 'CONNECTION_CODE', `Nowy kod połączenia: ${newCode}`, 'api')
+    }
+  }
+)
 </script>
