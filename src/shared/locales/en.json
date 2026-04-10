@@ -116,5 +116,10 @@
       "br": "Brazilian",
       "us": "American"
     }
+  },
+  "common": {
+    "logoAlt": "BuddySzponter logo",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password"
   }
 }
