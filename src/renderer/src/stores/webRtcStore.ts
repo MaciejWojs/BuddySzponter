@@ -3,7 +3,11 @@
 import { defineStore } from 'pinia'
 import { ref, shallowRef } from 'vue'
 import { useSocketStore } from './socketStore'
-import { webRtcService } from '@renderer/composables/connection/webRTCService'
+import {
+  guestTrackPolicy,
+  hostTrackPolicy,
+  webRtcService
+} from '@renderer/composables/connection/webRTCService'
 import { useConnectionMetrics } from '@renderer/composables/connection/useConnectionMetrics'
 import { P2PMessage } from '@renderer/schemas/p2pProtocol'
 import { WsWebRTCOffer, WsWebRTCAnswer, WsWebRTCIceCandidate } from '@shared/schemas/ws'
@@ -20,11 +24,17 @@ export const useWebRtcStore = defineStore('webrtc', () => {
 
   const localStream = shallowRef<MediaStream | null>(null)
   const remoteStream = shallowRef<MediaStream | null>(null)
+  const localPublishProfile = ref<'host' | 'guest'>('host')
+
+  const getCurrentTrackPolicy = (): typeof hostTrackPolicy => {
+    return localPublishProfile.value === 'guest' ? guestTrackPolicy : hostTrackPolicy
+  }
 
   const handleOffer = async (data: WsWebRTCOffer): Promise<void> => {
     webRtcService.initialize()
     rtcStatus.value = 'connecting'
-    if (localStream.value) webRtcService.addLocalStream(localStream.value)
+    if (localStream.value)
+      webRtcService.publishLocalStream(localStream.value, getCurrentTrackPolicy())
 
     const offer = JSON.parse(data.sdp)
     const answer = await webRtcService.handleOfferAndCreateAnswer(offer)
@@ -73,9 +83,11 @@ export const useWebRtcStore = defineStore('webrtc', () => {
   // --- ACTIONS ---
 
   const startConnectionAsHost = async (): Promise<void> => {
+    localPublishProfile.value = 'host'
     webRtcService.cleanup()
     webRtcService.initialize()
-    if (localStream.value) webRtcService.addLocalStream(localStream.value)
+    if (localStream.value)
+      webRtcService.publishLocalStream(localStream.value, getCurrentTrackPolicy())
     rtcStatus.value = 'connecting'
 
     const offer = await webRtcService.createOffer()
@@ -88,6 +100,7 @@ export const useWebRtcStore = defineStore('webrtc', () => {
     webRtcService.cleanup()
     remoteStream.value = null
     remoteMouse.value = { x: 0, y: 0 }
+    localPublishProfile.value = 'host'
     connectionMetrics.reset()
   }
 
@@ -99,12 +112,20 @@ export const useWebRtcStore = defineStore('webrtc', () => {
     forceDisconnect()
   }
 
+  const setLocalPublishProfile = (profile: 'host' | 'guest'): void => {
+    localPublishProfile.value = profile
+
+    if (rtcStatus.value !== 'disconnected' && localStream.value) {
+      webRtcService.publishLocalStream(localStream.value, getCurrentTrackPolicy())
+    }
+  }
+
   const publishLocalStream = async (stream: MediaStream): Promise<void> => {
     localStream.value = stream
     if (rtcStatus.value === 'disconnected') return
 
     try {
-      webRtcService.addLocalStream(stream)
+      webRtcService.publishLocalStream(stream, getCurrentTrackPolicy())
 
       if (rtcStatus.value === 'connected') {
         const offer = await webRtcService.createOffer()
@@ -129,6 +150,7 @@ export const useWebRtcStore = defineStore('webrtc', () => {
     localStream,
     remoteStream,
     remoteMouse,
+    localPublishProfile,
     localMetrics,
     remoteMetrics,
     handleOffer,
@@ -137,6 +159,7 @@ export const useWebRtcStore = defineStore('webrtc', () => {
     startConnectionAsHost,
     disconnect,
     forceDisconnect,
+    setLocalPublishProfile,
     publishLocalStream,
     setLocalPreviewFps,
     setLocalPreviewQuality
