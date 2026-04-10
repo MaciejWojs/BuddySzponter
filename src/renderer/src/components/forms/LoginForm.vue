@@ -86,7 +86,7 @@ import buddySzponterLogo from '@images/buddyszponterLogo.png'
 import { useAppToast } from '@renderer/composables/useAppToast'
 import { useUserStore } from '@renderer/stores/userStore'
 
-const { custom: toastCustom } = useAppToast()
+const { success: toastSuccess } = useAppToast()
 const router = useRouter()
 const userStore = useUserStore()
 const { isLoggingIn, errorMessage, fieldErrors } = storeToRefs(userStore)
@@ -132,7 +132,7 @@ const handleLogin = handleSubmit(async (values) => {
     return
   }
 
-  toastCustom('toast.loginSuccess')
+  toastSuccess('toast.loginSuccess')
   await router.push('/Menu')
 })
 

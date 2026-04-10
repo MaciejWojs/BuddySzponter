@@ -69,8 +69,8 @@ export function useAppToast(): {
     toast.add({
       ui: {
         ...baseUi,
-        root: `${baseUi.root} border-[#b89ff8]/16 shadow-[0_4px_12px_-10px_rgba(89,66,154,0.26)]`,
-        icon: 'text-[#d6c7ff]/78 size-[18px] shrink-0 mt-0.5'
+        root: `${baseUi.root} border-[#8cc6ff]/18 shadow-[0_4px_12px_-10px_rgba(46,96,158,0.26)]`,
+        icon: 'text-[#c6e2ff]/78 size-[18px] shrink-0 mt-0.5'
       },
       title: resolveText(title),
       description: resolveText(description),

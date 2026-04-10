@@ -123,7 +123,7 @@ import zxcvbn from 'zxcvbn'
 import { useUserStore } from '@renderer/stores/userStore'
 
 import { useRouter } from 'vue-router'
-const { custom: toastCustom } = useAppToast()
+const { success: toastSuccess } = useAppToast()
 const router = useRouter()
 const userStore = useUserStore()
 const { isRegistering, errorMessage, fieldErrors } = storeToRefs(userStore)
@@ -193,7 +193,7 @@ const handleRegister = handleSubmit(async (values) => {
     return
   }
 
-  toastCustom('toast.registerSuccess')
+  toastSuccess('toast.registerSuccess')
   await router.push('/login')
 })
 
