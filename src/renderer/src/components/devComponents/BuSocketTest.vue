@@ -1,275 +1,21 @@
 <script setup lang="ts">
-import { computed, ref, shallowRef, watch, onUnmounted } from 'vue'
+import { computed, onUnmounted } from 'vue'
 import { useConnectionStore } from '@renderer/stores/connectionStore'
 import { useSocketStore } from '@renderer/stores/socketStore'
 import { useWebRtcStore } from '@renderer/stores/webRtcStore'
-import { videoService } from '@renderer/composables/video/videoService'
+import { SessionStore } from '@renderer/stores/sessionStore'
 import RemoteStreamView from '../p2p/RemoteStreamView.vue'
 
-const emit = defineEmits<{
-  (e: 'log-result', action: string, data: unknown, source?: 'api' | 'socket'): void
-}>()
-
-// --- STORES ---
 const connectionStore = useConnectionStore()
 const socketStore = useSocketStore()
 const webRtcStore = useWebRtcStore()
+const sessionStore = SessionStore()
 
-// --- STAN UI ---
-const includeSystemAudio = ref(true)
-const includeMicrophone = ref(true)
+const handleManualConnect = (): void => void socketStore.connect('awaryjny-token-z-palca')
+const handleManualDisconnect = (): void => void socketStore.disconnect()
+const placeholderAction = (name: string): void => alert(`Funkcja "${name}" jest w przygotowaniu!`)
 
-const hiddenCanvas = ref<HTMLCanvasElement | null>(null)
-
-const sharedTextureStream = shallowRef<MediaStream | null>(null)
-const isCapturing = computed(() => videoService.isRunning || !!sharedTextureStream.value)
-const sharedTextureCaptureFps = 120
-const currentCaptureMode = ref<'host-shared' | 'host-native' | 'guest-mic' | null>(null)
-
-let stopFrameSubscription: (() => void) | null = null
-
-const hasLocalAudioTrack = (hint: 'speech' | 'music'): boolean => {
-  return !!webRtcStore.localStream?.getAudioTracks().some((t) => t.contentHint === hint)
-}
-
-// ==========================================
-// 1. ZARZĄDZANIE REAKTYWNYM WIDEO (VUE WAY)
-// ==========================================
-// USUNIĘTO RĘCZNE PODPINANIE WIDEO/AUDIO.
-// Teraz robią to komponenty VideoPlayer i RemoteAudioPlayer pod maską.
-
-// ==========================================
-// 2. GŁÓWNE AKCJE (CAPTURE)
-// ==========================================
-const startCapture = async (): Promise<void> => {
-  if (
-    isCapturing.value &&
-    (currentCaptureMode.value === 'host-shared' || currentCaptureMode.value === 'host-native')
-  )
-    return
-  if (isCapturing.value) await stopCapture()
-  webRtcStore.setLocalPublishProfile('host')
-  emit('log-result', 'NATIVE_CAPTURE', 'Rozpoczynanie przechwytywania (Host)...', 'api')
-
-  if (window.screenCapture) {
-    await startSharedTextureCapture()
-    return
-  }
-
-  try {
-    const stream = await videoService.start({
-      includeScreen: true,
-      includeSystemAudio: includeSystemAudio.value,
-      includeMicrophone: includeMicrophone.value,
-      systemAudioVolume: webRtcStore.localSystemAudioVolume,
-      microphoneVolume: webRtcStore.localMicrophoneVolume
-    })
-    currentCaptureMode.value = 'host-native'
-    assignLocalStream(stream)
-  } catch (err) {
-    emit('log-result', 'ERROR', `Błąd przechwytywania: ${err}`, 'api')
-  }
-}
-
-const startSharedTextureCapture = async (): Promise<void> => {
-  try {
-    window.screenCapture.registerReceiver()
-
-    const canvas = hiddenCanvas.value || document.createElement('canvas')
-    canvas.classList.remove('hidden')
-    canvas.width = 1920
-    canvas.height = 1080
-    hiddenCanvas.value = canvas
-
-    const ctx = canvas.getContext('2d', { alpha: false })
-    if (!ctx) {
-      emit('log-result', 'ERROR', 'Brak kontekstu 2D dla canvasa.', 'api')
-      return
-    }
-
-    ctx.fillStyle = 'black'
-    ctx.fillRect(0, 0, canvas.width, canvas.height)
-
-    stopFrameSubscription?.()
-    stopFrameSubscription = window.screenCapture.onFrameReceived((frameData) => {
-      try {
-        ctx.drawImage(frameData, 0, 0, canvas.width, canvas.height)
-      } catch (e) {
-        emit('log-result', 'ERROR', `Błąd renderowania klatki: ${e}`, 'api')
-      } finally {
-        if (frameData && typeof frameData.close === 'function') {
-          frameData.close()
-        }
-      }
-    })
-
-    const canvasStream = canvas.captureStream(sharedTextureCaptureFps)
-    const canvasVideoTrack = canvasStream.getVideoTracks()[0]
-    if (!canvasVideoTrack) {
-      emit('log-result', 'ERROR', 'Brak video tracka z canvas captureStream.', 'api')
-      return
-    }
-
-    sharedTextureStream.value = await videoService.startWithExternalVideoTrack(canvasVideoTrack, {
-      includeSystemAudio: includeSystemAudio.value,
-      includeMicrophone: includeMicrophone.value,
-      systemAudioVolume: webRtcStore.localSystemAudioVolume,
-      microphoneVolume: webRtcStore.localMicrophoneVolume
-    })
-
-    const videoTrack = sharedTextureStream.value.getVideoTracks()[0]
-    if (videoTrack) {
-      videoTrack.enabled = true
-    }
-
-    webRtcStore.setLocalPreviewFps(sharedTextureCaptureFps)
-    webRtcStore.setLocalPreviewQuality('high')
-    currentCaptureMode.value = 'host-shared'
-
-    assignLocalStream(sharedTextureStream.value)
-    window.screenCapture.requestStream()
-  } catch (e) {
-    emit('log-result', 'ERROR', `Błąd sharedTexture: ${e}`, 'api')
-  }
-}
-
-const startMicrophoneCaptureForGuest = async (): Promise<void> => {
-  const hasSpeechTrack = hasLocalAudioTrack('speech')
-  if (isCapturing.value && currentCaptureMode.value === 'guest-mic' && hasSpeechTrack) return
-  if (isCapturing.value) await stopCapture()
-
-  webRtcStore.setLocalPublishProfile('guest')
-  emit('log-result', 'MIC_CAPTURE', 'Uruchamianie mikrofonu (Gość)...', 'api')
-
-  try {
-    const stream = await videoService.start({
-      includeScreen: false,
-      includeSystemAudio: false,
-      includeMicrophone: includeMicrophone.value,
-      microphoneVolume: webRtcStore.localMicrophoneVolume
-    })
-    currentCaptureMode.value = 'guest-mic'
-    assignLocalStream(stream)
-  } catch (err) {
-    emit('log-result', 'ERROR', `Błąd mikrofonu: ${err}`, 'api')
-  }
-}
-
-const assignLocalStream = (stream: MediaStream): void => {
-  if (webRtcStore.rtcStatus === 'disconnected') {
-    webRtcStore.localStream = stream
-  } else {
-    webRtcStore.publishLocalStream(stream)
-  }
-}
-
-const stopCapture = async (): Promise<void> => {
-  if (!isCapturing.value) return
-  emit('log-result', 'NATIVE_CAPTURE', 'Zatrzymano wideo/audio.', 'api')
-
-  stopFrameSubscription?.()
-  stopFrameSubscription = null
-
-  if (window.screenCapture) {
-    window.screenCapture.stopStream()
-  }
-
-  if (sharedTextureStream.value) {
-    sharedTextureStream.value.getTracks().forEach((t) => t.stop())
-    sharedTextureStream.value = null
-  }
-
-  currentCaptureMode.value = null
-
-  await videoService.stop()
-  webRtcStore.localStream = null
-  webRtcStore.setLocalPreviewFps(null)
-  webRtcStore.setLocalPreviewQuality(null)
-}
-
-// ==========================================
-// 3. OBSŁUGA ZMIAN W LOCIE (SOFT MUTE & VOLUME)
-// ==========================================
-watch(includeMicrophone, (isEnabled) => {
-  webRtcStore.toggleMicrophone(!isEnabled)
-
-  if (!isEnabled) return
-  if (connectionStore.isHost) return
-  if (!socketStore.isAcknowledged) return
-
-  if (!hasLocalAudioTrack('speech')) {
-    void startMicrophoneCaptureForGuest()
-  }
-})
-
-watch(includeSystemAudio, (isMuted) => webRtcStore.toggleSystemAudio(!isMuted))
-
-// ==========================================
-// 4. AUTOMATYZACJA SOCKETÓW I WEBRTC
-// ==========================================
-watch(
-  () => connectionStore.isHost,
-  (isHost) => {
-    webRtcStore.setLocalPublishProfile(isHost ? 'host' : 'guest')
-  },
-  { immediate: true }
-)
-
-watch(
-  () => socketStore.isConnected,
-  (connected) => {
-    emit(
-      'log-result',
-      connected ? 'WS_CONNECTED' : 'WS_DISCONNECTED',
-      connected ? 'Połączono' : 'Rozłączono',
-      'socket'
-    )
-  }
-)
-
-watch(
-  () => socketStore.isAcknowledged,
-  async (ack) => {
-    if (!ack) return
-    emit('log-result', 'WS_ACK_RECEIVED', 'Handshake zakończony!', 'socket')
-
-    if (!isCapturing.value) {
-      connectionStore.isHost ? await startCapture() : await startMicrophoneCaptureForGuest()
-    }
-
-    if (
-      connectionStore.isHost &&
-      webRtcStore.rtcStatus === 'disconnected' &&
-      webRtcStore.localStream
-    ) {
-      webRtcStore.startConnectionAsHost()
-    }
-  }
-)
-
-// ==========================================
-// 5. NAKŁADKI NA ZDARZENIA UI
-// ==========================================
-const handleRespond = async (accept: boolean): Promise<void> => {
-  emit('log-result', 'WS_SENDING_RESPONSE', `Odpowiedź: ${accept}`, 'socket')
-  if (accept) await startCapture()
-  await socketStore.respondToRequest(accept)
-}
-
-const handleManualConnect = (): void => {
-  void socketStore.connect('awaryjny-token-z-palca')
-}
-const handleManualDisconnect = (): void => {
-  void socketStore.disconnect()
-}
-
-const placeholderAction = (name: string): void => {
-  alert(`Funkcja "${name}" jest w przygotowaniu!`)
-}
-
-// ==========================================
-// 6. DIAGNOSTYKA TRACKÓW (Czyste mapowanie)
-// ==========================================
+// Mapowanie do diagnostyki (Czysto widokowa sprawa, więc zostaje w komponencie UI)
 const mapStreamToDebug = (
   stream: MediaStream | null
 ): Array<{
@@ -300,14 +46,8 @@ const mapStreamToDebug = (
 const localTrackDiagnostics = computed(() => mapStreamToDebug(webRtcStore.localStream))
 const remoteTrackDiagnostics = computed(() => mapStreamToDebug(webRtcStore.remoteStream))
 
-// Zatrzymanie przy niszczeniu komponentu
 onUnmounted(() => {
-  stopFrameSubscription?.()
-  stopFrameSubscription = null
-  if (window.screenCapture) {
-    window.screenCapture.stopStream()
-  }
-  videoService.stop().catch(() => {})
+  sessionStore.stopCapture().catch(() => {})
 })
 </script>
 
@@ -382,13 +122,13 @@ onUnmounted(() => {
         <div class="grid grid-cols-2 gap-3 mt-4">
           <button
             class="py-2.5 px-4 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold uppercase tracking-wider rounded-lg transition-all active:scale-95 shadow-lg shadow-emerald-900/20"
-            @click="handleRespond(true)"
+            @click="sessionStore.handleRespond(true)"
           >
             ✅ Akceptuj
           </button>
           <button
             class="py-2.5 px-4 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold uppercase tracking-wider rounded-lg transition-all active:scale-95 shadow-lg shadow-rose-900/20"
-            @click="handleRespond(false)"
+            @click="sessionStore.handleRespond(false)"
           >
             ❌ Odrzuć
           </button>
@@ -420,9 +160,9 @@ onUnmounted(() => {
 
         <div class="flex gap-3 mb-4">
           <button
-            :disabled="!isCapturing"
+            :disabled="!sessionStore.isCapturing"
             class="px-4 py-2 bg-[#333] hover:bg-[#444] disabled:bg-gray-800 disabled:text-gray-600 disabled:cursor-not-allowed rounded text-white text-sm font-bold transition-colors border border-[#444]"
-            @click="stopCapture"
+            @click="sessionStore.stopCapture()"
           >
             ■ Zatrzymaj
           </button>
@@ -436,12 +176,12 @@ onUnmounted(() => {
             <button
               type="button"
               class="relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
-              :class="includeSystemAudio ? 'bg-emerald-500' : 'bg-[#444]'"
-              @click="includeSystemAudio = !includeSystemAudio"
+              :class="sessionStore.includeSystemAudio ? 'bg-emerald-500' : 'bg-[#444]'"
+              @click="sessionStore.includeSystemAudio = !sessionStore.includeSystemAudio"
             >
               <span
                 class="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
-                :class="includeSystemAudio ? 'translate-x-5' : 'translate-x-0'"
+                :class="sessionStore.includeSystemAudio ? 'translate-x-5' : 'translate-x-0'"
               ></span>
             </button>
           </div>
@@ -452,12 +192,12 @@ onUnmounted(() => {
             <button
               type="button"
               class="relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
-              :class="includeMicrophone ? 'bg-blue-500' : 'bg-[#444]'"
-              @click="includeMicrophone = !includeMicrophone"
+              :class="sessionStore.includeMicrophone ? 'bg-blue-500' : 'bg-[#444]'"
+              @click="sessionStore.includeMicrophone = !sessionStore.includeMicrophone"
             >
               <span
                 class="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
-                :class="includeMicrophone ? 'translate-x-5' : 'translate-x-0'"
+                :class="sessionStore.includeMicrophone ? 'translate-x-5' : 'translate-x-0'"
               ></span>
             </button>
           </div>
@@ -480,7 +220,6 @@ onUnmounted(() => {
               class="custom-slider emerald-slider"
             />
           </div>
-
           <div class="px-4 py-3 rounded-lg border border-[#444] bg-black/40 flex flex-col gap-3">
             <div class="flex justify-between items-center text-xs text-gray-300 font-medium">
               <span>Głośność mikrofonu (Nasza)</span>
@@ -500,7 +239,7 @@ onUnmounted(() => {
         </div>
 
         <VideoPlayer
-          v-if="isCapturing"
+          v-if="sessionStore.isCapturing"
           :stream="webRtcStore.localStream"
           placeholder-text="Brak strumienia. Uruchom przechwytywanie przed akceptacją gościa."
         />
@@ -539,12 +278,12 @@ onUnmounted(() => {
             <button
               type="button"
               class="relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
-              :class="includeMicrophone ? 'bg-blue-500' : 'bg-[#444]'"
-              @click="includeMicrophone = !includeMicrophone"
+              :class="sessionStore.includeMicrophone ? 'bg-blue-500' : 'bg-[#444]'"
+              @click="sessionStore.includeMicrophone = !sessionStore.includeMicrophone"
             >
               <span
                 class="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
-                :class="includeMicrophone ? 'translate-x-5' : 'translate-x-0'"
+                :class="sessionStore.includeMicrophone ? 'translate-x-5' : 'translate-x-0'"
               ></span>
             </button>
           </div>
@@ -621,9 +360,9 @@ onUnmounted(() => {
         <h3 class="text-xs font-bold uppercase tracking-widest text-gray-300">
           Diagnostyka Trackow
         </h3>
-        <span class="text-[10px] text-gray-500 uppercase tracking-wider">
-          Profil publikacji: {{ webRtcStore.localPublishProfile }}
-        </span>
+        <span class="text-[10px] text-gray-500 uppercase tracking-wider"
+          >Profil publikacji: {{ webRtcStore.localPublishProfile }}</span
+        >
       </div>
 
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
@@ -690,12 +429,6 @@ onUnmounted(() => {
       </div>
     </footer>
 
-    <canvas
-      ref="hiddenCanvas"
-      class="fixed top-0 left-0 w-px h-px opacity-0 pointer-events-none"
-      aria-hidden="true"
-    ></canvas>
-
     <remote-stream-view />
   </div>
 </template>
@@ -705,7 +438,6 @@ onUnmounted(() => {
 .slide-down-leave-active {
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
-
 .slide-down-enter-from,
 .slide-down-leave-to {
   opacity: 0;
@@ -725,7 +457,6 @@ onUnmounted(() => {
   outline: none;
   transition: background 0.3s;
 }
-
 .custom-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
@@ -736,7 +467,6 @@ onUnmounted(() => {
   transition: transform 0.15s ease-in-out;
   box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
 }
-
 .custom-slider::-moz-range-thumb {
   width: 16px;
   height: 16px;
@@ -746,7 +476,6 @@ onUnmounted(() => {
   transition: transform 0.15s ease-in-out;
   box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
 }
-
 .custom-slider:active::-webkit-slider-thumb {
   transform: scale(1.3);
 }
@@ -760,14 +489,12 @@ onUnmounted(() => {
 .emerald-slider::-moz-range-thumb {
   background: #10b981;
 }
-
 .blue-slider::-webkit-slider-thumb {
   background: #3b82f6;
 }
 .blue-slider::-moz-range-thumb {
   background: #3b82f6;
 }
-
 .cyan-slider::-webkit-slider-thumb {
   background: #06b6d4;
 }
