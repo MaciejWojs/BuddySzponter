@@ -98,7 +98,13 @@ export class ScreenService {
   }
 
   private processFrame(): void {
-    this.activeFrames = this.activeFrames.filter(({ wc }) => wc && !wc.isDestroyed())
+    this.activeFrames = this.activeFrames.filter(({ frame, wc }) => {
+      const wcValid = wc && !wc.isDestroyed()
+      const frameValid = frame && typeof frame.isDestroyed === 'function' && !frame.isDestroyed()
+      // Usuwamy ramkę z listy jeśli webContents załadował już nową ramkę główną 
+      // (co oznacza, że stara, ta z którą zaczynaliśmy, właśnie traci kontekst po reload/navigate)
+      return wcValid && frameValid && frame === wc.mainFrame
+    })
     if (!this.capturer || this.activeFrames.length === 0) return
 
     let info: SharedTextureImportTextureInfo | null = null

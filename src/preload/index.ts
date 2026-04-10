@@ -196,12 +196,20 @@ if (process.contextIsolated) {
       subscribeStream: (onFrame: (frame: VideoFrame) => void) => {
         currentOnFrame = onFrame
 
+        const cleanup = () => {
+          if (currentOnFrame) {
+            currentOnFrame = null
+            ipcRenderer.postMessage('capture:stop-stream', null)
+          }
+        }
+        window.addEventListener('beforeunload', cleanup, { once: true })
+
         // Request main to start sending frames to this frame
         ipcRenderer.postMessage('capture:request-stream', null)
 
         return () => {
-          currentOnFrame = null
-          ipcRenderer.postMessage('capture:stop-stream', null)
+          window.removeEventListener('beforeunload', cleanup)
+          cleanup()
         }
       }
     })

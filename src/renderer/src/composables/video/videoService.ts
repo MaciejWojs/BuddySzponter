@@ -191,6 +191,11 @@ class VideoService {
       this.stopNativeCapture = null
     }
 
+    const win = window as unknown as WindowWithCapture
+    if (win && win.capture) {
+      win.capture.stop().catch(() => {})
+    }
+
     if (this.trackWriter) {
       this.trackWriter.close().catch(() => {})
       this.trackWriter = null
