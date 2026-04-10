@@ -1,222 +1,44 @@
 <script setup lang="ts">
-import { computed, ref, watch, onUnmounted } from 'vue'
+import { computed, ref, watch, watchEffect, onUnmounted } from 'vue'
 import { useConnectionStore } from '@renderer/stores/connectionStore'
 import { useSocketStore } from '@renderer/stores/socketStore'
 import { useWebRtcStore } from '@renderer/stores/webRtcStore'
 import { videoService } from '@renderer/composables/video/videoService'
 
-// --- STORES & EMITS ---
-const connectionStore = useConnectionStore()
-const socketStore = useSocketStore()
-const webRtcStore = useWebRtcStore()
-
-watch(
-  () => connectionStore.isHost,
-  (isHost) => {
-    webRtcStore.setLocalPublishProfile(isHost ? 'host' : 'guest')
-  },
-  { immediate: true }
-)
-
 const emit = defineEmits<{
   (e: 'log-result', action: string, data: unknown, source?: 'api' | 'socket'): void
 }>()
 
+// --- STORES ---
+const connectionStore = useConnectionStore()
+const socketStore = useSocketStore()
+const webRtcStore = useWebRtcStore()
+
+// --- STAN UI ---
 const includeSystemAudio = ref(true)
 const includeMicrophone = ref(true)
 const systemAudioVolume = ref(1)
 const microphoneVolume = ref(1)
 const remotePlaybackVolume = ref(1)
 
-type TrackDebugInfo = {
-  id: string
-  source: 'screen' | 'system-audio' | 'microphone' | 'audio-unknown'
-  kind: string
-  contentHint: string
-  enabled: boolean
-  muted: boolean
-  readyState: string
-}
-
-const resolveTrackSource = (
-  track: MediaStreamTrack
-): 'screen' | 'system-audio' | 'microphone' | 'audio-unknown' => {
-  if (track.kind === 'video') return 'screen'
-  if (track.contentHint === 'music') return 'system-audio'
-  if (track.contentHint === 'speech') return 'microphone'
-  return 'audio-unknown'
-}
-
-const mapStreamTracksToDebug = (stream: MediaStream | null): TrackDebugInfo[] => {
-  if (!stream) return []
-
-  return stream.getTracks().map((track) => ({
-    id: track.id,
-    source: resolveTrackSource(track),
-    kind: track.kind,
-    contentHint: track.contentHint || '-',
-    enabled: track.enabled,
-    muted: track.muted,
-    readyState: track.readyState
-  }))
-}
-
-const localTrackDiagnostics = computed<TrackDebugInfo[]>(() => {
-  return mapStreamTracksToDebug(webRtcStore.localStream)
-})
-
-const remoteTrackDiagnostics = computed<TrackDebugInfo[]>(() => {
-  return mapStreamTracksToDebug(webRtcStore.remoteStream)
-})
-
-// ==========================================
-// --- LOGIKA HOSTA (PRZECHWYTYWANIE WIDEO) ---
-// ==========================================
 const localVideoRef = ref<HTMLVideoElement | null>(null)
-let stopLocalFpsMonitor: (() => void) | null = null
-let stopRemoteFpsMonitor: (() => void) | null = null
+const remoteVideoRef = ref<HTMLVideoElement | null>(null)
 
-const computeQualityPreset = (
-  width: number,
-  height: number,
-  fps: number | null
-): 'low' | 'medium' | 'high' | null => {
-  if (width <= 0 || height <= 0) return null
+// ==========================================
+// 1. ZARZĄDZANIE REAKTYWNYM WIDEO (VUE WAY)
+// ==========================================
+watchEffect(() => {
+  if (localVideoRef.value) localVideoRef.value.srcObject = webRtcStore.localStream || null
+  if (remoteVideoRef.value) remoteVideoRef.value.srcObject = webRtcStore.remoteStream || null
+})
 
-  const pixels = width * height
-  const currentFps = fps ?? 0
-
-  if (pixels >= 1280 * 720 && currentFps >= 24) return 'high'
-  if (pixels >= 854 * 480 && currentFps >= 18) return 'medium'
-  return 'low'
-}
-
-const startFpsMonitor = (
-  video: HTMLVideoElement,
-  onFps: (fps: number | null) => void
-): (() => void) => {
-  type VideoWithFrameCallback = HTMLVideoElement & {
-    requestVideoFrameCallback?: (
-      callback: (now: number, metadata: { presentedFrames: number }) => void
-    ) => number
-    cancelVideoFrameCallback?: (handle: number) => void
-  }
-
-  const videoWithCallback = video as VideoWithFrameCallback
-
-  if (
-    typeof videoWithCallback.requestVideoFrameCallback === 'function' &&
-    typeof videoWithCallback.cancelVideoFrameCallback === 'function'
-  ) {
-    let frameHandle: number | null = null
-    let lastNow: number | null = null
-    let lastPresentedFrames: number | null = null
-
-    const tick = (now: number, metadata: { presentedFrames: number }): void => {
-      if (lastNow !== null && lastPresentedFrames !== null) {
-        const deltaTimeMs = now - lastNow
-        const deltaFrames = metadata.presentedFrames - lastPresentedFrames
-        if (deltaTimeMs > 0 && deltaFrames >= 0) {
-          const fps = (deltaFrames * 1000) / deltaTimeMs
-          onFps(Math.round(fps))
-        }
-      }
-
-      lastNow = now
-      lastPresentedFrames = metadata.presentedFrames
-      frameHandle = videoWithCallback.requestVideoFrameCallback!(tick)
-    }
-
-    frameHandle = videoWithCallback.requestVideoFrameCallback(tick)
-
-    return () => {
-      if (frameHandle !== null) {
-        videoWithCallback.cancelVideoFrameCallback!(frameHandle)
-      }
-      onFps(null)
-    }
-  }
-
-  let lastFrames = 0
-  const interval = window.setInterval(() => {
-    const quality = video.getVideoPlaybackQuality?.()
-    if (!quality) {
-      onFps(null)
-      return
-    }
-
-    const deltaFrames = quality.totalVideoFrames - lastFrames
-    lastFrames = quality.totalVideoFrames
-    onFps(deltaFrames >= 0 ? deltaFrames : null)
-  }, 1000)
-
-  return () => {
-    window.clearInterval(interval)
-    onFps(null)
-  }
-}
-
-const restartLocalFpsMonitor = (): void => {
-  if (stopLocalFpsMonitor) stopLocalFpsMonitor()
-  if (!localVideoRef.value) {
-    webRtcStore.setLocalPreviewFps(null)
-    webRtcStore.setLocalPreviewQuality(null)
-    return
-  }
-
-  stopLocalFpsMonitor = startFpsMonitor(localVideoRef.value, (fps) => {
-    webRtcStore.setLocalPreviewFps(fps)
-
-    const qualityPreset = computeQualityPreset(
-      localVideoRef.value?.videoWidth ?? 0,
-      localVideoRef.value?.videoHeight ?? 0,
-      fps
-    )
-    webRtcStore.setLocalPreviewQuality(qualityPreset)
-  })
-}
-
-const restartRemoteFpsMonitor = (): void => {
-  if (stopRemoteFpsMonitor) stopRemoteFpsMonitor()
-  if (!remoteVideoRef.value) return
-
-  stopRemoteFpsMonitor = startFpsMonitor(remoteVideoRef.value, () => {
-    // Remote FPS jest już otrzymywany z metrics od partnera.
-  })
-}
-
-const syncLocalPreview = (stream: MediaStream | null): void => {
-  if (!localVideoRef.value) return
-
-  if (stream) {
-    localVideoRef.value.srcObject = stream
-    restartLocalFpsMonitor()
-    return
-  }
-
-  localVideoRef.value.srcObject = null
-  if (stopLocalFpsMonitor) {
-    stopLocalFpsMonitor()
-    stopLocalFpsMonitor = null
-  }
-}
-
-watch(
-  [localVideoRef, () => webRtcStore.localStream],
-  ([videoElement, stream]) => {
-    if (videoElement && stream && videoService.isRunning) {
-      syncLocalPreview(stream)
-    } else if (videoElement && !stream) {
-      syncLocalPreview(null)
-    }
-  },
-  { immediate: true }
-)
-
-async function startCapture(): Promise<void> {
+// ==========================================
+// 2. GŁÓWNE AKCJE (CAPTURE)
+// ==========================================
+const startCapture = async (): Promise<void> => {
   if (videoService.isRunning) return
   webRtcStore.setLocalPublishProfile('host')
-  emit('log-result', 'NATIVE_CAPTURE', 'Rozpoczynanie przechwytywania (Service)...', 'api')
+  emit('log-result', 'NATIVE_CAPTURE', 'Rozpoczynanie przechwytywania (Host)...', 'api')
 
   try {
     const stream = await videoService.start({
@@ -226,26 +48,16 @@ async function startCapture(): Promise<void> {
       systemAudioVolume: systemAudioVolume.value,
       microphoneVolume: microphoneVolume.value
     })
-
-    syncLocalPreview(stream)
-
-    if (webRtcStore.rtcStatus === 'disconnected') {
-      webRtcStore.localStream = stream
-    } else {
-      webRtcStore.publishLocalStream(stream)
-    }
+    assignLocalStream(stream)
   } catch (err) {
-    console.error(err)
     emit('log-result', 'ERROR', `Błąd przechwytywania: ${err}`, 'api')
   }
 }
 
-async function startMicrophoneCaptureForGuest(): Promise<void> {
+const startMicrophoneCaptureForGuest = async (): Promise<void> => {
   if (videoService.isRunning) return
-
   webRtcStore.setLocalPublishProfile('guest')
-
-  emit('log-result', 'MIC_CAPTURE', 'Uruchamianie mikrofonu gościa (audio-only)...', 'api')
+  emit('log-result', 'MIC_CAPTURE', 'Uruchamianie mikrofonu (Gość)...', 'api')
 
   try {
     const stream = await videoService.start({
@@ -254,194 +66,146 @@ async function startMicrophoneCaptureForGuest(): Promise<void> {
       includeMicrophone: includeMicrophone.value,
       microphoneVolume: microphoneVolume.value
     })
-
-    if (webRtcStore.rtcStatus === 'disconnected') {
-      webRtcStore.localStream = stream
-    } else {
-      webRtcStore.publishLocalStream(stream)
-    }
+    assignLocalStream(stream)
   } catch (err) {
-    console.error(err)
-    emit('log-result', 'ERROR', `Błąd uruchamiania mikrofonu: ${err}`, 'api')
+    emit('log-result', 'ERROR', `Błąd mikrofonu: ${err}`, 'api')
   }
 }
 
-async function stopCapture(): Promise<void> {
-  if (!videoService.isRunning) return
+const assignLocalStream = (stream: MediaStream): void => {
+  if (webRtcStore.rtcStatus === 'disconnected') {
+    webRtcStore.localStream = stream
+  } else {
+    webRtcStore.publishLocalStream(stream)
+  }
+}
 
-  emit('log-result', 'NATIVE_CAPTURE', 'Zatrzymano przechwytywanie ekranu.', 'api')
+const stopCapture = async (): Promise<void> => {
+  if (!videoService.isRunning) return
+  emit('log-result', 'NATIVE_CAPTURE', 'Zatrzymano wideo/audio.', 'api')
 
   await videoService.stop()
-
-  if (localVideoRef.value) {
-    localVideoRef.value.srcObject = null
-  }
-
-  if (stopLocalFpsMonitor) {
-    stopLocalFpsMonitor()
-    stopLocalFpsMonitor = null
-  }
-
+  webRtcStore.localStream = null
   webRtcStore.setLocalPreviewFps(null)
   webRtcStore.setLocalPreviewQuality(null)
-
-  if (webRtcStore.localStream) {
-    webRtcStore.localStream.getTracks().forEach((t) => t.stop())
-  }
-  webRtcStore.localStream = null
-}
-
-const restartCaptureForCurrentRole = async (): Promise<void> => {
-  if (!videoService.isRunning) return
-
-  await stopCapture()
-
-  if (connectionStore.isHost) {
-    await startCapture()
-    return
-  }
-
-  await startMicrophoneCaptureForGuest()
-}
-
-const placeholderAction = (name: string): void => {
-  console.log(`[Akcja Użytkownika] Kliknięto przycisk: ${name}`)
-  alert(`Funkcja "${name}" jest w przygotowaniu! Będzie wysyłana przez DataChannel.`)
 }
 
 // ==========================================
-// --- LOGIKA GOŚCIA (ZDALNE WIDEO) ---
+// 3. OBSŁUGA ZMIAN W LOCIE (SOFT MUTE & VOLUME)
 // ==========================================
-const remoteVideoRef = ref<HTMLVideoElement | null>(null)
+// Zamiast restartować cały ekran (co zrywa WebRTC),
+// po prostu wyciszamy konkretną ścieżkę (Soft Mute)!
+watch(includeMicrophone, (isMuted) => webRtcStore.toggleMicrophone(!isMuted))
+watch(includeSystemAudio, (isMuted) => webRtcStore.toggleSystemAudio(!isMuted))
 
+watch(microphoneVolume, (val) => videoService.setMicrophoneVolume(val))
+watch(systemAudioVolume, (val) => videoService.setSystemAudioVolume(val))
+
+// Obsługa głośności wideo u Gościa
+watchEffect(() => {
+  if (!remoteVideoRef.value) return
+  remoteVideoRef.value.volume = Math.max(0, Math.min(1, remotePlaybackVolume.value))
+  remoteVideoRef.value.muted = remotePlaybackVolume.value <= 0
+})
+
+// ==========================================
+// 4. AUTOMATYZACJA SOCKETÓW I WEBRTC
+// ==========================================
 watch(
-  [remoteVideoRef, remotePlaybackVolume],
-  ([video, volume]) => {
-    if (!video) return
-    video.volume = Math.max(0, Math.min(1, volume))
-    video.muted = volume <= 0
+  () => connectionStore.isHost,
+  (isHost) => {
+    webRtcStore.setLocalPublishProfile(isHost ? 'host' : 'guest')
   },
   { immediate: true }
 )
 
-watch(
-  () => webRtcStore.remoteStream,
-  (stream) => {
-    if (remoteVideoRef.value && stream) {
-      remoteVideoRef.value.srcObject = stream
-      restartRemoteFpsMonitor()
-    } else if (remoteVideoRef.value && !stream) {
-      remoteVideoRef.value.srcObject = null
-      if (stopRemoteFpsMonitor) {
-        stopRemoteFpsMonitor()
-        stopRemoteFpsMonitor = null
-      }
-    }
-  },
-  { immediate: true }
-)
-
-// ==========================================
-// --- NASŁUCHIWANIE ZMIAN WS (LOGI) ---
-// ==========================================
 watch(
   () => socketStore.isConnected,
-  (isConnected) => {
+  (connected) => {
     emit(
       'log-result',
-      isConnected ? 'WS_CONNECTED' : 'WS_DISCONNECTED',
-      isConnected ? 'Nawiązano połączenie' : 'Rozłączono',
+      connected ? 'WS_CONNECTED' : 'WS_DISCONNECTED',
+      connected ? 'Połączono' : 'Rozłączono',
       'socket'
     )
   }
 )
 
 watch(
-  () => socketStore.incomingRequest,
-  (request) => {
-    if (request) emit('log-result', 'WS_INCOMING_REQUEST', request, 'socket')
-  }
-)
-
-watch(
-  () => connectionStore.connectionCode,
-  (code) => {
-    if (code) emit('log-result', 'CONNECTION_CODE_SET', `Kod: ${code}`, 'api')
-  }
-)
-
-watch(
   () => socketStore.isAcknowledged,
   async (ack) => {
-    if (ack) {
-      emit('log-result', 'WS_ACK_RECEIVED', 'Handshake zakończony!', 'socket')
+    if (!ack) return
+    emit('log-result', 'WS_ACK_RECEIVED', 'Handshake zakończony!', 'socket')
 
-      if (connectionStore.isHost && !videoService.isRunning) {
-        await startCapture()
-      }
+    if (!videoService.isRunning) {
+      connectionStore.isHost ? await startCapture() : await startMicrophoneCaptureForGuest()
+    }
 
-      if (!connectionStore.isHost && !videoService.isRunning) {
-        await startMicrophoneCaptureForGuest()
-      }
-
-      if (
-        connectionStore.isHost &&
-        webRtcStore.rtcStatus === 'disconnected' &&
-        webRtcStore.localStream
-      ) {
-        webRtcStore.startConnectionAsHost()
-      }
+    if (
+      connectionStore.isHost &&
+      webRtcStore.rtcStatus === 'disconnected' &&
+      webRtcStore.localStream
+    ) {
+      webRtcStore.startConnectionAsHost()
     }
   }
 )
 
-watch(includeMicrophone, async () => {
-  await restartCaptureForCurrentRole()
-})
-
-watch(microphoneVolume, (value) => {
-  videoService.setMicrophoneVolume(value)
-})
-
-watch(includeSystemAudio, async () => {
-  if (!connectionStore.isHost) return
-  await restartCaptureForCurrentRole()
-})
-
-watch(systemAudioVolume, (value) => {
-  videoService.setSystemAudioVolume(value)
-})
-
 // ==========================================
-// --- NAKŁADKI NA AKCJE ---
+// 5. NAKŁADKI NA ZDARZENIA UI
 // ==========================================
 const handleRespond = async (accept: boolean): Promise<void> => {
   emit('log-result', 'WS_SENDING_RESPONSE', `Odpowiedź: ${accept}`, 'socket')
-
-  if (accept) {
-    await startCapture()
-  } else if (!accept && connectionStore.isHost) {
-    emit('log-result', 'WS_REJECT_REGENERATE', `Nowy kod będzie wygenerowany...`, 'socket')
-  }
-
+  if (accept) await startCapture()
   await socketStore.respondToRequest(accept)
 }
 
-const handleManualConnect = async (): Promise<void> => {
-  emit('log-result', 'WS_MANUAL_CONNECT', 'Łączenie...', 'socket')
-  await socketStore.connect('awaryjny-token-z-palca')
+const handleManualConnect = (): void => {
+  void socketStore.connect('awaryjny-token-z-palca')
+}
+const handleManualDisconnect = (): void => {
+  void socketStore.disconnect()
 }
 
-const handleManualDisconnect = async (): Promise<void> => {
-  emit('log-result', 'WS_MANUAL_DISCONNECT', 'Rozłączanie...', 'socket')
-  await socketStore.disconnect()
+const placeholderAction = (name: string): void => {
+  alert(`Funkcja "${name}" jest w przygotowaniu!`)
 }
 
+// ==========================================
+// 6. DIAGNOSTYKA TRACKÓW (Czyste mapowanie)
+// ==========================================
+const mapStreamToDebug = (
+  stream: MediaStream | null
+): Array<{
+  id: string
+  source: 'screen' | 'system-audio' | 'microphone'
+  kind: MediaStreamTrack['kind']
+  contentHint: string
+  enabled: boolean
+  muted: boolean
+  readyState: MediaStreamTrack['readyState']
+}> => {
+  if (!stream) return []
+  return stream.getTracks().map((track) => ({
+    id: track.id,
+    source:
+      track.kind === 'video'
+        ? 'screen'
+        : track.contentHint === 'music'
+          ? 'system-audio'
+          : 'microphone',
+    kind: track.kind,
+    contentHint: track.contentHint || '-',
+    enabled: track.enabled,
+    muted: track.muted,
+    readyState: track.readyState
+  }))
+}
+const localTrackDiagnostics = computed(() => mapStreamToDebug(webRtcStore.localStream))
+const remoteTrackDiagnostics = computed(() => mapStreamToDebug(webRtcStore.remoteStream))
+
+// Zatrzymanie przy niszczeniu komponentu
 onUnmounted(() => {
-  if (stopLocalFpsMonitor) stopLocalFpsMonitor()
-  if (stopRemoteFpsMonitor) stopRemoteFpsMonitor()
-  webRtcStore.setLocalPreviewFps(null)
-  webRtcStore.setLocalPreviewQuality(null)
   videoService.stop().catch(() => {})
 })
 </script>
