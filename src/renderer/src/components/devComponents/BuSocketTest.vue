@@ -25,6 +25,9 @@ const localVideoRef = ref<HTMLVideoElement | null>(null)
 const remoteVideoRef = ref<HTMLVideoElement | null>(null)
 const hiddenCanvas = ref<HTMLCanvasElement | null>(null)
 
+// DODANE: Referencja dla globalnego odtwarzacza audio
+const globalRemoteAudioRef = ref<HTMLAudioElement | null>(null)
+
 const sharedTextureStream = shallowRef<MediaStream | null>(null)
 const isCapturing = computed(() => videoService.isRunning || !!sharedTextureStream.value)
 const sharedTextureCaptureFps = 120
@@ -42,6 +45,10 @@ const hasLocalAudioTrack = (hint: 'speech' | 'music'): boolean => {
 watchEffect(() => {
   if (localVideoRef.value) localVideoRef.value.srcObject = webRtcStore.localStream || null
   if (remoteVideoRef.value) remoteVideoRef.value.srcObject = webRtcStore.remoteStream || null
+
+  // DODANE: Podpięcie strumienia do globalnego tagu audio
+  if (globalRemoteAudioRef.value)
+    globalRemoteAudioRef.value.srcObject = webRtcStore.remoteStream || null
 })
 
 // ==========================================
@@ -196,8 +203,6 @@ const stopCapture = async (): Promise<void> => {
 // ==========================================
 // 3. OBSŁUGA ZMIAN W LOCIE (SOFT MUTE & VOLUME)
 // ==========================================
-// Zamiast restartować cały ekran (co zrywa WebRTC),
-// po prostu wyciszamy konkretną ścieżkę (Soft Mute)!
 watch(includeMicrophone, (isEnabled) => {
   webRtcStore.toggleMicrophone(!isEnabled)
 
@@ -209,16 +214,27 @@ watch(includeMicrophone, (isEnabled) => {
     void startMicrophoneCaptureForGuest()
   }
 })
+
 watch(includeSystemAudio, (isMuted) => webRtcStore.toggleSystemAudio(!isMuted))
 
 watch(microphoneVolume, (val) => videoService.setMicrophoneVolume(val))
 watch(systemAudioVolume, (val) => videoService.setSystemAudioVolume(val))
 
-// Obsługa głośności wideo u Gościa
+// Obsługa głośności wideo
 watchEffect(() => {
-  if (!remoteVideoRef.value) return
-  remoteVideoRef.value.volume = Math.max(0, Math.min(1, remotePlaybackVolume.value))
-  remoteVideoRef.value.muted = remotePlaybackVolume.value <= 0
+  const vol = Math.max(0, Math.min(1, remotePlaybackVolume.value))
+  const isMuted = remotePlaybackVolume.value <= 0
+
+  if (remoteVideoRef.value) {
+    remoteVideoRef.value.volume = vol
+    remoteVideoRef.value.muted = isMuted
+  }
+
+  // DODANE: Regulacja głośności również na globalnym audio
+  if (globalRemoteAudioRef.value) {
+    globalRemoteAudioRef.value.volume = vol
+    globalRemoteAudioRef.value.muted = isMuted
+  }
 })
 
 // ==========================================
@@ -725,11 +741,12 @@ onUnmounted(() => {
       class="fixed top-0 left-0 w-px h-px opacity-0 pointer-events-none"
       aria-hidden="true"
     ></canvas>
+
+    <audio ref="globalRemoteAudioRef" autoplay playsinline class="hidden"></audio>
   </div>
 </template>
 
 <style scoped>
-/* Reszta Twoich stylów zostaje bez zmian */
 .slide-down-enter-active,
 .slide-down-leave-active {
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
@@ -739,5 +756,68 @@ onUnmounted(() => {
 .slide-down-leave-to {
   opacity: 0;
   transform: translateY(-20px) scale(0.95);
+}
+
+/* =========================================
+   WŁASNE SUWAKI (CUSTOM RANGE SLIDERS)
+   ========================================= */
+.custom-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  background: #333;
+  border-radius: 4px;
+  outline: none;
+  transition: background 0.3s;
+}
+
+.custom-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.15s ease-in-out;
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+}
+
+.custom-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.15s ease-in-out;
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+}
+
+.custom-slider:active::-webkit-slider-thumb {
+  transform: scale(1.3);
+}
+.custom-slider:active::-moz-range-thumb {
+  transform: scale(1.3);
+}
+
+.emerald-slider::-webkit-slider-thumb {
+  background: #10b981;
+}
+.emerald-slider::-moz-range-thumb {
+  background: #10b981;
+}
+
+.blue-slider::-webkit-slider-thumb {
+  background: #3b82f6;
+}
+.blue-slider::-moz-range-thumb {
+  background: #3b82f6;
+}
+
+.cyan-slider::-webkit-slider-thumb {
+  background: #06b6d4;
+}
+.cyan-slider::-moz-range-thumb {
+  background: #06b6d4;
 }
 </style>
