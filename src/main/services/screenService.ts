@@ -16,7 +16,7 @@ interface SharedTextureImportTextureInfo {
 export class ScreenService {
   private capturer: IScreenCapture | null = null
   private captureInterval: NodeJS.Timeout | null = null
-  private activeFrames: WebFrameMain[] = []
+  private activeFrames: { frame: WebFrameMain; wc: Electron.WebContents }[] = []
 
   private constructor() {
     console.log('[ScreenService] Initializing service...')
@@ -55,26 +55,16 @@ export class ScreenService {
 
     ipcMain.on('capture:request-stream', (event) => {
       const frame = event.senderFrame
-      if (frame && !this.activeFrames.includes(frame)) {
-        this.activeFrames.push(frame)
-        // Opcjonalnie usuwaj w razie utraty kontekstu
-        try {
-          // Nasłuchiwanie na zniszczenie wywołującego
-          const wc = event.sender
-          wc.once('destroyed', () => {
-             this.activeFrames = this.activeFrames.filter((f) => f !== frame)
-          })
-          wc.once('did-navigate', () => {
-             this.activeFrames = this.activeFrames.filter((f) => f !== frame)
-          })
-        } catch(e) {}
+      const wc = event.sender
+      if (frame && !this.activeFrames.some((f) => f.frame === frame)) {
+        this.activeFrames.push({ frame, wc })
       }
     })
 
     ipcMain.on('capture:stop-stream', (event) => {
       const frame = event.senderFrame
       if (frame) {
-        this.activeFrames = this.activeFrames.filter((f) => f !== frame)
+        this.activeFrames = this.activeFrames.filter((f) => f.frame !== frame)
       }
     })
   }
@@ -108,7 +98,7 @@ export class ScreenService {
   }
 
   private processFrame(): void {
-    this.activeFrames = this.activeFrames.filter(frame => frame !== null && typeof frame.isDestroyed === 'function' && !frame.isDestroyed())
+    this.activeFrames = this.activeFrames.filter(({ wc }) => wc && !wc.isDestroyed())
     if (!this.capturer || this.activeFrames.length === 0) return
 
     let info: SharedTextureImportTextureInfo | null = null
@@ -142,20 +132,23 @@ export class ScreenService {
       const importedTexture = sharedTexture.importSharedTexture({ textureInfo: info })
 
       Promise.all(
-        this.activeFrames.map((frame) => {
+        this.activeFrames.map(({ frame }) => {
           try {
             return sharedTexture.sendSharedTexture({
               frame,
               importedSharedTexture: importedTexture
+            }).catch((e: any) => {
+              console.warn('[Capture] Odpięto zepsutą/przestarzałą ramkę (timeout/błąd):', e.message)
+              this.activeFrames = this.activeFrames.filter((f) => f.frame !== frame)
             })
-          } catch(e) {
-            console.warn('[Capture] Ignored frame (disposed?):', e)
-            this.activeFrames = this.activeFrames.filter(f => f !== frame)
+          } catch(e: any) {
+            console.warn('[Capture] Synchroniczny błąd wysyłania (usunięto ramkę):', e.message)
+            this.activeFrames = this.activeFrames.filter(f => f.frame !== frame)
             return Promise.resolve()
           }
         })
       )
-        .catch((e) => console.error('[Capture] Błąd wysyłania sharedTexture do ramki:', e))
+        .catch((e) => console.error('[Capture] Główny błąd wysyłania sharedTexture do ramek:', e))
         .finally(() => {
           importedTexture.release()
         })
