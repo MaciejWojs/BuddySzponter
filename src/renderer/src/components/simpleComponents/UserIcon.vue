@@ -275,7 +275,7 @@ async function handleLogout(): Promise<void> {
   await userStore.logout()
   showUserModal.value = false
   showVersionModal.value = false
-  await router.push('/login')
+  await router.push('/Menu')
 }
 </script>
 

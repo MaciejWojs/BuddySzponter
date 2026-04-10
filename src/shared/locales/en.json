@@ -8,6 +8,7 @@
     "nickname": "Username",
     "loading": "Loading...",
     "forgotPassword": "Forgot your password?",
+    "backToMenu": "Back to menu",
     "noAccount": "Don't have an account?",
     "registerNow": "Register now",
     "confirm": "Confirm password",
