@@ -5,31 +5,47 @@ export function useAppToast(): {
 } {
   const toast = useToast()
 
+  const baseUi = {
+    root: 'backdrop-blur-md bg-[#120A2A]/94 border border-[#9b7ef8]/35 rounded-xl text-white shadow-[0_14px_40px_-18px_rgba(83,34,148,0.95)]',
+    icon: 'text-[#c9b2ff]',
+    title: 'text-white font-semibold tracking-[0.01em]',
+    description: 'text-[#c8bddf] font-normal'
+  }
+
   function success(title: string, description?: string): void {
     toast.add({
-      ui: { root: 'bg-[#a749fc] border-none text-white' },
+      ui: {
+        ...baseUi,
+        root: `${baseUi.root} border-[#49d4a8]/45 shadow-[0_14px_40px_-18px_rgba(28,166,124,0.95)]`,
+        icon: 'text-[#7af0c6]'
+      },
       title,
       description,
-      icon: 'i-lucide-check-circle'
+      icon: 'i-lucide-check-circle',
+      color: 'success'
     })
   }
 
   function error(title: string, description?: string): void {
     toast.add({
-      ui: { root: 'bg-red-600 border-none text-white' },
+      ui: {
+        ...baseUi,
+        root: `${baseUi.root} border-[#ff7a94]/45 shadow-[0_14px_40px_-18px_rgba(184,38,78,0.95)]`,
+        icon: 'text-[#ff8fa6]'
+      },
       title,
       description,
-      icon: 'i-lucide-x-circle'
+      icon: 'i-lucide-x-circle',
+      color: 'error'
     })
   }
 
   function custom(title: string, description?: string): void {
     toast.add({
       ui: {
-        root: `bg-[#0E004D] text-white shadow-[0_0_5px_0_rgba(255,255,255,0.1)]`,
-        icon: 'text-white',
-        title: 'text-white font-bold ',
-        description: 'text-gray-400 font-light'
+        ...baseUi,
+        root: `${baseUi.root} border-[#9b7ef8]/45`,
+        icon: 'text-[#bda4ff]'
       },
       title,
       description,
