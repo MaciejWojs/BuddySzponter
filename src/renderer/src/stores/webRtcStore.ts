@@ -154,6 +154,36 @@ export const useWebRtcStore = defineStore('webrtc', () => {
     connectionMetrics.setLocalPreviewQuality(quality)
   }
 
+  const toggleMicrophone = (isMuted: boolean): void => {
+    if (!localStream.value) return
+
+    const micTrack = localStream.value.getAudioTracks().find((t) => t.contentHint === 'speech')
+
+    if (micTrack) {
+      micTrack.enabled = !isMuted
+    }
+  }
+
+  const toggleSystemAudio = (isMuted: boolean): void => {
+    if (!localStream.value) return
+
+    const sysTrack = localStream.value.getAudioTracks().find((t) => t.contentHint === 'music')
+
+    if (sysTrack) {
+      sysTrack.enabled = !isMuted
+    }
+  }
+
+  const toggleScreenVideo = (isHidden: boolean): void => {
+    if (!localStream.value) return
+
+    const videoTrack = localStream.value.getVideoTracks()[0]
+
+    if (videoTrack) {
+      videoTrack.enabled = !isHidden
+    }
+  }
+
   return {
     rtcStatus,
     localStream,
@@ -168,6 +198,10 @@ export const useWebRtcStore = defineStore('webrtc', () => {
     sendChatMessage: chat.sendChatMessage,
     sendMousePosition: hid.sendMousePosition,
     sendVideoCommand: system.sendVideoCommand,
+
+    toggleMicrophone,
+    toggleSystemAudio,
+    toggleScreenVideo,
 
     handleOffer,
     handleAnswer,
