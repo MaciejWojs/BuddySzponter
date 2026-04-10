@@ -132,7 +132,7 @@ const handleLogin = handleSubmit(async (values) => {
     return
   }
 
-  toastCustom(t('login.loginSuccess'), '')
+  toastCustom('toast.loginSuccess')
   await router.push('/Menu')
 })
 

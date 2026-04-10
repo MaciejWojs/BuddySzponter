@@ -121,5 +121,16 @@
     "logoAlt": "BuddySzponter logo",
     "showPassword": "Show password",
     "hidePassword": "Hide password"
+  },
+  "toast": {
+    "loginSuccess": "Logged in successfully!",
+    "logoutSuccess": "Logged out successfully!",
+    "registerSuccess": "Account created! You can now log in.",
+    "profileSaved": "Profile saved.",
+    "avatarChanged": "Avatar has been changed.",
+    "passwordChanged": "Password has been changed.",
+    "errorGeneric": "An unexpected error occurred.",
+    "networkError": "Network/server connection error.",
+    "copied": "Copied to clipboard!"
   }
 }

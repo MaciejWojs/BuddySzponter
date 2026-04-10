@@ -131,6 +131,7 @@ import { computed, onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useSettingsStore } from '@renderer/stores/settingsStore'
 import { useUserStore } from '@renderer/stores/userStore'
+import { useAppToast } from '@renderer/composables/useAppToast'
 import UserIconSvg from '@renderer/assets/images/components/usericon.svg?component'
 import { useRouter } from 'vue-router'
 const { t } = useI18n()
@@ -144,6 +145,7 @@ const avatarPreview = ref<string | null>(null)
 const settingsStore = useSettingsStore()
 const userStore = useUserStore()
 const router = useRouter()
+const { success: toastSuccess } = useAppToast()
 
 const { supportedVersions } = storeToRefs(settingsStore)
 const { currentUser } = storeToRefs(userStore)
@@ -273,6 +275,7 @@ async function handleVersionStatus(): Promise<void> {
 
 async function handleLogout(): Promise<void> {
   await userStore.logout()
+  toastSuccess('toast.logoutSuccess')
   showUserModal.value = false
   showVersionModal.value = false
   await router.push('/Menu')

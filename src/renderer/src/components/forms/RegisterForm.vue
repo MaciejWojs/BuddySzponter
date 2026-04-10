@@ -193,7 +193,7 @@ const handleRegister = handleSubmit(async (values) => {
     return
   }
 
-  toastCustom(t('register.successCreated'), '')
+  toastCustom('toast.registerSuccess')
   await router.push('/login')
 })
 

@@ -234,6 +234,17 @@
       "profileDescription": "Folder profilu użytkownika."
     }
   },
+  "toast": {
+    "loginSuccess": "Zalogowano pomyślnie!",
+    "logoutSuccess": "Wylogowano pomyślnie!",
+    "registerSuccess": "Konto utworzone! Możesz się zalogować.",
+    "profileSaved": "Profil zapisany.",
+    "avatarChanged": "Avatar został zmieniony.",
+    "passwordChanged": "Hasło zostało zmienione.",
+    "errorGeneric": "Wystąpił nieoczekiwany błąd.",
+    "networkError": "Błąd połączenia z serwerem.",
+    "copied": "Skopiowano do schowka!"
+  },
   "linuxSharingBar": {
     "shortcuts": {
       "superL": "Blokada komputera",
