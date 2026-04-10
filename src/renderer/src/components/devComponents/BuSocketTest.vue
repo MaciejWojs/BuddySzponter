@@ -316,6 +316,7 @@ onUnmounted(() => {
             </button>
           </div>
         </div>
+
         <div class="flex gap-3 mb-4">
           <button
             :disabled="!videoService.isRunning"
@@ -325,46 +326,76 @@ onUnmounted(() => {
             ■ Zatrzymaj
           </button>
         </div>
+
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-          <label
-            class="flex items-center justify-between gap-2 px-3 py-2 rounded border border-[#444] bg-black/30 text-xs text-gray-200"
+          <div
+            class="flex items-center justify-between px-4 py-3 rounded-lg border border-[#444] bg-black/40"
           >
-            <span>Audio systemowe</span>
-            <input v-model="includeSystemAudio" type="checkbox" class="accent-emerald-500" />
-          </label>
-          <label
-            class="flex items-center justify-between gap-2 px-3 py-2 rounded border border-[#444] bg-black/30 text-xs text-gray-200"
-          >
-            <span>Mikrofon</span>
-            <input v-model="includeMicrophone" type="checkbox" class="accent-blue-500" />
-          </label>
-        </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-          <label class="px-3 py-2 rounded border border-[#444] bg-black/30 text-xs text-gray-200">
-            <span class="block mb-1"
-              >Glosnosc audio systemowego: {{ systemAudioVolume.toFixed(2) }}</span
+            <span class="text-xs font-medium text-gray-200">Audio systemowe</span>
+            <button
+              type="button"
+              class="relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
+              :class="includeSystemAudio ? 'bg-emerald-500' : 'bg-[#444]'"
+              @click="includeSystemAudio = !includeSystemAudio"
             >
+              <span
+                class="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+                :class="includeSystemAudio ? 'translate-x-5' : 'translate-x-0'"
+              ></span>
+            </button>
+          </div>
+          <div
+            class="flex items-center justify-between px-4 py-3 rounded-lg border border-[#444] bg-black/40"
+          >
+            <span class="text-xs font-medium text-gray-200">Mikrofon</span>
+            <button
+              type="button"
+              class="relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
+              :class="includeMicrophone ? 'bg-blue-500' : 'bg-[#444]'"
+              @click="includeMicrophone = !includeMicrophone"
+            >
+              <span
+                class="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+                :class="includeMicrophone ? 'translate-x-5' : 'translate-x-0'"
+              ></span>
+            </button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+          <div class="px-4 py-3 rounded-lg border border-[#444] bg-black/40 flex flex-col gap-3">
+            <div class="flex justify-between items-center text-xs text-gray-300 font-medium">
+              <span>Głośność systemu</span>
+              <span class="font-mono text-emerald-400"
+                >{{ Math.round(systemAudioVolume * 100) }}%</span
+              >
+            </div>
             <input
               v-model.number="systemAudioVolume"
               type="range"
               min="0"
               max="2"
               step="0.01"
-              class="w-full accent-emerald-500"
+              class="custom-slider emerald-slider"
             />
-          </label>
-          <label class="px-3 py-2 rounded border border-[#444] bg-black/30 text-xs text-gray-200">
-            <span class="block mb-1">Glosnosc mikrofonu: {{ microphoneVolume.toFixed(2) }}</span>
+          </div>
+
+          <div class="px-4 py-3 rounded-lg border border-[#444] bg-black/40 flex flex-col gap-3">
+            <div class="flex justify-between items-center text-xs text-gray-300 font-medium">
+              <span>Głośność mikrofonu</span>
+              <span class="font-mono text-blue-400">{{ Math.round(microphoneVolume * 100) }}%</span>
+            </div>
             <input
               v-model.number="microphoneVolume"
               type="range"
               min="0"
               max="2"
               step="0.01"
-              class="w-full accent-blue-500"
+              class="custom-slider blue-slider"
             />
-          </label>
+          </div>
         </div>
+
         <div
           class="bg-black border border-[#444] rounded-lg overflow-hidden aspect-video relative flex items-center justify-center shadow-[0_0_15px_rgba(0,0,0,0.5)]"
         >
@@ -402,46 +433,55 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <div class="mb-4">
-          <label
-            class="flex items-center justify-between gap-2 px-3 py-2 rounded border border-[#444] bg-black/30 text-xs text-gray-200"
+        <div class="grid grid-cols-1 gap-3 mb-5">
+          <div
+            class="flex items-center justify-between px-4 py-3 rounded-lg border border-[#444] bg-black/40"
           >
-            <span>Mikrofon gościa</span>
-            <input v-model="includeMicrophone" type="checkbox" class="accent-blue-500" />
-          </label>
-        </div>
-        <div class="mb-4">
-          <label
-            class="px-3 py-2 rounded border border-[#444] bg-black/30 text-xs text-gray-200 block"
-          >
-            <span class="block mb-1">Glosnosc mikrofonu: {{ microphoneVolume.toFixed(2) }}</span>
+            <span class="text-xs font-medium text-gray-200">Twój mikrofon</span>
+            <button
+              type="button"
+              class="relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
+              :class="includeMicrophone ? 'bg-blue-500' : 'bg-[#444]'"
+              @click="includeMicrophone = !includeMicrophone"
+            >
+              <span
+                class="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+                :class="includeMicrophone ? 'translate-x-5' : 'translate-x-0'"
+              ></span>
+            </button>
+          </div>
+
+          <div class="px-4 py-3 rounded-lg border border-[#444] bg-black/40 flex flex-col gap-3">
+            <div class="flex justify-between items-center text-xs text-gray-300 font-medium">
+              <span>Głośność mikrofonu</span>
+              <span class="font-mono text-blue-400">{{ Math.round(microphoneVolume * 100) }}%</span>
+            </div>
             <input
               v-model.number="microphoneVolume"
               type="range"
               min="0"
               max="2"
               step="0.01"
-              class="w-full accent-blue-500"
+              class="custom-slider blue-slider"
             />
-          </label>
-        </div>
+          </div>
 
-        <div class="mb-4">
-          <label
-            class="px-3 py-2 rounded border border-[#444] bg-black/30 text-xs text-gray-200 block"
-          >
-            <span class="block mb-1"
-              >Glosnosc odsluchu zdalnego: {{ remotePlaybackVolume.toFixed(2) }}</span
-            >
+          <div class="px-4 py-3 rounded-lg border border-[#444] bg-black/40 flex flex-col gap-3">
+            <div class="flex justify-between items-center text-xs text-gray-300 font-medium">
+              <span>Odsłuch zdalny (Partner)</span>
+              <span class="font-mono text-cyan-400"
+                >{{ Math.round(remotePlaybackVolume * 100) }}%</span
+              >
+            </div>
             <input
               v-model.number="remotePlaybackVolume"
               type="range"
               min="0"
               max="1"
               step="0.01"
-              class="w-full accent-cyan-500"
+              class="custom-slider cyan-slider"
             />
-          </label>
+          </div>
         </div>
 
         <h3 class="text-sm font-bold text-blue-400 uppercase tracking-widest mb-4">
@@ -565,6 +605,7 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+/* Reszta Twoich stylów zostaje bez zmian */
 .slide-down-enter-active,
 .slide-down-leave-active {
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
