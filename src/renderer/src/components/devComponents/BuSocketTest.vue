@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, onUnmounted } from 'vue'
+import { computed, ref, watch, onUnmounted } from 'vue'
 import { useConnectionStore } from '@renderer/stores/connectionStore'
 import { useSocketStore } from '@renderer/stores/socketStore'
 import { useWebRtcStore } from '@renderer/stores/webRtcStore'
@@ -10,9 +10,64 @@ const connectionStore = useConnectionStore()
 const socketStore = useSocketStore()
 const webRtcStore = useWebRtcStore()
 
+watch(
+  () => connectionStore.isHost,
+  (isHost) => {
+    webRtcStore.setLocalPublishProfile(isHost ? 'host' : 'guest')
+  },
+  { immediate: true }
+)
+
 const emit = defineEmits<{
   (e: 'log-result', action: string, data: unknown, source?: 'api' | 'socket'): void
 }>()
+
+const includeSystemAudio = ref(true)
+const includeMicrophone = ref(true)
+const systemAudioVolume = ref(1)
+const microphoneVolume = ref(1)
+const remotePlaybackVolume = ref(1)
+
+type TrackDebugInfo = {
+  id: string
+  source: 'screen' | 'system-audio' | 'microphone' | 'audio-unknown'
+  kind: string
+  contentHint: string
+  enabled: boolean
+  muted: boolean
+  readyState: string
+}
+
+const resolveTrackSource = (
+  track: MediaStreamTrack
+): 'screen' | 'system-audio' | 'microphone' | 'audio-unknown' => {
+  if (track.kind === 'video') return 'screen'
+  if (track.contentHint === 'music') return 'system-audio'
+  if (track.contentHint === 'speech') return 'microphone'
+  return 'audio-unknown'
+}
+
+const mapStreamTracksToDebug = (stream: MediaStream | null): TrackDebugInfo[] => {
+  if (!stream) return []
+
+  return stream.getTracks().map((track) => ({
+    id: track.id,
+    source: resolveTrackSource(track),
+    kind: track.kind,
+    contentHint: track.contentHint || '-',
+    enabled: track.enabled,
+    muted: track.muted,
+    readyState: track.readyState
+  }))
+}
+
+const localTrackDiagnostics = computed<TrackDebugInfo[]>(() => {
+  return mapStreamTracksToDebug(webRtcStore.localStream)
+})
+
+const remoteTrackDiagnostics = computed<TrackDebugInfo[]>(() => {
+  return mapStreamTracksToDebug(webRtcStore.remoteStream)
+})
 
 // ==========================================
 // --- LOGIKA HOSTA (PRZECHWYTYWANIE WIDEO) ---
@@ -160,10 +215,17 @@ watch(
 
 async function startCapture(): Promise<void> {
   if (videoService.isRunning) return
+  webRtcStore.setLocalPublishProfile('host')
   emit('log-result', 'NATIVE_CAPTURE', 'Rozpoczynanie przechwytywania (Service)...', 'api')
 
   try {
-    const stream = await videoService.start()
+    const stream = await videoService.start({
+      includeScreen: true,
+      includeSystemAudio: includeSystemAudio.value,
+      includeMicrophone: includeMicrophone.value,
+      systemAudioVolume: systemAudioVolume.value,
+      microphoneVolume: microphoneVolume.value
+    })
 
     syncLocalPreview(stream)
 
@@ -175,6 +237,32 @@ async function startCapture(): Promise<void> {
   } catch (err) {
     console.error(err)
     emit('log-result', 'ERROR', `Błąd przechwytywania: ${err}`, 'api')
+  }
+}
+
+async function startMicrophoneCaptureForGuest(): Promise<void> {
+  if (videoService.isRunning) return
+
+  webRtcStore.setLocalPublishProfile('guest')
+
+  emit('log-result', 'MIC_CAPTURE', 'Uruchamianie mikrofonu gościa (audio-only)...', 'api')
+
+  try {
+    const stream = await videoService.start({
+      includeScreen: false,
+      includeSystemAudio: false,
+      includeMicrophone: includeMicrophone.value,
+      microphoneVolume: microphoneVolume.value
+    })
+
+    if (webRtcStore.rtcStatus === 'disconnected') {
+      webRtcStore.localStream = stream
+    } else {
+      webRtcStore.publishLocalStream(stream)
+    }
+  } catch (err) {
+    console.error(err)
+    emit('log-result', 'ERROR', `Błąd uruchamiania mikrofonu: ${err}`, 'api')
   }
 }
 
@@ -203,6 +291,19 @@ async function stopCapture(): Promise<void> {
   webRtcStore.localStream = null
 }
 
+const restartCaptureForCurrentRole = async (): Promise<void> => {
+  if (!videoService.isRunning) return
+
+  await stopCapture()
+
+  if (connectionStore.isHost) {
+    await startCapture()
+    return
+  }
+
+  await startMicrophoneCaptureForGuest()
+}
+
 const placeholderAction = (name: string): void => {
   console.log(`[Akcja Użytkownika] Kliknięto przycisk: ${name}`)
   alert(`Funkcja "${name}" jest w przygotowaniu! Będzie wysyłana przez DataChannel.`)
@@ -212,6 +313,16 @@ const placeholderAction = (name: string): void => {
 // --- LOGIKA GOŚCIA (ZDALNE WIDEO) ---
 // ==========================================
 const remoteVideoRef = ref<HTMLVideoElement | null>(null)
+
+watch(
+  [remoteVideoRef, remotePlaybackVolume],
+  ([video, volume]) => {
+    if (!video) return
+    video.volume = Math.max(0, Math.min(1, volume))
+    video.muted = volume <= 0
+  },
+  { immediate: true }
+)
 
 watch(
   () => webRtcStore.remoteStream,
@@ -269,6 +380,10 @@ watch(
         await startCapture()
       }
 
+      if (!connectionStore.isHost && !videoService.isRunning) {
+        await startMicrophoneCaptureForGuest()
+      }
+
       if (
         connectionStore.isHost &&
         webRtcStore.rtcStatus === 'disconnected' &&
@@ -279,6 +394,23 @@ watch(
     }
   }
 )
+
+watch(includeMicrophone, async () => {
+  await restartCaptureForCurrentRole()
+})
+
+watch(microphoneVolume, (value) => {
+  videoService.setMicrophoneVolume(value)
+})
+
+watch(includeSystemAudio, async () => {
+  if (!connectionStore.isHost) return
+  await restartCaptureForCurrentRole()
+})
+
+watch(systemAudioVolume, (value) => {
+  videoService.setSystemAudioVolume(value)
+})
 
 // ==========================================
 // --- NAKŁADKI NA AKCJE ---
@@ -429,6 +561,46 @@ onUnmounted(() => {
             ■ Zatrzymaj
           </button>
         </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+          <label
+            class="flex items-center justify-between gap-2 px-3 py-2 rounded border border-[#444] bg-black/30 text-xs text-gray-200"
+          >
+            <span>Audio systemowe</span>
+            <input v-model="includeSystemAudio" type="checkbox" class="accent-emerald-500" />
+          </label>
+          <label
+            class="flex items-center justify-between gap-2 px-3 py-2 rounded border border-[#444] bg-black/30 text-xs text-gray-200"
+          >
+            <span>Mikrofon</span>
+            <input v-model="includeMicrophone" type="checkbox" class="accent-blue-500" />
+          </label>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+          <label class="px-3 py-2 rounded border border-[#444] bg-black/30 text-xs text-gray-200">
+            <span class="block mb-1"
+              >Glosnosc audio systemowego: {{ systemAudioVolume.toFixed(2) }}</span
+            >
+            <input
+              v-model.number="systemAudioVolume"
+              type="range"
+              min="0"
+              max="2"
+              step="0.01"
+              class="w-full accent-emerald-500"
+            />
+          </label>
+          <label class="px-3 py-2 rounded border border-[#444] bg-black/30 text-xs text-gray-200">
+            <span class="block mb-1">Glosnosc mikrofonu: {{ microphoneVolume.toFixed(2) }}</span>
+            <input
+              v-model.number="microphoneVolume"
+              type="range"
+              min="0"
+              max="2"
+              step="0.01"
+              class="w-full accent-blue-500"
+            />
+          </label>
+        </div>
         <div
           class="bg-black border border-[#444] rounded-lg overflow-hidden aspect-video relative flex items-center justify-center shadow-[0_0_15px_rgba(0,0,0,0.5)]"
         >
@@ -466,6 +638,48 @@ onUnmounted(() => {
           </div>
         </div>
 
+        <div class="mb-4">
+          <label
+            class="flex items-center justify-between gap-2 px-3 py-2 rounded border border-[#444] bg-black/30 text-xs text-gray-200"
+          >
+            <span>Mikrofon gościa</span>
+            <input v-model="includeMicrophone" type="checkbox" class="accent-blue-500" />
+          </label>
+        </div>
+        <div class="mb-4">
+          <label
+            class="px-3 py-2 rounded border border-[#444] bg-black/30 text-xs text-gray-200 block"
+          >
+            <span class="block mb-1">Glosnosc mikrofonu: {{ microphoneVolume.toFixed(2) }}</span>
+            <input
+              v-model.number="microphoneVolume"
+              type="range"
+              min="0"
+              max="2"
+              step="0.01"
+              class="w-full accent-blue-500"
+            />
+          </label>
+        </div>
+
+        <div class="mb-4">
+          <label
+            class="px-3 py-2 rounded border border-[#444] bg-black/30 text-xs text-gray-200 block"
+          >
+            <span class="block mb-1"
+              >Glosnosc odsluchu zdalnego: {{ remotePlaybackVolume.toFixed(2) }}</span
+            >
+            <input
+              v-model.number="remotePlaybackVolume"
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              class="w-full accent-cyan-500"
+            />
+          </label>
+        </div>
+
         <h3 class="text-sm font-bold text-blue-400 uppercase tracking-widest mb-4">
           Zdalny Ekran Partnera
         </h3>
@@ -476,7 +690,7 @@ onUnmounted(() => {
             ref="remoteVideoRef"
             autoplay
             playsinline
-            muted
+            :muted="remotePlaybackVolume <= 0"
             class="w-full h-full object-contain absolute inset-0 transition-opacity duration-500"
             :class="webRtcStore.remoteStream ? 'opacity-100' : 'opacity-0'"
           ></video>
@@ -509,6 +723,53 @@ onUnmounted(() => {
         </div>
       </div>
     </div>
+
+    <section class="mt-5 border-t border-[#333] pt-4">
+      <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+        <h3 class="text-xs font-bold uppercase tracking-widest text-gray-300">
+          Diagnostyka Trackow
+        </h3>
+        <span class="text-[10px] text-gray-500 uppercase tracking-wider">
+          Profil publikacji: {{ webRtcStore.localPublishProfile }}
+        </span>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        <div class="border border-[#3a3a3a] rounded-lg p-3 bg-black/20">
+          <p class="text-[11px] text-emerald-400 font-bold uppercase tracking-wider mb-2">
+            Lokalne tracki ({{ localTrackDiagnostics.length }})
+          </p>
+          <ul v-if="localTrackDiagnostics.length" class="space-y-2">
+            <li
+              v-for="track in localTrackDiagnostics"
+              :key="track.id"
+              class="text-[11px] text-gray-300 border border-[#2f2f2f] rounded px-2 py-1.5"
+            >
+              {{ track.source }} | {{ track.kind }} | hint: {{ track.contentHint }} | enabled:
+              {{ track.enabled }} | muted: {{ track.muted }} | state: {{ track.readyState }}
+            </li>
+          </ul>
+          <p v-else class="text-[11px] text-gray-500">Brak lokalnych trackow.</p>
+        </div>
+
+        <div class="border border-[#3a3a3a] rounded-lg p-3 bg-black/20">
+          <p class="text-[11px] text-blue-400 font-bold uppercase tracking-wider mb-2">
+            Zdalne tracki ({{ remoteTrackDiagnostics.length }})
+          </p>
+          <ul v-if="remoteTrackDiagnostics.length" class="space-y-2">
+            <li
+              v-for="track in remoteTrackDiagnostics"
+              :key="track.id"
+              class="text-[11px] text-gray-300 border border-[#2f2f2f] rounded px-2 py-1.5"
+            >
+              {{ track.source }} | {{ track.kind }} | hint: {{ track.contentHint }} | enabled:
+              {{ track.enabled }} | muted: {{ track.muted }} | state: {{ track.readyState }}
+            </li>
+          </ul>
+          <p v-else class="text-[11px] text-gray-500">Brak zdalnych trackow.</p>
+        </div>
+      </div>
+    </section>
 
     <footer class="pt-4 mt-6 border-t border-[#333] flex justify-between items-center">
       <span class="text-[10px] text-gray-600 uppercase font-bold">Narzędzia Debugowania WS</span>
