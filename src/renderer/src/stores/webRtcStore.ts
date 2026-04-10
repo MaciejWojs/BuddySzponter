@@ -9,22 +9,24 @@ import {
   webRtcService
 } from '@renderer/composables/connection/webRTCService'
 import { useConnectionMetrics } from '@renderer/composables/connection/useConnectionMetrics'
-import { P2PMessage } from '@renderer/schemas/p2pProtocol'
 import { WsWebRTCOffer, WsWebRTCAnswer, WsWebRTCIceCandidate } from '@shared/schemas/ws'
+import { ChatChannel } from '@renderer/composables/channels/ChatChannel'
+import { HidChannel } from '@renderer/composables/channels/HidChannel'
+import { SystemEventsChannel } from '@renderer/composables/channels/SystemEventsChannel'
 
 export const useWebRtcStore = defineStore('webrtc', () => {
-  const getSocketStore = (): typeof getSocketStore => useSocketStore()
+  const getSocketStore = (): ReturnType<typeof useSocketStore> => useSocketStore()
 
   const rtcStatus = ref<'disconnected' | 'connecting' | 'connected'>('disconnected')
-  const connectionMetrics = useConnectionMetrics(rtcStatus)
-
-  const chatMessages = ref<string[]>([])
-  const remoteMouse = ref({ x: 0, y: 0 })
-  const { localMetrics, remoteMetrics } = connectionMetrics
 
   const localStream = shallowRef<MediaStream | null>(null)
   const remoteStream = shallowRef<MediaStream | null>(null)
   const localPublishProfile = ref<'host' | 'guest'>('host')
+
+  const connectionMetrics = useConnectionMetrics(rtcStatus)
+  const chat = ChatChannel()
+  const hid = HidChannel()
+  const system = SystemEventsChannel(() => forceDisconnect())
 
   const getCurrentTrackPolicy = (): typeof hostTrackPolicy => {
     return localPublishProfile.value === 'guest' ? guestTrackPolicy : hostTrackPolicy
@@ -59,15 +61,24 @@ export const useWebRtcStore = defineStore('webrtc', () => {
 
   webRtcService.onMessageReceived = (data: string, channelLabel: string) => {
     try {
-      const msg = JSON.parse(data) as P2PMessage
+      const msg = JSON.parse(data)
 
-      if (connectionMetrics.handleIncoming(msg, channelLabel)) return
-
-      if (msg.type === 'CHAT') chatMessages.value.push(`${msg.payload.sender}: ${msg.payload.text}`)
-      if (msg.type === 'MOUSE_MOVE') remoteMouse.value = { x: msg.payload.x, y: msg.payload.y }
-      if (msg.type === 'DISCONNECT') forceDisconnect()
+      switch (channelLabel) {
+        case 'chat-channel':
+          if (msg.type === 'CHAT') chat.handleIncomingMessage(msg.payload)
+          break
+        case 'hid-control':
+          if (msg.type === 'MOUSE_MOVE') hid.handleIncomingMessage(msg.payload)
+          break
+        case 'system-events':
+          system.handleIncomingMessage(msg.payload)
+          break
+        case 'metrics':
+          if (msg.type === 'METRICS') connectionMetrics.applyRemoteMetrics(msg.payload)
+          break
+      }
     } catch (e) {
-      console.error('[WebRtcStore] Nie udało się sparsować wiadomości P2P:', e)
+      console.error('[WebRtcStore] Błąd parsowania P2P:', e)
     }
   }
 
@@ -99,7 +110,7 @@ export const useWebRtcStore = defineStore('webrtc', () => {
     rtcStatus.value = 'disconnected'
     webRtcService.cleanup()
     remoteStream.value = null
-    remoteMouse.value = { x: 0, y: 0 }
+    hid.remoteMouse.value = { x: 0, y: 0 }
     localPublishProfile.value = 'host'
     connectionMetrics.reset()
   }
@@ -107,8 +118,7 @@ export const useWebRtcStore = defineStore('webrtc', () => {
   const disconnect = async (): Promise<void> => {
     if (rtcStatus.value === 'disconnected') return
 
-    webRtcService.sendData('system-events', JSON.stringify({ type: 'DISCONNECT', payload: {} }))
-
+    system.sendDisconnectEvent()
     forceDisconnect()
   }
 
@@ -146,13 +156,19 @@ export const useWebRtcStore = defineStore('webrtc', () => {
 
   return {
     rtcStatus,
-    chatMessages,
     localStream,
     remoteStream,
-    remoteMouse,
     localPublishProfile,
-    localMetrics,
-    remoteMetrics,
+
+    chatMessages: chat.chatMessages,
+    remoteMouse: hid.remoteMouse,
+    localMetrics: connectionMetrics.localMetrics,
+    remoteMetrics: connectionMetrics.remoteMetrics,
+
+    sendChatMessage: chat.sendChatMessage,
+    sendMousePosition: hid.sendMousePosition,
+    sendVideoCommand: system.sendVideoCommand,
+
     handleOffer,
     handleAnswer,
     handleCandidate,
