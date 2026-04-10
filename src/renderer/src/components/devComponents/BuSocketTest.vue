@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { computed, ref, shallowRef, watch, watchEffect, onUnmounted } from 'vue'
+import { computed, ref, shallowRef, watch, onUnmounted } from 'vue'
 import { useConnectionStore } from '@renderer/stores/connectionStore'
 import { useSocketStore } from '@renderer/stores/socketStore'
 import { useWebRtcStore } from '@renderer/stores/webRtcStore'
 import { videoService } from '@renderer/composables/video/videoService'
+
+// IMPORTY NOWYCH KOMPONENTÓW
 
 const emit = defineEmits<{
   (e: 'log-result', action: string, data: unknown, source?: 'api' | 'socket'): void
@@ -21,12 +23,7 @@ const systemAudioVolume = ref(1)
 const microphoneVolume = ref(1)
 const remotePlaybackVolume = ref(1)
 
-const localVideoRef = ref<HTMLVideoElement | null>(null)
-const remoteVideoRef = ref<HTMLVideoElement | null>(null)
 const hiddenCanvas = ref<HTMLCanvasElement | null>(null)
-
-// DODANE: Referencja dla globalnego odtwarzacza audio
-const globalRemoteAudioRef = ref<HTMLAudioElement | null>(null)
 
 const sharedTextureStream = shallowRef<MediaStream | null>(null)
 const isCapturing = computed(() => videoService.isRunning || !!sharedTextureStream.value)
@@ -42,14 +39,8 @@ const hasLocalAudioTrack = (hint: 'speech' | 'music'): boolean => {
 // ==========================================
 // 1. ZARZĄDZANIE REAKTYWNYM WIDEO (VUE WAY)
 // ==========================================
-watchEffect(() => {
-  if (localVideoRef.value) localVideoRef.value.srcObject = webRtcStore.localStream || null
-  if (remoteVideoRef.value) remoteVideoRef.value.srcObject = webRtcStore.remoteStream || null
-
-  // DODANE: Podpięcie strumienia do globalnego tagu audio
-  if (globalRemoteAudioRef.value)
-    globalRemoteAudioRef.value.srcObject = webRtcStore.remoteStream || null
-})
+// USUNIĘTO RĘCZNE PODPINANIE WIDEO/AUDIO.
+// Teraz robią to komponenty VideoPlayer i RemoteAudioPlayer pod maską.
 
 // ==========================================
 // 2. GŁÓWNE AKCJE (CAPTURE)
@@ -220,22 +211,8 @@ watch(includeSystemAudio, (isMuted) => webRtcStore.toggleSystemAudio(!isMuted))
 watch(microphoneVolume, (val) => videoService.setMicrophoneVolume(val))
 watch(systemAudioVolume, (val) => videoService.setSystemAudioVolume(val))
 
-// Obsługa głośności wideo
-watchEffect(() => {
-  const vol = Math.max(0, Math.min(1, remotePlaybackVolume.value))
-  const isMuted = remotePlaybackVolume.value <= 0
-
-  if (remoteVideoRef.value) {
-    remoteVideoRef.value.volume = vol
-    remoteVideoRef.value.muted = isMuted
-  }
-
-  // DODANE: Regulacja głośności również na globalnym audio
-  if (globalRemoteAudioRef.value) {
-    globalRemoteAudioRef.value.volume = vol
-    globalRemoteAudioRef.value.muted = isMuted
-  }
-})
+// USUNIĘTO OBSŁUGĘ GŁOŚNOŚCI Z watchEffect.
+// RemotePlaybackVolume jest teraz wstrzykiwane wprost do komponentu RemoteAudioPlayer!
 
 // ==========================================
 // 4. AUTOMATYZACJA SOCKETÓW I WEBRTC
@@ -516,7 +493,7 @@ onUnmounted(() => {
 
           <div class="px-4 py-3 rounded-lg border border-[#444] bg-black/40 flex flex-col gap-3">
             <div class="flex justify-between items-center text-xs text-gray-300 font-medium">
-              <span>Głośność mikrofonu</span>
+              <span>Głośność mikrofon</span>
               <span class="font-mono text-blue-400">{{ Math.round(microphoneVolume * 100) }}%</span>
             </div>
             <input
@@ -530,23 +507,18 @@ onUnmounted(() => {
           </div>
         </div>
 
+        <VideoPlayer
+          v-if="isCapturing"
+          :stream="webRtcStore.localStream"
+          placeholder-text="Brak strumienia. Uruchom przechwytywanie przed akceptacją gościa."
+        />
         <div
+          v-else
           class="bg-black border border-[#444] rounded-lg overflow-hidden aspect-video relative flex items-center justify-center shadow-[0_0_15px_rgba(0,0,0,0.5)]"
         >
-          <div
-            v-if="!isCapturing"
-            class="text-gray-500 text-xs font-mono absolute z-10 pointer-events-none"
-          >
+          <div class="text-gray-500 text-xs font-mono absolute z-10 pointer-events-none">
             Brak strumienia. Uruchom przechwytywanie przed akceptacją gościa.
           </div>
-          <video
-            v-show="isCapturing"
-            ref="localVideoRef"
-            autoplay
-            playsinline
-            muted
-            class="w-full h-full object-contain absolute inset-0"
-          ></video>
         </div>
       </div>
 
@@ -621,44 +593,15 @@ onUnmounted(() => {
         <h3 class="text-sm font-bold text-blue-400 uppercase tracking-widest mb-4">
           Zdalny Ekran Partnera
         </h3>
-        <div
-          class="bg-black border border-[#444] rounded-lg overflow-hidden aspect-video relative flex items-center justify-center shadow-[0_0_15px_rgba(0,0,0,0.5)]"
-        >
-          <video
-            ref="remoteVideoRef"
-            autoplay
-            playsinline
-            :muted="remotePlaybackVolume <= 0"
-            class="w-full h-full object-contain absolute inset-0 transition-opacity duration-500"
-            :class="webRtcStore.remoteStream ? 'opacity-100' : 'opacity-0'"
-          ></video>
 
-          <div
-            v-if="!webRtcStore.remoteStream"
-            class="flex flex-col items-center gap-3 text-gray-500 z-10 p-5 text-center"
-          >
-            <svg
-              class="w-12 h-12 opacity-30 animate-pulse"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
-              />
-            </svg>
-            <p class="text-xs font-mono m-0">
-              {{
-                webRtcStore.rtcStatus === 'connected'
-                  ? 'Oczekiwanie na obraz (WebRTC)...'
-                  : 'Połącz się, aby zobaczyć ekran.'
-              }}
-            </p>
-          </div>
-        </div>
+        <VideoPlayer
+          :stream="webRtcStore.remoteStream"
+          :placeholder-text="
+            webRtcStore.rtcStatus === 'connected'
+              ? 'Oczekiwanie na obraz (WebRTC)...'
+              : 'Połącz się, aby zobaczyć ekran.'
+          "
+        />
       </div>
     </div>
 
@@ -742,7 +685,7 @@ onUnmounted(() => {
       aria-hidden="true"
     ></canvas>
 
-    <audio ref="globalRemoteAudioRef" autoplay playsinline class="hidden"></audio>
+    <RemoteAudioPlayer :stream="webRtcStore.remoteStream" :volume="remotePlaybackVolume" />
   </div>
 </template>
 
