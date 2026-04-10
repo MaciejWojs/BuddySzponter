@@ -57,6 +57,17 @@ export class ScreenService {
       const frame = event.senderFrame
       if (frame && !this.activeFrames.includes(frame)) {
         this.activeFrames.push(frame)
+        // Opcjonalnie usuwaj w razie utraty kontekstu
+        try {
+          // Nasłuchiwanie na zniszczenie wywołującego
+          const wc = event.sender
+          wc.once('destroyed', () => {
+             this.activeFrames = this.activeFrames.filter((f) => f !== frame)
+          })
+          wc.once('did-navigate', () => {
+             this.activeFrames = this.activeFrames.filter((f) => f !== frame)
+          })
+        } catch(e) {}
       }
     })
 
@@ -131,12 +142,18 @@ export class ScreenService {
       const importedTexture = sharedTexture.importSharedTexture({ textureInfo: info })
 
       Promise.all(
-        this.activeFrames.map((frame) =>
-          sharedTexture.sendSharedTexture({
-            frame,
-            importedSharedTexture: importedTexture
-          })
-        )
+        this.activeFrames.map((frame) => {
+          try {
+            return sharedTexture.sendSharedTexture({
+              frame,
+              importedSharedTexture: importedTexture
+            })
+          } catch(e) {
+            console.warn('[Capture] Ignored frame (disposed?):', e)
+            this.activeFrames = this.activeFrames.filter(f => f !== frame)
+            return Promise.resolve()
+          }
+        })
       )
         .catch((e) => console.error('[Capture] Błąd wysyłania sharedTexture do ramki:', e))
         .finally(() => {
