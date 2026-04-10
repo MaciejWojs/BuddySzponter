@@ -4,8 +4,7 @@ import { useConnectionStore } from '@renderer/stores/connectionStore'
 import { useSocketStore } from '@renderer/stores/socketStore'
 import { useWebRtcStore } from '@renderer/stores/webRtcStore'
 import { videoService } from '@renderer/composables/video/videoService'
-
-// IMPORTY NOWYCH KOMPONENTÓW
+import RemoteStreamView from '../p2p/RemoteStreamView.vue'
 
 const emit = defineEmits<{
   (e: 'log-result', action: string, data: unknown, source?: 'api' | 'socket'): void
@@ -19,9 +18,6 @@ const webRtcStore = useWebRtcStore()
 // --- STAN UI ---
 const includeSystemAudio = ref(true)
 const includeMicrophone = ref(true)
-const systemAudioVolume = ref(1)
-const microphoneVolume = ref(1)
-const remotePlaybackVolume = ref(1)
 
 const hiddenCanvas = ref<HTMLCanvasElement | null>(null)
 
@@ -65,8 +61,8 @@ const startCapture = async (): Promise<void> => {
       includeScreen: true,
       includeSystemAudio: includeSystemAudio.value,
       includeMicrophone: includeMicrophone.value,
-      systemAudioVolume: systemAudioVolume.value,
-      microphoneVolume: microphoneVolume.value
+      systemAudioVolume: webRtcStore.localSystemAudioVolume,
+      microphoneVolume: webRtcStore.localMicrophoneVolume
     })
     currentCaptureMode.value = 'host-native'
     assignLocalStream(stream)
@@ -117,8 +113,8 @@ const startSharedTextureCapture = async (): Promise<void> => {
     sharedTextureStream.value = await videoService.startWithExternalVideoTrack(canvasVideoTrack, {
       includeSystemAudio: includeSystemAudio.value,
       includeMicrophone: includeMicrophone.value,
-      systemAudioVolume: systemAudioVolume.value,
-      microphoneVolume: microphoneVolume.value
+      systemAudioVolume: webRtcStore.localSystemAudioVolume,
+      microphoneVolume: webRtcStore.localMicrophoneVolume
     })
 
     const videoTrack = sharedTextureStream.value.getVideoTracks()[0]
@@ -150,7 +146,7 @@ const startMicrophoneCaptureForGuest = async (): Promise<void> => {
       includeScreen: false,
       includeSystemAudio: false,
       includeMicrophone: includeMicrophone.value,
-      microphoneVolume: microphoneVolume.value
+      microphoneVolume: webRtcStore.localMicrophoneVolume
     })
     currentCaptureMode.value = 'guest-mic'
     assignLocalStream(stream)
@@ -207,12 +203,6 @@ watch(includeMicrophone, (isEnabled) => {
 })
 
 watch(includeSystemAudio, (isMuted) => webRtcStore.toggleSystemAudio(!isMuted))
-
-watch(microphoneVolume, (val) => videoService.setMicrophoneVolume(val))
-watch(systemAudioVolume, (val) => videoService.setSystemAudioVolume(val))
-
-// USUNIĘTO OBSŁUGĘ GŁOŚNOŚCI Z watchEffect.
-// RemotePlaybackVolume jest teraz wstrzykiwane wprost do komponentu RemoteAudioPlayer!
 
 // ==========================================
 // 4. AUTOMATYZACJA SOCKETÓW I WEBRTC
@@ -476,13 +466,13 @@ onUnmounted(() => {
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
           <div class="px-4 py-3 rounded-lg border border-[#444] bg-black/40 flex flex-col gap-3">
             <div class="flex justify-between items-center text-xs text-gray-300 font-medium">
-              <span>Głośność systemu</span>
+              <span>Głośność systemu (Nasza)</span>
               <span class="font-mono text-emerald-400"
-                >{{ Math.round(systemAudioVolume * 100) }}%</span
+                >{{ Math.round(webRtcStore.localSystemAudioVolume * 100) }}%</span
               >
             </div>
             <input
-              v-model.number="systemAudioVolume"
+              v-model.number="webRtcStore.localSystemAudioVolume"
               type="range"
               min="0"
               max="2"
@@ -493,11 +483,13 @@ onUnmounted(() => {
 
           <div class="px-4 py-3 rounded-lg border border-[#444] bg-black/40 flex flex-col gap-3">
             <div class="flex justify-between items-center text-xs text-gray-300 font-medium">
-              <span>Głośność mikrofon</span>
-              <span class="font-mono text-blue-400">{{ Math.round(microphoneVolume * 100) }}%</span>
+              <span>Głośność mikrofonu (Nasza)</span>
+              <span class="font-mono text-blue-400"
+                >{{ Math.round(webRtcStore.localMicrophoneVolume * 100) }}%</span
+              >
             </div>
             <input
-              v-model.number="microphoneVolume"
+              v-model.number="webRtcStore.localMicrophoneVolume"
               type="range"
               min="0"
               max="2"
@@ -559,11 +551,13 @@ onUnmounted(() => {
 
           <div class="px-4 py-3 rounded-lg border border-[#444] bg-black/40 flex flex-col gap-3">
             <div class="flex justify-between items-center text-xs text-gray-300 font-medium">
-              <span>Głośność mikrofonu</span>
-              <span class="font-mono text-blue-400">{{ Math.round(microphoneVolume * 100) }}%</span>
+              <span>Głośność mikrofonu (Nasza)</span>
+              <span class="font-mono text-blue-400"
+                >{{ Math.round(webRtcStore.localMicrophoneVolume * 100) }}%</span
+              >
             </div>
             <input
-              v-model.number="microphoneVolume"
+              v-model.number="webRtcStore.localMicrophoneVolume"
               type="range"
               min="0"
               max="2"
@@ -574,18 +568,35 @@ onUnmounted(() => {
 
           <div class="px-4 py-3 rounded-lg border border-[#444] bg-black/40 flex flex-col gap-3">
             <div class="flex justify-between items-center text-xs text-gray-300 font-medium">
-              <span>Odsłuch zdalny (Partner)</span>
+              <span>Odsłuch partnera (Jego mikrofon)</span>
               <span class="font-mono text-cyan-400"
-                >{{ Math.round(remotePlaybackVolume * 100) }}%</span
+                >{{ Math.round(webRtcStore.remoteMicVolume * 100) }}%</span
               >
             </div>
             <input
-              v-model.number="remotePlaybackVolume"
+              v-model.number="webRtcStore.remoteMicVolume"
               type="range"
               min="0"
               max="1"
               step="0.01"
               class="custom-slider cyan-slider"
+            />
+          </div>
+
+          <div class="px-4 py-3 rounded-lg border border-[#444] bg-black/40 flex flex-col gap-3">
+            <div class="flex justify-between items-center text-xs text-gray-300 font-medium">
+              <span>Odsłuch partnera (Jego system)</span>
+              <span class="font-mono text-emerald-400"
+                >{{ Math.round(webRtcStore.remoteSystemVolume * 100) }}%</span
+              >
+            </div>
+            <input
+              v-model.number="webRtcStore.remoteSystemVolume"
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              class="custom-slider emerald-slider"
             />
           </div>
         </div>
@@ -685,7 +696,7 @@ onUnmounted(() => {
       aria-hidden="true"
     ></canvas>
 
-    <RemoteAudioPlayer :stream="webRtcStore.remoteStream" :volume="remotePlaybackVolume" />
+    <remote-stream-view />
   </div>
 </template>
 
