@@ -65,14 +65,6 @@
       </template>
     </GrayButton>
 
-    <button
-      type="button"
-      class="text-white text-sm opacity-80 hover:opacity-100 hover:underline underline-offset-2 transition-opacity"
-      @click="goToMenu"
-    >
-      {{ t('login.backToMenu') }}
-    </button>
-
     <div>
       <div class="text-red-500 text-sm mt-1 h-2">{{ genericError }}</div>
     </div>
@@ -146,9 +138,5 @@ const handleLogin = handleSubmit(async (values) => {
 
 function goToRegister(): void {
   router.push('/register')
-}
-
-function goToMenu(): void {
-  router.push('/Menu')
 }
 </script>
