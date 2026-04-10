@@ -68,8 +68,6 @@
     <div>
       <div class="text-red-500 text-sm mt-1 h-2">{{ genericError }}</div>
     </div>
-
-    <img :src="buddySzponterLogo" :alt="t('common.logoAlt')" class="w-52 h-auto" />
   </div>
 </template>
 
@@ -82,7 +80,6 @@ const { t } = useI18n()
 
 // Custom svg components
 import Mail from '@images/components/mail.svg?component'
-import buddySzponterLogo from '@images/buddyszponterLogo.png'
 import { useAppToast } from '@renderer/composables/useAppToast'
 import { useUserStore } from '@renderer/stores/userStore'
 

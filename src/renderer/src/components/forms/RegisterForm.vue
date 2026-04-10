@@ -104,8 +104,6 @@
         </button>
       </div>
     </div>
-
-    <img :src="buddySzponterLogo" :alt="t('common.logoAlt')" class="w-52 h-auto" />
   </div>
 </template>
 
@@ -118,7 +116,6 @@ const { t } = useI18n()
 // Custom svg components
 import Mail from '@images/components/mail.svg?component'
 import { useAppToast } from '@renderer/composables/useAppToast'
-import buddySzponterLogo from '@images/buddyszponterLogo.png'
 import zxcvbn from 'zxcvbn'
 import { useUserStore } from '@renderer/stores/userStore'
 

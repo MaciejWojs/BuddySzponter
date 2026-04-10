@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
+import buddySzponterLogo from '@images/buddyszponterLogo.png'
 const router = useRouter()
 function goToMenu(): void {
   void router.push('/Menu')
@@ -29,6 +30,10 @@ function goToMenu(): void {
       </div>
       <LoginForm />
     </div>
+
+    <footer class="login-footer">
+      <img :src="buddySzponterLogo" :alt="$t('common.logoAlt')" class="menu-logo" />
+    </footer>
   </section>
 </template>
 
@@ -36,8 +41,8 @@ function goToMenu(): void {
 .login-page {
   min-height: 100vh;
   display: grid;
-  place-items: center;
-  padding: 24px;
+  grid-template-rows: 1fr auto;
+  padding: 24px 24px 16px;
 }
 
 .login-card {
@@ -45,6 +50,8 @@ function goToMenu(): void {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  align-self: center;
+  justify-self: center;
 }
 
 .login-header {
@@ -71,5 +78,30 @@ function goToMenu(): void {
   text-align: center;
   font-size: 28px;
   font-weight: 700;
+}
+
+.login-footer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding-bottom: 8px;
+}
+
+.menu-logo {
+  width: 260px;
+  max-width: 100%;
+  height: auto;
+}
+
+@media (max-width: 1100px) {
+  .menu-logo {
+    width: 120px;
+  }
+}
+
+@media (max-width: 600px) {
+  .menu-logo {
+    width: 80px;
+  }
 }
 </style>
