@@ -31,15 +31,22 @@ watchEffect(() => {
   if (!micAudioRef.value) return
   micAudioRef.value.srcObject = micStream.value
 
+  if (micStream.value) {
+    micAudioRef.value.play().catch(() => {})
+  }
+
   const vol = Math.max(0, Math.min(1, webRtcStore.remoteMicVolume))
   micAudioRef.value.volume = vol
   micAudioRef.value.muted = vol <= 0
 })
 
-// 3. Obsługa Głośności Zdalnego Systemu (Pobierana prosto ze Store!)
 watchEffect(() => {
   if (!sysAudioRef.value) return
   sysAudioRef.value.srcObject = sysStream.value
+
+  if (sysStream.value) {
+    sysAudioRef.value.play().catch(() => {})
+  }
 
   const vol = Math.max(0, Math.min(1, webRtcStore.remoteSystemVolume))
   sysAudioRef.value.volume = vol

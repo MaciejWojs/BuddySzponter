@@ -170,6 +170,12 @@ export const SessionStore = defineStore('session', () => {
     webRtcStore.localStream = null
     webRtcStore.setLocalPreviewFps(null)
     webRtcStore.setLocalPreviewQuality(null)
+
+    if (hiddenCanvas) {
+      hiddenCanvas.width = 0
+      hiddenCanvas.height = 0
+      hiddenCanvas = null
+    }
   }
 
   const handleRespond = async (accept: boolean): Promise<void> => {

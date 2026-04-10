@@ -45,6 +45,7 @@ export class WebRTCService {
   private isIntentionallyClosing = false
   private iceCandidateQueue: RTCIceCandidateInit[] = []
   private localSenders: RTCRtpSender[] = []
+  private remoteStream: MediaStream = new MediaStream()
 
   constructor() {
     //
@@ -53,6 +54,7 @@ export class WebRTCService {
   public initialize(): void {
     this.isIntentionallyClosing = false
     this.iceCandidateQueue = []
+    this.remoteStream = new MediaStream() // Inicjalizacja pustego strumienia odbiorczego
 
     const isRemote = import.meta.env.VITE_WEBRTC_REMOTE === 'true'
     const server = import.meta.env.VITE_ICE_SERVER
@@ -86,9 +88,27 @@ export class WebRTCService {
     }
 
     this.peerConnection.ontrack = (event) => {
-      console.log('[WebRTCService] Otrzymano ścieżkę wideo/audio od partnera!')
-      if (event.streams && event.streams[0]) {
-        if (this.onRemoteStreamReceived) this.onRemoteStreamReceived(event.streams[0])
+      console.log(`[WebRTCService] Otrzymano ścieżkę typu: ${event.track.kind}`)
+
+      if (event.track.kind === 'audio' && !event.track.contentHint) {
+        const audioTracksSoFar = this.remoteStream.getAudioTracks()
+        if (audioTracksSoFar.length === 0) {
+          event.track.contentHint = 'speech'
+        } else if (audioTracksSoFar.length === 1) {
+          event.track.contentHint = 'music'
+        }
+      }
+
+      const trackExists = this.remoteStream.getTracks().some((t) => t.id === event.track.id)
+      if (!trackExists) {
+        this.remoteStream.addTrack(event.track)
+      }
+
+      const newReactiveStream = new MediaStream(this.remoteStream.getTracks())
+      this.remoteStream = newReactiveStream
+
+      if (this.onRemoteStreamReceived) {
+        this.onRemoteStreamReceived(this.remoteStream)
       }
     }
 
@@ -119,8 +139,15 @@ export class WebRTCService {
         return
       }
 
-      const sender = this.peerConnection?.addTrack(track, stream)
-      if (sender) this.localSenders.push(sender)
+      // FIX: Używamy addTransceiver, by dać WebRTC więcej informacji o ścieżce
+      const transceiver = this.peerConnection?.addTransceiver(track, {
+        direction: 'sendonly',
+        streams: [stream]
+      })
+
+      if (transceiver && transceiver.sender) {
+        this.localSenders.push(transceiver.sender)
+      }
     })
   }
 
@@ -129,13 +156,22 @@ export class WebRTCService {
 
     this.localSenders.forEach((sender) => {
       try {
-        this.peerConnection?.removeTrack(sender)
+        if (this.peerConnection) {
+          this.peerConnection.removeTrack(sender)
+        }
       } catch (e) {
         console.warn('[WebRTCService] Nie udało się usunąć sendera:', e)
       }
     })
 
     this.localSenders = []
+
+    // FIX: Wyłączanie nieaktywnych transceiverów
+    this.peerConnection.getTransceivers().forEach((t) => {
+      if (t.direction === 'sendonly' || t.direction === 'sendrecv') {
+        t.direction = 'inactive'
+      }
+    })
   }
 
   private shouldPublishTrack(track: MediaStreamTrack, policy: LocalTrackPolicy): boolean {
@@ -317,6 +353,9 @@ export class WebRTCService {
     }
 
     if (this.onConnectionClosed) this.onConnectionClosed()
+
+    // Zwalnianie strumienia odbiorczego z pamięci
+    this.remoteStream.getTracks().forEach((track) => this.remoteStream.removeTrack(track))
   }
 }
 
