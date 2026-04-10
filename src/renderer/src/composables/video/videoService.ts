@@ -1,16 +1,17 @@
 // src/renderer/services/VideoService.ts
 
-interface MediaStreamTrackGeneratorInit {
-  kind: 'video' | 'audio'
-}
-
-interface MediaStreamTrackGenerator extends MediaStreamTrack {
-  writable: WritableStream<VideoFrame>
+declare global {
+  interface Window {
+    webkitAudioContext?: typeof AudioContext
+  }
 }
 
 interface WindowWithCapture extends Window {
   MediaStreamTrackGenerator: {
-    new (init: MediaStreamTrackGeneratorInit): MediaStreamTrackGenerator
+    new (init: { kind: 'video' | 'audio' }): MediaStreamTrack & {
+      writable: WritableStream<VideoFrame>
+      contentHint: string
+    }
   }
   capture: {
     start: () => Promise<void>
@@ -30,15 +31,17 @@ export interface VideoCaptureOptions {
 
 class VideoService {
   private isCapturing = false
-  private trackWriter: WritableStreamDefaultWriter<VideoFrame> | null = null
   private activeStream: MediaStream | null = null
-  private stopStream: (() => void) | null = null
-  private auxiliaryStreams: MediaStream[] = []
+  private allStreamsToCleanUp: MediaStream[] = []
+
+  // Elementy do przechwytywania wideo z C++
+  private trackWriter: WritableStreamDefaultWriter<VideoFrame> | null = null
+  private stopNativeCapture: (() => void) | null = null
+
+  // Elementy do sterowania dźwiękiem (Web Audio API)
   private audioContext: AudioContext | null = null
-  private systemGainNode: GainNode | null = null
-  private microphoneGainNode: GainNode | null = null
-  private systemAudioVolume = 1
-  private microphoneVolume = 1
+  private systemVolumeNode: GainNode | null = null
+  private micVolumeNode: GainNode | null = null
 
   public get isRunning(): boolean {
     return this.isCapturing
@@ -49,210 +52,143 @@ class VideoService {
       return this.activeStream
     }
 
-    const includeScreen = options.includeScreen ?? true
-
-    this.activeStream = new MediaStream()
     this.isCapturing = true
+    this.activeStream = new MediaStream()
 
-    if (includeScreen) {
-      const win = window as unknown as WindowWithCapture
-
-      if (!win.capture) {
-        throw new Error('Brak wstrzykniętego obiektu window.capture (addon C++)!')
-      }
-
-      const Generator = win.MediaStreamTrackGenerator
-      if (!Generator) {
-        throw new Error('Twoja wersja Electrona nie obsługuje MediaStreamTrackGenerator')
-      }
-
-      const generator = new Generator({ kind: 'video' })
-      // Tekst i UI wymagają wyższej ostrości niż domyślny hint dla ruchu.
-      generator.contentHint = 'detail'
-
-      this.trackWriter = generator.writable.getWriter()
-      this.activeStream.addTrack(generator)
-
-      await win.capture.start()
-
-      this.stopStream = win.capture.subscribeStream((frame: VideoFrame) => {
-        if (this.isCapturing && this.trackWriter) {
-          this.trackWriter.write(frame.clone()).catch(() => {})
-        }
-        frame.close()
-      })
+    const wantsScreen = options.includeScreen ?? true
+    if (wantsScreen) {
+      await this.addScreenVideoTrack()
     }
 
-    const includeSystemAudio = options.includeSystemAudio ?? true
-    const includeMicrophone = options.includeMicrophone ?? true
-
-    this.systemAudioVolume = this.normalizeVolume(
-      options.systemAudioVolume ?? this.systemAudioVolume
-    )
-    this.microphoneVolume = this.normalizeVolume(options.microphoneVolume ?? this.microphoneVolume)
-
-    if (includeSystemAudio) {
-      await this.attachSystemAudioTrack(this.activeStream)
+    const wantsSystemAudio = options.includeSystemAudio ?? true
+    if (wantsSystemAudio) {
+      const vol = options.systemAudioVolume ?? 1
+      await this.addSystemAudioTrack(vol)
     }
 
-    if (includeMicrophone) {
-      await this.attachMicrophoneTrack(this.activeStream, options.microphoneDeviceId)
+    const wantsMic = options.includeMicrophone ?? true
+    if (wantsMic) {
+      const vol = options.microphoneVolume ?? 1
+      await this.addMicrophoneTrack(options.microphoneDeviceId, vol)
     }
 
     return this.activeStream
   }
 
+  private async addScreenVideoTrack(): Promise<void> {
+    const win = window as unknown as WindowWithCapture
+
+    const generator = new win.MediaStreamTrackGenerator({ kind: 'video' })
+    generator.contentHint = 'detail'
+
+    this.trackWriter = generator.writable.getWriter()
+
+    this.activeStream!.addTrack(generator)
+
+    await win.capture.start()
+    this.stopNativeCapture = win.capture.subscribeStream((frame: VideoFrame) => {
+      if (this.isCapturing && this.trackWriter) {
+        this.trackWriter.write(frame.clone()).catch(() => {})
+      }
+      frame.close()
+    })
+  }
+
+  private async addSystemAudioTrack(volume: number): Promise<void> {
+    try {
+      const systemStream = await navigator.mediaDevices.getDisplayMedia({
+        video: true,
+        audio: true
+      })
+
+      this.allStreamsToCleanUp.push(systemStream)
+
+      systemStream.getVideoTracks().forEach((track) => track.stop())
+
+      const rawAudioTrack = systemStream.getAudioTracks()[0]
+      if (rawAudioTrack) {
+        const processedTrack = this.applyVolumeToTrack(systemStream, volume, 'system')
+        processedTrack.contentHint = 'music'
+        this.activeStream!.addTrack(processedTrack)
+      }
+    } catch (e) {
+      console.warn('Nie udało się pobrać dźwięku systemu:', e)
+    }
+  }
+
+  private async addMicrophoneTrack(deviceId: string | undefined, volume: number): Promise<void> {
+    try {
+      const micStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          ...(deviceId ? { deviceId: { exact: deviceId } } : {})
+        }
+      })
+
+      this.allStreamsToCleanUp.push(micStream)
+
+      const rawAudioTrack = micStream.getAudioTracks()[0]
+      if (rawAudioTrack) {
+        const processedTrack = this.applyVolumeToTrack(micStream, volume, 'microphone')
+        processedTrack.contentHint = 'speech'
+        this.activeStream!.addTrack(processedTrack)
+      }
+    } catch (e) {
+      console.warn('Nie udało się pobrać mikrofonu:', e)
+    }
+  }
+
+  // --- ZARZĄDZANIE GŁOŚNOŚCIĄ (Web Audio API) ---
+
+  private applyVolumeToTrack(
+    stream: MediaStream,
+    volume: number,
+    type: 'system' | 'microphone'
+  ): MediaStreamTrack {
+    if (!this.audioContext) {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext
+      this.audioContext = new AudioCtx!()
+    }
+
+    const sourceNode = this.audioContext.createMediaStreamSource(stream)
+    const gainNode = this.audioContext.createGain()
+    const destinationNode = this.audioContext.createMediaStreamDestination()
+
+    gainNode.gain.value = Math.max(0, Math.min(2, volume))
+
+    if (type === 'system') {
+      this.systemVolumeNode = gainNode
+    } else {
+      this.micVolumeNode = gainNode
+    }
+
+    sourceNode.connect(gainNode)
+    gainNode.connect(destinationNode)
+
+    return destinationNode.stream.getAudioTracks()[0]
+  }
+
   public setSystemAudioVolume(volume: number): void {
-    this.systemAudioVolume = this.normalizeVolume(volume)
-    if (this.systemGainNode) {
-      this.systemGainNode.gain.value = this.systemAudioVolume
+    if (this.systemVolumeNode) {
+      this.systemVolumeNode.gain.value = Math.max(0, Math.min(2, volume))
     }
   }
 
   public setMicrophoneVolume(volume: number): void {
-    this.microphoneVolume = this.normalizeVolume(volume)
-    if (this.microphoneGainNode) {
-      this.microphoneGainNode.gain.value = this.microphoneVolume
+    if (this.micVolumeNode) {
+      this.micVolumeNode.gain.value = Math.max(0, Math.min(2, volume))
     }
   }
 
-  private normalizeVolume(volume: number): number {
-    if (!Number.isFinite(volume)) return 1
-    return Math.max(0, Math.min(2, volume))
-  }
-
-  private getOrCreateAudioContext(): AudioContext | null {
-    if (this.audioContext) return this.audioContext
-
-    const Ctx =
-      window.AudioContext ||
-      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
-    if (!Ctx) return null
-
-    this.audioContext = new Ctx()
-    return this.audioContext
-  }
-
-  private buildProcessedAudioTrack(
-    sourceStream: MediaStream,
-    target: 'system' | 'microphone'
-  ): MediaStreamTrack | null {
-    const context = this.getOrCreateAudioContext()
-    if (!context) {
-      return sourceStream.getAudioTracks()[0] ?? null
-    }
-
-    const sourceNode = context.createMediaStreamSource(sourceStream)
-    const gainNode = context.createGain()
-    const destination = context.createMediaStreamDestination()
-
-    gainNode.gain.value = target === 'system' ? this.systemAudioVolume : this.microphoneVolume
-
-    sourceNode.connect(gainNode)
-    gainNode.connect(destination)
-
-    const processedTrack = destination.stream.getAudioTracks()[0]
-    if (!processedTrack) {
-      sourceNode.disconnect()
-      gainNode.disconnect()
-      return null
-    }
-
-    if (target === 'system') {
-      this.systemGainNode = gainNode
-    } else {
-      this.microphoneGainNode = gainNode
-    }
-
-    return processedTrack
-  }
-
-  private async attachSystemAudioTrack(targetStream: MediaStream): Promise<void> {
-    if (!navigator.mediaDevices?.getDisplayMedia) {
-      console.warn('[VideoService] getDisplayMedia nie jest dostępne - pomijam audio systemowe.')
-      return
-    }
-
-    try {
-      const systemCapture = await navigator.mediaDevices.getDisplayMedia({
-        video: true,
-        audio: {
-          echoCancellation: false,
-          noiseSuppression: false,
-          autoGainControl: false
-        }
-      })
-
-      systemCapture.getVideoTracks().forEach((track) => track.stop())
-
-      const sourceAudioTrack = systemCapture.getAudioTracks()[0]
-      if (!sourceAudioTrack) {
-        systemCapture.getTracks().forEach((track) => track.stop())
-        return
-      }
-
-      const systemAudioTrack = this.buildProcessedAudioTrack(systemCapture, 'system')
-      if (!systemAudioTrack) {
-        systemCapture.getTracks().forEach((track) => track.stop())
-        return
-      }
-
-      systemAudioTrack.contentHint = 'music'
-
-      targetStream.addTrack(systemAudioTrack)
-      this.auxiliaryStreams.push(systemCapture)
-    } catch (e) {
-      console.error('[VideoService] Nie udało się podpiąć audio systemowego:', e)
-    }
-  }
-
-  private async attachMicrophoneTrack(
-    targetStream: MediaStream,
-    microphoneDeviceId?: string
-  ): Promise<void> {
-    if (!navigator.mediaDevices?.getUserMedia) {
-      console.warn('[VideoService] getUserMedia nie jest dostępne - pomijam mikrofon.')
-      return
-    }
-
-    try {
-      const microphoneStream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-          ...(microphoneDeviceId ? { deviceId: { exact: microphoneDeviceId } } : {})
-        }
-      })
-
-      const sourceAudioTrack = microphoneStream.getAudioTracks()[0]
-      if (!sourceAudioTrack) {
-        microphoneStream.getTracks().forEach((track) => track.stop())
-        return
-      }
-
-      const microphoneTrack = this.buildProcessedAudioTrack(microphoneStream, 'microphone')
-      if (!microphoneTrack) {
-        microphoneStream.getTracks().forEach((track) => track.stop())
-        return
-      }
-
-      microphoneTrack.contentHint = 'speech'
-
-      targetStream.addTrack(microphoneTrack)
-      this.auxiliaryStreams.push(microphoneStream)
-    } catch (e) {
-      console.error('[VideoService] Nie udało się podpiąć mikrofonu:', e)
-    }
-  }
-
+  // --- ZATRZYMYWANIE I CZYSZCZENIE PAMIĘCI ---
   public async stop(): Promise<void> {
     if (!this.isCapturing) return
     this.isCapturing = false
 
-    if (this.stopStream) {
-      this.stopStream()
-      this.stopStream = null
+    if (this.stopNativeCapture) {
+      this.stopNativeCapture()
+      this.stopNativeCapture = null
     }
 
     if (this.trackWriter) {
@@ -265,16 +201,13 @@ class VideoService {
       this.activeStream = null
     }
 
-    if (this.auxiliaryStreams.length > 0) {
-      this.auxiliaryStreams.forEach((stream) => {
-        stream.getTracks().forEach((track) => track.stop())
-      })
-      this.auxiliaryStreams = []
-    }
+    this.allStreamsToCleanUp.forEach((stream) => {
+      stream.getTracks().forEach((track) => track.stop())
+    })
+    this.allStreamsToCleanUp = []
 
-    this.systemGainNode = null
-    this.microphoneGainNode = null
-
+    this.systemVolumeNode = null
+    this.micVolumeNode = null
     if (this.audioContext) {
       this.audioContext.close().catch(() => {})
       this.audioContext = null
@@ -284,7 +217,7 @@ class VideoService {
       const win = window as unknown as WindowWithCapture
       if (win.capture) await win.capture.stop()
     } catch (e) {
-      console.error('[VideoService] Błąd podczas zatrzymywania addona:', e)
+      console.error('Błąd zatrzymywania addona:', e)
     }
   }
 }
