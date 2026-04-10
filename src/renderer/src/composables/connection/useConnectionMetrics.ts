@@ -2,6 +2,8 @@ import { ref, type Ref } from 'vue'
 import { webRtcService } from '@renderer/composables/connection/webRTCService'
 import { P2PMessage } from '@renderer/schemas/p2pProtocol'
 
+type MetricsPayload = Extract<P2PMessage, { type: 'METRICS' }>['payload']
+
 type RtcStatus = 'disconnected' | 'connecting' | 'connected'
 
 type BasicMetrics = {
@@ -19,7 +21,7 @@ type UseConnectionMetricsReturn = {
   reset: () => void
   setLocalPreviewFps: (fps: number | null) => void
   setLocalPreviewQuality: (quality: 'low' | 'medium' | 'high' | null) => void
-  handleIncoming: (msg: P2PMessage, channelLabel: string) => boolean
+  applyRemoteMetrics: (payload: MetricsPayload) => void
 }
 
 const emptyMetrics = (): BasicMetrics => ({
@@ -88,18 +90,13 @@ export const useConnectionMetrics = (rtcStatus: Ref<RtcStatus>): UseConnectionMe
     }, 1000)
   }
 
-  const handleIncoming = (msg: P2PMessage, channelLabel: string): boolean => {
-    if (channelLabel === 'metrics' && msg.type === 'METRICS') {
-      remoteMetrics.value = {
-        fps: msg.payload.fps,
-        qualityPreset: msg.payload.qualityPreset,
-        rttMs: msg.payload.rttMs,
-        cpuLoadPct: msg.payload.cpuLoadPct
-      }
-      return true
+  const applyRemoteMetrics = (payload: MetricsPayload): void => {
+    remoteMetrics.value = {
+      fps: payload.fps,
+      qualityPreset: payload.qualityPreset,
+      rttMs: payload.rttMs,
+      cpuLoadPct: payload.cpuLoadPct
     }
-
-    return false
   }
 
   return {
@@ -110,6 +107,6 @@ export const useConnectionMetrics = (rtcStatus: Ref<RtcStatus>): UseConnectionMe
     reset,
     setLocalPreviewFps,
     setLocalPreviewQuality,
-    handleIncoming
+    applyRemoteMetrics
   }
 }
