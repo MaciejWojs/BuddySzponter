@@ -1,7 +1,7 @@
 // renderer/src/stores/webRtcStore.ts
 
 import { defineStore } from 'pinia'
-import { ref, shallowRef, watch } from 'vue' // Zwróć uwagę na import watch!
+import { ref, shallowRef, watch } from 'vue'
 import { useSocketStore } from './socketStore'
 import {
   guestTrackPolicy,
@@ -13,8 +13,6 @@ import { WsWebRTCOffer, WsWebRTCAnswer, WsWebRTCIceCandidate } from '@shared/sch
 import { ChatChannel } from '@renderer/composables/channels/ChatChannel'
 import { HidChannel } from '@renderer/composables/channels/HidChannel'
 import { SystemEventsChannel } from '@renderer/composables/channels/SystemEventsChannel'
-
-// Importujemy videoService, bo Store będzie nim teraz bezpośrednio sterował głośnością
 import { videoService } from '@renderer/composables/video/videoService'
 
 export const useWebRtcStore = defineStore('webrtc', () => {
@@ -25,6 +23,10 @@ export const useWebRtcStore = defineStore('webrtc', () => {
   const localStream = shallowRef<MediaStream | null>(null)
   const remoteStream = shallowRef<MediaStream | null>(null)
   const localPublishProfile = ref<'host' | 'guest'>('host')
+
+  // --- MAPA TRACKÓW (NOWOŚĆ) ---
+  const remoteMicTrackId = ref<string | null>(null)
+  const remoteSysTrackId = ref<string | null>(null)
 
   // --- audio volume controls ---
   const remoteMicVolume = ref<number>(1)
@@ -43,6 +45,45 @@ export const useWebRtcStore = defineStore('webrtc', () => {
 
   const getCurrentTrackPolicy = (): typeof hostTrackPolicy => {
     return localPublishProfile.value === 'guest' ? guestTrackPolicy : hostTrackPolicy
+  }
+
+  // --- NADANIE MAPY TRACKÓW ---
+  const broadcastTrackMap = (): void => {
+    if (!localStream.value || rtcStatus.value !== 'connected') return
+
+    const audioTracks = localStream.value.getAudioTracks()
+
+    let micTrack = audioTracks.find((t) => t.contentHint === 'speech')
+    let sysTrack = audioTracks.find((t) => t.contentHint === 'music')
+
+    // 🚨 PANCERNY FALLBACK 🚨
+    // Jeśli WebAudio usunęło hinty ze ścieżki, ratujemy się logiką profilu.
+    if (localPublishProfile.value === 'guest') {
+      // Gość ZAWSZE wysyła tylko mikrofon. Zatem jeśli ma jakiś track, to musi być mic.
+      if (!micTrack && audioTracks.length > 0) {
+        micTrack = audioTracks[0]
+      }
+    } else if (localPublishProfile.value === 'host') {
+      // Host ma 2 ścieżki. Jeśli zniknęły hinty, próbujemy odróżnić po właściwościach (Mono vs Stereo)
+      if (!micTrack || !sysTrack) {
+        audioTracks.forEach((t) => {
+          const channels = t.getSettings().channelCount
+          if (channels === 1 && !micTrack) micTrack = t // Mikrofon jest zwykle Mono
+          if (channels === 2 && !sysTrack) sysTrack = t // System jest zwykle Stereo
+        })
+        // Ostateczna ostateczność: bierzemy z kolejności w tablicy
+        if (!micTrack && audioTracks[0]) micTrack = audioTracks[0]
+        if (!sysTrack && audioTracks[1]) sysTrack = audioTracks[1]
+      }
+    }
+
+    const payload = {
+      mic: micTrack?.id || null,
+      sys: sysTrack?.id || null
+    }
+
+    webRtcService.sendData('system-events', JSON.stringify({ type: 'AUDIO_TRACK_MAP', payload }))
+    console.log('[WebRtcStore] Wysłano mapę tracków:', payload)
   }
 
   const handleOffer = async (data: WsWebRTCOffer): Promise<void> => {
@@ -67,7 +108,6 @@ export const useWebRtcStore = defineStore('webrtc', () => {
   }
 
   // --- LISTENERS ---
-
   webRtcService.onIceCandidateGenerated = async (candidate) => {
     await getSocketStore().wsService.sendIceCandidate({ candidate: JSON.stringify(candidate) })
   }
@@ -84,7 +124,14 @@ export const useWebRtcStore = defineStore('webrtc', () => {
           if (msg.type === 'MOUSE_MOVE') hid.handleIncomingMessage(msg.payload)
           break
         case 'system-events':
-          system.handleIncomingMessage(msg)
+          // WYŁAPUJEMY MAPĘ TRACKÓW PARTNERA
+          if (msg.type === 'AUDIO_TRACK_MAP') {
+            remoteMicTrackId.value = msg.payload.mic
+            remoteSysTrackId.value = msg.payload.sys
+            console.log('[WebRtcStore] Odebrano mapę tracków partnera:', msg.payload)
+          } else {
+            system.handleIncomingMessage(msg)
+          }
           break
         case 'metrics':
           if (msg.type === 'METRICS') connectionMetrics.applyRemoteMetrics(msg.payload)
@@ -102,10 +149,10 @@ export const useWebRtcStore = defineStore('webrtc', () => {
   webRtcService.onDataChannelOpened = () => {
     rtcStatus.value = 'connected'
     connectionMetrics.start()
+    broadcastTrackMap() // Wysyłamy mapę, gdy tylko kanał się otworzy
   }
 
   // --- ACTIONS ---
-
   const startConnectionAsHost = async (): Promise<void> => {
     localPublishProfile.value = 'host'
     webRtcService.cleanup()
@@ -127,6 +174,8 @@ export const useWebRtcStore = defineStore('webrtc', () => {
     localPublishProfile.value = 'host'
     connectionMetrics.reset()
 
+    remoteMicTrackId.value = null
+    remoteSysTrackId.value = null
     remoteMicVolume.value = 1
     remoteSystemVolume.value = 1
     localSystemAudioVolume.value = 1
@@ -135,7 +184,6 @@ export const useWebRtcStore = defineStore('webrtc', () => {
 
   const disconnect = async (): Promise<void> => {
     if (rtcStatus.value === 'disconnected') return
-
     system.sendDisconnectEvent()
     forceDisconnect()
   }
@@ -145,6 +193,7 @@ export const useWebRtcStore = defineStore('webrtc', () => {
 
     if (rtcStatus.value !== 'disconnected' && localStream.value) {
       webRtcService.publishLocalStream(localStream.value, getCurrentTrackPolicy())
+      broadcastTrackMap() // Wysyłamy mapę po zmianie profilu
     }
   }
 
@@ -154,6 +203,7 @@ export const useWebRtcStore = defineStore('webrtc', () => {
 
     try {
       webRtcService.publishLocalStream(stream, getCurrentTrackPolicy())
+      broadcastTrackMap()
 
       if (rtcStatus.value === 'connected') {
         const offer = await webRtcService.createOffer()
@@ -174,35 +224,24 @@ export const useWebRtcStore = defineStore('webrtc', () => {
 
   const toggleMicrophone = (isMuted: boolean): void => {
     if (!localStream.value) return
-
     const audioTracks = localStream.value.getAudioTracks()
     const micTrack =
       audioTracks.find((t) => t.contentHint === 'speech') ||
       (audioTracks.length === 1 ? audioTracks[0] : null)
 
-    if (micTrack) {
-      micTrack.enabled = !isMuted
-    }
+    if (micTrack) micTrack.enabled = !isMuted
   }
 
   const toggleSystemAudio = (isMuted: boolean): void => {
     if (!localStream.value) return
-
     const sysTrack = localStream.value.getAudioTracks().find((t) => t.contentHint === 'music')
-
-    if (sysTrack) {
-      sysTrack.enabled = !isMuted
-    }
+    if (sysTrack) sysTrack.enabled = !isMuted
   }
 
   const toggleScreenVideo = (isHidden: boolean): void => {
     if (!localStream.value) return
-
     const videoTrack = localStream.value.getVideoTracks()[0]
-
-    if (videoTrack) {
-      videoTrack.enabled = !isHidden
-    }
+    if (videoTrack) videoTrack.enabled = !isHidden
   }
 
   return {
@@ -210,6 +249,9 @@ export const useWebRtcStore = defineStore('webrtc', () => {
     localStream,
     remoteStream,
     localPublishProfile,
+
+    remoteMicTrackId,
+    remoteSysTrackId,
 
     remoteMicVolume,
     remoteSystemVolume,

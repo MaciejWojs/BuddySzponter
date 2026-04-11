@@ -132,21 +132,19 @@ export class WebRTCService {
   public publishLocalStream(stream: MediaStream, policy: LocalTrackPolicy = hostTrackPolicy): void {
     if (!this.peerConnection) throw new Error('Brak PeerConnection!')
 
-    this.clearLocalSenders()
+    const currentSenders = this.peerConnection.getSenders()
 
     stream.getTracks().forEach((track) => {
       if (!this.shouldPublishTrack(track, policy)) {
         return
       }
 
-      // FIX: Używamy addTransceiver, by dać WebRTC więcej informacji o ścieżce
-      const transceiver = this.peerConnection?.addTransceiver(track, {
-        direction: 'sendonly',
-        streams: [stream]
-      })
+      const isAlreadySending = currentSenders.some(
+        (sender) => sender.track && sender.track.id === track.id
+      )
 
-      if (transceiver && transceiver.sender) {
-        this.localSenders.push(transceiver.sender)
+      if (!isAlreadySending) {
+        this.peerConnection?.addTrack(track, stream)
       }
     })
   }
