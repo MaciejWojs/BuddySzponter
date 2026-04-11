@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { ref, shallowRef, watch, watchEffect, onMounted, onUnmounted } from 'vue'
+import { ref, shallowRef, watchEffect, onMounted, onUnmounted } from 'vue'
 import { useWebRtcStore } from '@renderer/stores/webRtcStore'
-import { useConnectionStore } from '@renderer/stores/connectionStore' // Dodany import
+import { useConnectionStore } from '@renderer/stores/connectionStore'
 
 const webRtcStore = useWebRtcStore()
-const connectionStore = useConnectionStore() // Dodany store
+const connectionStore = useConnectionStore()
 
 const micAudioRef = ref<HTMLAudioElement | null>(null)
 const sysAudioRef = ref<HTMLAudioElement | null>(null)
@@ -12,91 +12,69 @@ const sysAudioRef = ref<HTMLAudioElement | null>(null)
 const micStream = shallowRef<MediaStream | null>(null)
 const sysStream = shallowRef<MediaStream | null>(null)
 
-watch(
-  () => [webRtcStore.remoteStream, webRtcStore.remoteMicTrackId, webRtcStore.remoteSysTrackId],
-  ([stream, micId, sysId]) => {
-    if (!stream) {
-      micStream.value = null
-      sysStream.value = null
-      return
-    }
-
-    const audioTracks = (stream as MediaStream).getAudioTracks()
-
-    let micTrack = audioTracks.find((t) => t.id === micId)
-    let sysTrack = audioTracks.find((t) => t.id === sysId)
-
-    // 🚨 DRUGA LINIA OBRONY 🚨
-    // Jeśli z jakiegoś powodu ID nie zadziałało, ale jesteśmy Hostem i przyszedł 1 track -> to na 100% mikrofon Gościa.
-    if (connectionStore.isHost && !micTrack && audioTracks.length === 1) {
-      micTrack = audioTracks[0]
-      console.warn(
-        '[RemoteAudioPlayer] Fallback ID: Wymuszono przypisanie jedynej ścieżki do mikrofonu Gościa.'
-      )
-    }
-
-    // Przypisanie do streamów dla Audio Node
-    if (micTrack && (!micStream.value || micStream.value.getAudioTracks()[0]?.id !== micTrack.id)) {
-      micStream.value = new MediaStream([micTrack])
-    } else if (!micTrack) {
-      micStream.value = null
-    }
-
-    if (sysTrack && (!sysStream.value || sysStream.value.getAudioTracks()[0]?.id !== sysTrack.id)) {
-      sysStream.value = new MediaStream([sysTrack])
-    } else if (!sysTrack) {
-      sysStream.value = null
-    }
-  },
-  { immediate: true, deep: true }
-)
-
 const attemptPlay = async (audioEl: HTMLAudioElement | null): Promise<void> => {
   if (audioEl && audioEl.paused && audioEl.srcObject) {
     try {
       await audioEl.play()
     } catch (e) {
-      console.warn('Autoplay zablokowany, czekam na interakcję strony.', e)
+      console.warn('[RemoteAudioPlayer] Autoplay zablokowany, czekam na interakcję.', e)
     }
   }
 }
 
 watchEffect(() => {
-  const audioEl = micAudioRef.value
-  const stream = micStream.value
-  const volume = webRtcStore.remoteMicVolume
+  const stream = webRtcStore.remoteStream
 
-  if (!audioEl) return
-
-  if (audioEl.srcObject !== stream) {
-    audioEl.srcObject = stream as MediaStream | null
-    attemptPlay(audioEl)
+  if (!stream) {
+    micStream.value = null
+    sysStream.value = null
+    if (micAudioRef.value) micAudioRef.value.srcObject = null
+    if (sysAudioRef.value) sysAudioRef.value.srcObject = null
+    return
   }
 
-  const vol = Math.max(0, Math.min(1, volume))
-  audioEl.volume = vol
-  audioEl.muted = vol <= 0
+  const audioTracks = stream.getAudioTracks()
 
-  if (vol > 0) attemptPlay(audioEl)
-})
+  // Odtwarzacz czyta role nadane przez warstwę WebRTC.
+  const micTrack =
+    audioTracks.find((track) => webRtcStore.getRemoteTrackRole(track.id) === 'speech') ??
+    audioTracks.find((track) => track.contentHint === 'speech') ??
+    (connectionStore.isHost && audioTracks.length === 1 ? audioTracks[0] : null)
 
-watchEffect(() => {
-  const audioEl = sysAudioRef.value
-  const stream = sysStream.value
-  const volume = webRtcStore.remoteSystemVolume
+  const sysTrack =
+    audioTracks.find((track) => webRtcStore.getRemoteTrackRole(track.id) === 'music') ??
+    audioTracks.find((track) => track.contentHint === 'music') ??
+    null
 
-  if (!audioEl) return
-
-  if (audioEl.srcObject !== stream) {
-    audioEl.srcObject = stream as MediaStream | null
-    attemptPlay(audioEl)
+  if (micTrack) {
+    if (!micStream.value || micStream.value.getAudioTracks()[0]?.id !== micTrack.id) {
+      micStream.value = new MediaStream([micTrack])
+    }
+  } else {
+    micStream.value = null
   }
 
-  const vol = Math.max(0, Math.min(1, volume))
-  audioEl.volume = vol
-  audioEl.muted = vol <= 0
+  if (sysTrack) {
+    if (!sysStream.value || sysStream.value.getAudioTracks()[0]?.id !== sysTrack.id) {
+      sysStream.value = new MediaStream([sysTrack])
+    }
+  } else {
+    sysStream.value = null
+  }
 
-  if (vol > 0) attemptPlay(audioEl)
+  if (micAudioRef.value) {
+    micAudioRef.value.srcObject = micStream.value
+    micAudioRef.value.volume = Math.max(0, Math.min(1, webRtcStore.remoteMicVolume))
+    micAudioRef.value.muted = micAudioRef.value.volume <= 0
+    if (micStream.value) attemptPlay(micAudioRef.value)
+  }
+
+  if (sysAudioRef.value) {
+    sysAudioRef.value.srcObject = sysStream.value
+    sysAudioRef.value.volume = Math.max(0, Math.min(1, webRtcStore.remoteSystemVolume))
+    sysAudioRef.value.muted = sysAudioRef.value.volume <= 0
+    if (sysStream.value) attemptPlay(sysAudioRef.value)
+  }
 })
 
 const handleInteraction = (): void => {
@@ -114,16 +92,8 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <audio
-    ref="micAudioRef"
-    autoplay
-    playsinline
-    class="opacity-0 pointer-events-none absolute w-0 h-0"
-  ></audio>
-  <audio
-    ref="sysAudioRef"
-    autoplay
-    playsinline
-    class="opacity-0 pointer-events-none absolute w-0 h-0"
-  ></audio>
+  <div class="hidden" aria-hidden="true">
+    <audio ref="micAudioRef" autoplay playsinline></audio>
+    <audio ref="sysAudioRef" autoplay playsinline></audio>
+  </div>
 </template>

@@ -5,26 +5,23 @@ export type ConnectionMetrics = {
   cpuLoadPct: number | null
   timestamp: number
 }
-
 export type LocalTrackPolicy = {
   allowVideo: boolean
   allowSystemAudio: boolean
   allowMicrophoneAudio: boolean
-  allowUnclassifiedAudio: boolean
 }
+
+export type RemoteTrackRole = 'speech' | 'music' | 'unknown'
 
 export const hostTrackPolicy: LocalTrackPolicy = {
   allowVideo: true,
   allowSystemAudio: true,
-  allowMicrophoneAudio: true,
-  allowUnclassifiedAudio: true
+  allowMicrophoneAudio: true
 }
-
 export const guestTrackPolicy: LocalTrackPolicy = {
   allowVideo: false,
   allowSystemAudio: false,
-  allowMicrophoneAudio: true,
-  allowUnclassifiedAudio: true
+  allowMicrophoneAudio: true
 }
 
 export class WebRTCService {
@@ -43,167 +40,132 @@ export class WebRTCService {
   public onRemoteStreamReceived?: (stream: MediaStream) => void
 
   private isIntentionallyClosing = false
+  private isHost = false
   private iceCandidateQueue: RTCIceCandidateInit[] = []
-  private localSenders: RTCRtpSender[] = []
   private remoteStream: MediaStream = new MediaStream()
+  private remoteTrackRoleByTrackId = new Map<string, RemoteTrackRole>()
+  private localSenders: RTCRtpSender[] = []
 
-  constructor() {
-    //
-  }
+  // SZTYWNE RURY (Transceivery)
 
-  public initialize(): void {
+  public initialize(isHost: boolean): void {
     this.isIntentionallyClosing = false
+    this.isHost = isHost
     this.iceCandidateQueue = []
-    this.remoteStream = new MediaStream() // Inicjalizacja pustego strumienia odbiorczego
+    this.remoteStream = new MediaStream()
+    this.remoteTrackRoleByTrackId.clear()
+    this.localSenders = []
 
-    const isRemote = import.meta.env.VITE_WEBRTC_REMOTE === 'true'
-    const server = import.meta.env.VITE_ICE_SERVER
-    const serverUser = import.meta.env.VITE_ICE_SERVER_USER || 'user'
-    const serverPass = import.meta.env.VITE_ICE_SERVER_PASS || '1234'
+    this.peerConnection = new RTCPeerConnection({
+      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+    })
 
-    const config: RTCConfiguration = { iceServers: [] }
-
-    if (isRemote && server) {
-      config.iceServers = [
-        { urls: `stun:${server}:3478` },
-        { urls: `turn:${server}:3478`, username: serverUser, credential: serverPass },
-        { urls: `turns:${server}:443`, username: serverUser, credential: serverPass },
-        { urls: `turns:${server}:5349`, username: serverUser, credential: serverPass }
-      ]
-    } else {
-      config.iceServers = [{ urls: 'stun:stun.l.google.com:19302' }]
+    if (isHost) {
+      this.peerConnection.addTransceiver('video', { direction: 'sendrecv' }) // Rura 0
+      this.peerConnection.addTransceiver('audio', { direction: 'sendrecv' }) // Rura 1
+      this.peerConnection.addTransceiver('audio', { direction: 'sendrecv' }) // Rura 2
     }
 
-    this.peerConnection = new RTCPeerConnection(config)
-
-    this.peerConnection.onicecandidate = (event) => {
-      if (event.candidate && this.onIceCandidateGenerated) {
-        this.onIceCandidateGenerated(event.candidate)
-      }
+    this.peerConnection.onicecandidate = (e): void => {
+      if (e.candidate && this.onIceCandidateGenerated) this.onIceCandidateGenerated(e.candidate)
     }
 
-    this.peerConnection.ondatachannel = (event) => {
-      console.log(`[WebRTCService] Gość odebrał DataChannel: ${event.channel.label}`)
-      this.setupChannel(event.channel)
-    }
+    this.peerConnection.ondatachannel = (e): void => this.setupChannel(e.channel)
 
-    this.peerConnection.ontrack = (event) => {
-      console.log(`[WebRTCService] Otrzymano ścieżkę typu: ${event.track.kind}`)
+    this.peerConnection.ontrack = (event): void => {
+      const transceivers = this.peerConnection!.getTransceivers()
+      const role: RemoteTrackRole =
+        event.transceiver === transceivers[1]
+          ? 'speech'
+          : event.transceiver === transceivers[2]
+            ? 'music'
+            : 'unknown'
 
-      if (event.track.kind === 'audio' && !event.track.contentHint) {
-        const audioTracksSoFar = this.remoteStream.getAudioTracks()
-        if (audioTracksSoFar.length === 0) {
-          event.track.contentHint = 'speech'
-        } else if (audioTracksSoFar.length === 1) {
-          event.track.contentHint = 'music'
-        }
-      }
+      // Rozpoznajemy track po numerze rury
+      if (event.transceiver === transceivers[1]) event.track.contentHint = 'speech'
+      if (event.transceiver === transceivers[2]) event.track.contentHint = 'music'
 
-      const trackExists = this.remoteStream.getTracks().some((t) => t.id === event.track.id)
-      if (!trackExists) {
+      this.remoteTrackRoleByTrackId.set(event.track.id, role)
+
+      if (!this.remoteStream.getTracks().find((t) => t.id === event.track.id)) {
         this.remoteStream.addTrack(event.track)
       }
 
-      const newReactiveStream = new MediaStream(this.remoteStream.getTracks())
-      this.remoteStream = newReactiveStream
-
       if (this.onRemoteStreamReceived) {
-        this.onRemoteStreamReceived(this.remoteStream)
+        this.onRemoteStreamReceived(new MediaStream(this.remoteStream.getTracks()))
       }
     }
 
-    this.peerConnection.onconnectionstatechange = () => {
+    this.peerConnection.onconnectionstatechange = (): void => {
       const state = this.peerConnection?.connectionState
-      if (state === 'failed' && !this.isIntentionallyClosing) {
-        if (this.onConnectionFailed) this.onConnectionFailed()
-      } else if (state === 'closed') {
-        if (this.onConnectionClosed) this.onConnectionClosed()
-      }
-    }
-
-    this.peerConnection.oniceconnectionstatechange = () => {
-      const iceState = this.peerConnection?.iceConnectionState
-      if ((iceState === 'disconnected' || iceState === 'failed') && !this.isIntentionallyClosing) {
-        if (this.onConnectionFailed) this.onConnectionFailed()
-      }
+      if (state === 'failed' && !this.isIntentionallyClosing) this.onConnectionFailed?.()
+      else if (state === 'closed') this.onConnectionClosed?.()
     }
   }
 
-  public publishLocalStream(stream: MediaStream, policy: LocalTrackPolicy = hostTrackPolicy): void {
-    if (!this.peerConnection) throw new Error('Brak PeerConnection!')
+  public publishLocalStream(stream: MediaStream, policy: LocalTrackPolicy): void {
+    if (!this.peerConnection) return
 
-    const currentSenders = this.peerConnection.getSenders()
+    const audioTracks = stream.getAudioTracks()
+    const videoTrack = policy.allowVideo ? stream.getVideoTracks()[0] || null : null
+    const micTrack = policy.allowMicrophoneAudio
+      ? audioTracks.find((t) => t.contentHint === 'speech') || audioTracks[0] || null
+      : null
+    const sysTrack = policy.allowSystemAudio
+      ? audioTracks.find((t) => t.contentHint === 'music') || audioTracks[1] || null
+      : null
 
-    stream.getTracks().forEach((track) => {
-      if (!this.shouldPublishTrack(track, policy)) {
-        return
+    if (!this.isHost) {
+      this.clearLocalSenders()
+
+      if (videoTrack) {
+        this.localSenders.push(
+          this.peerConnection.addTrack(videoTrack, new MediaStream([videoTrack]))
+        )
       }
 
-      const isAlreadySending = currentSenders.some(
-        (sender) => sender.track && sender.track.id === track.id
-      )
-
-      if (!isAlreadySending) {
-        this.peerConnection?.addTrack(track, stream)
+      if (micTrack) {
+        this.localSenders.push(this.peerConnection.addTrack(micTrack, new MediaStream([micTrack])))
       }
-    })
+
+      if (sysTrack) {
+        this.localSenders.push(this.peerConnection.addTrack(sysTrack, new MediaStream([sysTrack])))
+      }
+
+      return
+    }
+
+    const tcs = this.peerConnection.getTransceivers()
+
+    // Wrzucamy tracki do odpowiednich rur. Jeśli nie ma tracka, rura wysyła ciszę/czarny ekran (lub nic)
+    if (tcs[0]) tcs[0].sender.replaceTrack(videoTrack).catch(console.error)
+    if (tcs[1]) tcs[1].sender.replaceTrack(micTrack).catch(console.error)
+    if (tcs[2]) tcs[2].sender.replaceTrack(sysTrack).catch(console.error)
   }
 
   private clearLocalSenders(): void {
-    if (!this.peerConnection || this.localSenders.length === 0) return
+    if (!this.peerConnection) return
 
-    this.localSenders.forEach((sender) => {
-      try {
-        if (this.peerConnection) {
-          this.peerConnection.removeTrack(sender)
-        }
-      } catch (e) {
-        console.warn('[WebRTCService] Nie udało się usunąć sendera:', e)
+    // Profesjonalne "wyczyszczenie" rur bez ich niszczenia i wywoływania błędu "InvalidStateError"
+    this.peerConnection.getSenders().forEach((sender) => {
+      if (sender.track) {
+        sender
+          .replaceTrack(null)
+          .catch((e) => console.warn('[WebRTCService] Błąd replaceTrack(null):', e))
       }
     })
 
+    // Tylko gość u Ciebie przechowuje localSenders przy "addTrack" (fallback), więc go czyścimy
     this.localSenders = []
-
-    // FIX: Wyłączanie nieaktywnych transceiverów
-    this.peerConnection.getTransceivers().forEach((t) => {
-      if (t.direction === 'sendonly' || t.direction === 'sendrecv') {
-        t.direction = 'inactive'
-      }
-    })
-  }
-
-  private shouldPublishTrack(track: MediaStreamTrack, policy: LocalTrackPolicy): boolean {
-    if (track.kind === 'video') {
-      return policy.allowVideo
-    }
-
-    if (track.kind !== 'audio') {
-      return false
-    }
-
-    const hint = track.contentHint
-    if (hint === 'music') return policy.allowSystemAudio
-    if (hint === 'speech') return policy.allowMicrophoneAudio
-
-    return policy.allowUnclassifiedAudio
   }
 
   private setupChannel(channel: RTCDataChannel): void {
-    channel.onopen = () => {
-      console.log(`[WebRTCService] Kanał OTWARTY: ${channel.label}`)
-      if (channel.label === 'system-events' && this.onDataChannelOpened) {
-        this.onDataChannelOpened()
-      }
+    channel.onopen = (): void => {
+      if (channel.label === 'system-events' && this.onDataChannelOpened) this.onDataChannelOpened()
     }
-
-    channel.onmessage = (event) => {
-      if (this.onMessageReceived) this.onMessageReceived(event.data, channel.label)
+    channel.onmessage = (e): void => {
+      if (this.onMessageReceived) this.onMessageReceived(e.data, channel.label)
     }
-
-    channel.onclose = () => {
-      console.log(`[WebRTCService] Kanał ZAMKNIĘTY: ${channel.label}`)
-    }
-
     if (channel.label === 'chat-channel') this.chatChannel = channel
     else if (channel.label === 'hid-control') this.hidControlChannel = channel
     else if (channel.label === 'system-events') this.systemEventsChannel = channel
@@ -211,34 +173,59 @@ export class WebRTCService {
   }
 
   public async createOffer(): Promise<RTCSessionDescriptionInit> {
-    if (!this.peerConnection) throw new Error('Brak PeerConnection')
-
     if (!this.systemEventsChannel) {
-      const hidControlChannel = this.peerConnection.createDataChannel('hid-control', {
-        ordered: true,
-        maxRetransmits: 0
-      })
-      this.setupChannel(hidControlChannel)
-
-      const systemEventsChannel = this.peerConnection.createDataChannel('system-events', {
-        ordered: true
-      })
-      this.setupChannel(systemEventsChannel)
-
-      const chatChannel = this.peerConnection.createDataChannel('chat-channel', { ordered: true })
-      this.setupChannel(chatChannel)
-
-      const metricsChannel = this.peerConnection.createDataChannel('metrics', {
-        ordered: false
-      })
-      this.setupChannel(metricsChannel)
+      this.setupChannel(
+        this.peerConnection!.createDataChannel('hid-control', { ordered: true, maxRetransmits: 0 })
+      )
+      this.setupChannel(this.peerConnection!.createDataChannel('system-events', { ordered: true }))
+      this.setupChannel(this.peerConnection!.createDataChannel('chat-channel', { ordered: true }))
+      this.setupChannel(this.peerConnection!.createDataChannel('metrics', { ordered: false }))
     }
-
-    const offer = await this.peerConnection.createOffer()
-    await this.peerConnection.setLocalDescription(offer)
+    const offer = await this.peerConnection!.createOffer()
+    await this.peerConnection!.setLocalDescription(offer)
     return offer
   }
 
+  public async handleOfferAndCreateAnswer(
+    offer: RTCSessionDescriptionInit,
+    localStream: MediaStream | null,
+    policy: LocalTrackPolicy
+  ): Promise<RTCSessionDescriptionInit> {
+    await this.peerConnection!.setRemoteDescription(new RTCSessionDescription(offer))
+
+    if (localStream) this.publishLocalStream(localStream, policy)
+
+    await this.flushIceQueue()
+    const answer = await this.peerConnection!.createAnswer()
+    await this.peerConnection!.setLocalDescription(answer)
+    return answer
+  }
+
+  public async handleAnswer(answer: RTCSessionDescriptionInit): Promise<void> {
+    await this.peerConnection!.setRemoteDescription(new RTCSessionDescription(answer))
+    await this.flushIceQueue()
+  }
+
+  public async addIceCandidate(candidate: RTCIceCandidateInit): Promise<void> {
+    if (!this.peerConnection?.remoteDescription) {
+      this.iceCandidateQueue.push(candidate)
+      return
+    }
+    await this.peerConnection.addIceCandidate(new RTCIceCandidate(candidate))
+  }
+
+  private async flushIceQueue(): Promise<void> {
+    while (this.iceCandidateQueue.length > 0) {
+      const cand = this.iceCandidateQueue.shift()
+      if (cand) await this.peerConnection?.addIceCandidate(new RTCIceCandidate(cand))
+    }
+  }
+
+  public getRemoteTrackRole(trackId: string): RemoteTrackRole | null {
+    return this.remoteTrackRoleByTrackId.get(trackId) ?? null
+  }
+
+  // --- BRAKUJĄCE METODY PRZYWRÓCONE ---
   public sendData(channelLabel: DataChannelLabel, message: string): void {
     let channel: RTCDataChannel | null = null
     if (channelLabel === 'chat-channel') channel = this.chatChannel
@@ -252,22 +239,13 @@ export class WebRTCService {
   }
 
   public async collectLocalMetrics(): Promise<ConnectionMetrics> {
-    const metrics: ConnectionMetrics = {
-      rttMs: null,
-      cpuLoadPct: null,
-      timestamp: Date.now()
-    }
-
-    if (!this.peerConnection) {
-      return metrics
-    }
+    const metrics: ConnectionMetrics = { rttMs: null, cpuLoadPct: null, timestamp: Date.now() }
+    if (!this.peerConnection) return metrics
 
     try {
       const stats = await this.peerConnection.getStats()
-
       for (const report of stats.values()) {
         if (report.type !== 'candidate-pair') continue
-
         const candidatePair = report as RTCIceCandidatePairStats
         if (
           candidatePair.state === 'succeeded' &&
@@ -277,7 +255,6 @@ export class WebRTCService {
           break
         }
       }
-
       const probeStart = performance.now()
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
       const lagMs = performance.now() - probeStart
@@ -285,76 +262,20 @@ export class WebRTCService {
     } catch (e) {
       console.error('[WebRTCService] Błąd zbierania metrics:', e)
     }
-
     return metrics
-  }
-
-  public async handleOfferAndCreateAnswer(
-    offer: RTCSessionDescriptionInit
-  ): Promise<RTCSessionDescriptionInit> {
-    if (!this.peerConnection) throw new Error('Brak PeerConnection')
-    await this.peerConnection.setRemoteDescription(new RTCSessionDescription(offer))
-    await this.flushIceQueue()
-    const answer = await this.peerConnection.createAnswer()
-    await this.peerConnection.setLocalDescription(answer)
-    return answer
-  }
-
-  public async handleAnswer(answer: RTCSessionDescriptionInit): Promise<void> {
-    if (!this.peerConnection) throw new Error('Brak PeerConnection')
-    await this.peerConnection.setRemoteDescription(new RTCSessionDescription(answer))
-    await this.flushIceQueue()
-  }
-
-  public async addIceCandidate(candidate: RTCIceCandidateInit): Promise<void> {
-    if (!this.peerConnection) return
-    if (!this.peerConnection.remoteDescription) {
-      console.log('[WebRTCService] Zbyt wczesny kandydat ICE. Dodaję do kolejki...')
-      this.iceCandidateQueue.push(candidate)
-      return
-    }
-
-    try {
-      await this.peerConnection.addIceCandidate(new RTCIceCandidate(candidate))
-    } catch (e) {
-      console.error('[WebRTCService] Błąd podczas dodawania kandydata ICE:', e)
-    }
-  }
-
-  private async flushIceQueue(): Promise<void> {
-    if (!this.peerConnection || !this.peerConnection.remoteDescription) return
-
-    while (this.iceCandidateQueue.length > 0) {
-      const candidate = this.iceCandidateQueue.shift()
-      if (candidate) {
-        try {
-          await this.peerConnection.addIceCandidate(new RTCIceCandidate(candidate))
-        } catch (e) {
-          console.error('[WebRTCService] Błąd podczas przetwarzania kolejki ICE:', e)
-        }
-      }
-    }
   }
 
   public cleanup(): void {
     this.isIntentionallyClosing = true
-
+    this.peerConnection?.close()
+    this.peerConnection = null
+    this.chatChannel = null
+    this.hidControlChannel = null
+    this.systemEventsChannel = null
+    this.metricsChannel = null
+    this.remoteStream.getTracks().forEach((t) => t.stop())
+    this.remoteTrackRoleByTrackId.clear()
     this.clearLocalSenders()
-
-    if (this.peerConnection) {
-      this.peerConnection.close()
-      this.peerConnection = null
-      this.chatChannel = null
-      this.hidControlChannel = null
-      this.systemEventsChannel = null
-      this.metricsChannel = null
-    }
-
-    if (this.onConnectionClosed) this.onConnectionClosed()
-
-    // Zwalnianie strumienia odbiorczego z pamięci
-    this.remoteStream.getTracks().forEach((track) => this.remoteStream.removeTrack(track))
   }
 }
-
 export const webRtcService = new WebRTCService()

@@ -1,5 +1,4 @@
 // renderer/src/stores/webRtcStore.ts
-
 import { defineStore } from 'pinia'
 import { ref, shallowRef, watch } from 'vue'
 import { useSocketStore } from './socketStore'
@@ -19,167 +18,116 @@ export const useWebRtcStore = defineStore('webrtc', () => {
   const getSocketStore = (): ReturnType<typeof useSocketStore> => useSocketStore()
 
   const rtcStatus = ref<'disconnected' | 'connecting' | 'connected'>('disconnected')
-
   const localStream = shallowRef<MediaStream | null>(null)
   const remoteStream = shallowRef<MediaStream | null>(null)
   const localPublishProfile = ref<'host' | 'guest'>('host')
 
-  // --- MAPA TRACKÓW (NOWOŚĆ) ---
-  const remoteMicTrackId = ref<string | null>(null)
-  const remoteSysTrackId = ref<string | null>(null)
-
-  // --- audio volume controls ---
+  // Kontrolki głośności
   const remoteMicVolume = ref<number>(1)
   const remoteSystemVolume = ref<number>(1)
-
   const localSystemAudioVolume = ref<number>(1)
   const localMicrophoneVolume = ref<number>(1)
 
-  watch(localSystemAudioVolume, (val) => videoService.setSystemAudioVolume(val))
-  watch(localMicrophoneVolume, (val) => videoService.setMicrophoneVolume(val))
+  watch(localSystemAudioVolume, (val): void => videoService.setSystemAudioVolume(val))
+  watch(localMicrophoneVolume, (val): void => videoService.setMicrophoneVolume(val))
 
   const connectionMetrics = useConnectionMetrics(rtcStatus)
   const chat = ChatChannel()
   const hid = HidChannel()
-  const system = SystemEventsChannel(() => forceDisconnect())
+  const system = SystemEventsChannel((): void => forceDisconnect())
 
   const getCurrentTrackPolicy = (): typeof hostTrackPolicy => {
     return localPublishProfile.value === 'guest' ? guestTrackPolicy : hostTrackPolicy
   }
 
-  // --- NADANIE MAPY TRACKÓW ---
-  const broadcastTrackMap = (): void => {
-    if (!localStream.value || rtcStatus.value !== 'connected') return
+  // --- OBSŁUGA POŁĄCZENIA ---
 
-    const audioTracks = localStream.value.getAudioTracks()
-
-    let micTrack = audioTracks.find((t) => t.contentHint === 'speech')
-    let sysTrack = audioTracks.find((t) => t.contentHint === 'music')
-
-    // 🚨 PANCERNY FALLBACK 🚨
-    // Jeśli WebAudio usunęło hinty ze ścieżki, ratujemy się logiką profilu.
-    if (localPublishProfile.value === 'guest') {
-      // Gość ZAWSZE wysyła tylko mikrofon. Zatem jeśli ma jakiś track, to musi być mic.
-      if (!micTrack && audioTracks.length > 0) {
-        micTrack = audioTracks[0]
-      }
-    } else if (localPublishProfile.value === 'host') {
-      // Host ma 2 ścieżki. Jeśli zniknęły hinty, próbujemy odróżnić po właściwościach (Mono vs Stereo)
-      if (!micTrack || !sysTrack) {
-        audioTracks.forEach((t) => {
-          const channels = t.getSettings().channelCount
-          if (channels === 1 && !micTrack) micTrack = t // Mikrofon jest zwykle Mono
-          if (channels === 2 && !sysTrack) sysTrack = t // System jest zwykle Stereo
-        })
-        // Ostateczna ostateczność: bierzemy z kolejności w tablicy
-        if (!micTrack && audioTracks[0]) micTrack = audioTracks[0]
-        if (!sysTrack && audioTracks[1]) sysTrack = audioTracks[1]
-      }
-    }
-
-    const payload = {
-      mic: micTrack?.id || null,
-      sys: sysTrack?.id || null
-    }
-
-    webRtcService.sendData('system-events', JSON.stringify({ type: 'AUDIO_TRACK_MAP', payload }))
-    console.log('[WebRtcStore] Wysłano mapę tracków:', payload)
-  }
-
-  const handleOffer = async (data: WsWebRTCOffer): Promise<void> => {
-    webRtcService.initialize()
-    rtcStatus.value = 'connecting'
+  const startConnectionAsHost = async (): Promise<void> => {
+    localPublishProfile.value = 'host'
+    webRtcService.cleanup()
+    webRtcService.initialize(true)
     if (localStream.value)
       webRtcService.publishLocalStream(localStream.value, getCurrentTrackPolicy())
 
+    rtcStatus.value = 'connecting'
+    const offer = await webRtcService.createOffer()
+    await getSocketStore().wsService.sendOffer({ sdp: JSON.stringify(offer) })
+  }
+
+  const handleOffer = async (data: WsWebRTCOffer): Promise<void> => {
+    webRtcService.cleanup()
+    webRtcService.initialize(false)
+    rtcStatus.value = 'connecting'
+
     const offer = JSON.parse(data.sdp)
-    const answer = await webRtcService.handleOfferAndCreateAnswer(offer)
+    const answer = await webRtcService.handleOfferAndCreateAnswer(
+      offer,
+      localStream.value,
+      getCurrentTrackPolicy()
+    )
     await getSocketStore().wsService.sendAnswer({ sdp: JSON.stringify(answer) })
   }
 
   const handleAnswer = async (data: WsWebRTCAnswer): Promise<void> => {
-    const answer = JSON.parse(data.sdp)
-    await webRtcService.handleAnswer(answer)
+    await webRtcService.handleAnswer(JSON.parse(data.sdp))
   }
 
   const handleCandidate = async (data: WsWebRTCIceCandidate): Promise<void> => {
-    const candidate = JSON.parse(data.candidate)
-    await webRtcService.addIceCandidate(candidate)
+    await webRtcService.addIceCandidate(JSON.parse(data.candidate))
+  }
+
+  const publishLocalStream = async (stream: MediaStream): Promise<void> => {
+    localStream.value = stream
+    if (rtcStatus.value === 'disconnected') return
+
+    // Nie musimy robić re-negocjacji! Transceivery są stałe.
+    webRtcService.publishLocalStream(stream, getCurrentTrackPolicy())
   }
 
   // --- LISTENERS ---
-  webRtcService.onIceCandidateGenerated = async (candidate) => {
+
+  webRtcService.onIceCandidateGenerated = async (candidate): Promise<void> => {
     await getSocketStore().wsService.sendIceCandidate({ candidate: JSON.stringify(candidate) })
   }
 
-  webRtcService.onMessageReceived = (data: string, channelLabel: string) => {
+  webRtcService.onMessageReceived = (data: string, channelLabel: string): void => {
     try {
       const msg = JSON.parse(data)
-
-      switch (channelLabel) {
-        case 'chat-channel':
-          if (msg.type === 'CHAT') chat.handleIncomingMessage(msg.payload)
-          break
-        case 'hid-control':
-          if (msg.type === 'MOUSE_MOVE') hid.handleIncomingMessage(msg.payload)
-          break
-        case 'system-events':
-          // WYŁAPUJEMY MAPĘ TRACKÓW PARTNERA
-          if (msg.type === 'AUDIO_TRACK_MAP') {
-            remoteMicTrackId.value = msg.payload.mic
-            remoteSysTrackId.value = msg.payload.sys
-            console.log('[WebRtcStore] Odebrano mapę tracków partnera:', msg.payload)
-          } else {
-            system.handleIncomingMessage(msg)
-          }
-          break
-        case 'metrics':
-          if (msg.type === 'METRICS') connectionMetrics.applyRemoteMetrics(msg.payload)
-          break
-      }
+      if (channelLabel === 'chat-channel' && msg.type === 'CHAT')
+        chat.handleIncomingMessage(msg.payload)
+      if (channelLabel === 'hid-control' && msg.type === 'MOUSE_MOVE')
+        hid.handleIncomingMessage(msg.payload)
+      if (channelLabel === 'system-events') system.handleIncomingMessage(msg)
+      if (channelLabel === 'metrics' && msg.type === 'METRICS')
+        connectionMetrics.applyRemoteMetrics(msg.payload)
     } catch (e) {
-      console.error('[WebRtcStore] Błąd parsowania P2P:', e)
+      console.error('[WebRtcStore] Error:', e)
     }
   }
 
-  webRtcService.onRemoteStreamReceived = (stream) => {
+  webRtcService.onRemoteStreamReceived = (stream): void => {
     remoteStream.value = stream
   }
 
-  webRtcService.onDataChannelOpened = () => {
+  webRtcService.onDataChannelOpened = (): void => {
     rtcStatus.value = 'connected'
     connectionMetrics.start()
-    broadcastTrackMap() // Wysyłamy mapę, gdy tylko kanał się otworzy
   }
 
-  // --- ACTIONS ---
-  const startConnectionAsHost = async (): Promise<void> => {
-    localPublishProfile.value = 'host'
-    webRtcService.cleanup()
-    webRtcService.initialize()
-    if (localStream.value)
-      webRtcService.publishLocalStream(localStream.value, getCurrentTrackPolicy())
-    rtcStatus.value = 'connecting'
-
-    const offer = await webRtcService.createOffer()
-    await getSocketStore().wsService.sendOffer({ sdp: JSON.stringify(offer) })
-  }
+  // --- UTILS ---
 
   const forceDisconnect = (): void => {
     connectionMetrics.stop()
     rtcStatus.value = 'disconnected'
     webRtcService.cleanup()
     remoteStream.value = null
-    hid.remoteMouse.value = { x: 0, y: 0 }
     localPublishProfile.value = 'host'
-    connectionMetrics.reset()
 
-    remoteMicTrackId.value = null
-    remoteSysTrackId.value = null
-    remoteMicVolume.value = 1
-    remoteSystemVolume.value = 1
-    localSystemAudioVolume.value = 1
-    localMicrophoneVolume.value = 1
+    // Zatrzymanie strumienia sprzętowego jeśli działa (dobra praktyka w Electron)
+    if (localStream.value) {
+      localStream.value.getTracks().forEach((t) => t.stop())
+      localStream.value = null
+    }
   }
 
   const disconnect = async (): Promise<void> => {
@@ -190,29 +138,13 @@ export const useWebRtcStore = defineStore('webrtc', () => {
 
   const setLocalPublishProfile = (profile: 'host' | 'guest'): void => {
     localPublishProfile.value = profile
-
     if (rtcStatus.value !== 'disconnected' && localStream.value) {
       webRtcService.publishLocalStream(localStream.value, getCurrentTrackPolicy())
-      broadcastTrackMap() // Wysyłamy mapę po zmianie profilu
     }
   }
 
-  const publishLocalStream = async (stream: MediaStream): Promise<void> => {
-    localStream.value = stream
-    if (rtcStatus.value === 'disconnected') return
-
-    try {
-      webRtcService.publishLocalStream(stream, getCurrentTrackPolicy())
-      broadcastTrackMap()
-
-      if (rtcStatus.value === 'connected') {
-        const offer = await webRtcService.createOffer()
-        await getSocketStore().wsService.sendOffer({ sdp: JSON.stringify(offer) })
-      }
-    } catch (e) {
-      console.error('[WebRtcStore] Błąd publikacji streamu:', e)
-    }
-  }
+  const getRemoteTrackRole = (trackId: string): string | null =>
+    webRtcService.getRemoteTrackRole(trackId)
 
   const setLocalPreviewFps = (fps: number | null): void => {
     connectionMetrics.setLocalPreviewFps(fps)
@@ -225,16 +157,15 @@ export const useWebRtcStore = defineStore('webrtc', () => {
   const toggleMicrophone = (isMuted: boolean): void => {
     if (!localStream.value) return
     const audioTracks = localStream.value.getAudioTracks()
-    const micTrack =
-      audioTracks.find((t) => t.contentHint === 'speech') ||
-      (audioTracks.length === 1 ? audioTracks[0] : null)
-
+    const micTrack = audioTracks.find((t) => t.contentHint === 'speech') || audioTracks[0]
     if (micTrack) micTrack.enabled = !isMuted
   }
 
   const toggleSystemAudio = (isMuted: boolean): void => {
     if (!localStream.value) return
-    const sysTrack = localStream.value.getAudioTracks().find((t) => t.contentHint === 'music')
+    const sysTrack =
+      localStream.value.getAudioTracks().find((t) => t.contentHint === 'music') ||
+      localStream.value.getAudioTracks()[1]
     if (sysTrack) sysTrack.enabled = !isMuted
   }
 
@@ -249,37 +180,30 @@ export const useWebRtcStore = defineStore('webrtc', () => {
     localStream,
     remoteStream,
     localPublishProfile,
-
-    remoteMicTrackId,
-    remoteSysTrackId,
-
     remoteMicVolume,
     remoteSystemVolume,
     localSystemAudioVolume,
     localMicrophoneVolume,
-
     chatMessages: chat.chatMessages,
     remoteMouse: hid.remoteMouse,
     localMetrics: connectionMetrics.localMetrics,
     remoteMetrics: connectionMetrics.remoteMetrics,
-
     sendChatMessage: chat.sendChatMessage,
     sendMousePosition: hid.sendMousePosition,
     sendVideoCommand: system.sendVideoCommand,
-
     toggleMicrophone,
     toggleSystemAudio,
     toggleScreenVideo,
-
+    setLocalPublishProfile,
+    getRemoteTrackRole,
+    setLocalPreviewFps,
+    setLocalPreviewQuality,
     handleOffer,
     handleAnswer,
     handleCandidate,
     startConnectionAsHost,
     disconnect,
     forceDisconnect,
-    setLocalPublishProfile,
-    publishLocalStream,
-    setLocalPreviewFps,
-    setLocalPreviewQuality
+    publishLocalStream
   }
 })
