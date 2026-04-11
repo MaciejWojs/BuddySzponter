@@ -45,6 +45,7 @@ export class WebRTCService {
   private remoteStream: MediaStream = new MediaStream()
   private remoteTrackRoleByTrackId = new Map<string, RemoteTrackRole>()
   private localSenders: RTCRtpSender[] = []
+  private videoTc: RTCRtpTransceiver | null = null
 
   // SZTYWNE RURY (Transceivery)
 
@@ -55,15 +56,24 @@ export class WebRTCService {
     this.remoteStream = new MediaStream()
     this.remoteTrackRoleByTrackId.clear()
     this.localSenders = []
+    this.videoTc = null
 
     this.peerConnection = new RTCPeerConnection({
       iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
     })
 
     if (isHost) {
-      this.peerConnection.addTransceiver('video', { direction: 'sendrecv' }) // Rura 0
+      this.videoTc = this.peerConnection.addTransceiver('video', { direction: 'sendrecv' }) // Rura 0
       this.peerConnection.addTransceiver('audio', { direction: 'sendrecv' }) // Rura 1
       this.peerConnection.addTransceiver('audio', { direction: 'sendrecv' }) // Rura 2
+
+      const capabilities = RTCRtpReceiver.getCapabilities('video')
+      const h264Codecs =
+        capabilities?.codecs.filter((c) => c.mimeType.toLowerCase() === 'video/h264') || []
+
+      if (h264Codecs.length > 0 && this.videoTc.setCodecPreferences) {
+        this.videoTc.setCodecPreferences(h264Codecs)
+      }
     }
 
     this.peerConnection.onicecandidate = (e): void => {
@@ -108,12 +118,44 @@ export class WebRTCService {
 
     const audioTracks = stream.getAudioTracks()
     const videoTrack = policy.allowVideo ? stream.getVideoTracks()[0] || null : null
-    const micTrack = policy.allowMicrophoneAudio
-      ? audioTracks.find((t) => t.contentHint === 'speech') || audioTracks[0] || null
+
+    const hintedMic = audioTracks.find((t) => t.contentHint === 'speech') || null
+    const hintedSys = audioTracks.find((t) => t.contentHint === 'music') || null
+    const monoTrack = audioTracks.find((t) => t.getSettings().channelCount === 1) || null
+    const stereoTrack = audioTracks.find((t) => t.getSettings().channelCount === 2) || null
+
+    let micTrack: MediaStreamTrack | null = policy.allowMicrophoneAudio
+      ? (hintedMic ?? monoTrack ?? null)
       : null
-    const sysTrack = policy.allowSystemAudio
-      ? audioTracks.find((t) => t.contentHint === 'music') || audioTracks[1] || null
+    let sysTrack: MediaStreamTrack | null = policy.allowSystemAudio
+      ? (hintedSys ?? stereoTrack ?? null)
       : null
+
+    if (policy.allowMicrophoneAudio && !policy.allowSystemAudio && !micTrack) {
+      micTrack = audioTracks[0] || null
+    }
+
+    if (policy.allowSystemAudio && !policy.allowMicrophoneAudio && !sysTrack) {
+      sysTrack = audioTracks[0] || null
+    }
+
+    if (policy.allowMicrophoneAudio && policy.allowSystemAudio) {
+      if (!micTrack && !sysTrack && audioTracks.length === 1) {
+        micTrack = audioTracks[0]
+      }
+
+      if (!micTrack && audioTracks.length > 0) {
+        micTrack = audioTracks[0]
+      }
+
+      if (!sysTrack) {
+        sysTrack = audioTracks.find((t) => t.id !== micTrack?.id) || null
+      }
+    }
+
+    if (videoTrack) videoTrack.contentHint = 'detail'
+    if (micTrack) micTrack.contentHint = 'speech'
+    if (sysTrack) sysTrack.contentHint = 'music'
 
     if (!this.isHost) {
       this.clearLocalSenders()
@@ -136,6 +178,17 @@ export class WebRTCService {
     }
 
     const tcs = this.peerConnection.getTransceivers()
+
+    if (videoTrack && this.videoTc) {
+      const params = this.videoTc.sender.getParameters()
+      if (params) {
+        const mutableParams = params as RTCRtpSendParameters & {
+          degradationPreference?: RTCDegradationPreference
+        }
+        mutableParams.degradationPreference = 'maintain-framerate'
+        this.videoTc.sender.setParameters(mutableParams).catch(console.error)
+      }
+    }
 
     // Wrzucamy tracki do odpowiednich rur. Jeśli nie ma tracka, rura wysyła ciszę/czarny ekran (lub nic)
     if (tcs[0]) tcs[0].sender.replaceTrack(videoTrack).catch(console.error)
@@ -273,6 +326,7 @@ export class WebRTCService {
     this.hidControlChannel = null
     this.systemEventsChannel = null
     this.metricsChannel = null
+    this.videoTc = null
     this.remoteStream.getTracks().forEach((t) => t.stop())
     this.remoteTrackRoleByTrackId.clear()
     this.clearLocalSenders()
