@@ -10,7 +10,7 @@
         "@fontsource-variable/jetbrains-mono": "^5.2.8",
         "@fontsource-variable/plus-jakarta-sans": "^5.2.8",
         "@iconify-json/lucide": "^1.2.99",
-        "@maciejwojs/input-bridge": "^0.0.3",
+        "@maciejwojs/input-bridge": "^0.1.0",
         "@maciejwojs/screen-capture": "^0.2.4",
         "@nuxt/ui": "^4.6.0",
         "@types/electron-store": "^3.2.2",
@@ -307,7 +307,7 @@
 
     "@jridgewell/trace-mapping": ["@jridgewell/trace-mapping@0.3.31", "", { "dependencies": { "@jridgewell/resolve-uri": "^3.1.0", "@jridgewell/sourcemap-codec": "^1.4.14" } }, "sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw=="],
 
-    "@maciejwojs/input-bridge": ["@maciejwojs/input-bridge@0.0.3", "", { "dependencies": { "node-addon-api": "^8.7.0", "node-gyp-build": "^4.8.4" }, "peerDependencies": { "typescript": "^5" }, "os": [ "linux", "win32", "darwin", ] }, "sha512-3dCOqhBaU3mSIZnR8hOZYNSVeDHAcslUO1VXHWKqRZJpoComqT0ZHC0BT4K6B+kWOZwUWr5Y20+Eu5cLUng8Wg=="],
+    "@maciejwojs/input-bridge": ["@maciejwojs/input-bridge@0.1.0", "", { "dependencies": { "node-addon-api": "^8.7.0", "node-gyp-build": "^4.8.4" }, "peerDependencies": { "typescript": "^5" }, "os": [ "linux", "win32", "darwin", ] }, "sha512-F0w29y3debwIqCdfd3pGLa+Sl0vKcyBia2pW6QpdNth24G70VBm33bxPP5HXPBzwf2WFLh34RqkJzM36TVr2Iw=="],
 
     "@maciejwojs/screen-capture": ["@maciejwojs/screen-capture@0.2.4", "", { "dependencies": { "node-addon-api": "^8.7.0", "node-gyp-build": "^4.8.4" }, "peerDependencies": { "typescript": "^5" }, "os": [ "linux", "win32", "darwin", ] }, "sha512-43uk/V8KR8ZWnkRuBreQTbywOaaufDRD0LG3YABxUVvcMF7/2/qxzO+WFOf30nEBNV625JeR+cJTDA5Q4ycssA=="],
 
