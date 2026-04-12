@@ -55,7 +55,7 @@ const navItems: NavBarItem[] = [
     </header>
 
     <main v-if="activeNav === 'settings'" class="menu-content-settings">
-      <MenuSettingsView />
+      <MenuSettingsView embedded />
     </main>
 
     <main v-else class="menu-content">

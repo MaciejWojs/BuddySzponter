@@ -1,9 +1,23 @@
 <script setup lang="ts">
 import buddySzponterLogo from '@images/buddyszponterLogo.png'
 import BuLanguageSelector from '@renderer/components/simpleComponents/BuLanguageSelector.vue'
+import NavBar from '@renderer/components/UI/NavBar.vue'
+import type { NavBarItem } from '@renderer/components/UI/NavBar.vue'
+import DevicesButton from '@renderer/components/simpleComponents/DevicesButton.vue'
+import HomeButton from '@renderer/components/simpleComponents/HomeButton.vue'
+import SettingButton from '@renderer/components/simpleComponents/SettingButton.vue'
 import { useSettingsStore } from '@renderer/stores/settingsStore'
 import { useUserStore } from '@renderer/stores/userStore'
 import { storeToRefs } from 'pinia'
+
+const props = withDefaults(
+  defineProps<{
+    embedded?: boolean
+  }>(),
+  {
+    embedded: false
+  }
+)
 
 const accelerationEnabled = ref(true)
 const remoteCursorEnabled = ref(true)
@@ -19,12 +33,29 @@ const settingsStore = useSettingsStore()
 const { supportedVersions, versionStatus } = storeToRefs(settingsStore)
 const userStore = useUserStore()
 const { currentUser } = storeToRefs(userStore)
+const router = useRouter()
 
 const currentVersion = ref('-')
 const isRefreshingVersions = ref(false)
 const displayName = ref('')
 const displayNameDraft = ref('')
 const isEditingDisplayName = ref(false)
+const activeTopNav = ref('settings')
+
+const topNavItems: NavBarItem[] = [
+  {
+    name: 'settings',
+    component: SettingButton
+  },
+  {
+    name: 'home',
+    component: HomeButton
+  },
+  {
+    name: 'devices',
+    component: DevicesButton
+  }
+]
 
 const defaultDisplayName = computed(() => currentUser.value?.nickname || 'Pseudonim')
 const isDisplayNameDirty = computed(
@@ -81,13 +112,33 @@ watch(
   },
   { immediate: true }
 )
+
+watch(activeTopNav, (nextTab) => {
+  if (nextTab === 'home') {
+    void router.push('/Menu')
+    return
+  }
+
+  if (nextTab === 'devices') {
+    void router.push('/shared')
+    return
+  }
+})
 </script>
 
 <template>
-  <section class="settings-view" aria-label="Ustawienia aplikacji">
+  <section
+    class="settings-view"
+    :class="{ 'settings-view--embedded': props.embedded }"
+    aria-label="Ustawienia aplikacji"
+  >
     <div class="settings-watermark" aria-hidden="true">
       <img :src="buddySzponterLogo" alt="" />
     </div>
+
+    <header v-if="!props.embedded" class="settings-topbar">
+      <NavBar v-model="activeTopNav" :items="topNavItems" />
+    </header>
 
     <div class="settings-grid">
       <article class="settings-card">
@@ -269,6 +320,42 @@ watch(
   margin: 42px auto 0;
   position: relative;
   padding: 10px 12px 30px;
+}
+
+.settings-view--embedded {
+  margin-top: 16px;
+}
+
+.settings-topbar {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  justify-content: center;
+  margin-bottom: 18px;
+}
+
+.settings-topbar :deep(button) {
+  min-width: 64px;
+  min-height: 64px;
+  aspect-ratio: 1 / 1;
+  font-size: 22px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  box-sizing: border-box;
+  background: none;
+}
+
+.settings-topbar :deep(svg) {
+  width: 70%;
+  height: 70%;
+  max-width: 70%;
+  max-height: 70%;
+  object-fit: contain;
+  display: block;
+  margin: auto;
 }
 
 .settings-watermark {
@@ -508,6 +595,17 @@ watch(
   .settings-view {
     margin-top: 8px;
     padding: 0 4px 18px;
+  }
+
+  .settings-topbar {
+    margin-bottom: 10px;
+  }
+
+  .settings-topbar :deep(button) {
+    min-width: 44px;
+    min-height: 44px;
+    border-radius: 10px;
+    font-size: 16px;
   }
 
   .settings-grid {
