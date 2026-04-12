@@ -1,4 +1,16 @@
 {
+  "userVersion": {
+    "modalTitle": "Version control panel",
+    "currentVersion": "Current version",
+    "availableVersions": "Available versions",
+    "versionStatus": "Version status",
+    "currentVersionLabel": "Current app version",
+    "availableVersionsLabel": "Available versions",
+    "versionStatusLabel": "Version status",
+    "noAvailableVersions": "No available versions.",
+    "fetchError": "Error fetching version",
+    "statusError": "Error checking version status"
+  },
   "login": {
     "title": "Log in to BuddySzponter",
     "email": "Email address",
@@ -8,8 +20,10 @@
     "nickname": "Username",
     "loading": "Loading...",
     "forgotPassword": "Forgot your password?",
+    "backToMenu": "Back to menu",
     "noAccount": "Don't have an account?",
     "registerNow": "Register now",
+    "registerb": "Register to BuddySzponter",
     "confirm": "Confirm password",
     "penter": "Enter password",
     "haveAccount": "Already have an account?",
@@ -30,7 +44,22 @@
     "version": "App version",
     "logout": "Log out",
     "settings": "Settings",
-    "profile": "Profile"
+    "profile": "Profile",
+    "yourAccount": "Your account",
+    "sessionRecordings": "Session recordings",
+    "userPanelTitle": "User panel",
+    "emailLabel": "E-mail",
+    "nicknameLabel": "Username",
+    "resetPassword": "Reset password",
+    "changeAvatar": "Change avatar",
+    "deleteAccount": "Delete account",
+    "resetPasswordSent": "Password reset link sent",
+    "avatarChangedTo": "Avatar changed to",
+    "avatarAlt": "User avatar",
+    "deleteAccountConfirm": "Are you sure you want to delete your account?",
+    "deleteAccountAccepted": "Account has been deleted",
+    "deleteAccountCancelled": "Account deletion cancelled",
+    "defaultUser": "User"
   },
   "validation": {
     "invalidEmail": "Enter a valid email address",
@@ -87,5 +116,21 @@
       "br": "Brazilian",
       "us": "American"
     }
+  },
+  "common": {
+    "logoAlt": "BuddySzponter logo",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password"
+  },
+  "toast": {
+    "loginSuccess": "Logged in successfully!",
+    "logoutSuccess": "Logged out successfully!",
+    "registerSuccess": "Account created! You can now log in.",
+    "profileSaved": "Profile saved.",
+    "avatarChanged": "Avatar has been changed.",
+    "passwordChanged": "Password has been changed.",
+    "errorGeneric": "An unexpected error occurred.",
+    "networkError": "Network/server connection error.",
+    "copied": "Copied to clipboard!"
   }
 }

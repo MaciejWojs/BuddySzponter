@@ -11,6 +11,13 @@ import { secureStore } from '../../store/secureStore'
 import { decryptData } from '../../utils/api/crypt'
 import { string } from 'zod'
 
+function normalizePngFileName(fileName: string, mimeType: string): string {
+  if (mimeType.toLowerCase() !== 'image/png') return fileName
+
+  const parsed = path.parse(fileName)
+  return `${parsed.name}.png`
+}
+
 async function executeUpload(form: FormData, userId: string | null): Promise<UploadAvatarResponse> {
   let finalUserId: string
   if (userId) {
@@ -40,6 +47,7 @@ async function executeUpload(form: FormData, userId: string | null): Promise<Upl
   })
 
   const result = await response.json()
+  console.log('Upload avatar response:', result)
   if (!response.ok) return { success: false, message: result.message || 'Upload error' }
 
   const decryptedResponse =
@@ -61,10 +69,11 @@ export async function uploadAvatar(userID: string | null): Promise<UploadAvatarR
     const data = await readFile(filePath)
     const ext = path.extname(filePath).toLowerCase().replace('.', '')
     const mimeType = ext === 'jpg' ? 'image/jpeg' : `image/${ext}`
+    const normalizedFileName = normalizePngFileName(path.basename(filePath), mimeType)
 
     const blob = new Blob([data], { type: mimeType })
     const form = new FormData()
-    form.append('avatar', blob, path.basename(filePath))
+    form.append('avatar', blob, normalizedFileName)
 
     return await executeUpload(form, userID)
   } catch (error) {
@@ -80,9 +89,10 @@ export async function uploadAvatarByBuffer(
   userId: string | null
 ): Promise<UploadAvatarResponse> {
   try {
-    const blob = new Blob([buffer], { type: mimeType })
+    const normalizedFileName = normalizePngFileName(fileName, mimeType)
+    const blob = new Blob([Buffer.from(buffer)], { type: mimeType })
     const form = new FormData()
-    form.append('avatar', blob, fileName)
+    form.append('avatar', blob, normalizedFileName)
 
     return await executeUpload(form, userId)
   } catch (error) {

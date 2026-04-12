@@ -30,7 +30,7 @@ export const API_ROUTES = {
   },
   USERS: {
     AVATAR: {
-      ME: '/users/:userId/avatar'
+      ME: '/users/me/avatar'
     }
   }
 } as const
