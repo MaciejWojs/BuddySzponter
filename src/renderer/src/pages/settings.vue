@@ -316,14 +316,14 @@ watch(activeTopNav, (nextTab) => {
   --settings-glow: color-mix(in srgb, var(--color-accent) 62%, transparent 38%);
   --settings-text-soft: color-mix(in srgb, var(--color-text) 72%, #ffffff 28%);
 
-  width: min(1360px, 100%);
-  margin: 42px auto 0;
+  width: min(1240px, 100%);
+  margin: 26px auto 0;
   position: relative;
   padding: 10px 12px 30px;
 }
 
 .settings-view--embedded {
-  margin-top: 16px;
+  margin-top: 8px;
 }
 
 .settings-topbar {
@@ -331,7 +331,7 @@ watch(activeTopNav, (nextTab) => {
   z-index: 2;
   display: flex;
   justify-content: center;
-  margin-bottom: 18px;
+  margin-bottom: 24px;
 }
 
 .settings-topbar :deep(button) {
@@ -376,9 +376,9 @@ watch(activeTopNav, (nextTab) => {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: repeat(3, minmax(280px, 360px));
+  grid-template-columns: repeat(3, minmax(280px, 340px));
   justify-content: center;
-  gap: 44px 56px;
+  gap: 28px;
   align-items: start;
 }
 
@@ -387,18 +387,18 @@ watch(activeTopNav, (nextTab) => {
   background: color-mix(in srgb, var(--settings-bg-soft) 88%, transparent 12%);
   border: 1px solid color-mix(in srgb, var(--settings-border) 54%, transparent 46%);
   border-radius: 14px;
-  padding: 16px 16px 14px;
+  padding: 14px;
   box-shadow:
     0 0 0 1px color-mix(in srgb, var(--settings-border) 18%, transparent 82%),
     0 14px 32px rgba(0, 0, 0, 0.36);
 }
 
 .settings-card h3 {
-  margin: 0 0 16px;
+  margin: 0 0 14px;
   padding: 9px 14px;
   text-align: center;
   font-weight: 500;
-  font-size: 30px;
+  font-size: 22px;
   letter-spacing: 0.35px;
   border: 1px solid color-mix(in srgb, var(--settings-border) 70%, transparent 30%);
   border-radius: 10px;
@@ -413,18 +413,19 @@ watch(activeTopNav, (nextTab) => {
 }
 
 .settings-row {
-  min-height: 38px;
-  display: flex;
+  min-height: 34px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 170px;
   align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  font-size: 14px;
-  margin-bottom: 10px;
+  gap: 10px;
+  font-size: 13px;
+  margin-bottom: 8px;
 }
 
 .settings-row span {
   opacity: 0.95;
   color: var(--settings-text-soft);
+  min-width: 0;
 }
 
 .settings-row input[type='text'],
@@ -439,7 +440,7 @@ watch(activeTopNav, (nextTab) => {
   color: var(--color-text);
   border: 1px solid color-mix(in srgb, var(--settings-border) 58%, transparent 42%);
   border-radius: 6px;
-  height: 28px;
+  height: 30px;
   padding: 0 10px;
   font-size: 12px;
   box-shadow: 0 0 10px color-mix(in srgb, var(--settings-glow) 32%, transparent 68%);
@@ -452,7 +453,8 @@ watch(activeTopNav, (nextTab) => {
 
 .settings-row button {
   cursor: pointer;
-  min-width: 128px;
+  min-width: 0;
+  width: 100%;
 }
 
 .settings-row button:hover {
@@ -461,7 +463,7 @@ watch(activeTopNav, (nextTab) => {
 }
 
 .settings-row-checkbox {
-  align-items: center;
+  grid-template-columns: minmax(0, 1fr) auto;
 }
 
 .settings-row-checkbox input,
@@ -478,18 +480,20 @@ watch(activeTopNav, (nextTab) => {
   align-items: center;
   gap: 10px;
   min-width: 0;
+  justify-content: flex-end;
 }
 
 .settings-row-path {
-  align-items: flex-start;
-  flex-direction: column;
+  display: block;
   gap: 8px;
+  margin-bottom: 10px;
 }
 
 .settings-row-path .settings-inline-controls {
   width: 100%;
-  justify-content: flex-start;
+  justify-content: flex-end;
   min-width: 0;
+  margin-top: 6px;
 }
 
 .settings-row-path input {
@@ -512,16 +516,18 @@ watch(activeTopNav, (nextTab) => {
 }
 
 .settings-row-display-name {
-  align-items: flex-start;
-  flex-direction: column;
+  display: block;
   gap: 8px;
+  margin-bottom: 12px;
 }
 
 .settings-display-name-controls {
   width: 100%;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 96px;
   gap: 8px;
+  align-items: center;
+  margin-top: 6px;
 }
 
 .settings-display-name-input {
@@ -536,12 +542,17 @@ watch(activeTopNav, (nextTab) => {
 .settings-display-name-actions {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: stretch;
   gap: 6px;
 }
 
 .settings-display-name-actions .settings-small-btn {
-  min-width: 96px;
+  width: 100%;
+}
+
+.settings-row-language,
+.settings-row-theme {
+  grid-template-columns: minmax(0, 1fr) auto;
 }
 
 .settings-checkbox-with-label {
@@ -569,7 +580,7 @@ watch(activeTopNav, (nextTab) => {
 }
 
 .settings-version-list {
-  max-width: 210px;
+  max-width: 170px;
   text-align: right;
   overflow-wrap: anywhere;
 }
@@ -581,9 +592,9 @@ watch(activeTopNav, (nextTab) => {
 
 @media (max-width: 1200px) {
   .settings-grid {
-    grid-template-columns: repeat(2, minmax(280px, 380px));
+    grid-template-columns: repeat(2, minmax(280px, 360px));
     justify-content: center;
-    gap: 28px 30px;
+    gap: 20px;
   }
 
   .settings-card h3 {
@@ -620,7 +631,7 @@ watch(activeTopNav, (nextTab) => {
 
   .settings-row {
     font-size: 13px;
-    flex-wrap: wrap;
+    grid-template-columns: 1fr;
     margin-bottom: 10px;
   }
 
@@ -649,6 +660,7 @@ watch(activeTopNav, (nextTab) => {
 
   .settings-display-name-controls {
     width: 100%;
+    grid-template-columns: 1fr;
   }
 
   .settings-display-name-actions {

@@ -144,10 +144,10 @@ const navItems: NavBarItem[] = [
 }
 
 .menu-content-settings {
-  align-self: center;
+  align-self: start;
   display: flex;
   justify-content: center;
-  padding-top: 12px;
+  padding-top: 6px;
 }
 
 .menu-column {
