@@ -51,7 +51,9 @@ export class WebRTCService {
   private remoteStream: MediaStream = new MediaStream()
   private remoteTrackRoleByTrackId = new Map<string, RemoteTrackRole>()
   private localSenders: RTCRtpSender[] = []
-  private videoTc: RTCRtpTransceiver | null = null
+  private videoTransceiver: RTCRtpTransceiver | null = null
+  private micTransceiver: RTCRtpTransceiver | null = null
+  private systemTransceiver: RTCRtpTransceiver | null = null
 
   public initialize(isHost: boolean): void {
     this.isIntentionallyClosing = false
@@ -60,7 +62,9 @@ export class WebRTCService {
     this.remoteStream = new MediaStream()
     this.remoteTrackRoleByTrackId.clear()
     this.localSenders = []
-    this.videoTc = null
+    this.videoTransceiver = null
+    this.micTransceiver = null
+    this.systemTransceiver = null
 
     const server = import.meta.env.VITE_ICE_SERVER
     const serverUser = import.meta.env.VITE_ICE_SERVER_USER || 'user'
@@ -84,16 +88,18 @@ export class WebRTCService {
     this.peerConnection = new RTCPeerConnection(config)
 
     if (isHost) {
-      this.videoTc = this.peerConnection.addTransceiver('video', { direction: 'sendrecv' }) // Rura 0
-      this.peerConnection.addTransceiver('audio', { direction: 'sendrecv' }) // Rura 1
-      this.peerConnection.addTransceiver('audio', { direction: 'sendrecv' }) // Rura 2
+      this.videoTransceiver = this.peerConnection.addTransceiver('video', { direction: 'sendrecv' })
+      this.micTransceiver = this.peerConnection.addTransceiver('audio', { direction: 'sendrecv' })
+      this.systemTransceiver = this.peerConnection.addTransceiver('audio', {
+        direction: 'sendrecv'
+      })
 
       const capabilities = RTCRtpReceiver.getCapabilities('video')
       const h264Codecs =
         capabilities?.codecs.filter((c) => c.mimeType.toLowerCase() === 'video/h264') || []
 
-      if (h264Codecs.length > 0 && this.videoTc.setCodecPreferences) {
-        this.videoTc.setCodecPreferences(h264Codecs)
+      if (h264Codecs.length > 0 && this.videoTransceiver.setCodecPreferences) {
+        this.videoTransceiver.setCodecPreferences(h264Codecs)
       }
     }
 
@@ -104,17 +110,9 @@ export class WebRTCService {
     this.peerConnection.ondatachannel = (e): void => this.setupChannel(e.channel)
 
     this.peerConnection.ontrack = (event): void => {
-      const transceivers = this.peerConnection!.getTransceivers()
+      const hint = event.track.contentHint
       const role: RemoteTrackRole =
-        event.transceiver === transceivers[1]
-          ? 'speech'
-          : event.transceiver === transceivers[2]
-            ? 'music'
-            : 'unknown'
-
-      // Rozpoznajemy track po numerze rury
-      if (event.transceiver === transceivers[1]) event.track.contentHint = 'speech'
-      if (event.transceiver === transceivers[2]) event.track.contentHint = 'music'
+        hint === 'speech' ? 'speech' : hint === 'music' ? 'music' : 'unknown'
 
       this.remoteTrackRoleByTrackId.set(event.track.id, role)
 
@@ -201,29 +199,27 @@ export class WebRTCService {
       return
     }
 
-    const tcs = this.peerConnection.getTransceivers()
-
-    if (videoTrack && this.videoTc) {
-      const params = this.videoTc.sender.getParameters()
+    if (videoTrack && this.videoTransceiver) {
+      const params = this.videoTransceiver.sender.getParameters()
       if (params) {
         const mutableParams = params as RTCRtpSendParameters & {
           degradationPreference?: RTCDegradationPreference
         }
         mutableParams.degradationPreference = 'maintain-framerate'
-        this.videoTc.sender.setParameters(mutableParams).catch(console.error)
+        this.videoTransceiver.sender.setParameters(mutableParams).catch(console.error)
       }
     }
 
-    // Wrzucamy tracki do odpowiednich rur. Jeśli nie ma tracka, rura wysyła ciszę/czarny ekran (lub nic)
-    if (tcs[0]) tcs[0].sender.replaceTrack(videoTrack).catch(console.error)
-    if (tcs[1]) tcs[1].sender.replaceTrack(micTrack).catch(console.error)
-    if (tcs[2]) tcs[2].sender.replaceTrack(sysTrack).catch(console.error)
+    if (this.videoTransceiver)
+      this.videoTransceiver.sender.replaceTrack(videoTrack).catch(console.error)
+    if (this.micTransceiver) this.micTransceiver.sender.replaceTrack(micTrack).catch(console.error)
+    if (this.systemTransceiver)
+      this.systemTransceiver.sender.replaceTrack(sysTrack).catch(console.error)
   }
 
   private clearLocalSenders(): void {
     if (!this.peerConnection) return
 
-    // Profesjonalne "wyczyszczenie" rur bez ich niszczenia i wywoływania błędu "InvalidStateError"
     this.peerConnection.getSenders().forEach((sender) => {
       if (sender.track) {
         sender
@@ -232,7 +228,6 @@ export class WebRTCService {
       }
     })
 
-    // Tylko gość u Ciebie przechowuje localSenders przy "addTrack" (fallback), więc go czyścimy
     this.localSenders = []
   }
 
@@ -401,7 +396,9 @@ export class WebRTCService {
     this.hidControlChannel = null
     this.systemEventsChannel = null
     this.metricsChannel = null
-    this.videoTc = null
+    this.videoTransceiver = null
+    this.micTransceiver = null
+    this.systemTransceiver = null
     this.remoteStream.getTracks().forEach((t) => t.stop())
     this.remoteTrackRoleByTrackId.clear()
     this.clearLocalSenders()
