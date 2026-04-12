@@ -2,6 +2,7 @@
 // Importy komponentów i zasobów używanych przez widok głównego menu.
 import GuestForm from '@renderer/components/forms/GuestForm.vue'
 import HostForm from '@renderer/components/forms/HostForm.vue'
+import MenuSettingsView from '@renderer/pages/settings.vue'
 import NavBar from '@renderer/components/UI/NavBar.vue'
 import type { NavBarItem } from '@renderer/components/UI/NavBar.vue'
 import DevicesButton from '@renderer/components/simpleComponents/DevicesButton.vue'
@@ -53,7 +54,11 @@ const navItems: NavBarItem[] = [
       <NavBar v-model="activeNav" :items="navItems" />
     </header>
 
-    <main class="menu-content">
+    <main v-if="activeNav === 'settings'" class="menu-content-settings">
+      <MenuSettingsView />
+    </main>
+
+    <main v-else class="menu-content">
       <article class="menu-column">
         <!-- Sekcja gościa: udostępnienie sterowania przez kod sesji. -->
         <h2>{{ $t('guestForm.title') }}</h2>
@@ -69,7 +74,7 @@ const navItems: NavBarItem[] = [
       </article>
     </main>
 
-    <footer class="menu-footer">
+    <footer v-if="activeNav !== 'settings'" class="menu-footer">
       <!-- Logo aplikacji prezentowane w stopce widoku. -->
       <img :src="buddySzponterLogo" :alt="$t('common.logoAlt')" class="menu-logo" />
     </footer>
@@ -138,6 +143,13 @@ const navItems: NavBarItem[] = [
   padding-top: 0;
 }
 
+.menu-content-settings {
+  align-self: center;
+  display: flex;
+  justify-content: center;
+  padding-top: 12px;
+}
+
 .menu-column {
   display: flex;
   flex-direction: column;
@@ -185,6 +197,11 @@ const navItems: NavBarItem[] = [
     gap: 32px;
     align-self: start;
     padding-top: 10px;
+  }
+
+  .menu-content-settings {
+    align-self: start;
+    padding-top: 6px;
   }
 
   .menu-column h2 {
