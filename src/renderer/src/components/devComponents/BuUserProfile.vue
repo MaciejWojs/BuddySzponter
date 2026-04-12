@@ -69,6 +69,6 @@ const getAvatarUrl = (
   avatarId: string,
   size: '128' | '256' | '512' | 'original' = '128'
 ): string => {
-  return `http://localhost/avatar/${avatarId}/${size}.webp`
+  return `${import.meta.env.VITE_PHOTOS_BASE_URL}/avatar/${avatarId}/${size}.webp`
 }
 </script>
