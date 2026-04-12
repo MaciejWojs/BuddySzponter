@@ -67,6 +67,7 @@ export interface WsEvent<T extends string, D> {
 export type WsConnectionEvent =
   | WsEvent<'connected', { socketId: string }>
   | WsEvent<'disconnected', WsConnectionDisconnected>
+  | WsEvent<'manual-disconnected', WsConnectionDisconnected>
   | WsEvent<'connect_error', { message: string }>
 
 // --- 2. KATEGORIA: ACCESS ---
@@ -107,6 +108,7 @@ export type WsActionResponse = { success: boolean; message?: string }
 export interface WsConnectionListeners {
   onConnected: (data: { socketId: string }) => void
   onDisconnected: (data: WsConnectionDisconnected) => void
+  onManualDisconnected: (data: WsConnectionDisconnected) => void
   onConnectError: (data: { message: string }) => void
 }
 

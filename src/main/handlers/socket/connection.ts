@@ -31,7 +31,6 @@ export async function connect(connectionToken: string): Promise<Socket> {
 
 export function disconnect(socket: Socket): void {
   if (socket) {
-    socket.emit('disconnect')
     socket.disconnect()
   }
 }
@@ -39,15 +38,25 @@ export function disconnect(socket: Socket): void {
 // --- LISTENERS ---
 
 export function setupConnectionListeners(socket: Socket, service: WsService): void {
+  const handleDisconnect = (reason: string): void => {
+    console.log(`[WsListeners] Gniazdko padło: ${reason}`)
+    service.handleDisconnected(reason)
+  }
+
+  const handleManualDisconnect = (reason: string): void => {
+    console.log(`[WsListeners][manual-disconnect] Otrzymano żądanie rozłączenia: ${reason}`)
+    service.handleManualDisconnected(reason)
+    socket.disconnect()
+  }
+
   socket.on('connect', () => {
     console.log('[WsListeners] Połączono z serwerem WebSocket')
     service.handleConnected(socket.id || '')
   })
 
-  socket.on('disconnect', (reason: string) => {
-    console.log(`[WsListeners] Gniazdko padło: ${reason}`)
-    service.handleDisconnected(reason)
-  })
+  socket.on('disconnect', handleDisconnect)
+
+  socket.on('connection:disconnect', handleManualDisconnect)
 
   socket.on('connect_error', (err: Error) => {
     console.error(`[WsListeners] Błąd połączenia: ${err.message}`)

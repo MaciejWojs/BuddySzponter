@@ -47,6 +47,7 @@ export class WsService {
 
   public socket: Socket | null = null
   public currentSessionId: string | null = null
+  private suppressNextDisconnected = false
 
   private constructor() {
     console.log('[WsService] Serwis zainicjalizowany.')
@@ -142,7 +143,16 @@ export class WsService {
 
   public closeConnection(): void {
     if (this.socket) {
+      console.log('[WsService][manual-disconnect] Start closeConnection()')
+      this.suppressNextDisconnected = true
+      this.notify('ws:connection', 'manual-disconnected', { reason: 'manual disconnect' })
+      console.log(
+        '[WsService][manual-disconnect] Sent IPC event: ws:connection/manual-disconnected'
+      )
+      this.socket.emit('connection:disconnect')
+      console.log('[WsService][manual-disconnect] Emitted socket event: connection:disconnect')
       this.socket.disconnect()
+      console.log('[WsService][manual-disconnect] Local socket.disconnect() called')
 
       this.socket = null
       this.currentSessionId = null
@@ -214,14 +224,27 @@ export class WsService {
     this.notify('ws:connection', 'connected', { socketId })
   }
 
+  public handleConnectError(message: string): void {
+    this.notify('ws:connection', 'connect_error', { message })
+  }
+
+  public handleManualDisconnected(reason: string): void {
+    this.suppressNextDisconnected = true
+    this.notify('ws:connection', 'manual-disconnected', { reason })
+    this.socket = null
+    this.currentSessionId = null
+    console.log(`[WsService][manual-disconnect] Remote manual disconnect handled: ${reason}`)
+  }
+
   public handleDisconnected(reason: string): void {
+    if (this.suppressNextDisconnected) {
+      this.suppressNextDisconnected = false
+      return
+    }
+
     this.socket = null
     this.currentSessionId = null
     this.notify('ws:connection', 'disconnected', { reason })
-  }
-
-  public handleConnectError(message: string): void {
-    this.notify('ws:connection', 'connect_error', { message })
   }
 
   public handleRequestAccess(payload: WsRequestAccess): void {

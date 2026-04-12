@@ -14,12 +14,12 @@ import {
   WsCategory,
   WsConnectResponse
 } from '../shared/schemas/ipc'
+import type { WsConnectionListeners } from '../shared/schemas/ipc'
 import {
   CreateConnectionRequestSchema,
   JoinConnectionRequestSchema
 } from '../shared/schemas/connection'
 import {
-  WsConnectionDisconnected,
   WsRequestAccess,
   WsConnectionAccepted,
   WsConnectionRejected,
@@ -104,14 +104,11 @@ const api = {
 
     // 2. LISTENERY (Odbieranie przez 4 magistrale)
 
-    connection: (callbacks: {
-      onConnected: (d: { socketId: string }) => void
-      onDisconnected: (d: WsConnectionDisconnected) => void
-      onConnectError: (d: { message: string }) => void
-    }) => {
+    connection: (callbacks: WsConnectionListeners) => {
       ipcRenderer.on('ws:connection', (_, { type, data }) => {
         if (type === 'connected') callbacks.onConnected(data)
         if (type === 'disconnected') callbacks.onDisconnected(data)
+        if (type === 'manual-disconnected') callbacks.onManualDisconnected(data)
         if (type === 'connect_error') callbacks.onConnectError(data)
       })
     },

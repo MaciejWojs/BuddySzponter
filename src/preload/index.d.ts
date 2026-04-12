@@ -5,6 +5,7 @@ import { AppLanguage, Translation } from '../shared/schemas/langSchemas'
 import {
   WsActionResponse,
   WsConnectResponse,
+  WsConnectionListeners,
   WsConnectionEvent,
   WsAccessEvent,
   WsHandshakeEvent,
@@ -35,14 +36,6 @@ import {
   CreateConnectionRequestSchema,
   JoinConnectionRequestSchema
 } from '../shared/schemas/connection'
-
-// --- DEFINICJE CALLBACKÓW DLA MAGISTRAL ---
-
-interface WsConnectionListeners {
-  onConnected: (data: { socketId: string }) => void
-  onDisconnected: (data: WsConnectionDisconnected) => void
-  onConnectError: (data: { message: string }) => void
-}
 
 interface WsAccessListeners {
   onRequest: (data: WsRequestAccess) => void
