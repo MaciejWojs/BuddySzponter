@@ -31,6 +31,10 @@ import {
 } from '../shared/schemas/ws'
 import { LoginInput, RegisterInput } from '../shared/schemas/user'
 
+const recorder = {
+  saveFile: (buffer: ArrayBuffer) => ipcRenderer.invoke('save-file', buffer)
+}
+
 // Custom APIs for renderer
 const api = {
   auth: {
@@ -199,6 +203,8 @@ if (process.contextIsolated) {
   try {
     contextBridge.exposeInMainWorld('electron', electronAPI)
     contextBridge.exposeInMainWorld('api', api)
+    
+    contextBridge.exposeInMainWorld('recorder', recorder)
 
     contextBridge.exposeInMainWorld('capture', {
       start: () => ipcRenderer.invoke('capture:start'),
@@ -254,4 +260,6 @@ if (process.contextIsolated) {
   window.electron = electronAPI
   // @ts-ignore (define in dts)
   window.api = api
+  // @ts-ignore (define in dts)
+  window.recorder = recorder
 }

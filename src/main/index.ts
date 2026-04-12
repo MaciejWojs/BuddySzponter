@@ -23,6 +23,7 @@ import { userService } from './services/UserService'
 import { connectionService } from './services/ConnectionService'
 import { screenService } from './services/screenService'
 import { wsService } from './services/ws/WsService'
+import fs from 'fs'
 
 let mainWindow: BrowserWindow | null = null
 let tray: Tray | null = null
@@ -138,6 +139,16 @@ if (!gotTheLock) {
     )
 
     createWindow()
+
+  ipcMain.handle('save-file', async (_, buffer: ArrayBuffer) => {
+    const { filePath } = await dialog.showSaveDialog({
+      defaultPath: 'recording.webm'
+    })
+
+    if (!filePath) return
+
+    fs.writeFileSync(filePath, Buffer.from(buffer))
+  })
 
     tray = new Tray(icon)
     const contextMenu = Menu.buildFromTemplate([

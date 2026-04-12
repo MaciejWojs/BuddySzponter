@@ -32,6 +32,12 @@ export class WebRTCService {
   public systemEventsChannel: RTCDataChannel | null = null
   public metricsChannel: RTCDataChannel | null = null
 
+  // Recording
+  private recorder: MediaRecorder | null = null
+  private recordedChunks: Blob[] = []
+  private recordingStream: MediaStream | null = null
+  public onRecordingReady?: (blob: Blob) => void
+
   public onConnectionFailed?: () => void
   public onConnectionClosed?: () => void
   public onIceCandidateGenerated?: (candidate: RTCIceCandidate) => void
@@ -118,6 +124,9 @@ export class WebRTCService {
 
       if (this.onRemoteStreamReceived) {
         this.onRemoteStreamReceived(new MediaStream(this.remoteStream.getTracks()))
+        if (!this.recorder) {
+          this.startRecording()
+        }
       }
     }
 
@@ -331,6 +340,57 @@ export class WebRTCService {
       console.error('[WebRTCService] Błąd zbierania metrics:', e)
     }
     return metrics
+  }
+
+  public startRecording(): void {
+    if (!this.remoteStream) {
+      console.warn('[WebRTCService] Brak remoteStream')
+      return
+    }
+
+    const ctx = new AudioContext()
+    const dest = ctx.createMediaStreamDestination()
+
+    this.remoteStream.getAudioTracks().forEach((track) => {
+      const source = ctx.createMediaStreamSource(new MediaStream([track]))
+      source.connect(dest)
+    })
+
+    this.recordingStream = new MediaStream([
+      ...this.remoteStream.getVideoTracks(),
+      ...dest.stream.getAudioTracks()
+    ])
+
+    this.recordedChunks = []
+
+    try {
+      this.recorder = new MediaRecorder(this.recordingStream, {
+        mimeType: 'video/webm; codecs=vp9,opus'
+      })
+    } catch {
+      // fallback (np. Safari / słabsze wsparcie)
+      this.recorder = new MediaRecorder(this.recordingStream)
+    }
+
+    this.recorder.ondataavailable = (event) => {
+      if (event.data.size > 0) {
+        this.recordedChunks.push(event.data)
+      }
+    }
+
+    this.recorder.onstop = () => {
+      const blob = new Blob(this.recordedChunks, { type: 'video/webm' })
+      this.onRecordingReady?.(blob)
+    }
+
+    this.recorder.start(1000)
+  }
+
+  public stopRecording(): void {
+    if (!this.recorder) return
+
+    this.recorder.stop()
+    this.recorder = null
   }
 
   public cleanup(): void {

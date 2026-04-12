@@ -22,6 +22,9 @@ export const useWebRtcStore = defineStore('webrtc', () => {
   const remoteStream = shallowRef<MediaStream | null>(null)
   const localPublishProfile = ref<'host' | 'guest'>('host')
 
+  // Recording state
+  const isRecording = ref<boolean>(false)
+
   // Kontrolki głośności
   const remoteMicVolume = ref<number>(1)
   const remoteSystemVolume = ref<number>(1)
@@ -128,6 +131,11 @@ export const useWebRtcStore = defineStore('webrtc', () => {
       localStream.value.getTracks().forEach((t) => t.stop())
       localStream.value = null
     }
+
+    if (isRecording.value) {
+  webRtcService.stopRecording()
+  isRecording.value = false
+    }
   }
 
   const disconnect = async (): Promise<void> => {
@@ -181,6 +189,26 @@ export const useWebRtcStore = defineStore('webrtc', () => {
     if (videoTrack) videoTrack.enabled = !isHidden
   }
 
+  const startRecording = (): void => {
+  if (!remoteStream.value) {
+    console.warn('[WebRtcStore] brak remoteStream')
+    return
+  }
+
+  webRtcService.startRecording()
+  isRecording.value = true
+  }
+
+  const stopRecording = (): void => {
+  webRtcService.stopRecording()
+  isRecording.value = false
+  }
+
+  webRtcService.onRecordingReady = async (blob) => {
+  const buffer = await blob.arrayBuffer()
+  await window.recorder.saveFile(buffer)
+  }
+
   return {
     rtcStatus,
     localStream,
@@ -210,6 +238,8 @@ export const useWebRtcStore = defineStore('webrtc', () => {
     startConnectionAsHost,
     disconnect,
     forceDisconnect,
-    publishLocalStream
+    publishLocalStream,
+    startRecording,
+    stopRecording
   }
 })

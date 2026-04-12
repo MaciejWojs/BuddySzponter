@@ -135,5 +135,8 @@ declare global {
       registerReceiver: () => void
       onFrameReceived: (callback: (frameData: VideoFrame) => void) => () => void
     }
+    recorder: {
+      saveFile: (buffer: ArrayBuffer) => Promise<void>
+    }
   }
 }
