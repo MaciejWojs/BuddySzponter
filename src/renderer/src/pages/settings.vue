@@ -27,6 +27,9 @@ const displayNameDraft = ref('')
 const isEditingDisplayName = ref(false)
 
 const defaultDisplayName = computed(() => currentUser.value?.nickname || 'Pseudonim')
+const isDisplayNameDirty = computed(
+  () => displayNameDraft.value.trim() !== '' && displayNameDraft.value.trim() !== displayName.value
+)
 
 const availableVersionsLabel = computed(() => {
   if (!supportedVersions.value.length) return 'brak danych'
@@ -55,21 +58,15 @@ function startDisplayNameEdit(): void {
   isEditingDisplayName.value = true
 }
 
-function cancelDisplayNameEdit(): void {
-  displayNameDraft.value = displayName.value
-  isEditingDisplayName.value = false
-}
-
 function saveDisplayName(): void {
+  if (!isEditingDisplayName.value) return
   const nextValue = displayNameDraft.value.trim() || defaultDisplayName.value
   displayName.value = nextValue
-  localStorage.setItem('buddy.displayName', nextValue)
   isEditingDisplayName.value = false
 }
 
 onMounted(() => {
-  const savedDisplayName = localStorage.getItem('buddy.displayName')
-  displayName.value = savedDisplayName?.trim() || defaultDisplayName.value
+  displayName.value = defaultDisplayName.value
   displayNameDraft.value = displayName.value
   void refreshVersionsData()
 })
@@ -77,7 +74,7 @@ onMounted(() => {
 watch(
   defaultDisplayName,
   (nextValue) => {
-    if (!displayName.value) {
+    if (!isEditingDisplayName.value) {
       displayName.value = nextValue
       displayNameDraft.value = nextValue
     }
@@ -99,29 +96,22 @@ watch(
           <span>Twoja wyświetlana nazwa</span>
           <div class="settings-display-name-controls">
             <input
-              v-if="isEditingDisplayName"
               v-model="displayNameDraft"
               class="settings-display-name-input"
               maxlength="40"
+              :readonly="!isEditingDisplayName"
+              @click="startDisplayNameEdit"
+              @keyup.enter="saveDisplayName"
             />
-            <input v-else :value="displayName" class="settings-display-name-input" readonly />
 
             <div class="settings-display-name-actions">
               <button
-                v-if="isEditingDisplayName"
                 class="settings-small-btn"
+                :disabled="!isDisplayNameDirty"
                 @click="saveDisplayName"
               >
                 Zapisz
               </button>
-              <button
-                v-if="isEditingDisplayName"
-                class="settings-small-btn settings-small-btn-muted"
-                @click="cancelDisplayNameEdit"
-              >
-                Anuluj
-              </button>
-              <button v-else class="settings-small-btn" @click="startDisplayNameEdit">Zmień</button>
             </div>
           </div>
         </div>
@@ -442,23 +432,29 @@ watch(
 
 .settings-display-name-controls {
   width: 100%;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  display: flex;
+  flex-direction: column;
   gap: 8px;
 }
 
 .settings-display-name-input {
   width: 100%;
+  min-width: 0;
+}
+
+.settings-display-name-input[readonly] {
+  cursor: text;
 }
 
 .settings-display-name-actions {
-  display: inline-flex;
+  display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 6px;
 }
 
-.settings-small-btn-muted {
-  opacity: 0.85;
+.settings-display-name-actions .settings-small-btn {
+  min-width: 96px;
 }
 
 .settings-checkbox-with-label {
@@ -554,7 +550,7 @@ watch(
   }
 
   .settings-display-name-controls {
-    grid-template-columns: 1fr;
+    width: 100%;
   }
 
   .settings-display-name-actions {
