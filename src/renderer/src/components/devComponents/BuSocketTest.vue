@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onUnmounted } from 'vue'
+import { computed, onMounted, onUnmounted } from 'vue'
 import { useConnectionStore } from '@renderer/stores/connectionStore'
 import { useSocketStore } from '@renderer/stores/socketStore'
 import { useWebRtcStore } from '@renderer/stores/webRtcStore'
@@ -50,6 +50,10 @@ const mapStreamToDebug = (
 
 const localTrackDiagnostics = computed(() => mapStreamToDebug(webRtcStore.localStream))
 const remoteTrackDiagnostics = computed(() => mapStreamToDebug(webRtcStore.remoteStream))
+
+onMounted(() => {
+  sessionStore.refreshMicrophoneDevices().catch(() => {})
+})
 
 onUnmounted(() => {
   sessionStore.stopCapture().catch(() => {})
@@ -206,6 +210,34 @@ onUnmounted(() => {
               ></span>
             </button>
           </div>
+
+          <div class="px-4 py-3 rounded-lg border border-[#444] bg-black/40">
+            <label class="block text-xs text-gray-300 font-medium mb-2" for="microphone-select">
+              Wybierz mikrofon
+            </label>
+            <div class="flex gap-2 items-center">
+              <select
+                id="microphone-select"
+                v-model="sessionStore.microphoneDeviceId"
+                class="w-full rounded bg-[#111] border border-[#444] text-sm text-gray-200 px-3 py-2 focus:outline-none focus:border-blue-500"
+              >
+                <option
+                  v-for="device in sessionStore.availableMicrophoneDevices"
+                  :key="device.deviceId"
+                  :value="device.deviceId"
+                >
+                  {{ device.label }}
+                </option>
+              </select>
+              <button
+                type="button"
+                class="px-3 py-2 bg-[#222] border border-[#444] text-xs text-gray-300 rounded hover:bg-[#333]"
+                @click="sessionStore.refreshMicrophoneDevices()"
+              >
+                Odśwież
+              </button>
+            </div>
+          </div>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
@@ -310,6 +342,34 @@ onUnmounted(() => {
                 :class="sessionStore.includeMicrophone ? 'translate-x-5' : 'translate-x-0'"
               ></span>
             </button>
+          </div>
+
+          <div class="px-4 py-3 rounded-lg border border-[#444] bg-black/40">
+            <label class="block text-xs text-gray-300 font-medium mb-2" for="guest-microphone-select">
+              Wybierz mikrofon
+            </label>
+            <div class="flex gap-2 items-center">
+              <select
+                id="guest-microphone-select"
+                v-model="sessionStore.microphoneDeviceId"
+                class="w-full rounded bg-[#111] border border-[#444] text-sm text-gray-200 px-3 py-2 focus:outline-none focus:border-blue-500"
+              >
+                <option
+                  v-for="device in sessionStore.availableMicrophoneDevices"
+                  :key="device.deviceId"
+                  :value="device.deviceId"
+                >
+                  {{ device.label }}
+                </option>
+              </select>
+              <button
+                type="button"
+                class="px-3 py-2 bg-[#222] border border-[#444] text-xs text-gray-300 rounded hover:bg-[#333]"
+                @click="sessionStore.refreshMicrophoneDevices()"
+              >
+                Odśwież
+              </button>
+            </div>
           </div>
 
           <div class="px-4 py-3 rounded-lg border border-[#444] bg-black/40 flex flex-col gap-3">

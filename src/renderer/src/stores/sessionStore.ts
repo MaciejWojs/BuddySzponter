@@ -15,6 +15,8 @@ export const SessionStore = defineStore('session', () => {
 
   const includeSystemAudio = ref(true)
   const includeMicrophone = ref(true)
+  const microphoneDeviceId = ref<string | undefined>(undefined)
+  const availableMicrophoneDevices = ref<Array<{ deviceId: string; label: string }>>([])
 
   const sharedTextureStream = shallowRef<MediaStream | null>(null)
   const currentCaptureMode = ref<'host-shared' | 'host-native' | 'guest-mic' | null>(null)
@@ -27,6 +29,31 @@ export const SessionStore = defineStore('session', () => {
   // Dodano typ zwracany : boolean
   const hasLocalAudioTrack = (hint: 'speech' | 'music'): boolean => {
     return !!webRtcStore.localStream?.getAudioTracks().some((t) => t.contentHint === hint)
+  }
+
+  const refreshMicrophoneDevices = async (): Promise<void> => {
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices()
+      const microphones = devices.filter((device) => device.kind === 'audioinput')
+
+      availableMicrophoneDevices.value = microphones.map((device, index) => ({
+        deviceId: device.deviceId,
+        label: device.label || `Mikrofon ${index + 1}`
+      }))
+
+      if (!microphoneDeviceId.value && availableMicrophoneDevices.value.length > 0) {
+        microphoneDeviceId.value = availableMicrophoneDevices.value[0].deviceId
+      }
+
+      if (
+        microphoneDeviceId.value &&
+        !availableMicrophoneDevices.value.some((device) => device.deviceId === microphoneDeviceId.value)
+      ) {
+        microphoneDeviceId.value = availableMicrophoneDevices.value[0]?.deviceId
+      }
+    } catch (e) {
+      logStore.addLog('ERROR', `Błąd pobierania urządzeń audio: ${e}`, 'api')
+    }
   }
 
   // FIX: Funkcja musi być async, aby obsłużyć re-negocjację WebRTC
@@ -78,9 +105,14 @@ export const SessionStore = defineStore('session', () => {
         return
       }
 
+      if (!availableMicrophoneDevices.value.length) {
+        await refreshMicrophoneDevices()
+      }
+
       sharedTextureStream.value = await videoService.startWithExternalVideoTrack(canvasVideoTrack, {
         includeSystemAudio: includeSystemAudio.value,
         includeMicrophone: includeMicrophone.value,
+        microphoneDeviceId: microphoneDeviceId.value,
         systemAudioVolume: webRtcStore.localSystemAudioVolume,
         microphoneVolume: webRtcStore.localMicrophoneVolume
       })
@@ -116,10 +148,15 @@ export const SessionStore = defineStore('session', () => {
     }
 
     try {
+      if (!availableMicrophoneDevices.value.length) {
+        await refreshMicrophoneDevices()
+      }
+
       const stream = await videoService.start({
         includeScreen: true,
         includeSystemAudio: includeSystemAudio.value,
         includeMicrophone: includeMicrophone.value,
+        microphoneDeviceId: microphoneDeviceId.value,
         systemAudioVolume: webRtcStore.localSystemAudioVolume,
         microphoneVolume: webRtcStore.localMicrophoneVolume
       })
@@ -143,10 +180,15 @@ export const SessionStore = defineStore('session', () => {
     logStore.addLog('MIC_CAPTURE', 'Uruchamianie mikrofonu (Gość)...', 'api')
 
     try {
+      if (!availableMicrophoneDevices.value.length) {
+        await refreshMicrophoneDevices()
+      }
+
       const stream = await videoService.start({
         includeScreen: false,
         includeSystemAudio: false,
         includeMicrophone: includeMicrophone.value,
+        microphoneDeviceId: microphoneDeviceId.value,
         microphoneVolume: webRtcStore.localMicrophoneVolume
       })
       currentCaptureMode.value = 'guest-mic'
@@ -238,6 +280,22 @@ export const SessionStore = defineStore('session', () => {
     if (!hasLocalAudioTrack('speech')) void startMicrophoneCaptureForGuest()
   })
 
+  watch(microphoneDeviceId, async (deviceId, previousDeviceId): Promise<void> => {
+    if (!deviceId || deviceId === previousDeviceId || !includeMicrophone.value) return
+    if (!isCapturing.value) return
+
+    if (currentCaptureMode.value === 'guest-mic') {
+      await stopCapture()
+      await startMicrophoneCaptureForGuest()
+      return
+    }
+
+    if (currentCaptureMode.value === 'host-native' || currentCaptureMode.value === 'host-shared') {
+      await stopCapture()
+      await startCapture()
+    }
+  })
+
   watch(includeSystemAudio, (isMuted): void => {
     webRtcStore.toggleSystemAudio(!isMuted)
   })
@@ -245,6 +303,9 @@ export const SessionStore = defineStore('session', () => {
   return {
     includeSystemAudio,
     includeMicrophone,
+    microphoneDeviceId,
+    availableMicrophoneDevices,
+    refreshMicrophoneDevices,
     isCapturing,
     startCapture,
     stopCapture,
