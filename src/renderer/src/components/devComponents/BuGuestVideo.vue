@@ -30,6 +30,7 @@
         ref="remoteVideoRef"
         autoplay
         playsinline
+        muted
         class="w-full h-full object-contain absolute inset-0 transition-opacity duration-500"
         :class="webRtcStore.remoteStream ? 'opacity-100' : 'opacity-0'"
       ></video>
