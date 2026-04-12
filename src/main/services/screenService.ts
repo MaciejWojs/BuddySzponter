@@ -166,10 +166,14 @@ export class ScreenService {
           if (allFailed) {
             const firstError = results.find((r) => r.status === 'rejected')
             console.error('[Capture] Błąd wysyłania sharedTexture do ramki:', firstError)
-            importedTexture.release()
           }
         })
         .finally(() => {
+          try {
+            importedTexture.release()
+          } catch (e) {
+            console.error('[Capture] Błąd przy release() importedTexture w głównym wątku:', e)
+          }
           this.isProcessingFrame = false
         })
     } catch (e) {

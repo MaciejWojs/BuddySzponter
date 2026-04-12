@@ -47,8 +47,6 @@ export class WebRTCService {
   private localSenders: RTCRtpSender[] = []
   private videoTc: RTCRtpTransceiver | null = null
 
-  // SZTYWNE RURY (Transceivery)
-
   public initialize(isHost: boolean): void {
     this.isIntentionallyClosing = false
     this.isHost = isHost
@@ -58,9 +56,26 @@ export class WebRTCService {
     this.localSenders = []
     this.videoTc = null
 
-    this.peerConnection = new RTCPeerConnection({
-      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
-    })
+    const server = import.meta.env.VITE_ICE_SERVER
+    const serverUser = import.meta.env.VITE_ICE_SERVER_USER || 'user'
+    const serverPass = import.meta.env.VITE_ICE_SERVER_PASS || '1234'
+
+    const config: RTCConfiguration = {
+      iceServers: []
+    }
+
+    if (server) {
+      config.iceServers!.push(
+        { urls: `stun:${server}:3478` },
+        { urls: `turn:${server}:3478`, username: serverUser, credential: serverPass },
+        { urls: `turns:${server}:443`, username: serverUser, credential: serverPass },
+        { urls: `turns:${server}:5349`, username: serverUser, credential: serverPass }
+      )
+    } else {
+      config.iceServers!.push({ urls: 'stun:stun.l.google.com:19302' })
+    }
+
+    this.peerConnection = new RTCPeerConnection(config)
 
     if (isHost) {
       this.videoTc = this.peerConnection.addTransceiver('video', { direction: 'sendrecv' }) // Rura 0
