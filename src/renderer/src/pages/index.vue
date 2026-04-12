@@ -1,7 +1,9 @@
-<template>
-  <BuApiTestPanel />
-</template>
-
 <script setup lang="ts">
-import BuApiTestPanel from '@renderer/components/devComponents/BuApiTestPanel.vue'
+// Strona wejściowa aplikacji: deleguje renderowanie do głównego widoku menu.
+import Menu from './Menu.vue'
 </script>
+
+<template>
+  <!-- Kontener widoku startowego, który osadza właściwy ekran menu. -->
+  <Menu />
+</template>

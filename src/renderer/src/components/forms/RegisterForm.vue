@@ -1,10 +1,11 @@
 <template>
+  <!-- Sekcja widoku komponentu RegisterForm: definiuje strukturę renderowaną w interfejsie użytkownika. -->
   <div class="flex flex-col items-center gap-6">
     <div class="flex flex-col justify-items-center items-center gap-2">
       <p class="w-full max-w-sm text-left text-white text-base font-medium opacity-90">
-        {{ t('register.emailLabel') || t('login.email') || 'Email address' }}
+        {{ t('login.email') || t('login.email') || 'Email address' }}
       </p>
-      <BuInput v-model="email" :placeholder="$t('register.email')" :error="!!errors.email">
+      <BuInput v-model="email" :placeholder="t('login.email')" :error="!!errors.email">
         <template #prefix>
           <Mail class="w-6 h-6 opacity-50" />
         </template>
@@ -13,11 +14,11 @@
 
     <div class="flex flex-col justify-items-center items-center gap-2">
       <p class="w-full max-w-sm text-left text-white text-base font-medium opacity-90">
-        {{ t('register.nicknameLabel') || 'Nickname' }}
+        {{ t('login.nickname') || 'Nickname' }}
       </p>
       <BuInput
         v-model="nickname"
-        :placeholder="$t('register.nickname') || 'Nickname'"
+        :placeholder="$t('login.nickname') || 'Nickname'"
         :error="!!errors.nickname"
       />
       <div class="text-red-500 text-sm mt-1 h-2">{{ errors.nickname }}</div>
@@ -25,11 +26,11 @@
 
     <div class="flex flex-col justify-items-center items-center gap-2">
       <p class="w-full max-w-sm text-left text-white text-base font-medium opacity-90">
-        {{ t('register.passwordLabel') || t('login.password') || 'Password' }}
+        {{ t('login.password') || t('login.password') || 'Password' }}
       </p>
       <BuInput
         v-model="password"
-        :placeholder="$t('register.password')"
+        :placeholder="$t('login.penter')"
         :type="showPassword ? 'text' : 'password'"
         :error="!!errors.password"
       >
@@ -39,7 +40,7 @@
             variant="link"
             class="text-white opacity-50"
             :icon="!showPassword ? 'i-lucide-eye-off' : 'i-lucide-eye'"
-            :aria-label="showPassword ? 'Hide password' : 'Show password'"
+            :aria-label="showPassword ? t('common.hidePassword') : t('common.showPassword')"
             :aria-pressed="showPassword"
             @click="showPassword = !showPassword"
           />
@@ -57,11 +58,11 @@
 
     <div class="flex flex-col justify-items-center items-center gap-2">
       <p class="w-full max-w-sm text-left text-white text-base font-medium opacity-90">
-        {{ t('register.confirmPasswordLabel') || 'Confirm password' }}
+        {{ t('login.confirm') || 'Confirm password' }}
       </p>
       <BuInput
         v-model="confirmPassword"
-        :placeholder="$t('register.confirmPassword')"
+        :placeholder="$t('login.confirm')"
         :type="showConfirmPassword ? 'text' : 'password'"
         :error="!!errors.confirmPassword"
       >
@@ -71,7 +72,7 @@
             variant="link"
             class="text-white opacity-50"
             :icon="!showConfirmPassword ? 'i-lucide-eye-off' : 'i-lucide-eye'"
-            :aria-label="showConfirmPassword ? 'Hide password' : 'Show password'"
+            :aria-label="showConfirmPassword ? t('common.hidePassword') : t('common.showPassword')"
             :aria-pressed="showConfirmPassword"
             @click="showConfirmPassword = !showConfirmPassword"
           />
@@ -80,48 +81,54 @@
     </div>
 
     <GrayButton @click="handleRegister">
-      {{ t('register.button') }}
+      {{ t('login.register') }}
       <template #suffix>
         <UIcon v-if="!isLoading" name="i-lucide-arrow-right" class="w-6 h-6 opacity-75" />
         <UIcon v-if="isLoading" name="i-lucide-loader-circle" class="animate-spin w-6 h-6" />
       </template>
     </GrayButton>
 
+    <div>
+      <div class="text-red-500 text-sm mt-1 h-2">{{ genericError }}</div>
+    </div>
+
     <div class="w-full max-w-sm space-y-1 text-center mt-2">
       <div class="flex items-center justify-center gap-1 text-sm text-white opacity-80">
-        <span>{{ t('register.haveAccount') || 'Posiadasz już konto?' }}</span>
+        <span>{{ t('login.haveAccount') || 'Posiadasz już konto?' }}</span>
         <button
           type="button"
           class="text-white text-sm opacity-80 hover:opacity-100 hover:underline underline-offset-2 transition-opacity"
           @click="goToLogin"
         >
-          {{ t('register.loginNow') || 'Zaloguj się' }}
+          {{ t('login.button') || 'Zaloguj się' }}
         </button>
       </div>
     </div>
-
-    <img :src="buddySzponterLogo" alt="BuddySzponter" class="w-52 h-auto" />
   </div>
 </template>
 
 <script setup lang="ts">
+// Sekcja logiki komponentu RegisterForm: zarządza danymi, zdarzeniami i zachowaniem widoku.
 import { ref } from 'vue'
+import { storeToRefs } from 'pinia'
 const { t } = useI18n()
 
 // Custom svg components
 import Mail from '@images/components/mail.svg?component'
 import { useAppToast } from '@renderer/composables/useAppToast'
-import buddySzponterLogo from '@images/buddyszponterLogo.png'
 import zxcvbn from 'zxcvbn'
+import { useUserStore } from '@renderer/stores/userStore'
 
 import { useRouter } from 'vue-router'
-const { custom: toastCustom } = useAppToast()
+const { success: toastSuccess } = useAppToast()
 const router = useRouter()
+const userStore = useUserStore()
+const { isRegistering, errorMessage, fieldErrors } = storeToRefs(userStore)
 
 // State
 const showPassword = ref(false)
 const showConfirmPassword = ref(false)
-const isLoading = ref(false)
+const isLoading = computed(() => isRegistering.value)
 
 // validator
 const registerValidator = computed(() =>
@@ -146,7 +153,7 @@ const registerValidator = computed(() =>
   )
 )
 
-const { errors, defineField, handleSubmit } = useForm({
+const { errors, defineField, handleSubmit, setErrors } = useForm({
   validationSchema: registerValidator,
   initialValues: {
     email: '',
@@ -163,24 +170,28 @@ const [confirmPassword] = defineField('confirmPassword')
 
 const strong = computed(() => zxcvbn(password.value ?? '').score)
 
-// Generic error state for register failures
-const genericError = ref<string | null>(null)
+const genericError = computed(() => errorMessage.value)
 
-const handleRegister = handleSubmit((values) => {
-  console.log('Register values:', values)
+const handleRegister = handleSubmit(async (values) => {
+  const success = await userStore.register({
+    email: values.email,
+    nickname: values.nickname,
+    password: values.password,
+    confirmPassword: values.confirmPassword
+  })
 
-  try {
-    isLoading.value = true
-    setTimeout(() => {
-      toastCustom('Sukces, konto zostało utworzone', '')
-      genericError.value = null
-      isLoading.value = false
-    }, 2000)
-  } catch (apiError: unknown) {
-    console.error('Register error:', apiError)
-    genericError.value = 'Coś poszło nie tak po stronie serwera. Spróbuj później.'
-    isLoading.value = false
+  if (!success) {
+    setErrors({
+      email: fieldErrors.value.email,
+      nickname: fieldErrors.value.nickname,
+      password: fieldErrors.value.password,
+      confirmPassword: fieldErrors.value.passwordConfirm || fieldErrors.value.confirmPassword
+    })
+    return
   }
+
+  toastSuccess('toast.registerSuccess')
+  await router.push('/login')
 })
 
 function goToLogin(): void {

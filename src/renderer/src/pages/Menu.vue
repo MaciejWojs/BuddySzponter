@@ -1,6 +1,5 @@
-import UserNoLogin from '@renderer/components/simpleComponents/UserNoLogin.vue'
 <script setup lang="ts">
-// --- Component and asset imports ---
+// Importy komponentów i zasobów używanych przez widok głównego menu.
 import GuestForm from '@renderer/components/forms/GuestForm.vue'
 import HostForm from '@renderer/components/forms/HostForm.vue'
 import NavBar from '@renderer/components/UI/NavBar.vue'
@@ -8,12 +7,20 @@ import type { NavBarItem } from '@renderer/components/UI/NavBar.vue'
 import DevicesButton from '@renderer/components/simpleComponents/DevicesButton.vue'
 import HomeButton from '@renderer/components/simpleComponents/HomeButton.vue'
 import SettingButton from '@renderer/components/simpleComponents/SettingButton.vue'
-import buddySzponterLogo from '@renderer/assets/images/buddyszponterLogo.png'
+// import BuLanguageSelector from '@renderer/components/simpleComponents/BuLanguageSelector.vue'
+import UserIcon from '@renderer/components/simpleComponents/UserIcon.vue'
+import UserNoLogin from '@renderer/components/simpleComponents/UserNoLogin.vue'
+import { useUserStore } from '@renderer/stores/userStore'
+import { storeToRefs } from 'pinia'
+import buddySzponterLogo from '@images/buddyszponterLogo.png'
 
-// --- Navigation state: currently active tab ---
+const userStore = useUserStore()
+const { isAuthenticated } = storeToRefs(userStore)
+
+// Stan aktywnej zakładki w dolnym pasku nawigacji.
 const activeNav = ref('home')
 
-// --- Navigation items: icon buttons for NavBar ---
+// Definicja pozycji nawigacji przekazywanych do komponentu NavBar.
 const navItems: NavBarItem[] = [
   {
     name: 'settings',
@@ -31,30 +38,31 @@ const navItems: NavBarItem[] = [
 </script>
 
 <template>
-  <!--
-    Main menu view:
-    - Top navigation bar (NavBar)
-    - Two columns: Share Control / Take Control
-    - Footer with logo
-  -->
+  <!-- Główny widok menu: górna nawigacja, dwie kolumny akcji i stopka z logo. -->
   <section class="menu-page">
-    <!-- User profile icon in top right corner -->
-    <UserNoLogin />
+    <!-- Selektor języka osadzony w lewym górnym rogu ekranu. -->
+    <!-- <div class="menu-lang-selector">
+      <BuLanguageSelector />
+    </div> -->
+
+    <!-- Ikona użytkownika zależna od statusu zalogowania. -->
+    <UserIcon v-if="isAuthenticated" />
+    <UserNoLogin v-else />
     <header class="menu-topbar">
-      <!-- Navigation bar with icon buttons -->
+      <!-- Pasek nawigacyjny z ikonowymi przyciskami sekcji. -->
       <NavBar v-model="activeNav" :items="navItems" />
     </header>
 
     <main class="menu-content">
       <article class="menu-column">
-        <!-- GuestForm: Share control with a friend -->
+        <!-- Sekcja gościa: udostępnienie sterowania przez kod sesji. -->
         <h2>{{ $t('guestForm.title') }}</h2>
         <p>{{ $t('guestForm.description') }}</p>
         <GuestForm />
       </article>
 
       <article class="menu-column">
-        <!-- HostForm: Take control using code/password -->
+        <!-- Sekcja hosta: przejęcie sterowania z użyciem kodu i hasła. -->
         <h2>{{ $t('hostForm.title') }}</h2>
         <p>{{ $t('hostForm.description') }}</p>
         <HostForm />
@@ -62,27 +70,33 @@ const navItems: NavBarItem[] = [
     </main>
 
     <footer class="menu-footer">
-      <!-- Application logo in footer -->
-      <img :src="buddySzponterLogo" alt="BuddySzponter logo" class="menu-logo" />
+      <!-- Logo aplikacji prezentowane w stopce widoku. -->
+      <img :src="buddySzponterLogo" :alt="$t('common.logoAlt')" class="menu-logo" />
     </footer>
   </section>
 </template>
 
 <style scoped>
 /*
-  --- Styles for Menu view ---
-  .menu-page      - main container
-  .menu-topbar    - top navigation bar
-  .menu-content   - main content (two columns)
-  .menu-footer    - footer with logo
-  .menu-logo      - application logo
-  Media queries   - responsive adjustments
+  Style widoku Menu:
+  .menu-page    - główny kontener strony
+  .menu-topbar  - obszar górnej nawigacji
+  .menu-content - sekcja kolumn formularzy
+  .menu-footer  - stopka z logo aplikacji
 */
+.menu-lang-selector {
+  position: absolute;
+  top: 20px;
+  left: 24px;
+  z-index: 10;
+}
+
 .menu-page {
   min-height: 100vh;
   display: grid;
   grid-template-rows: auto 1fr auto;
   padding: 20px 56px 24px;
+  position: relative;
 }
 
 .menu-topbar {
@@ -161,6 +175,11 @@ const navItems: NavBarItem[] = [
     overflow-y: auto;
   }
 
+  .menu-lang-selector {
+    top: 8px;
+    left: 8px;
+  }
+
   .menu-content {
     grid-template-columns: 1fr;
     gap: 32px;
@@ -189,6 +208,12 @@ const navItems: NavBarItem[] = [
   .menu-page {
     padding: 6px 2vw 10px;
   }
+
+  .menu-lang-selector {
+    top: 2px;
+    left: 2px;
+  }
+
   .menu-content {
     gap: 18px;
     padding-top: 4px;

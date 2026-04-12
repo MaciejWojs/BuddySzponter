@@ -1,5 +1,4 @@
-// src/preload/index.d.ts (lub inny plik .d.ts w Twoim projekcie)
-
+import type { LoginInput, RegisterInput } from '../main/schemas/authSchemas'
 import { ElectronAPI } from '@electron-toolkit/preload'
 import { AppLanguage, Translation } from '../shared/schemas/langSchemas'
 import {
@@ -36,6 +35,7 @@ import {
   CreateConnectionRequestSchema,
   JoinConnectionRequestSchema
 } from '../shared/schemas/connection'
+import { UserInputSchema } from '@shared/schemas/user'
 
 interface WsAccessListeners {
   onRequest: (data: WsRequestAccess) => void
@@ -61,9 +61,9 @@ declare global {
     api: {
       auth: {
         register: (data: RegisterInput) => Promise<IpcResponse>
-        login: (credentials: LoginInput) => Promise<IpcResponse<{ accessTokenSaved: boolean }>>
+        login: (credentials: UserInputSchema) => Promise<IpcResponse<{ accessTokenSaved: boolean }>>
         logout: () => Promise<IpcResponse>
-        getMe: () => Promise<IpcResponse<unknown>>
+        getMe: () => Promise<GetCurrentUserResponse>
         refresh: () => Promise<void>
       }
       settings: {
@@ -77,11 +77,14 @@ declare global {
         getAvailableLanguages: () => Promise<GetAvailableLanguagesResponse>
         getSupportedVersions: () => Promise<GetSupportedVersionsResponse>
         getAppVersion: () => Promise<string>
+        getVersionStatus: () => Promise<
+          'UP_TO_DATE' | 'UPDATE_AVAILABLE' | 'UPDATE_REQUIRED' | 'UNKNOWN'
+        >
+        isUpdateRequired: () => Promise<boolean>
       }
       users: {
         uploadAvatar: (userId: string | null) => Promise<UploadAvatarResponse>
         uploadAvatarByBuffer: (
-          userId: string | null,
           buffer: ArrayBuffer,
           fileName: string,
           mimeType: string

@@ -59,7 +59,7 @@ const onDrop = async (event: DragEvent): Promise<void> => {
 
   try {
     const arrayBuffer = await file.arrayBuffer()
-    const res = await window.api.users.uploadAvatarByBuffer(null, arrayBuffer, file.name, file.type)
+    const res = await window.api.users.uploadAvatarByBuffer(arrayBuffer, file.name, file.type)
     emit('log-result', 'UPLOAD_AVATAR_DROP', res)
   } catch (e) {
     emit('log-result', 'UPLOAD_AVATAR_DROP_ERROR', e)

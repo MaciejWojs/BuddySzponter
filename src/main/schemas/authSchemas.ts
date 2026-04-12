@@ -1,46 +1,27 @@
-// src/schemas/authSchemas.ts
 import { z } from 'zod'
-import zxcvbn from 'zxcvbn'
+import { loginInputSchema, registerInputSchema } from '../../shared/schemas/user'
 
-export const registerInputSchema = z
-  .object({
-    nickname: z
-      .string()
-      .min(3, { message: 'nickname have to be at least 3 characters long' })
-      .max(20, { message: 'nickname can be at most 20 characters long' }),
-
-    email: z.email({ message: 'Please provide a valid email address' }),
-
-    password: z
-      .string()
-      .min(8, { message: 'password must be at least 8 characters long' })
-      .regex(/[A-Z]/, { message: 'password must contain an uppercase letter' })
-      .regex(/[0-9]/, { message: 'password must contain a digit' })
-      .refine((val) => zxcvbn(val).score >= 3, {
-        message: 'Password is too weak (min. zxcvbn score: 3)'
-      }),
-
-    passwordConfirm: z.string()
-  })
-  .refine((data) => data.password === data.passwordConfirm, {
-    message: 'Passwords do not match',
-    path: ['passwordConfirm']
-  })
-
-export const loginInputSchema = z.object({
-  email: z.email({ message: 'Please provide a valid email address' }),
-  password: z.string().min(1, { message: 'Password cannot be empty' }),
+export const LoginRequestSchema = z.object({
+  ...loginInputSchema.shape,
   fingerprint: z.string(),
   os: z.string().optional().default(''),
   name: z.string().optional().default('')
 })
 
+export const RegisterRequestSchema = z
+  .object({
+    ...registerInputSchema.shape
+  })
+  .refine((data) => data.password === data.passwordConfirm, {
+    path: ['passwordConfirm']
+  })
+
+// Schemat ciasteczka z tokenem odświeżania.
 export const refreshTokenCookieSchema = z.object({
   refreshToken: z.jwt()
 })
 
+// Typy wejściowe dla logowania i rejestracji.
 export type RefreshTokenCookie = z.infer<typeof refreshTokenCookieSchema>
-
-export type LoginInput = z.infer<typeof loginInputSchema>
-
-export type RegisterInput = z.infer<typeof registerInputSchema>
+export type LoginRequest = z.infer<typeof LoginRequestSchema>
+export type RegisterRequest = z.infer<typeof RegisterRequestSchema>

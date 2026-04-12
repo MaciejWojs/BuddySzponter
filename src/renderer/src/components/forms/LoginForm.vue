@@ -1,4 +1,5 @@
 <template>
+  <!-- Sekcja widoku komponentu LoginForm: definiuje strukturę renderowaną w interfejsie użytkownika. -->
   <div class="flex flex-col items-center gap-5">
     <div class="flex flex-col justify-items-center items-center gap-2">
       <p class="w-full max-w-sm text-left text-white text-base font-medium opacity-90">
@@ -28,7 +29,7 @@
             variant="link"
             class="text-white opacity-50"
             :icon="!show ? 'i-lucide-eye-off' : 'i-lucide-eye'"
-            :aria-label="show ? 'Hide password' : 'Show password'"
+            :aria-label="show ? t('common.hidePassword') : t('common.showPassword')"
             :aria-pressed="show"
             @click="show = !show"
           />
@@ -42,7 +43,7 @@
         type="button"
         class="text-white text-sm opacity-80 hover:opacity-100 hover:underline underline-offset-2 transition-opacity mx-auto"
       >
-        {{ t('loginForm.forgotPassword') }}
+        {{ t('login.forgotPassword') }}
       </button>
       <div class="flex items-center justify-center gap-1 text-sm text-white opacity-80">
         <span>{{ t('login.noAccount') }}</span>
@@ -67,27 +68,28 @@
     <div>
       <div class="text-red-500 text-sm mt-1 h-2">{{ genericError }}</div>
     </div>
-
-    <img :src="buddySzponterLogo" alt="BuddySzponter" class="w-52 h-auto" />
   </div>
 </template>
 
 <script setup lang="ts">
+// Sekcja logiki komponentu LoginForm: zarządza danymi, zdarzeniami i zachowaniem widoku.
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { storeToRefs } from 'pinia'
 const { t } = useI18n()
 
 // Custom svg components
 import Mail from '@images/components/mail.svg?component'
-import buddySzponterLogo from '@images/buddyszponterLogo.png'
 import { useAppToast } from '@renderer/composables/useAppToast'
+import { useUserStore } from '@renderer/stores/userStore'
 
-const { custom: toastCustom } = useAppToast()
+const { success: toastSuccess } = useAppToast()
 const router = useRouter()
+const userStore = useUserStore()
+const { isLoggingIn, errorMessage, fieldErrors } = storeToRefs(userStore)
 
 // State
 const show = ref(false)
-const isLoading = ref(false)
 
 // validator
 const loginValidator = computed(() =>
@@ -103,39 +105,32 @@ const loginValidator = computed(() =>
   )
 )
 
-const { errors, defineField, handleSubmit } = useForm({
+const { errors, defineField, handleSubmit, setErrors } = useForm({
   validationSchema: loginValidator
 })
 
 const [email] = defineField('email', { validateOnModelUpdate: false })
 const [password] = defineField('password', { validateOnModelUpdate: false })
 
-// Generic error state for login failures (e.g., incorrect credentials)
-const genericError = ref<string | null>(null)
+const genericError = computed(() => errorMessage.value)
+const isLoading = computed(() => isLoggingIn.value)
 
-const handleLogin = handleSubmit((values) => {
-  console.log('Login values:', values)
+const handleLogin = handleSubmit(async (values) => {
+  const success = await userStore.login({
+    email: values.email,
+    password: values.password
+  })
 
-  try {
-    isLoading.value = true
-    setTimeout(() => {
-      toastCustom('Sukces, udało ci się zalogować', '')
-      genericError.value = null
-      isLoading.value = false
-    }, 2000)
-  } catch (apiError: unknown) {
-    console.error('Login error:', apiError)
-    genericError.value = 'Coś poszło nie tak po stronie serwera. Spróbuj później.'
-    isLoading.value = false
+  if (!success) {
+    setErrors({
+      email: fieldErrors.value.email,
+      password: fieldErrors.value.password
+    })
+    return
   }
 
-  // 2. Obsługa błędów autoryzacji (np. 401 Unauthorized)
-  //     else if (apiError.response?.status === 401) {
-  //       setErrors({
-  //         email: ' ', // Puste znaki, żeby podświetlić pole na czerwono
-  //         password: 'Niepoprawny e-mail lub hasło'
-  //       })
-  //     }
+  toastSuccess('toast.loginSuccess')
+  await router.push('/Menu')
 })
 
 function goToRegister(): void {

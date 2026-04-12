@@ -1,5 +1,5 @@
+// Serwis odpowiedzialny za obsługę logowania, rejestracji, wylogowania i zarządzania tokenami JWT.
 import { ipcMain } from 'electron'
-import { LoginInput, RegisterInput } from '../schemas/authSchemas'
 import { register } from '../handlers/auth/register'
 import { login } from '../handlers/auth/login'
 import { secureStore } from '../store/secureStore'
@@ -9,18 +9,30 @@ import { getCurrentUser } from '../handlers/auth/me'
 import { jwtDecode } from 'jwt-decode'
 import { refresh } from '../handlers/auth/refresh'
 import { UserResponseSchema } from '../../shared/schemas/user'
+import { coreService } from './CoreService'
+import { RegisterRequest, LoginRequest } from '../schemas/authSchemas'
 
+// Odpowiedź zwracana, gdy wersja aplikacji jest nieobsługiwana.
+const updateBlockedResponse = {
+  success: false as const,
+  message: 'Ta wersja aplikacji nie jest wspierana. Zaktualizuj aplikacje, aby kontynuowac.'
+}
+
+// Klasa singleton obsługująca logikę autoryzacji użytkownika (logowanie, rejestracja, wylogowanie, odświeżanie tokenów).
 export class AuthService {
+  // Instancja singletona serwisu.
   private static instance: AuthService
+  // Timer do automatycznego odświeżania tokenu JWT.
   private refreshTimeout: NodeJS.Timeout | null = null
+  // Dane aktualnie zalogowanego użytkownika.
   public currentUser: UserResponseSchema | null = null
 
   private constructor() {
     console.log('[AuthService] Initializing service...')
-
     this.currentUser = this.getCurrentUserData()
   }
 
+  // Zwraca instancję singletona serwisu.
   public static getInstance(): AuthService {
     if (!AuthService.instance) {
       AuthService.instance = new AuthService()
@@ -28,8 +40,9 @@ export class AuthService {
     return AuthService.instance
   }
 
-  // --- TOKEN MANAGEMENT ---
+  // --- ZARZĄDZANIE TOKENAMI ---
 
+  // Ustawia nowy token JWT i planuje jego automatyczne odświeżenie.
   async setAccessToken(token: string): Promise<void> {
     authStore.set('accessToken', token)
 
@@ -123,16 +136,28 @@ export class AuthService {
   // --- AUTHENTICATION METHODS ---
 
   public registerHandler(): void {
-    ipcMain.handle('auth:register', async (_event, data: RegisterInput) => {
+    ipcMain.handle('auth:register', async (_event, data: RegisterRequest) => {
+      if (await coreService.isUpdateRequired()) {
+        return updateBlockedResponse
+      }
       return await register(data)
     })
-    ipcMain.handle('auth:login', async (_event, data: LoginInput) => {
+    ipcMain.handle('auth:login', async (_event, data: LoginRequest) => {
+      if (await coreService.isUpdateRequired()) {
+        return updateBlockedResponse
+      }
       return await login(data)
     })
     ipcMain.handle('auth:logout', async () => {
+      if (await coreService.isUpdateRequired()) {
+        return updateBlockedResponse
+      }
       return await logout()
     })
     ipcMain.handle('auth:me', async () => {
+      if (await coreService.isUpdateRequired()) {
+        return updateBlockedResponse
+      }
       const result = await getCurrentUser()
       if (result.success && result.data) {
         this.saveUserData(result.data)

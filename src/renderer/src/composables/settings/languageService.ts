@@ -30,13 +30,13 @@ export class LanguageService {
       }
 
       if (initialTranslations) {
-        // Magia TypeScriptu: pobieramy idealny typ bezpośrednio z metody i18n
         type I18nMessageType = Parameters<typeof i18n.global.setLocaleMessage>[1]
 
         i18n.global.setLocaleMessage(savedLang, initialTranslations as unknown as I18nMessageType)
-        // Bezpieczne przypisanie języka
         ;(i18n.global.locale as { value: string }).value = savedLang
       }
+
+      i18n.global.locale.value = savedLang as unknown as 'en'
     } catch (error) {
       console.error('[LanguageService] Failed to initialize:', error)
     } finally {
@@ -59,7 +59,6 @@ export class LanguageService {
       this.translationsRef.value = newTranslations
 
       if (newTranslations) {
-        // To samo bezpieczne rzutowanie
         type I18nMessageType = Parameters<typeof i18n.global.setLocaleMessage>[1]
 
         i18n.global.setLocaleMessage(lang, newTranslations as unknown as I18nMessageType)

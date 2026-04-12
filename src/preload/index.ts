@@ -1,6 +1,5 @@
 import { contextBridge, ipcRenderer, sharedTexture } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
-import { RegisterInput, LoginInput } from '../main/schemas/authSchemas'
 import { AppLanguage, Translation } from '../shared/schemas/langSchemas'
 import {
   CreateConnectionResponse,
@@ -30,6 +29,7 @@ import {
   WsWebRTCIceCandidate,
   WsWebRTCReady
 } from '../shared/schemas/ws'
+import { LoginInput, RegisterInput } from '../shared/schemas/user'
 
 // Custom APIs for renderer
 const api = {
@@ -54,19 +54,22 @@ const api = {
       ipcRenderer.invoke('core:getAvailableLanguages'),
     getSupportedVersions: (): Promise<GetSupportedVersionsResponse> =>
       ipcRenderer.invoke('core:getSupportedVersions'),
-    getAppVersion: (): Promise<string> => ipcRenderer.invoke('core:getAppVersion')
+    getAppVersion: (): Promise<string> => ipcRenderer.invoke('core:getAppVersion'),
+    getVersionStatus: (): Promise<
+      'UP_TO_DATE' | 'UPDATE_AVAILABLE' | 'UPDATE_REQUIRED' | 'UNKNOWN'
+    > => ipcRenderer.invoke('core:getVersionStatus'),
+    isUpdateRequired: (): Promise<boolean> => ipcRenderer.invoke('core:isUpdateRequired')
   },
   users: {
     uploadAvatar: (userId: string | null): Promise<UploadAvatarResponse> =>
       ipcRenderer.invoke('user:uploadAvatar', userId),
 
     uploadAvatarByBuffer: (
-      userId: string | null,
       buffer: ArrayBuffer,
       fileName: string,
       mimeType: string
     ): Promise<UploadAvatarResponse> =>
-      ipcRenderer.invoke('user:uploadAvatarByBuffer', userId, buffer, fileName, mimeType),
+      ipcRenderer.invoke('user:uploadAvatarByBuffer', buffer, fileName, mimeType),
 
     getCurrentUser: (): Promise<GetCurrentUserResponse> => ipcRenderer.invoke('user:getCurrentUser')
   },

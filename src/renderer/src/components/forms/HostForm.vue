@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+// Sekcja logiki komponentu HostForm: zarządza danymi, zdarzeniami i zachowaniem widoku.
 import { ref } from 'vue'
 import BuTimer from '../simpleComponents/BuTimer.vue'
 import { customAlphabet } from 'nanoid/non-secure'
@@ -134,6 +135,7 @@ function onPasswordBlur(): void {
 </script>
 
 <template>
+  <!-- Sekcja widoku komponentu HostForm: definiuje strukturę renderowaną w interfejsie użytkownika. -->
   <div>
     <div id="sessionCode" class="flex flex-col items-center">
       <h3>{{ $t('hostForm.sessionCode') }}</h3>
@@ -175,7 +177,7 @@ function onPasswordBlur(): void {
               color="neutral"
               variant="link"
               class="text-white opacity-50"
-              :aria-label="show ? 'Hide password' : 'Show password'"
+              :aria-label="show ? t('common.hidePassword') : t('common.showPassword')"
               :aria-pressed="show"
               @click="onTogglePasswordVisibility"
             />
@@ -184,6 +186,7 @@ function onPasswordBlur(): void {
               color="neutral"
               variant="link"
               class="text-white opacity-50"
+              :aria-label="t('hostForm.generatePassword')"
               @click="onRandomPasswordClick"
             />
           </div>

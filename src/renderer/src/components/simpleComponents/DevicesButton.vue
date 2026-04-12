@@ -1,4 +1,5 @@
 <template>
+  <!-- Sekcja widoku komponentu DevicesButton: definiuje strukturę renderowaną w interfejsie użytkownika. -->
   <button
     :type="buttonType"
     :disabled="props.disabled || props.loading"
@@ -18,6 +19,7 @@
 </template>
 
 <script setup lang="ts">
+// Sekcja logiki komponentu DevicesButton: zarządza danymi, zdarzeniami i zachowaniem widoku.
 import DevicesIcon from '@renderer/assets/images/ui/devices.svg?component'
 
 const props = defineProps({

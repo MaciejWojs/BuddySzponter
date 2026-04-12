@@ -16,6 +16,7 @@ import {
 
 export type ValidationErrorCause = { field: string; error: string }
 
+// Ogólny typ odpowiedzi IPC (success/fail, dane, komunikat, opcjonalnie przyczyny błędów).
 export type IpcResponse<TData = void> =
   | { success: true; data: TData; message?: string }
   | { success: false; message: string; cause?: ValidationErrorCause[] }

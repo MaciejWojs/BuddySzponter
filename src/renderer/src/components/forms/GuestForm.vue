@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+// Sekcja logiki komponentu GuestForm: zarządza danymi, zdarzeniami i zachowaniem widoku.
 import { ref } from 'vue'
 
 const { t } = useI18n()
@@ -10,7 +11,7 @@ const passwordValidator = computed(() =>
         .string({ message: t('validation.required') })
         .min(1, { message: t('validation.required') })
         .refine((value) => value.replace(/\s/g, '').length === 9, {
-          message: t('validation.sessionCodeLength')
+          message: t('validation.sessioncodelength')
         }),
       sessionPassword: z.string({ message: t('validation.required') })
     })
@@ -123,6 +124,7 @@ function onPasswordBlur(): void {
 </script>
 
 <template>
+  <!-- Sekcja widoku komponentu GuestForm: definiuje strukturę renderowaną w interfejsie użytkownika. -->
   <div>
     <div id="sessionCode" class="flex flex-col items-center">
       <h3>{{ $t('guestForm.sessionCode') }}</h3>
@@ -147,7 +149,7 @@ function onPasswordBlur(): void {
             color="neutral"
             variant="link"
             class="text-white opacity-50"
-            aria-label="Copy session code"
+            :aria-label="t('guestForm.copySessionCode')"
             @click="onCopySessionCode"
           />
         </template>
@@ -173,7 +175,7 @@ function onPasswordBlur(): void {
               color="neutral"
               variant="link"
               class="text-white opacity-50"
-              :aria-label="show ? 'Hide password' : 'Show password'"
+              :aria-label="show ? t('common.hidePassword') : t('common.showPassword')"
               :aria-pressed="show"
               @click="onTogglePasswordVisibility"
             />
