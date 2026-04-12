@@ -21,7 +21,7 @@ export const loginInputSchema = z.object({
     .min(8)
     .regex(/[A-Z]/)
     .regex(/[0-9]/)
-    .regex(/[@$!%*?&]/) //TODO - dodać wymóg znaku specjalnego do hasła
+    // .regex(/[@$!%*?&]/) //TODO - dodać wymóg znaku specjalnego do hasła
     .refine((val) => zxcvbn(val).score >= 3)
 })
 

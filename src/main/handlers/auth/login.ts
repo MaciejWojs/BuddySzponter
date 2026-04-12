@@ -7,9 +7,10 @@ import { execute } from '../../utils/execute'
 import { LoginRendererResponse } from '../../../shared/schemas/ipc'
 import { authService } from '../../services/AuthService'
 import { buildRoute } from '../../utils/api/path'
-import { LoginRequest, LoginRequestSchema } from '../../schemas/authSchemas'
+import { LoginRequestSchema } from '../../schemas/authSchemas'
+import { LoginInput } from '../../../shared/schemas/user'
 
-export async function login(data: LoginRequest): Promise<LoginRendererResponse> {
+export async function login(data: LoginInput): Promise<LoginRendererResponse> {
   try {
     const fingerprint = appSettings.getHardwareId()
     const deviceName = appSettings.getDeviceName()
