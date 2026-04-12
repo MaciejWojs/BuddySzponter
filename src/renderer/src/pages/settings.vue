@@ -2,6 +2,7 @@
 import buddySzponterLogo from '@images/buddyszponterLogo.png'
 import BuLanguageSelector from '@renderer/components/simpleComponents/BuLanguageSelector.vue'
 import { useSettingsStore } from '@renderer/stores/settingsStore'
+import { useUserStore } from '@renderer/stores/userStore'
 import { storeToRefs } from 'pinia'
 
 const accelerationEnabled = ref(true)
@@ -16,9 +17,16 @@ const lightThemeEnabled = ref(false)
 
 const settingsStore = useSettingsStore()
 const { supportedVersions, versionStatus } = storeToRefs(settingsStore)
+const userStore = useUserStore()
+const { currentUser } = storeToRefs(userStore)
 
 const currentVersion = ref('-')
 const isRefreshingVersions = ref(false)
+const displayName = ref('')
+const displayNameDraft = ref('')
+const isEditingDisplayName = ref(false)
+
+const defaultDisplayName = computed(() => currentUser.value?.nickname || 'Pseudonim')
 
 const availableVersionsLabel = computed(() => {
   if (!supportedVersions.value.length) return 'brak danych'
@@ -42,9 +50,40 @@ async function refreshVersionsData(): Promise<void> {
   }
 }
 
+function startDisplayNameEdit(): void {
+  displayNameDraft.value = displayName.value || defaultDisplayName.value
+  isEditingDisplayName.value = true
+}
+
+function cancelDisplayNameEdit(): void {
+  displayNameDraft.value = displayName.value
+  isEditingDisplayName.value = false
+}
+
+function saveDisplayName(): void {
+  const nextValue = displayNameDraft.value.trim() || defaultDisplayName.value
+  displayName.value = nextValue
+  localStorage.setItem('buddy.displayName', nextValue)
+  isEditingDisplayName.value = false
+}
+
 onMounted(() => {
+  const savedDisplayName = localStorage.getItem('buddy.displayName')
+  displayName.value = savedDisplayName?.trim() || defaultDisplayName.value
+  displayNameDraft.value = displayName.value
   void refreshVersionsData()
 })
+
+watch(
+  defaultDisplayName,
+  (nextValue) => {
+    if (!displayName.value) {
+      displayName.value = nextValue
+      displayNameDraft.value = nextValue
+    }
+  },
+  { immediate: true }
+)
 </script>
 
 <template>
@@ -56,9 +95,35 @@ onMounted(() => {
     <div class="settings-grid">
       <article class="settings-card">
         <h3>Informacje</h3>
-        <div class="settings-row">
+        <div class="settings-row settings-row-display-name">
           <span>Twoja wyświetlana nazwa</span>
-          <input value="DESKTOP-4674267523" readonly />
+          <div class="settings-display-name-controls">
+            <input
+              v-if="isEditingDisplayName"
+              v-model="displayNameDraft"
+              class="settings-display-name-input"
+              maxlength="40"
+            />
+            <input v-else :value="displayName" class="settings-display-name-input" readonly />
+
+            <div class="settings-display-name-actions">
+              <button
+                v-if="isEditingDisplayName"
+                class="settings-small-btn"
+                @click="saveDisplayName"
+              >
+                Zapisz
+              </button>
+              <button
+                v-if="isEditingDisplayName"
+                class="settings-small-btn settings-small-btn-muted"
+                @click="cancelDisplayNameEdit"
+              >
+                Anuluj
+              </button>
+              <button v-else class="settings-small-btn" @click="startDisplayNameEdit">Zmień</button>
+            </div>
+          </div>
         </div>
         <div class="settings-row">
           <span>Nazwa urządzenia</span>
@@ -114,7 +179,7 @@ onMounted(() => {
         </div>
         <div class="settings-row settings-row-path">
           <span>Lokalizacja nagrań</span>
-          <div class="settings-inline-controls">
+          <div class="settings-inline-controls settings-inline-controls-path">
             <input value="D:\Nagrania_Spotkań\V67Szpont" readonly class="settings-path-input" />
             <button class="settings-small-btn">Zmień</button>
           </div>
@@ -340,16 +405,18 @@ onMounted(() => {
 
 .settings-row-path {
   align-items: flex-start;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .settings-row-path .settings-inline-controls {
-  flex: 1;
-  justify-content: flex-end;
+  width: 100%;
+  justify-content: flex-start;
   min-width: 0;
 }
 
 .settings-row-path input {
-  width: 170px;
+  width: 100%;
 }
 
 .settings-path-input {
@@ -357,8 +424,41 @@ onMounted(() => {
   flex: 1;
 }
 
+.settings-inline-controls-path {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
 .settings-small-btn {
   flex-shrink: 0;
+}
+
+.settings-row-display-name {
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settings-display-name-controls {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.settings-display-name-input {
+  width: 100%;
+}
+
+.settings-display-name-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.settings-small-btn-muted {
+  opacity: 0.85;
 }
 
 .settings-checkbox-with-label {
@@ -446,6 +546,18 @@ onMounted(() => {
   }
 
   .settings-row-path .settings-inline-controls {
+    width: 100%;
+  }
+
+  .settings-inline-controls-path {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-display-name-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-display-name-actions {
     width: 100%;
   }
 
