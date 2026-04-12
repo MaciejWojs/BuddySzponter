@@ -11,10 +11,6 @@ export async function connect(connectionToken: string): Promise<Socket> {
   const isRemote = import.meta.env.VITE_WEBRTC_REMOTE === 'true'
   const url = isRemote ? import.meta.env.VITE_API_WS : 'http://localhost'
 
-  if (!authToken) {
-    throw new Error('Authentication token missing. Please log in again.')
-  }
-
   if (!connectionToken) {
     throw new Error('Connection token missing.')
   }
