@@ -18,11 +18,9 @@ export class LanguageService {
   public async init(): Promise<void> {
     this.isLoadingTranslationsRef.value = true
     try {
-      const [savedLang, availableLangsRes, initialTranslations] = await Promise.all([
-        window.api.settings.getLanguage(),
-        window.api.core.getAvailableLanguages(),
-        window.api.settings.getTranslation()
-      ])
+      const savedLang = await window.api.settings.getLanguage()
+      const availableLangsRes = await window.api.core.getAvailableLanguages()
+      const initialTranslations = await window.api.settings.getTranslation()
 
       this.selectedLanguageRef.value = savedLang
       this.translationsRef.value = initialTranslations

@@ -200,14 +200,8 @@ async function handleAvatarChange(event: Event): Promise<void> {
   avatarPreview.value = URL.createObjectURL(file)
   try {
     const buffer = await file.arrayBuffer()
-    const userId = currentUser.value?.id ? String(currentUser.value.id) : null
 
-    const response = await window.api.users.uploadAvatarByBuffer(
-      buffer,
-      file.name,
-      file.type,
-      userId
-    )
+    const response = await window.api.users.uploadAvatarByBuffer(buffer, file.name, file.type)
 
     if (!response.success) {
       userPanelResult.value = response.message

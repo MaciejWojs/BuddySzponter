@@ -20,6 +20,7 @@ export async function execute(callback: () => Promise<Response>): Promise<Respon
         const newSession = await handshake(
           `${import.meta.env.VITE_API_BASE_URL}${API_ROUTES.CRYPTO.HANDSHAKE}`
         )
+        console.log('New session established after 401:', newSession.aesKey, newSession.sessionId)
         secureStore.setSecure('sessionId', newSession.sessionId)
         secureStore.setSecure('aesKey', newSession.aesKey)
 

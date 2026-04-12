@@ -1,12 +1,12 @@
 import { API_ROUTES } from '../../apiRoutes'
 import { secureStore } from '../../store/secureStore'
 import { buildRoute } from '../../utils/api/path'
-import { withAuth, mock401Response } from '../../utils/api/withAuth' // Zaktualizowany import!
+import { withAuth } from '../../utils/api/withAuth' // Usunięto mock401Response
 import { UserResponseSchema } from './../../../shared/schemas/user'
 import { execute } from '../../utils/execute'
 import { authService } from '../../services/AuthService'
 import { GetCurrentUserResponse } from '../../../shared/schemas/ipc'
-import { APP_ERRORS } from '../../../shared/constants/errors' // Twój nowy słownik błędów
+import { APP_ERRORS } from '../../../shared/constants/errors'
 import { decryptData } from '../../utils/api/crypt'
 
 export async function getCurrentUser(): Promise<GetCurrentUserResponse> {
@@ -18,25 +18,30 @@ export async function getCurrentUser(): Promise<GetCurrentUserResponse> {
       const accessToken = authService.getAccessToken()
 
       if (!accessToken) {
-        console.warn('[getCurrentUser] Tokens missing. Simulating 401')
-        return mock401Response(APP_ERRORS.AUTH.TOKEN_MISSING.message)
+        console.warn('[getCurrentUser] Tokens missing. Simulating 401 to trigger refresh.')
+        return Promise.resolve(
+          new Response(JSON.stringify({ message: APP_ERRORS.AUTH.TOKEN_MISSING.message }), {
+            status: 401,
+            headers: { 'Content-Type': 'application/json' }
+          })
+        )
       }
 
       const requestHeaders: Record<string, string> = {
-        Authorization: `Bearer ${accessToken}`
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      }
+
+      if (isEncryptionEnabled) {
+        requestHeaders['X-session-id'] = secureStore.getSecure('sessionId') || ''
       }
 
       return execute(() => {
-        if (import.meta.env.VITE_ENCRYPT_DATA === 'true') {
-          requestHeaders['X-session-id'] = secureStore.getSecure('sessionId') || ''
-        }
         return fetch(url, { method: 'GET', headers: requestHeaders })
       })
     })
 
     const responseJson = await response.json()
-    console.log('[getCurrentUser] API response:', responseJson)
-
     const decryptedResponse = isEncryptionEnabled ? await decryptData(responseJson) : responseJson
 
     if (!response.ok) {

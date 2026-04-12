@@ -1,14 +1,6 @@
-// main/utils/withAuth.ts
 import { refresh } from '../../handlers/auth/refresh'
 
-export const mock401Response = (message: string): Promise<Response> => {
-  return Promise.resolve(
-    new Response(JSON.stringify({ message }), {
-      status: 401,
-      headers: { 'Content-Type': 'application/json' }
-    })
-  )
-}
+let refreshPromise: Promise<void> | null = null
 
 export async function withAuth(callback: () => Promise<Response>): Promise<Response> {
   const response = await callback()
@@ -17,14 +9,18 @@ export async function withAuth(callback: () => Promise<Response>): Promise<Respo
     console.log('[withAuth] received 401. Attempting token refresh...')
 
     try {
-      await refresh()
+      if (!refreshPromise) {
+        refreshPromise = refresh().finally(() => {
+          refreshPromise = null
+        })
+      }
+
+      await refreshPromise
 
       console.log('[withAuth] Token refreshed. Retrying request...')
-      const retryResponse = await callback()
-
-      return retryResponse
+      return await callback()
     } catch {
-      console.error('[withAuth] Error during token refresh:')
+      console.error('[withAuth] Error during token refresh')
       return response
     }
   }

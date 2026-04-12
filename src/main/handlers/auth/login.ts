@@ -1,27 +1,29 @@
 import { API_ROUTES } from '../../apiRoutes'
 import { loginPayloadSchema, errorResponseSchema } from '../../schemas/apiResultSchema'
-import { LoginInput, loginInputSchema } from '../../schemas/authSchemas'
 import { appSettings } from '../../services/SettingsService'
 import { secureStore } from '../../store/secureStore'
 import { decryptData, encryptData } from '../../utils/api/crypt'
 import { execute } from '../../utils/execute'
 import { LoginRendererResponse } from '../../../shared/schemas/ipc'
 import { authService } from '../../services/AuthService'
+import { buildRoute } from '../../utils/api/path'
+import { LoginRequest, LoginRequestSchema } from '../../schemas/authSchemas'
 
-export async function login(data: LoginInput): Promise<LoginRendererResponse> {
+export async function login(data: LoginRequest): Promise<LoginRendererResponse> {
   try {
     const fingerprint = appSettings.getHardwareId()
     const deviceName = appSettings.getDeviceName()
     const osName = appSettings.getOsName()
 
-    const validPayload = loginInputSchema.parse({
+    const validPayload = LoginRequestSchema.parse({
       ...data,
       fingerprint: fingerprint,
       os: osName,
       name: deviceName
     })
 
-    const url = `${import.meta.env.VITE_API_BASE_URL}${API_ROUTES.AUTH.LOGIN}`
+    const url = buildRoute(API_ROUTES.AUTH.LOGIN)
+
     const isEncryptionEnabled = import.meta.env.VITE_ENCRYPT_DATA === 'true'
 
     const requestHeaders: Record<string, string> = {

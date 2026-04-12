@@ -9,7 +9,6 @@ import { buildRoute } from '../../utils/api/path'
 import { authService } from '../../services/AuthService'
 import { secureStore } from '../../store/secureStore'
 import { decryptData } from '../../utils/api/crypt'
-import { string } from 'zod'
 
 function normalizePngFileName(fileName: string, mimeType: string): string {
   if (mimeType.toLowerCase() !== 'image/png') return fileName
@@ -18,17 +17,8 @@ function normalizePngFileName(fileName: string, mimeType: string): string {
   return `${parsed.name}.png`
 }
 
-async function executeUpload(form: FormData, userId: string | null): Promise<UploadAvatarResponse> {
-  let finalUserId: string
-  if (userId) {
-    finalUserId = userId
-  } else {
-    finalUserId = authService.currentUser?.id.toString() || ''
-  }
-
-  const fullUrl = buildRoute(API_ROUTES.USERS.AVATAR.ME, {
-    userId: string().parse(finalUserId)
-  })
+async function executeUpload(form: FormData): Promise<UploadAvatarResponse> {
+  const fullUrl = buildRoute(API_ROUTES.USERS.AVATAR.ME)
 
   const response = await withAuth(() => {
     const accessToken = authService.getAccessToken()
@@ -56,7 +46,7 @@ async function executeUpload(form: FormData, userId: string | null): Promise<Upl
   return { success: true, data: decryptedResponse }
 }
 
-export async function uploadAvatar(userID: string | null): Promise<UploadAvatarResponse> {
+export async function uploadAvatar(): Promise<UploadAvatarResponse> {
   try {
     const { canceled, filePaths } = await dialog.showOpenDialog({
       properties: ['openFile'],
@@ -75,7 +65,7 @@ export async function uploadAvatar(userID: string | null): Promise<UploadAvatarR
     const form = new FormData()
     form.append('avatar', blob, normalizedFileName)
 
-    return await executeUpload(form, userID)
+    return await executeUpload(form)
   } catch (error) {
     console.error('[uploadAvatar] Error:', error)
     return { success: false, message: error instanceof Error ? error.message : 'System error' }
@@ -85,8 +75,7 @@ export async function uploadAvatar(userID: string | null): Promise<UploadAvatarR
 export async function uploadAvatarByBuffer(
   buffer: ArrayBuffer,
   fileName: string,
-  mimeType: string,
-  userId: string | null
+  mimeType: string
 ): Promise<UploadAvatarResponse> {
   try {
     const normalizedFileName = normalizePngFileName(fileName, mimeType)
@@ -94,7 +83,7 @@ export async function uploadAvatarByBuffer(
     const form = new FormData()
     form.append('avatar', blob, normalizedFileName)
 
-    return await executeUpload(form, userId)
+    return await executeUpload(form)
   } catch (error) {
     console.error('[uploadAvatarByBuffer] Error:', error)
     return { success: false, message: error instanceof Error ? error.message : 'System error' }
