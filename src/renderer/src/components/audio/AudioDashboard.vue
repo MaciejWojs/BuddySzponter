@@ -3,6 +3,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useWebRtcStore } from '@renderer/stores/webRtcStore'
 import { SessionStore } from '@renderer/stores/sessionStore'
+import { microphoneService } from '@renderer/services/micService'
 import VUMeter from './VUMeter.vue'
 
 interface DuckingPreset {
@@ -25,6 +26,9 @@ const isMyMicMuted = ref(false)
 const isMySystemMuted = ref(false)
 const isGuestSystemMuted = ref(false)
 const isAdvancedOpen = ref(false)
+const micBassBoostEnabled = ref(true)
+const micLimiterEnabled = ref(true)
+const micInputThresholdPercent = ref(0)
 
 const duckingPresets: DuckingPreset[] = [
   {
@@ -82,6 +86,12 @@ const guestSystemPercent = computed<number>({
 })
 
 const isBoosting = computed(() => myMicPercent.value > 100)
+const micInputThreshold = computed<number>({
+  get: () => micInputThresholdPercent.value / 100,
+  set: (value) => {
+    micInputThresholdPercent.value = Math.round(Math.max(0, Math.min(0.1, value)) * 100)
+  }
+})
 
 const isNear = (a: number, b: number, epsilon = 0.0005): boolean => Math.abs(a - b) <= epsilon
 
@@ -156,6 +166,11 @@ const toggleGuestSystemMute = (): void => {
 }
 
 onMounted(() => {
+  micInputThreshold.value = microphoneService.getInputThreshold()
+  microphoneService.setBassBoost(micBassBoostEnabled.value)
+  microphoneService.setLimiter(micLimiterEnabled.value)
+  microphoneService.setInputThreshold(micInputThreshold.value)
+
   void sessionStore.refreshMicrophones()
   navigator.mediaDevices?.addEventListener?.('devicechange', handleDeviceChange)
   syncMicMuteStateFromStream(webRtcStore.localStream)
@@ -171,6 +186,18 @@ watch(
     syncMicMuteStateFromStream(stream)
   }
 )
+
+watch(micBassBoostEnabled, (enabled) => {
+  microphoneService.setBassBoost(enabled)
+})
+
+watch(micLimiterEnabled, (enabled) => {
+  microphoneService.setLimiter(enabled)
+})
+
+watch(micInputThreshold, (threshold) => {
+  microphoneService.setInputThreshold(threshold)
+})
 </script>
 
 <template>
@@ -249,6 +276,55 @@ watch(
               :device-id="selectedMicrophoneDeviceId || undefined"
               :volume="webRtcStore.localMicrophoneVolume"
             />
+
+            <div class="rounded-md border border-[#3a3a3a] bg-[#111] p-3">
+              <p class="text-xs text-gray-300 mb-3">Efekty mikrofonu</p>
+
+              <div class="flex flex-wrap items-center gap-2 mb-3">
+                <button
+                  type="button"
+                  class="px-3 py-1.5 rounded border text-[11px] transition-colors"
+                  :class="
+                    micBassBoostEnabled
+                      ? 'border-blue-500 bg-blue-500/15 text-blue-300'
+                      : 'border-[#4a4a4a] text-gray-300 hover:border-blue-500/60'
+                  "
+                  @click="micBassBoostEnabled = !micBassBoostEnabled"
+                >
+                  Bass Boost {{ micBassBoostEnabled ? 'ON' : 'OFF' }}
+                </button>
+
+                <button
+                  type="button"
+                  class="px-3 py-1.5 rounded border text-[11px] transition-colors"
+                  :class="
+                    micLimiterEnabled
+                      ? 'border-amber-500 bg-amber-500/15 text-amber-300'
+                      : 'border-[#4a4a4a] text-gray-300 hover:border-amber-500/60'
+                  "
+                  @click="micLimiterEnabled = !micLimiterEnabled"
+                >
+                  Limiter {{ micLimiterEnabled ? 'ON' : 'OFF' }}
+                </button>
+              </div>
+
+              <div>
+                <div class="flex items-center justify-between mb-2">
+                  <span class="text-xs text-gray-300">Próg wejścia (Noise Gate)</span>
+                  <span class="text-xs font-mono text-cyan-300">
+                    {{ micInputThreshold.toFixed(3) }}
+                  </span>
+                </div>
+                <input
+                  v-model.number="micInputThresholdPercent"
+                  type="range"
+                  min="0"
+                  max="10"
+                  step="1"
+                  class="pro-slider monitor w-full"
+                />
+              </div>
+            </div>
           </div>
         </div>
 

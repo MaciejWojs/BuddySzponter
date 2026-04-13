@@ -9,11 +9,91 @@ class MicrophoneService {
   private currentStream: MediaStream | null = null
   private audioContext: AudioContext | null = null
   private sourceNode: MediaStreamAudioSourceNode | null = null
+  private inputGateNode: GainNode | null = null
+  private inputLevelAnalyserNode: AnalyserNode | null = null
+  private highPassEQNode: BiquadFilterNode | null = null
+  private lowShelfEQNode: BiquadFilterNode | null = null
+  private limiterNode: DynamicsCompressorNode | null = null
   private gainNode: GainNode | null = null
   private destinationNode: MediaStreamAudioDestinationNode | null = null
   private analyserNode: AnalyserNode | null = null
+  private bassBoostEnabled = true
+  private limiterEnabled = true
+  private inputThreshold = 0.008
+  private gateRafId: number | null = null
+  private gateData: Float32Array<ArrayBuffer> | null = null
+
+  private applyBassBoostSettings(): void {
+    if (!this.lowShelfEQNode) return
+    this.lowShelfEQNode.gain.value = this.bassBoostEnabled ? 3 : 0
+  }
+
+  private applyLimiterSettings(): void {
+    if (!this.limiterNode) return
+
+    if (this.limiterEnabled) {
+      this.limiterNode.threshold.value = -10
+      this.limiterNode.knee.value = 5
+      this.limiterNode.ratio.value = 20
+      this.limiterNode.attack.value = 0.002
+      this.limiterNode.release.value = 0.1
+      return
+    }
+
+    this.limiterNode.threshold.value = 0
+    this.limiterNode.knee.value = 0
+    this.limiterNode.ratio.value = 1
+    this.limiterNode.attack.value = 0.003
+    this.limiterNode.release.value = 0.25
+  }
+
+  private stopGateLoop(): void {
+    if (this.gateRafId !== null) {
+      cancelAnimationFrame(this.gateRafId)
+      this.gateRafId = null
+    }
+    this.gateData = null
+  }
+
+  private tickGate = (): void => {
+    if (
+      !this.inputLevelAnalyserNode ||
+      !this.inputGateNode ||
+      !this.audioContext ||
+      !this.gateData
+    ) {
+      this.stopGateLoop()
+      return
+    }
+
+    this.inputLevelAnalyserNode.getFloatTimeDomainData(this.gateData)
+
+    let sumSquares = 0
+    for (let i = 0; i < this.gateData.length; i += 1) {
+      const sample = this.gateData[i]
+      sumSquares += sample * sample
+    }
+
+    const rms = Math.sqrt(sumSquares / this.gateData.length)
+    const gateTarget = this.inputThreshold <= 0 ? 1 : rms >= this.inputThreshold ? 1 : 0
+    this.inputGateNode.gain.setTargetAtTime(gateTarget, this.audioContext.currentTime, 0.015)
+
+    this.gateRafId = requestAnimationFrame(this.tickGate)
+  }
+
+  private startGateLoop(): void {
+    if (!this.inputLevelAnalyserNode) return
+
+    this.stopGateLoop()
+    this.gateData = new Float32Array(
+      this.inputLevelAnalyserNode.fftSize
+    ) as Float32Array<ArrayBuffer>
+    this.gateRafId = requestAnimationFrame(this.tickGate)
+  }
 
   private clearCurrentGraph(): void {
+    this.stopGateLoop()
+
     if (this.sourceNode) {
       try {
         this.sourceNode.disconnect()
@@ -21,6 +101,51 @@ class MicrophoneService {
         console.warn('[MicrophoneService] Failed to disconnect source node')
       }
       this.sourceNode = null
+    }
+
+    if (this.inputGateNode) {
+      try {
+        this.inputGateNode.disconnect()
+      } catch {
+        console.warn('[MicrophoneService] Failed to disconnect input gate node')
+      }
+      this.inputGateNode = null
+    }
+
+    if (this.inputLevelAnalyserNode) {
+      try {
+        this.inputLevelAnalyserNode.disconnect()
+      } catch {
+        console.warn('[MicrophoneService] Failed to disconnect input level analyser node')
+      }
+      this.inputLevelAnalyserNode = null
+    }
+
+    if (this.highPassEQNode) {
+      try {
+        this.highPassEQNode.disconnect()
+      } catch {
+        console.warn('[MicrophoneService] Failed to disconnect high-pass node')
+      }
+      this.highPassEQNode = null
+    }
+
+    if (this.lowShelfEQNode) {
+      try {
+        this.lowShelfEQNode.disconnect()
+      } catch {
+        console.warn('[MicrophoneService] Failed to disconnect low-shelf node')
+      }
+      this.lowShelfEQNode = null
+    }
+
+    if (this.limiterNode) {
+      try {
+        this.limiterNode.disconnect()
+      } catch {
+        console.warn('[MicrophoneService] Failed to disconnect limiter node')
+      }
+      this.limiterNode = null
     }
 
     if (this.gainNode) {
@@ -91,38 +216,83 @@ class MicrophoneService {
       }
       void resumeAudioContext().catch(() => {})
 
+      this.clearCurrentGraph()
+
       const nextSourceNode = this.audioContext.createMediaStreamSource(stream)
+      const nextInputGate = this.audioContext.createGain()
+      const nextInputLevelAnalyser = this.audioContext.createAnalyser()
+      const nextHighPassEQ = this.audioContext.createBiquadFilter()
+      const nextLowShelfEQ = this.audioContext.createBiquadFilter()
+      const nextLimiter = this.audioContext.createDynamicsCompressor()
       const nextGainNode = this.audioContext.createGain()
       const nextAnalyserNode = this.audioContext.createAnalyser()
       const nextDestinationNode = this.audioContext.createMediaStreamDestination()
+
+      nextInputGate.gain.value = 1
+      nextInputLevelAnalyser.fftSize = 1024
+      nextInputLevelAnalyser.smoothingTimeConstant = 0.1
+
+      nextHighPassEQ.type = 'highpass'
+      nextHighPassEQ.frequency.value = 80
+
+      nextLowShelfEQ.type = 'lowshelf'
+      nextLowShelfEQ.frequency.value = 150
 
       nextGainNode.gain.value = Math.max(0, Math.min(2, volume))
       nextAnalyserNode.fftSize = 1024
       nextAnalyserNode.smoothingTimeConstant = 0.2
 
-      nextSourceNode.connect(nextGainNode)
+      this.inputGateNode = nextInputGate
+      this.inputLevelAnalyserNode = nextInputLevelAnalyser
+      this.highPassEQNode = nextHighPassEQ
+      this.lowShelfEQNode = nextLowShelfEQ
+      this.limiterNode = nextLimiter
+
+      nextSourceNode.connect(nextInputLevelAnalyser)
+      nextSourceNode.connect(nextInputGate)
+      nextInputGate.connect(nextHighPassEQ)
+      nextHighPassEQ.connect(nextLowShelfEQ)
+      nextLowShelfEQ.connect(nextLimiter)
+      nextLimiter.connect(nextGainNode)
       nextGainNode.connect(nextAnalyserNode)
       nextGainNode.connect(nextDestinationNode)
 
       const processedTrack = nextDestinationNode.stream.getAudioTracks()[0] ?? null
       if (!processedTrack) {
         nextSourceNode.disconnect()
+        nextInputGate.disconnect()
+        nextInputLevelAnalyser.disconnect()
+        nextHighPassEQ.disconnect()
+        nextLowShelfEQ.disconnect()
+        nextLimiter.disconnect()
         nextGainNode.disconnect()
         nextAnalyserNode.disconnect()
         nextDestinationNode.disconnect()
         stream.getTracks().forEach((track) => track.stop())
+        this.inputGateNode = null
+        this.inputLevelAnalyserNode = null
+        this.highPassEQNode = null
+        this.lowShelfEQNode = null
+        this.limiterNode = null
         return null
       }
 
       processedTrack.contentHint = 'speech'
 
-      this.clearCurrentGraph()
-
       this.currentStream = stream
       this.sourceNode = nextSourceNode
+      this.inputGateNode = nextInputGate
+      this.inputLevelAnalyserNode = nextInputLevelAnalyser
+      this.highPassEQNode = nextHighPassEQ
+      this.lowShelfEQNode = nextLowShelfEQ
+      this.limiterNode = nextLimiter
       this.gainNode = nextGainNode
       this.analyserNode = nextAnalyserNode
       this.destinationNode = nextDestinationNode
+
+      this.applyBassBoostSettings()
+      this.applyLimiterSettings()
+      this.startGateLoop()
 
       return processedTrack
     } catch (error) {
@@ -138,6 +308,24 @@ class MicrophoneService {
   public setVolume(volume: number): void {
     if (!this.gainNode) return
     this.gainNode.gain.value = Math.max(0, Math.min(2, volume))
+  }
+
+  public setBassBoost(enabled: boolean): void {
+    this.bassBoostEnabled = enabled
+    this.applyBassBoostSettings()
+  }
+
+  public setLimiter(enabled: boolean): void {
+    this.limiterEnabled = enabled
+    this.applyLimiterSettings()
+  }
+
+  public setInputThreshold(threshold: number): void {
+    this.inputThreshold = Math.max(0, Math.min(0.1, threshold))
+  }
+
+  public getInputThreshold(): number {
+    return this.inputThreshold
   }
 
   public stop(): void {
