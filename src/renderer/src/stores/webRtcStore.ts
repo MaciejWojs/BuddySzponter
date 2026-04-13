@@ -35,8 +35,6 @@ export const useWebRtcStore = defineStore('webrtc', () => {
   const audioSpeechThreshold = ref<number>(0.02)
   const audioGainSmoothing = ref<number>(0.08)
   const audioHoldFrames = ref<number>(8)
-  const audioInputThreshold = ref<number>(-10)
-  const audioLimiterThreshold = ref<number>(-1)
 
   watch(localSystemAudioVolume, (val): void => videoService.setSystemAudioVolume(val))
   watch(localMicrophoneVolume, (val): void => videoService.setMicrophoneVolume(val))
@@ -285,8 +283,6 @@ export const useWebRtcStore = defineStore('webrtc', () => {
     audioDuckingLevel,
     audioSpeechThreshold,
     audioGainSmoothing,
-    audioHoldFrames,
-    audioInputThreshold,
-    audioLimiterThreshold
+    audioHoldFrames
   }
 })
