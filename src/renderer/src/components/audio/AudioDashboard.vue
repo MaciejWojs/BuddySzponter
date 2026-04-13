@@ -337,6 +337,7 @@ watch(micStudioModeEnabled, (enabled) => {
 
           <div class="flex flex-col gap-3">
             <div class="flex items-center gap-3">
+              <!-- //TODO - przerobić slider -->
               <input
                 v-model.number="micVolumeSliderPercent"
                 type="range"
@@ -346,6 +347,7 @@ watch(micStudioModeEnabled, (enabled) => {
                 class="pro-slider flex-1"
                 :class="isBoosting ? 'boost' : 'normal'"
               />
+              <!-- TODO - przerobić button -->
               <button
                 type="button"
                 class="h-9 w-9 rounded-md border text-xs font-bold transition-colors"
