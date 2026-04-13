@@ -14,22 +14,23 @@ export function useAudioMixer(): {
   setSystemVolume: (volume: number) => void
   unlock: () => Promise<void>
 } {
-  const DUCKED_SYSTEM_GAIN = 0.3
-  const SPEECH_THRESHOLD = 0.02
-  const GAIN_SMOOTHING = 0.08
-
   const webRtcStore = useWebRtcStore()
   const { micTrack, systemTrack } = useRemoteAudioTracks()
   const audioContext = getAudioContext()
+
+  const getDuckingLevel = (): number => webRtcStore.audioDuckingLevel
+  const getSpeechThreshold = (): number => webRtcStore.audioSpeechThreshold
+  const getGainSmoothing = (): number => webRtcStore.audioGainSmoothing
+  const getHoldFrames = (): number => webRtcStore.audioHoldFrames
 
   if (!sharedEngine) {
     sharedEngine = useAudioMixerEngine({
       micTrack,
       systemTrack,
-      duckingLevel: DUCKED_SYSTEM_GAIN,
-      speechThreshold: SPEECH_THRESHOLD,
-      smoothing: GAIN_SMOOTHING,
-      holdFrames: 8
+      duckingLevel: getDuckingLevel(),
+      speechThreshold: getSpeechThreshold(),
+      smoothing: getGainSmoothing(),
+      holdFrames: Math.round(getHoldFrames())
     })
   }
   sharedEngineConsumers += 1

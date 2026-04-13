@@ -31,6 +31,11 @@ export const useWebRtcStore = defineStore('webrtc', () => {
   const localSystemAudioVolume = ref<number>(1)
   const localMicrophoneVolume = ref<number>(1)
 
+  const audioDuckingLevel = ref<number>(0.3)
+  const audioSpeechThreshold = ref<number>(0.02)
+  const audioGainSmoothing = ref<number>(0.08)
+  const audioHoldFrames = ref<number>(8)
+
   watch(localSystemAudioVolume, (val): void => videoService.setSystemAudioVolume(val))
   watch(localMicrophoneVolume, (val): void => videoService.setMicrophoneVolume(val))
 
@@ -274,6 +279,10 @@ export const useWebRtcStore = defineStore('webrtc', () => {
     forceDisconnect,
     publishLocalStream,
     startRecording,
-    stopRecording
+    stopRecording,
+    audioDuckingLevel,
+    audioSpeechThreshold,
+    audioGainSmoothing,
+    audioHoldFrames
   }
 })
