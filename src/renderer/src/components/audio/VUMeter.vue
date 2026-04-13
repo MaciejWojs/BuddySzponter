@@ -9,6 +9,8 @@ const props = defineProps<{
   isCapturing?: boolean
   deviceId?: string
   volume?: number
+  inputThresholdLinear?: number
+  limiterThresholdDb?: number
 }>()
 
 const currentDb = ref<number>(-60)
@@ -66,6 +68,27 @@ const currentPercent = computed<number>(() => toPercent(currentDb.value))
 const peakPercent = computed<number>(() => toPercent(peakDb.value))
 
 const dbText = computed<string>(() => `${currentDb.value.toFixed(1)} dB`)
+
+const inputThresholdDb = computed<number>(() => {
+  if (typeof props.inputThresholdLinear === 'number') {
+    const linear = Math.max(1e-8, props.inputThresholdLinear)
+    return clampDb(20 * Math.log10(linear))
+  }
+
+  if (props.contextMode === 'auto-mic') {
+    const linear = Math.max(1e-8, microphoneService.getInputThreshold())
+    return clampDb(20 * Math.log10(linear))
+  }
+
+  return -60
+})
+
+const limiterThresholdDb = computed<number>(() => {
+  return clampDb(props.limiterThresholdDb ?? -10)
+})
+
+const inputThresholdPercent = computed<number>(() => toPercent(inputThresholdDb.value))
+const limiterThresholdPercent = computed<number>(() => toPercent(limiterThresholdDb.value))
 
 const dbColorClass = computed<string>(() => {
   if (currentDb.value > -6) return 'text-red-400'
@@ -194,6 +217,29 @@ onUnmounted(() => {
         class="absolute top-0 h-full w-[2px] bg-white"
         :style="{ left: `${peakPercent}%` }"
       ></div>
+
+      <div
+        class="absolute top-0 h-full w-[2px] bg-cyan-400/90"
+        :style="{ left: `${inputThresholdPercent}%` }"
+        title="Próg wejścia (Gate)"
+      ></div>
+
+      <div
+        class="absolute top-0 h-full w-[2px] bg-amber-300/90"
+        :style="{ left: `${limiterThresholdPercent}%` }"
+        title="Próg limitera"
+      ></div>
+    </div>
+
+    <div class="mt-1 flex items-center justify-between text-[10px] text-gray-500">
+      <span class="inline-flex items-center gap-1">
+        <span class="h-2 w-2 rounded-full bg-cyan-400"></span>
+        Gate {{ inputThresholdDb.toFixed(1) }} dB
+      </span>
+      <span class="inline-flex items-center gap-1">
+        <span class="h-2 w-2 rounded-full bg-amber-300"></span>
+        Limiter {{ limiterThresholdDb.toFixed(1) }} dB
+      </span>
     </div>
 
     <div class="mt-1 flex items-center justify-between text-[10px] text-gray-500">

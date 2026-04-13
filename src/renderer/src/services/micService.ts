@@ -321,7 +321,7 @@ class MicrophoneService {
   }
 
   public setInputThreshold(threshold: number): void {
-    this.inputThreshold = Math.max(0, Math.min(0.1, threshold))
+    this.inputThreshold = Math.max(0, Math.min(1, threshold))
   }
 
   public getInputThreshold(): number {

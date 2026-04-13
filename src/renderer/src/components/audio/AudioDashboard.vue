@@ -28,7 +28,7 @@ const isGuestSystemMuted = ref(false)
 const isAdvancedOpen = ref(false)
 const micBassBoostEnabled = ref(true)
 const micLimiterEnabled = ref(true)
-const micInputThresholdPercent = ref(0)
+const micInputThresholdDb = ref(-60)
 
 const duckingPresets: DuckingPreset[] = [
   {
@@ -86,12 +86,24 @@ const guestSystemPercent = computed<number>({
 })
 
 const isBoosting = computed(() => myMicPercent.value > 100)
-const micInputThreshold = computed<number>({
-  get: () => micInputThresholdPercent.value / 100,
-  set: (value) => {
-    micInputThresholdPercent.value = Math.round(Math.max(0, Math.min(0.1, value)) * 100)
-  }
-})
+const limiterThresholdDb = computed<number>(() => (micLimiterEnabled.value ? -10 : 0))
+
+const clampDb = (value: number, min = -60, max = 0): number => {
+  if (!Number.isFinite(value)) return min
+  return Math.max(min, Math.min(max, value))
+}
+
+const linearToDb = (linear: number): number => {
+  return clampDb(20 * Math.log10(Math.max(1e-8, linear)))
+}
+
+const dbToLinear = (db: number): number => {
+  return Math.max(0, Math.min(1, Math.pow(10, clampDb(db) / 20)))
+}
+
+const clampMicThresholdToContext = (): void => {
+  micInputThresholdDb.value = clampDb(micInputThresholdDb.value, -60, limiterThresholdDb.value)
+}
 
 const isNear = (a: number, b: number, epsilon = 0.0005): boolean => Math.abs(a - b) <= epsilon
 
@@ -166,10 +178,12 @@ const toggleGuestSystemMute = (): void => {
 }
 
 onMounted(() => {
-  micInputThreshold.value = microphoneService.getInputThreshold()
+  micInputThresholdDb.value = clampDb(linearToDb(microphoneService.getInputThreshold()), -60, 0)
+  clampMicThresholdToContext()
+
   microphoneService.setBassBoost(micBassBoostEnabled.value)
   microphoneService.setLimiter(micLimiterEnabled.value)
-  microphoneService.setInputThreshold(micInputThreshold.value)
+  microphoneService.setInputThreshold(dbToLinear(micInputThresholdDb.value))
 
   void sessionStore.refreshMicrophones()
   navigator.mediaDevices?.addEventListener?.('devicechange', handleDeviceChange)
@@ -193,10 +207,16 @@ watch(micBassBoostEnabled, (enabled) => {
 
 watch(micLimiterEnabled, (enabled) => {
   microphoneService.setLimiter(enabled)
+  clampMicThresholdToContext()
+  microphoneService.setInputThreshold(dbToLinear(micInputThresholdDb.value))
 })
 
-watch(micInputThreshold, (threshold) => {
-  microphoneService.setInputThreshold(threshold)
+watch(limiterThresholdDb, () => {
+  clampMicThresholdToContext()
+})
+
+watch(micInputThresholdDb, (thresholdDb) => {
+  microphoneService.setInputThreshold(dbToLinear(thresholdDb))
 })
 </script>
 
@@ -275,6 +295,8 @@ watch(micInputThreshold, (threshold) => {
               :is-capturing="sessionStore.isCapturing"
               :device-id="selectedMicrophoneDeviceId || undefined"
               :volume="webRtcStore.localMicrophoneVolume"
+              :input-threshold-linear="dbToLinear(micInputThresholdDb)"
+              :limiter-threshold-db="limiterThresholdDb"
             />
 
             <div class="rounded-md border border-[#3a3a3a] bg-[#111] p-3">
@@ -312,15 +334,15 @@ watch(micInputThreshold, (threshold) => {
                 <div class="flex items-center justify-between mb-2">
                   <span class="text-xs text-gray-300">Próg wejścia (Noise Gate)</span>
                   <span class="text-xs font-mono text-cyan-300">
-                    {{ micInputThreshold.toFixed(3) }}
+                    {{ micInputThresholdDb.toFixed(1) }} dB
                   </span>
                 </div>
                 <input
-                  v-model.number="micInputThresholdPercent"
+                  v-model.number="micInputThresholdDb"
                   type="range"
-                  min="0"
-                  max="10"
-                  step="1"
+                  min="-60"
+                  :max="limiterThresholdDb"
+                  step="0.5"
                   class="pro-slider monitor w-full"
                 />
               </div>
