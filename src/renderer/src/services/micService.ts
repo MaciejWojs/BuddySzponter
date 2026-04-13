@@ -20,8 +20,35 @@ class MicrophoneService {
   private bassBoostEnabled = true
   private limiterEnabled = true
   private inputThreshold = 0.008
+  private localMonitoringEnabled = false
+  private monitorElement: HTMLAudioElement | null = null
   private gateRafId: number | null = null
   private gateData: Float32Array<ArrayBuffer> | null = null
+
+  private syncMonitoringOutput(): void {
+    if (!this.localMonitoringEnabled) {
+      if (this.monitorElement) {
+        this.monitorElement.pause()
+        this.monitorElement.srcObject = null
+      }
+      return
+    }
+
+    if (!this.destinationNode) return
+
+    if (!this.monitorElement) {
+      this.monitorElement = document.createElement('audio')
+      this.monitorElement.autoplay = true
+      this.monitorElement.muted = false
+      this.monitorElement.volume = 1
+    }
+
+    if (this.monitorElement.srcObject !== this.destinationNode.stream) {
+      this.monitorElement.srcObject = this.destinationNode.stream
+    }
+
+    void this.monitorElement.play().catch(() => {})
+  }
 
   private applyBassBoostSettings(): void {
     if (!this.lowShelfEQNode) return
@@ -179,6 +206,8 @@ class MicrophoneService {
       this.currentStream.getTracks().forEach((track) => track.stop())
       this.currentStream = null
     }
+
+    this.syncMonitoringOutput()
   }
 
   public async getAvailableMicrophones(): Promise<AudioInputDeviceOption[]> {
@@ -293,6 +322,7 @@ class MicrophoneService {
       this.applyBassBoostSettings()
       this.applyLimiterSettings()
       this.startGateLoop()
+      this.syncMonitoringOutput()
 
       return processedTrack
     } catch (error) {
@@ -318,6 +348,15 @@ class MicrophoneService {
   public setLimiter(enabled: boolean): void {
     this.limiterEnabled = enabled
     this.applyLimiterSettings()
+  }
+
+  public setLocalMonitoringEnabled(enabled: boolean): void {
+    this.localMonitoringEnabled = enabled
+    this.syncMonitoringOutput()
+  }
+
+  public getLocalMonitoringEnabled(): boolean {
+    return this.localMonitoringEnabled
   }
 
   public setInputThreshold(threshold: number): void {

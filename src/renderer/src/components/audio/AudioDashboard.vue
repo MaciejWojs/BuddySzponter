@@ -28,6 +28,7 @@ const isGuestSystemMuted = ref(false)
 const isAdvancedOpen = ref(false)
 const micBassBoostEnabled = ref(true)
 const micLimiterEnabled = ref(true)
+const micMonitoringEnabled = ref(false)
 const micInputThresholdDb = ref(-60)
 
 const duckingPresets: DuckingPreset[] = [
@@ -178,6 +179,7 @@ const toggleGuestSystemMute = (): void => {
 }
 
 onMounted(() => {
+  micMonitoringEnabled.value = microphoneService.getLocalMonitoringEnabled()
   micInputThresholdDb.value = clampDb(linearToDb(microphoneService.getInputThreshold()), -60, 0)
   clampMicThresholdToContext()
 
@@ -209,6 +211,10 @@ watch(micLimiterEnabled, (enabled) => {
   microphoneService.setLimiter(enabled)
   clampMicThresholdToContext()
   microphoneService.setInputThreshold(dbToLinear(micInputThresholdDb.value))
+})
+
+watch(micMonitoringEnabled, (enabled) => {
+  microphoneService.setLocalMonitoringEnabled(enabled)
 })
 
 watch(limiterThresholdDb, () => {
@@ -327,6 +333,19 @@ watch(micInputThresholdDb, (thresholdDb) => {
                   @click="micLimiterEnabled = !micLimiterEnabled"
                 >
                   Limiter {{ micLimiterEnabled ? 'ON' : 'OFF' }}
+                </button>
+
+                <button
+                  type="button"
+                  class="px-3 py-1.5 rounded border text-[11px] transition-colors"
+                  :class="
+                    micMonitoringEnabled
+                      ? 'border-emerald-500 bg-emerald-500/15 text-emerald-300'
+                      : 'border-[#4a4a4a] text-gray-300 hover:border-emerald-500/60'
+                  "
+                  @click="micMonitoringEnabled = !micMonitoringEnabled"
+                >
+                  Odsłuch {{ micMonitoringEnabled ? 'ON' : 'OFF' }}
                 </button>
               </div>
 
