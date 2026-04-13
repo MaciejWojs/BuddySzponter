@@ -38,6 +38,7 @@ function createWindow(): void {
     autoHideMenuBar: true,
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
+      autoplayPolicy: 'no-user-gesture-required',
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,
       backgroundThrottling: false
@@ -140,15 +141,15 @@ if (!gotTheLock) {
 
     createWindow()
 
-  ipcMain.handle('save-file', async (_, buffer: ArrayBuffer) => {
-    const { filePath } = await dialog.showSaveDialog({
-      defaultPath: 'recording.webm'
+    ipcMain.handle('save-file', async (_, buffer: ArrayBuffer) => {
+      const { filePath } = await dialog.showSaveDialog({
+        defaultPath: 'recording.webm'
+      })
+
+      if (!filePath) return
+
+      fs.writeFileSync(filePath, Buffer.from(buffer))
     })
-
-    if (!filePath) return
-
-    fs.writeFileSync(filePath, Buffer.from(buffer))
-  })
 
     tray = new Tray(icon)
     const contextMenu = Menu.buildFromTemplate([
