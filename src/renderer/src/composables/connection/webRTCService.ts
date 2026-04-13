@@ -228,10 +228,10 @@ export class WebRTCService {
       this.systemTransceiver.sender.replaceTrack(sysTrack).catch(console.error)
   }
 
-  private clearLocalSenders(): void {
-    if (!this.peerConnection) return
+  private clearLocalSenders(peerConnection: RTCPeerConnection | null = this.peerConnection): void {
+    if (!peerConnection) return
 
-    this.peerConnection.getSenders().forEach((sender) => {
+    peerConnection.getSenders().forEach((sender) => {
       if (sender.track) {
         sender
           .replaceTrack(null)
@@ -399,9 +399,19 @@ export class WebRTCService {
   }
 
   public cleanup(): void {
+    const currentPeerConnection = this.peerConnection
+
     this.isIntentionallyClosing = true
-    this.peerConnection?.close()
+    this.stopRecording()
+    this.recordingStream?.getTracks().forEach((t) => t.stop())
+    this.recordingStream = null
+    this.recordedChunks = []
+
+    this.clearLocalSenders(currentPeerConnection)
+    currentPeerConnection?.close()
+
     this.peerConnection = null
+    this.iceCandidateQueue = []
     this.chatChannel = null
     this.hidControlChannel = null
     this.systemEventsChannel = null
@@ -413,8 +423,8 @@ export class WebRTCService {
     this.guestMicSender = null
     this.guestSystemSender = null
     this.remoteStream.getTracks().forEach((t) => t.stop())
+    this.remoteStream = new MediaStream()
     this.remoteTrackRoleByTrackId.clear()
-    this.clearLocalSenders()
   }
 }
 export const webRtcService = new WebRTCService()

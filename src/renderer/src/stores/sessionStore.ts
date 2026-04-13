@@ -292,12 +292,16 @@ export const SessionStore = defineStore('session', () => {
 
   watch(
     () => socketStore.isConnected,
-    (connected): void => {
+    async (connected): Promise<void> => {
       logStore.addLog(
         connected ? 'WS_CONNECTED' : 'WS_DISCONNECTED',
         connected ? 'Połączono' : 'Rozłączono',
         'socket'
       )
+
+      if (!connected && isCapturing.value) {
+        await stopCapture()
+      }
     }
   )
 
