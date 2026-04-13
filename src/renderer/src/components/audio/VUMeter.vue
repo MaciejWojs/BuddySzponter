@@ -16,6 +16,7 @@ const props = defineProps<{
 const currentDb = ref<number>(-60)
 const peakDb = ref<number>(-60)
 const clipIndicator = ref<boolean>(false)
+const adaptiveThresholdDb = ref<number | null>(null)
 
 let rafId: number | null = null
 let dataArray: Float32Array<ArrayBuffer> | null = null
@@ -77,12 +78,17 @@ const inputThresholdDb = computed<number>(() => {
   return -60
 })
 
+const isAutoGate = computed<boolean>(() => {
+  return props.contextMode === 'auto-mic' && inputThresholdDb.value <= -59.5
+})
+
 const limiterThresholdDb = computed<number>(() => {
   return clampDb(props.limiterThresholdDb ?? -10)
 })
 
 const inputThresholdPercent = computed<number>(() => toPercent(inputThresholdDb.value))
 const limiterThresholdPercent = computed<number>(() => toPercent(limiterThresholdDb.value))
+const adaptiveThresholdPercent = computed<number>(() => toPercent(adaptiveThresholdDb.value ?? -60))
 
 const dbColorClass = computed<string>(() => {
   if (currentDb.value > -6) return 'text-red-400'
@@ -101,6 +107,7 @@ const resetMeterState = (): void => {
   currentDb.value = -60
   peakDb.value = -60
   clipIndicator.value = false
+  adaptiveThresholdDb.value = null
 }
 
 const stopMeter = (): void => {
@@ -121,6 +128,14 @@ const tick = (): void => {
       rafId = requestAnimationFrame(tick)
     }
     return
+  }
+
+  if (props.contextMode === 'auto-mic') {
+    adaptiveThresholdDb.value = clampDb(
+      20 * Math.log10(Math.max(1e-8, microphoneService.getCurrentGateThreshold()))
+    )
+  } else {
+    adaptiveThresholdDb.value = null
   }
 
   if (!dataArray || dataArray.length !== analyser.fftSize) {
@@ -212,6 +227,13 @@ onUnmounted(() => {
       ></div>
 
       <div
+        v-if="adaptiveThresholdDb !== null"
+        class="absolute top-0 h-full w-[2px] bg-emerald-300/90"
+        :style="{ left: `${adaptiveThresholdPercent}%` }"
+        title="Adaptacyjny próg Gate"
+      ></div>
+
+      <div
         class="absolute top-0 h-full w-[2px] bg-amber-300/90"
         :style="{ left: `${limiterThresholdPercent}%` }"
         title="Próg limitera"
@@ -221,7 +243,12 @@ onUnmounted(() => {
     <div class="mt-1 flex items-center justify-between text-[10px] text-gray-500">
       <span class="inline-flex items-center gap-1">
         <span class="h-2 w-2 rounded-full bg-cyan-400"></span>
-        Gate {{ inputThresholdDb.toFixed(1) }} dB
+        Gate
+        {{
+          isAutoGate && adaptiveThresholdDb !== null
+            ? `${adaptiveThresholdDb.toFixed(1)} dB`
+            : `${inputThresholdDb.toFixed(1)} dB`
+        }}
       </span>
       <span class="inline-flex items-center gap-1">
         <span class="h-2 w-2 rounded-full bg-amber-300"></span>

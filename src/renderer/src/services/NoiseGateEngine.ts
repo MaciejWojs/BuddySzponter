@@ -10,6 +10,7 @@ export class NoiseGateEngine {
   private gateReleaseTime = NoiseGateEngine.DEFAULT_RELEASE_TIME
   private isGateOpen = true
   private noiseFloor = 0.002
+  private currentDynamicThreshold = this.threshold
   private readonly NOISE_FLOOR_ALPHA = 0.95
   private readonly THRESHOLD_OFFSET = 2.5
 
@@ -24,6 +25,7 @@ export class NoiseGateEngine {
 
   public setThreshold(value: number): void {
     this.threshold = Math.max(0, Math.min(1, value))
+    this.currentDynamicThreshold = this.threshold
   }
 
   public setGateParams(holdTimeSeconds: number, attackTime: number, releaseTime: number): void {
@@ -72,6 +74,7 @@ export class NoiseGateEngine {
 
     const dynamicThreshold =
       this.threshold > 0 ? this.threshold : this.noiseFloor * this.THRESHOLD_OFFSET
+    this.currentDynamicThreshold = dynamicThreshold
     const now = this.audioContext.currentTime
 
     if (rms >= dynamicThreshold) {
@@ -106,5 +109,9 @@ export class NoiseGateEngine {
     }
 
     this.rafId = requestAnimationFrame(this.tickGate)
+  }
+
+  public getCurrentThreshold(): number {
+    return this.currentDynamicThreshold
   }
 }

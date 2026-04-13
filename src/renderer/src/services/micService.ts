@@ -228,6 +228,10 @@ class MicrophoneService {
     return this.inputThreshold
   }
 
+  public getCurrentGateThreshold(): number {
+    return this.noiseGate?.getCurrentThreshold() ?? this.inputThreshold
+  }
+
   public setGateParams(holdTimeSeconds: number, attackTime: number, releaseTime: number): void {
     this.gateHoldTimeSeconds = Math.max(0, holdTimeSeconds)
     this.gateAttackTime = Math.max(0, attackTime)
