@@ -1,14 +1,17 @@
 export class NoiseGateEngine {
-  private static readonly DEFAULT_HOLD_FRAMES_MAX = 20
+  private static readonly DEFAULT_HOLD_TIME = 0.5
   private static readonly DEFAULT_ATTACK_TIME = 0.015
-  private static readonly DEFAULT_RELEASE_TIME = 0.8
+  private static readonly DEFAULT_RELEASE_TIME = 1.0
 
   private threshold = 0.008
-  private gateHoldFramesCounter = 0
-  private gateHoldFramesMax = NoiseGateEngine.DEFAULT_HOLD_FRAMES_MAX
+  private gateHoldTime = NoiseGateEngine.DEFAULT_HOLD_TIME
+  private lastAboveThresholdTime = 0
   private gateAttackTime = NoiseGateEngine.DEFAULT_ATTACK_TIME
   private gateReleaseTime = NoiseGateEngine.DEFAULT_RELEASE_TIME
   private isGateOpen = true
+  private noiseFloor = 0.002
+  private readonly NOISE_FLOOR_ALPHA = 0.95
+  private readonly THRESHOLD_OFFSET = 2.5
 
   private rafId: number | null = null
   private gateData: Float32Array<ArrayBuffer> | null = null
@@ -23,8 +26,8 @@ export class NoiseGateEngine {
     this.threshold = Math.max(0, Math.min(1, value))
   }
 
-  public setGateParams(holdFrames: number, attackTime: number, releaseTime: number): void {
-    this.gateHoldFramesMax = Math.max(0, holdFrames)
+  public setGateParams(holdTimeSeconds: number, attackTime: number, releaseTime: number): void {
+    this.gateHoldTime = Math.max(0, holdTimeSeconds)
     this.gateAttackTime = Math.max(0, attackTime)
     this.gateReleaseTime = Math.max(0, releaseTime)
   }
@@ -41,7 +44,7 @@ export class NoiseGateEngine {
       this.rafId = null
     }
 
-    this.gateHoldFramesCounter = 0
+    this.lastAboveThresholdTime = 0
     this.isGateOpen = true
     this.gateData = null
   }
@@ -62,18 +65,24 @@ export class NoiseGateEngine {
 
     const rms = Math.sqrt(sumSquares / this.gateData.length)
 
-    if (rms >= this.threshold) {
-      this.gateHoldFramesCounter = this.gateHoldFramesMax
-    } else {
-      this.gateHoldFramesCounter = Math.max(0, this.gateHoldFramesCounter - 1)
+    if (!this.isGateOpen) {
+      this.noiseFloor =
+        this.NOISE_FLOOR_ALPHA * this.noiseFloor + (1 - this.NOISE_FLOOR_ALPHA) * rms
     }
 
-    const shouldBeOpen = this.threshold <= 0 ? true : this.gateHoldFramesCounter > 0
+    const dynamicThreshold =
+      this.threshold > 0 ? this.threshold : this.noiseFloor * this.THRESHOLD_OFFSET
+    const now = this.audioContext.currentTime
+
+    if (rms >= dynamicThreshold) {
+      this.lastAboveThresholdTime = now
+    }
+
+    const shouldBeOpen = now - this.lastAboveThresholdTime < this.gateHoldTime
 
     if (shouldBeOpen !== this.isGateOpen) {
       this.isGateOpen = shouldBeOpen
 
-      const now = this.audioContext.currentTime
       const currentGain = this.targetGainNode.gain.value
 
       this.targetGainNode.gain.cancelScheduledValues(now)
@@ -87,12 +96,12 @@ export class NoiseGateEngine {
         const t3 = now + this.gateReleaseTime * 0.75
         const t4 = now + this.gateReleaseTime
 
-        const sCurve = (progress: number): number => (1 + Math.cos(Math.PI * progress)) * 0.5
+        const easeOut = (progress: number): number => 1 - Math.pow(progress, 3)
 
-        this.targetGainNode.gain.linearRampToValueAtTime(currentGain * sCurve(0.25), t1)
-        this.targetGainNode.gain.linearRampToValueAtTime(currentGain * sCurve(0.5), t2)
-        this.targetGainNode.gain.linearRampToValueAtTime(currentGain * sCurve(0.75), t3)
-        this.targetGainNode.gain.linearRampToValueAtTime(currentGain * sCurve(1), t4)
+        this.targetGainNode.gain.linearRampToValueAtTime(currentGain * easeOut(0.25), t1)
+        this.targetGainNode.gain.linearRampToValueAtTime(currentGain * easeOut(0.5), t2)
+        this.targetGainNode.gain.linearRampToValueAtTime(currentGain * easeOut(0.75), t3)
+        this.targetGainNode.gain.linearRampToValueAtTime(0, t4)
       }
     }
 

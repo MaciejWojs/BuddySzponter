@@ -3,7 +3,9 @@ export class MicrophoneEffectsChain {
   private gateNode: GainNode | null
   private gateAnalyserNode: AnalyserNode | null
   private highPassEQNode: BiquadFilterNode | null
+  private deMudEQNode: BiquadFilterNode | null
   private lowShelfEQNode: BiquadFilterNode | null
+  private presenceEQNode: BiquadFilterNode | null
   private highShelfEQNode: BiquadFilterNode | null
   private limiterNode: DynamicsCompressorNode | null
   private gainNode: GainNode | null
@@ -18,7 +20,9 @@ export class MicrophoneEffectsChain {
     this.gateNode = this.audioContext.createGain()
     this.gateAnalyserNode = this.audioContext.createAnalyser()
     this.highPassEQNode = this.audioContext.createBiquadFilter()
+    this.deMudEQNode = this.audioContext.createBiquadFilter()
     this.lowShelfEQNode = this.audioContext.createBiquadFilter()
+    this.presenceEQNode = this.audioContext.createBiquadFilter()
     this.highShelfEQNode = this.audioContext.createBiquadFilter()
     this.limiterNode = this.audioContext.createDynamicsCompressor()
     this.gainNode = this.audioContext.createGain()
@@ -32,9 +36,19 @@ export class MicrophoneEffectsChain {
     this.highPassEQNode.type = 'highpass'
     this.highPassEQNode.frequency.value = 80
 
+    this.deMudEQNode.type = 'peaking'
+    this.deMudEQNode.frequency.value = 200
+    this.deMudEQNode.gain.value = -2
+    this.deMudEQNode.Q.value = 1
+
     this.lowShelfEQNode.type = 'lowshelf'
     this.lowShelfEQNode.frequency.value = 150
     this.lowShelfEQNode.gain.value = 0
+
+    this.presenceEQNode.type = 'peaking'
+    this.presenceEQNode.frequency.value = 3000
+    this.presenceEQNode.gain.value = 2
+    this.presenceEQNode.Q.value = 1
 
     this.highShelfEQNode.type = 'highshelf'
     this.highShelfEQNode.frequency.value = 5000
@@ -43,11 +57,13 @@ export class MicrophoneEffectsChain {
     this.analyserNode.fftSize = 1024
     this.analyserNode.smoothingTimeConstant = 0.2
 
-    this.sourceNode.connect(this.gateAnalyserNode)
-    this.sourceNode.connect(this.gateNode)
-    this.gateNode.connect(this.highPassEQNode)
-    this.highPassEQNode.connect(this.lowShelfEQNode)
-    this.lowShelfEQNode.connect(this.highShelfEQNode)
+    this.sourceNode.connect(this.highPassEQNode)
+    this.highPassEQNode.connect(this.gateAnalyserNode)
+    this.highPassEQNode.connect(this.gateNode)
+    this.gateNode.connect(this.deMudEQNode)
+    this.deMudEQNode.connect(this.lowShelfEQNode)
+    this.lowShelfEQNode.connect(this.presenceEQNode)
+    this.presenceEQNode.connect(this.highShelfEQNode)
     this.highShelfEQNode.connect(this.limiterNode)
     this.limiterNode.connect(this.gainNode)
     this.gainNode.connect(this.analyserNode)
@@ -61,11 +77,11 @@ export class MicrophoneEffectsChain {
     if (!this.limiterNode) return
 
     if (enabled) {
-      this.limiterNode.threshold.value = -18
-      this.limiterNode.knee.value = 12
-      this.limiterNode.ratio.value = 4
-      this.limiterNode.attack.value = 0.005
-      this.limiterNode.release.value = 0.15
+      this.limiterNode.threshold.value = -24
+      this.limiterNode.knee.value = 20
+      this.limiterNode.ratio.value = 3
+      this.limiterNode.attack.value = 0.01
+      this.limiterNode.release.value = 0.2
       return
     }
 
@@ -143,6 +159,15 @@ export class MicrophoneEffectsChain {
       this.highPassEQNode = null
     }
 
+    if (this.deMudEQNode) {
+      try {
+        this.deMudEQNode.disconnect()
+      } catch {
+        console.warn('[MicrophoneEffectsChain] Failed to disconnect de-mud node')
+      }
+      this.deMudEQNode = null
+    }
+
     if (this.lowShelfEQNode) {
       try {
         this.lowShelfEQNode.disconnect()
@@ -150,6 +175,15 @@ export class MicrophoneEffectsChain {
         console.warn('[MicrophoneEffectsChain] Failed to disconnect low-shelf node')
       }
       this.lowShelfEQNode = null
+    }
+
+    if (this.presenceEQNode) {
+      try {
+        this.presenceEQNode.disconnect()
+      } catch {
+        console.warn('[MicrophoneEffectsChain] Failed to disconnect presence node')
+      }
+      this.presenceEQNode = null
     }
 
     if (this.highShelfEQNode) {

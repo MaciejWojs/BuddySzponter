@@ -15,9 +15,9 @@ class MicrophoneService {
   private limiterEnabled = true
   private bassBoostDb = 0
   private inputThreshold = 0.008
-  private gateHoldFramesMax = 20
+  private gateHoldTimeSeconds = 0.5
   private gateAttackTime = 0.015
-  private gateReleaseTime = 0.8
+  private gateReleaseTime = 1.0
   private autoGainControlEnabled = true
   private noiseSuppressionEnabled = true
   private echoCancellationEnabled = true
@@ -140,7 +140,11 @@ class MicrophoneService {
 
       const nextNoiseGate = new NoiseGateEngine(this.audioContext, gateAnalyserNode, gateTargetNode)
       nextNoiseGate.setThreshold(this.inputThreshold)
-      nextNoiseGate.setGateParams(this.gateHoldFramesMax, this.gateAttackTime, this.gateReleaseTime)
+      nextNoiseGate.setGateParams(
+        this.gateHoldTimeSeconds,
+        this.gateAttackTime,
+        this.gateReleaseTime
+      )
       nextNoiseGate.start()
 
       processedTrack.contentHint = 'speech'
@@ -224,11 +228,15 @@ class MicrophoneService {
     return this.inputThreshold
   }
 
-  public setGateParams(holdFrames: number, attackTime: number, releaseTime: number): void {
-    this.gateHoldFramesMax = Math.max(0, holdFrames)
+  public setGateParams(holdTimeSeconds: number, attackTime: number, releaseTime: number): void {
+    this.gateHoldTimeSeconds = Math.max(0, holdTimeSeconds)
     this.gateAttackTime = Math.max(0, attackTime)
     this.gateReleaseTime = Math.max(0, releaseTime)
-    this.noiseGate?.setGateParams(this.gateHoldFramesMax, this.gateAttackTime, this.gateReleaseTime)
+    this.noiseGate?.setGateParams(
+      this.gateHoldTimeSeconds,
+      this.gateAttackTime,
+      this.gateReleaseTime
+    )
   }
 
   public setBassBoost(dbValue: number): void {
