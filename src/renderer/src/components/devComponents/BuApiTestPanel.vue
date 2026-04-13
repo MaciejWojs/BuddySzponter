@@ -21,9 +21,10 @@
           <BuJoinConnectionTest @log-result="logResult" />
           <!-- <BuSystemInfo @log-result="logResult" /> -->
           <BuSocketTest @log-result="logResult" />
-          <BuDataChannelTest @log-result="logResult" />
+          <AudioDashboard @log-result="logResult" />
+          <!-- <BuDataChannelTest @log-result="logResult" /> -->
           <!-- <BuScreenCaptureTest /> -->
-          <BuAudioParametersTestPanel />
+          <!-- <BuAudioParametersTestPanel /> -->
         </div>
 
         <div class="flex-1 flex flex-col gap-5 min-w-[350px] min-h-0">
@@ -73,8 +74,6 @@ import BuSessionActions from './BuSessionActions.vue'
 import BuConnectionTest from './BuConnectionTest.vue'
 import BuJoinConnectionTest from './BuJoinConnectionTest.vue'
 import BuSocketTest from './BuSocketTest.vue'
-import BuDataChannelTest from './BuDataChannelTest.vue'
-import BuAudioParametersTestPanel from './BuAudioParametersTestPanel.vue'
 // Stan Aplikacji
 const outputLog = ref<string>('')
 const wsLog = ref<string>('')
