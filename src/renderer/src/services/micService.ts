@@ -27,10 +27,10 @@ class MicrophoneService {
 
   // Parametry Bramki Szumów
   private gateHoldFramesCounter = 0
-  private readonly GATE_HOLD_FRAMES_MAX = 20
+  private gateHoldFramesMax = 20
   private isGateOpen = true
-  private readonly GATE_ATTACK_TIME = 0.015
-  private readonly GATE_RELEASE_TIME = 0.8 // Wydłużony czas na naturalne opadanie
+  private gateAttackTime = 0.015
+  private gateReleaseTime = 0.8 // Wydłużony czas na naturalne opadanie
 
   private localMonitoringEnabled = false
   private monitorElement: HTMLAudioElement | null = null
@@ -114,7 +114,7 @@ class MicrophoneService {
 
     // Logika Podtrzymania (Hold)
     if (rms >= this.inputThreshold) {
-      this.gateHoldFramesCounter = this.GATE_HOLD_FRAMES_MAX
+      this.gateHoldFramesCounter = this.gateHoldFramesMax
     } else {
       this.gateHoldFramesCounter = Math.max(0, this.gateHoldFramesCounter - 1)
     }
@@ -132,12 +132,12 @@ class MicrophoneService {
       this.inputGateNode.gain.setValueAtTime(currentGain, now)
 
       if (shouldBeOpen) {
-        this.inputGateNode.gain.linearRampToValueAtTime(1, now + this.GATE_ATTACK_TIME)
+        this.inputGateNode.gain.linearRampToValueAtTime(1, now + this.gateAttackTime)
       } else {
-        const t1 = now + this.GATE_RELEASE_TIME * 0.25
-        const t2 = now + this.GATE_RELEASE_TIME * 0.5
-        const t3 = now + this.GATE_RELEASE_TIME * 0.75
-        const t4 = now + this.GATE_RELEASE_TIME
+        const t1 = now + this.gateReleaseTime * 0.25
+        const t2 = now + this.gateReleaseTime * 0.5
+        const t3 = now + this.gateReleaseTime * 0.75
+        const t4 = now + this.gateReleaseTime
 
         this.inputGateNode.gain.linearRampToValueAtTime(currentGain * 0.98, t1)
         this.inputGateNode.gain.linearRampToValueAtTime(currentGain * 0.85, t2)
@@ -327,7 +327,7 @@ class MicrophoneService {
 
       nextLowShelfEQ.type = 'lowshelf'
       nextLowShelfEQ.frequency.value = 150
-      nextLowShelfEQ.gain.value = 0
+      nextLowShelfEQ.gain.value = 3
 
       nextHighShelfEQ.type = 'highshelf'
       nextHighShelfEQ.frequency.value = 5000
@@ -415,6 +415,7 @@ class MicrophoneService {
     this.applyLimiterSettings()
   }
 
+  /** UWAGA: Zmiana tej flagi wymaga ponownego wywolania metody start(), aby pobrac nowy strumien z urzadzenia. */
   public setAutoGainControlEnabled(enabled: boolean): void {
     this.autoGainControlEnabled = enabled
   }
@@ -423,6 +424,7 @@ class MicrophoneService {
     return this.autoGainControlEnabled
   }
 
+  /** UWAGA: Zmiana tej flagi wymaga ponownego wywolania metody start(), aby pobrac nowy strumien z urzadzenia. */
   public setNoiseSuppressionEnabled(enabled: boolean): void {
     this.noiseSuppressionEnabled = enabled
   }
@@ -431,6 +433,7 @@ class MicrophoneService {
     return this.noiseSuppressionEnabled
   }
 
+  /** UWAGA: Zmiana tej flagi wymaga ponownego wywolania metody start(), aby pobrac nowy strumien z urzadzenia. */
   public setEchoCancellationEnabled(enabled: boolean): void {
     this.echoCancellationEnabled = enabled
   }
@@ -439,6 +442,7 @@ class MicrophoneService {
     return this.echoCancellationEnabled
   }
 
+  /** UWAGA: Zmiana tej flagi wymaga ponownego wywolania metody start(), aby pobrac nowy strumien z urzadzenia. */
   public setStudioModeEnabled(enabled: boolean): void {
     this.studioModeEnabled = enabled
   }
@@ -462,6 +466,18 @@ class MicrophoneService {
 
   public getInputThreshold(): number {
     return this.inputThreshold
+  }
+
+  public setGateParams(holdFrames: number, attackTime: number, releaseTime: number): void {
+    this.gateHoldFramesMax = Math.max(0, holdFrames)
+    this.gateAttackTime = Math.max(0, attackTime)
+    this.gateReleaseTime = Math.max(0, releaseTime)
+  }
+
+  public setBassBoost(dbValue: number): void {
+    if (this.lowShelfEQNode) {
+      this.lowShelfEQNode.gain.value = dbValue
+    }
   }
 
   public stop(): void {
