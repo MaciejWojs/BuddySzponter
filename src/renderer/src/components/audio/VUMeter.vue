@@ -19,20 +19,17 @@ const clipIndicator = ref<boolean>(false)
 
 let rafId: number | null = null
 let dataArray: Float32Array<ArrayBuffer> | null = null
-const effectiveAnalyser = ref<AnalyserNode | null>(null)
 
-const refreshEffectiveAnalyser = (): void => {
+const getEffectiveAnalyser = (): AnalyserNode | null => {
   if (props.contextMode === 'auto-mic') {
-    effectiveAnalyser.value = microphoneService.getAnalyserNode()
-    return
+    return microphoneService.getAnalyserNode()
   }
 
-  effectiveAnalyser.value = props.analyser ?? null
+  return props.analyser ?? null
 }
 
 const syncAutoMicContext = async (): Promise<void> => {
   if (props.contextMode !== 'auto-mic') {
-    refreshEffectiveAnalyser()
     return
   }
 
@@ -44,15 +41,12 @@ const syncAutoMicContext = async (): Promise<void> => {
     if (!isCapturing) {
       microphoneService.stop()
     }
-    refreshEffectiveAnalyser()
     return
   }
 
   if (!isCapturing) {
     await microphoneService.start(props.deviceId || undefined, volume)
   }
-
-  refreshEffectiveAnalyser()
 }
 
 const clampDb = (value: number): number => {
@@ -115,11 +109,22 @@ const stopMeter = (): void => {
 }
 
 const tick = (): void => {
-  const analyser = effectiveAnalyser.value
-  if (!analyser || !dataArray) {
-    stopAnimationLoop()
+  const analyser = getEffectiveAnalyser()
+  if (!analyser) {
+    const shouldRetry =
+      props.contextMode === 'auto-mic' && (props.enabled ?? true) && (props.isCapturing ?? false)
+    if (!shouldRetry) {
+      stopAnimationLoop()
+    }
     resetMeterState()
+    if (shouldRetry) {
+      rafId = requestAnimationFrame(tick)
+    }
     return
+  }
+
+  if (!dataArray || dataArray.length !== analyser.fftSize) {
+    dataArray = new Float32Array(analyser.fftSize) as Float32Array<ArrayBuffer>
   }
 
   analyser.getFloatTimeDomainData(dataArray)
@@ -147,33 +152,15 @@ const tick = (): void => {
 }
 
 const startMeter = (): void => {
-  const analyser = effectiveAnalyser.value
-  if (!analyser) {
-    stopMeter()
-    return
-  }
-
-  dataArray = new Float32Array(analyser.fftSize) as Float32Array<ArrayBuffer>
-
   stopAnimationLoop()
   rafId = requestAnimationFrame(tick)
 }
-
-watch(effectiveAnalyser, (analyser) => {
-  if (!analyser) {
-    stopMeter()
-    dataArray = null
-    return
-  }
-
-  dataArray = new Float32Array(analyser.fftSize) as Float32Array<ArrayBuffer>
-  startMeter()
-})
 
 watch(
   () => [props.contextMode, props.enabled, props.isCapturing, props.deviceId, props.volume],
   () => {
     void syncAutoMicContext()
+    startMeter()
   },
   { immediate: true }
 )
