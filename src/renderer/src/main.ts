@@ -15,7 +15,7 @@ import { useUserStore } from '@renderer/stores/userStore'
 
 const router = createRouter({
   history: createWebHashHistory(),
-  routes: [{ path: '/', redirect: '/settings' }, ...routes]
+  routes: [{ path: '/', redirect: '/Menu' }, ...routes]
 })
 
 const pinia = createPinia()
