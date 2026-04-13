@@ -52,7 +52,9 @@ export class WebRTCService {
   private iceCandidateQueue: RTCIceCandidateInit[] = []
   private remoteStream: MediaStream = new MediaStream()
   private remoteTrackRoleByTrackId = new Map<string, RemoteTrackRole>()
-  private localSenders: RTCRtpSender[] = []
+  private guestVideoSender: RTCRtpSender | null = null
+  private guestMicSender: RTCRtpSender | null = null
+  private guestSystemSender: RTCRtpSender | null = null
   private videoTransceiver: RTCRtpTransceiver | null = null
   private micTransceiver: RTCRtpTransceiver | null = null
   private systemTransceiver: RTCRtpTransceiver | null = null
@@ -63,7 +65,9 @@ export class WebRTCService {
     this.iceCandidateQueue = []
     this.remoteStream = new MediaStream()
     this.remoteTrackRoleByTrackId.clear()
-    this.localSenders = []
+    this.guestVideoSender = null
+    this.guestMicSender = null
+    this.guestSystemSender = null
     this.videoTransceiver = null
     this.micTransceiver = null
     this.systemTransceiver = null
@@ -182,20 +186,25 @@ export class WebRTCService {
     if (sysTrack) sysTrack.contentHint = 'music'
 
     if (!this.isHost) {
-      this.clearLocalSenders()
-
-      if (videoTrack) {
-        this.localSenders.push(
-          this.peerConnection.addTrack(videoTrack, new MediaStream([videoTrack]))
+      if (!this.guestVideoSender && videoTrack) {
+        this.guestVideoSender = this.peerConnection.addTrack(
+          videoTrack,
+          new MediaStream([videoTrack])
         )
+      } else if (this.guestVideoSender) {
+        this.guestVideoSender.replaceTrack(videoTrack).catch(console.error)
       }
 
-      if (micTrack) {
-        this.localSenders.push(this.peerConnection.addTrack(micTrack, new MediaStream([micTrack])))
+      if (!this.guestMicSender && micTrack) {
+        this.guestMicSender = this.peerConnection.addTrack(micTrack, new MediaStream([micTrack]))
+      } else if (this.guestMicSender) {
+        this.guestMicSender.replaceTrack(micTrack).catch(console.error)
       }
 
-      if (sysTrack) {
-        this.localSenders.push(this.peerConnection.addTrack(sysTrack, new MediaStream([sysTrack])))
+      if (!this.guestSystemSender && sysTrack) {
+        this.guestSystemSender = this.peerConnection.addTrack(sysTrack, new MediaStream([sysTrack]))
+      } else if (this.guestSystemSender) {
+        this.guestSystemSender.replaceTrack(sysTrack).catch(console.error)
       }
 
       return
@@ -229,8 +238,6 @@ export class WebRTCService {
           .catch((e) => console.warn('[WebRTCService] Błąd replaceTrack(null):', e))
       }
     })
-
-    this.localSenders = []
   }
 
   private setupChannel(channel: RTCDataChannel): void {
@@ -402,6 +409,9 @@ export class WebRTCService {
     this.videoTransceiver = null
     this.micTransceiver = null
     this.systemTransceiver = null
+    this.guestVideoSender = null
+    this.guestMicSender = null
+    this.guestSystemSender = null
     this.remoteStream.getTracks().forEach((t) => t.stop())
     this.remoteTrackRoleByTrackId.clear()
     this.clearLocalSenders()

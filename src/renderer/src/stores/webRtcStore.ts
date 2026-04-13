@@ -12,7 +12,8 @@ import { WsWebRTCOffer, WsWebRTCAnswer, WsWebRTCIceCandidate } from '@shared/sch
 import { ChatChannel } from '@renderer/composables/channels/ChatChannel'
 import { HidChannel } from '@renderer/composables/channels/HidChannel'
 import { SystemEventsChannel } from '@renderer/composables/channels/SystemEventsChannel'
-import { videoService } from '@renderer/composables/video/videoService'
+import { videoService } from '@renderer/services/videoService'
+import { microphoneService } from '@renderer/services/MicrophoneService'
 
 export const useWebRtcStore = defineStore('webrtc', () => {
   const getSocketStore = (): ReturnType<typeof useSocketStore> => useSocketStore()
@@ -37,7 +38,7 @@ export const useWebRtcStore = defineStore('webrtc', () => {
   const audioHoldFrames = ref<number>(8)
 
   watch(localSystemAudioVolume, (val): void => videoService.setSystemAudioVolume(val))
-  watch(localMicrophoneVolume, (val): void => videoService.setLocalMicrophoneVolume(val))
+  watch(localMicrophoneVolume, (val): void => microphoneService.setVolume(val))
 
   const connectionMetrics = useConnectionMetrics(rtcStatus)
   const chat = ChatChannel()

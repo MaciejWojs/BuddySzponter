@@ -4,7 +4,8 @@ import { useConnectionStore } from './connectionStore'
 import { useSocketStore } from './socketStore'
 import { useWebRtcStore } from './webRtcStore'
 import { useLogStore } from './devStores/logStore' // Upewnij się, że ta ścieżka jest poprawna
-import { videoService } from '@renderer/composables/video/videoService'
+import { videoService } from '@renderer/services/videoService'
+import { microphoneService } from '@renderer/services/MicrophoneService'
 
 // Zmieniono nazwę na useSessionStore (konwencja Vue)
 export const SessionStore = defineStore('session', () => {
@@ -20,7 +21,7 @@ export const SessionStore = defineStore('session', () => {
 
   const sharedTextureStream = shallowRef<MediaStream | null>(null)
   const currentCaptureMode = ref<'host-shared' | 'host-native' | 'guest-mic' | null>(null)
-  const isCapturing = computed((): boolean => videoService.isRunning || !!sharedTextureStream.value)
+  const isCapturing = computed((): boolean => currentCaptureMode.value !== null)
   const sharedTextureCaptureFps = 120
 
   let stopFrameSubscription: (() => void) | null = null
@@ -38,6 +39,18 @@ export const SessionStore = defineStore('session', () => {
     } else {
       await webRtcStore.publishLocalStream(stream)
     }
+  }
+
+  const prepareExternalMicTrack = async (): Promise<MediaStreamTrack | null> => {
+    if (!includeMicrophone.value) {
+      microphoneService.stop()
+      return null
+    }
+
+    return microphoneService.start(
+      selectedMicrophoneDeviceId.value || undefined,
+      webRtcStore.localMicrophoneVolume
+    )
   }
 
   const startSharedTextureCapture = async (): Promise<void> => {
@@ -80,12 +93,12 @@ export const SessionStore = defineStore('session', () => {
         return
       }
 
+      const micTrack = await prepareExternalMicTrack()
+
       sharedTextureStream.value = await videoService.startWithExternalVideoTrack(canvasVideoTrack, {
         includeSystemAudio: includeSystemAudio.value,
-        includeMicrophone: includeMicrophone.value,
-        microphoneDeviceId: selectedMicrophoneDeviceId.value || undefined,
-        systemAudioVolume: webRtcStore.localSystemAudioVolume,
-        microphoneVolume: webRtcStore.localMicrophoneVolume
+        externalMicTrack: micTrack ?? undefined,
+        systemAudioVolume: webRtcStore.localSystemAudioVolume
       })
 
       const videoTrack = sharedTextureStream.value.getVideoTracks()[0]
@@ -119,13 +132,12 @@ export const SessionStore = defineStore('session', () => {
     }
 
     try {
+      const micTrack = await prepareExternalMicTrack()
       const stream = await videoService.start({
         includeScreen: true,
         includeSystemAudio: includeSystemAudio.value,
-        includeMicrophone: includeMicrophone.value,
-        microphoneDeviceId: selectedMicrophoneDeviceId.value || undefined,
-        systemAudioVolume: webRtcStore.localSystemAudioVolume,
-        microphoneVolume: webRtcStore.localMicrophoneVolume
+        externalMicTrack: micTrack ?? undefined,
+        systemAudioVolume: webRtcStore.localSystemAudioVolume
       })
       currentCaptureMode.value = 'host-native'
       await assignLocalStream(stream)
@@ -147,12 +159,11 @@ export const SessionStore = defineStore('session', () => {
     logStore.addLog('MIC_CAPTURE', 'Uruchamianie mikrofonu (Gość)...', 'api')
 
     try {
+      const micTrack = await prepareExternalMicTrack()
       const stream = await videoService.start({
         includeScreen: false,
         includeSystemAudio: false,
-        includeMicrophone: includeMicrophone.value,
-        microphoneDeviceId: selectedMicrophoneDeviceId.value || undefined,
-        microphoneVolume: webRtcStore.localMicrophoneVolume
+        externalMicTrack: micTrack ?? undefined
       })
       currentCaptureMode.value = 'guest-mic'
       await assignLocalStream(stream)
@@ -176,6 +187,7 @@ export const SessionStore = defineStore('session', () => {
     }
 
     currentCaptureMode.value = null
+    microphoneService.stop()
     await videoService.stop()
     webRtcStore.localStream = null
     webRtcStore.setLocalPreviewFps(null)
@@ -196,7 +208,7 @@ export const SessionStore = defineStore('session', () => {
 
   const refreshMicrophones = async (): Promise<void> => {
     try {
-      const microphones = await videoService.getAvailableMicrophones()
+      const microphones = await microphoneService.getAvailableMicrophones()
       availableMicrophones.value = microphones
 
       const hasSelected = microphones.some(
@@ -213,14 +225,20 @@ export const SessionStore = defineStore('session', () => {
   }
 
   const applySelectedMicrophone = async (): Promise<void> => {
-    if (!isCapturing.value || !includeMicrophone.value) return
+    if (!includeMicrophone.value) {
+      return
+    }
 
-    const updatedStream = await videoService.switchMicrophone(
+    if (!isCapturing.value) {
+      return
+    }
+
+    const nextMicTrack = await microphoneService.start(
       selectedMicrophoneDeviceId.value || undefined,
       webRtcStore.localMicrophoneVolume
     )
 
-    if (!updatedStream) {
+    if (!nextMicTrack) {
       webRtcStore.toggleMicrophone(true)
       logStore.addLog(
         'ERROR',
@@ -230,7 +248,29 @@ export const SessionStore = defineStore('session', () => {
       return
     }
 
-    await assignLocalStream(updatedStream)
+    const currentStream = webRtcStore.localStream
+    if (!currentStream) return
+
+    const audioTracks = currentStream.getAudioTracks()
+    const speechTracks = audioTracks.filter((track) => track.contentHint === 'speech')
+    const tracksToRemove =
+      speechTracks.length > 0 ? speechTracks : audioTracks.length === 1 ? [audioTracks[0]] : []
+
+    tracksToRemove.forEach((track) => {
+      currentStream.removeTrack(track)
+      track.stop()
+    })
+
+    if (tracksToRemove.length === 0 && audioTracks.length > 0) {
+      logStore.addLog(
+        'WARN',
+        'Nie znaleziono jednoznacznej ścieżki mikrofonowej do podmiany. Dodano nowy track mikrofonu obok istniejących audio.',
+        'api'
+      )
+    }
+
+    currentStream.addTrack(nextMicTrack)
+    await assignLocalStream(currentStream)
     logStore.addLog(
       'MIC_CAPTURE',
       `Przełączono mikrofon na: ${selectedMicrophoneDeviceId.value || 'domyślny systemowy'}`,

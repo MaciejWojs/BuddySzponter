@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useWebRtcStore } from '@renderer/stores/webRtcStore'
 import { SessionStore } from '@renderer/stores/sessionStore'
 import { getAudioContext, resumeAudioContext } from '@renderer/composables/useSharedAudioContext'
@@ -19,6 +20,7 @@ interface DuckingPreset {
 
 const webRtcStore = useWebRtcStore()
 const sessionStore = SessionStore()
+const { selectedMicrophoneDeviceId } = storeToRefs(sessionStore)
 
 const isMyMicMuted = ref(false)
 const isMySystemMuted = ref(false)
@@ -158,6 +160,12 @@ const handleDeviceChange = (): void => {
   void sessionStore.refreshMicrophones()
 }
 
+const handleSelectedMicrophoneChange = async (): Promise<void> => {
+  await sessionStore.applySelectedMicrophone()
+  bindMeterToMicrophone(webRtcStore.localStream)
+  syncMicMuteStateFromStream(webRtcStore.localStream)
+}
+
 const toggleMyMicMute = (): void => {
   isMyMicMuted.value = !isMyMicMuted.value
   webRtcStore.toggleMicrophone(isMyMicMuted.value)
@@ -211,17 +219,6 @@ watch(
     syncMicMuteStateFromStream(stream)
   }
 )
-
-watch(
-  () => sessionStore.selectedMicrophoneDeviceId,
-  async (next, prev) => {
-    if (next === prev) return
-
-    await sessionStore.applySelectedMicrophone()
-    bindMeterToMicrophone(webRtcStore.localStream)
-    syncMicMuteStateFromStream(webRtcStore.localStream)
-  }
-)
 </script>
 
 <template>
@@ -240,8 +237,9 @@ watch(
         <div class="mb-4">
           <label class="text-xs text-gray-300 block mb-1.5">Mikrofon</label>
           <select
-            v-model="sessionStore.selectedMicrophoneDeviceId"
+            v-model="selectedMicrophoneDeviceId"
             class="w-full px-3 py-2 rounded-md bg-[#111] border border-[#3a3a3a] text-gray-200 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+            @change="handleSelectedMicrophoneChange"
           >
             <option value="">Domyslny mikrofon</option>
             <option
