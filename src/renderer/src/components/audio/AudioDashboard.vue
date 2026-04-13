@@ -26,7 +26,6 @@ const isMyMicMuted = ref(false)
 const isMySystemMuted = ref(false)
 const isGuestSystemMuted = ref(false)
 const isAdvancedOpen = ref(false)
-const micBassBoostEnabled = ref(true)
 const micLimiterEnabled = ref(true)
 const micMonitoringEnabled = ref(false)
 const micInputThresholdDb = ref(-60)
@@ -58,10 +57,33 @@ const duckingPresets: DuckingPreset[] = [
   }
 ]
 
-const myMicPercent = computed<number>({
-  get: () => Math.round(webRtcStore.localMicrophoneVolume * 100),
+const clampUnit = (value: number): number => Math.max(0, Math.min(1, value))
+
+const easeInOutSine = (value: number): number => {
+  return 0.5 - Math.cos(Math.PI * clampUnit(value)) / 2
+}
+
+const inverseEaseInOutSine = (value: number): number => {
+  return Math.acos(1 - 2 * clampUnit(value)) / Math.PI
+}
+
+const mapValueToSinePercent = (value: number, min: number, max: number): number => {
+  if (max <= min) return 0
+  const normalized = clampUnit((value - min) / (max - min))
+  return inverseEaseInOutSine(normalized) * 100
+}
+
+const mapSinePercentToValue = (percent: number, min: number, max: number): number => {
+  if (max <= min) return min
+  return min + easeInOutSine(percent / 100) * (max - min)
+}
+
+const myMicPercent = computed<number>(() => Math.round(webRtcStore.localMicrophoneVolume * 100))
+
+const micVolumeSliderPercent = computed<number>({
+  get: () => mapValueToSinePercent(webRtcStore.localMicrophoneVolume, 0, 2),
   set: (value) => {
-    webRtcStore.localMicrophoneVolume = Math.max(0, Math.min(2, value / 100))
+    webRtcStore.localMicrophoneVolume = mapSinePercentToValue(value, 0, 2)
   }
 })
 
@@ -88,6 +110,13 @@ const guestSystemPercent = computed<number>({
 
 const isBoosting = computed(() => myMicPercent.value > 100)
 const limiterThresholdDb = computed<number>(() => (micLimiterEnabled.value ? -10 : 0))
+
+const micInputThresholdSliderPercent = computed<number>({
+  get: () => mapValueToSinePercent(micInputThresholdDb.value, -60, limiterThresholdDb.value),
+  set: (value) => {
+    micInputThresholdDb.value = mapSinePercentToValue(value, -60, limiterThresholdDb.value)
+  }
+})
 
 const clampDb = (value: number, min = -60, max = 0): number => {
   if (!Number.isFinite(value)) return min
@@ -183,7 +212,6 @@ onMounted(() => {
   micInputThresholdDb.value = clampDb(linearToDb(microphoneService.getInputThreshold()), -60, 0)
   clampMicThresholdToContext()
 
-  microphoneService.setBassBoost(micBassBoostEnabled.value)
   microphoneService.setLimiter(micLimiterEnabled.value)
   microphoneService.setInputThreshold(dbToLinear(micInputThresholdDb.value))
 
@@ -202,10 +230,6 @@ watch(
     syncMicMuteStateFromStream(stream)
   }
 )
-
-watch(micBassBoostEnabled, (enabled) => {
-  microphoneService.setBassBoost(enabled)
-})
 
 watch(micLimiterEnabled, (enabled) => {
   microphoneService.setLimiter(enabled)
@@ -271,10 +295,10 @@ watch(micInputThresholdDb, (thresholdDb) => {
           <div class="flex flex-col gap-3">
             <div class="flex items-center gap-3">
               <input
-                v-model.number="myMicPercent"
+                v-model.number="micVolumeSliderPercent"
                 type="range"
                 min="0"
-                max="200"
+                max="100"
                 step="1"
                 class="pro-slider flex-1"
                 :class="isBoosting ? 'boost' : 'normal'"
@@ -313,19 +337,6 @@ watch(micInputThresholdDb, (thresholdDb) => {
                   type="button"
                   class="px-3 py-1.5 rounded border text-[11px] transition-colors"
                   :class="
-                    micBassBoostEnabled
-                      ? 'border-blue-500 bg-blue-500/15 text-blue-300'
-                      : 'border-[#4a4a4a] text-gray-300 hover:border-blue-500/60'
-                  "
-                  @click="micBassBoostEnabled = !micBassBoostEnabled"
-                >
-                  Bass Boost {{ micBassBoostEnabled ? 'ON' : 'OFF' }}
-                </button>
-
-                <button
-                  type="button"
-                  class="px-3 py-1.5 rounded border text-[11px] transition-colors"
-                  :class="
                     micLimiterEnabled
                       ? 'border-amber-500 bg-amber-500/15 text-amber-300'
                       : 'border-[#4a4a4a] text-gray-300 hover:border-amber-500/60'
@@ -357,10 +368,10 @@ watch(micInputThresholdDb, (thresholdDb) => {
                   </span>
                 </div>
                 <input
-                  v-model.number="micInputThresholdDb"
+                  v-model.number="micInputThresholdSliderPercent"
                   type="range"
-                  min="-60"
-                  :max="limiterThresholdDb"
+                  min="0"
+                  max="100"
                   step="0.5"
                   class="pro-slider monitor w-full"
                 />

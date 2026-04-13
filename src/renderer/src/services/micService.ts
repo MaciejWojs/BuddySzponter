@@ -17,7 +17,6 @@ class MicrophoneService {
   private gainNode: GainNode | null = null
   private destinationNode: MediaStreamAudioDestinationNode | null = null
   private analyserNode: AnalyserNode | null = null
-  private bassBoostEnabled = true
   private limiterEnabled = true
   private inputThreshold = 0.008
   private localMonitoringEnabled = false
@@ -48,11 +47,6 @@ class MicrophoneService {
     }
 
     void this.monitorElement.play().catch(() => {})
-  }
-
-  private applyBassBoostSettings(): void {
-    if (!this.lowShelfEQNode) return
-    this.lowShelfEQNode.gain.value = this.bassBoostEnabled ? 3 : 0
   }
 
   private applyLimiterSettings(): void {
@@ -272,6 +266,7 @@ class MicrophoneService {
 
       nextLowShelfEQ.type = 'lowshelf'
       nextLowShelfEQ.frequency.value = 150
+      nextLowShelfEQ.gain.value = 0
 
       nextGainNode.gain.value = Math.max(0, Math.min(2, volume))
       nextAnalyserNode.fftSize = 1024
@@ -325,7 +320,6 @@ class MicrophoneService {
       this.analyserNode = nextAnalyserNode
       this.destinationNode = nextDestinationNode
 
-      this.applyBassBoostSettings()
       this.applyLimiterSettings()
       this.startGateLoop()
       this.syncMonitoringOutput()
@@ -344,11 +338,6 @@ class MicrophoneService {
   public setVolume(volume: number): void {
     if (!this.gainNode) return
     this.gainNode.gain.value = Math.max(0, Math.min(2, volume))
-  }
-
-  public setBassBoost(enabled: boolean): void {
-    this.bassBoostEnabled = enabled
-    this.applyBassBoostSettings()
   }
 
   public setLimiter(enabled: boolean): void {
