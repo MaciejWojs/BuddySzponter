@@ -60,10 +60,10 @@ class MicrophoneService {
 
     if (this.limiterEnabled) {
       this.limiterNode.threshold.value = -10
-      this.limiterNode.knee.value = 5
-      this.limiterNode.ratio.value = 20
-      this.limiterNode.attack.value = 0.002
-      this.limiterNode.release.value = 0.1
+      this.limiterNode.knee.value = 12
+      this.limiterNode.ratio.value = 8
+      this.limiterNode.attack.value = 0.006
+      this.limiterNode.release.value = 0.4
       return
     }
 
@@ -102,8 +102,14 @@ class MicrophoneService {
     }
 
     const rms = Math.sqrt(sumSquares / this.gateData.length)
-    const gateTarget = this.inputThreshold <= 0 ? 1 : rms >= this.inputThreshold ? 1 : 0
-    this.inputGateNode.gain.setTargetAtTime(gateTarget, this.audioContext.currentTime, 0.015)
+    const isSpeaking = rms >= this.inputThreshold
+    const gateTarget = this.inputThreshold <= 0 ? 1 : isSpeaking ? 1 : 0
+
+    // Szybki atak (10ms) zapobiega ucinaniu początku słowa.
+    // Długi release (400ms) pozwala końcówkom zdań płynnie wybrzmieć.
+    const smoothing = isSpeaking ? 0.01 : 0.4
+
+    this.inputGateNode.gain.setTargetAtTime(gateTarget, this.audioContext.currentTime, smoothing)
 
     this.gateRafId = requestAnimationFrame(this.tickGate)
   }
