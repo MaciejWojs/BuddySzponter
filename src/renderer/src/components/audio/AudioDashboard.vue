@@ -27,8 +27,11 @@ const isMySystemMuted = ref(false)
 const isGuestSystemMuted = ref(false)
 const isAdvancedOpen = ref(false)
 const micLimiterEnabled = ref(true)
+const micBassBoostEnabled = ref(false)
+const micStudioModeEnabled = ref(false)
 const micMonitoringEnabled = ref(false)
 const micInputThresholdDb = ref(-60)
+const isAutoGate = computed(() => micInputThresholdDb.value <= -60)
 
 const duckingPresets: DuckingPreset[] = [
   {
@@ -214,6 +217,8 @@ onMounted(() => {
 
   microphoneService.setLimiter(micLimiterEnabled.value)
   microphoneService.setInputThreshold(dbToLinear(micInputThresholdDb.value))
+  microphoneService.setStudioModeEnabled(micStudioModeEnabled.value)
+  microphoneService.setBassBoost(micBassBoostEnabled.value ? 3 : 0)
 
   void sessionStore.refreshMicrophones()
   navigator.mediaDevices?.addEventListener?.('devicechange', handleDeviceChange)
@@ -247,6 +252,17 @@ watch(limiterThresholdDb, () => {
 
 watch(micInputThresholdDb, (thresholdDb) => {
   microphoneService.setInputThreshold(dbToLinear(thresholdDb))
+})
+
+watch(micBassBoostEnabled, (enabled) => {
+  microphoneService.setBassBoost(enabled ? 3 : 0)
+})
+
+watch(micStudioModeEnabled, (enabled) => {
+  microphoneService.setStudioModeEnabled(enabled)
+  if (sessionStore.isCapturing) {
+    void sessionStore.applySelectedMicrophone()
+  }
 })
 </script>
 
@@ -350,6 +366,38 @@ watch(micInputThresholdDb, (thresholdDb) => {
                   type="button"
                   class="px-3 py-1.5 rounded border text-[11px] transition-colors"
                   :class="
+                    micBassBoostEnabled
+                      ? 'border-indigo-500 bg-indigo-500/15 text-indigo-300'
+                      : 'border-[#4a4a4a] text-gray-300 hover:border-indigo-500/60'
+                  "
+                  @click="micBassBoostEnabled = !micBassBoostEnabled"
+                >
+                  Radiowy Bas {{ micBassBoostEnabled ? 'ON' : 'OFF' }}
+                </button>
+
+                <button
+                  type="button"
+                  class="px-3 py-1.5 rounded border text-[11px] transition-colors relative group"
+                  :class="
+                    micStudioModeEnabled
+                      ? 'border-fuchsia-500 bg-fuchsia-500/15 text-fuchsia-300'
+                      : 'border-[#4a4a4a] text-gray-300 hover:border-fuchsia-500/60'
+                  "
+                  @click="micStudioModeEnabled = !micStudioModeEnabled"
+                >
+                  Tryb Studio {{ micStudioModeEnabled ? 'ON' : 'OFF' }}
+                  <div
+                    class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block w-48 p-2 bg-black border border-gray-700 text-gray-300 text-[10px] rounded shadow-lg z-10 whitespace-normal text-center"
+                  >
+                    Wylacza obrobke przegladarki dla maksymalnej jakosci. Uzywaj tylko w
+                    sluchawkach!
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  class="px-3 py-1.5 rounded border text-[11px] transition-colors"
+                  :class="
                     micMonitoringEnabled
                       ? 'border-emerald-500 bg-emerald-500/15 text-emerald-300'
                       : 'border-[#4a4a4a] text-gray-300 hover:border-emerald-500/60'
@@ -363,8 +411,11 @@ watch(micInputThresholdDb, (thresholdDb) => {
               <div>
                 <div class="flex items-center justify-between mb-2">
                   <span class="text-xs text-gray-300">Próg wejścia (Noise Gate)</span>
-                  <span class="text-xs font-mono text-cyan-300">
-                    {{ micInputThresholdDb.toFixed(1) }} dB
+                  <span
+                    class="text-xs font-mono font-bold"
+                    :class="isAutoGate ? 'text-emerald-400' : 'text-cyan-300'"
+                  >
+                    {{ isAutoGate ? 'AUTO (Adaptacyjny)' : micInputThresholdDb.toFixed(1) + ' dB' }}
                   </span>
                 </div>
                 <input
@@ -374,7 +425,11 @@ watch(micInputThresholdDb, (thresholdDb) => {
                   max="100"
                   step="0.5"
                   class="pro-slider monitor w-full"
+                  :class="isAutoGate ? 'system' : ''"
                 />
+                <p v-if="isAutoGate" class="mt-1 text-[10px] text-gray-500">
+                  Bramka automatycznie uczy sie poziomu szumu w Twoim pokoju.
+                </p>
               </div>
             </div>
           </div>
