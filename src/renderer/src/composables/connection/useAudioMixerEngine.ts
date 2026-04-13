@@ -14,6 +14,8 @@ interface UseAudioMixerEngineOptions {
   speechThreshold?: number
   smoothing?: number
   holdFrames?: number
+  inputThreshold?: number
+  limiterThreshold?: number
   enableKeepAliveDummy?: boolean
   debugKeepAliveDummy?: boolean
 }
@@ -37,7 +39,10 @@ export function useAudioMixerEngine(
     debugKeepAliveDummy: options.debugKeepAliveDummy
   })
   const processingLayer = useAudioProcessingLayer()
-  const masterBus = useMasterBus()
+  const masterBus = useMasterBus({
+    inputThreshold: options.inputThreshold,
+    limiterThreshold: options.limiterThreshold
+  })
 
   processingLayer.connectToMasterBusInput(masterBus.inputNode)
 

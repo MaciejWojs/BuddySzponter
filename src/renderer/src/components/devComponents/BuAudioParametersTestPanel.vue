@@ -42,6 +42,24 @@
         :max="30"
         :step="1"
       />
+
+      <AudioParameterSlider
+        v-model="inputThreshold"
+        label="Próg Wejścia (Kompresor)"
+        description="Próg kompresora (w dB). Po jego przekroczeniu sygnał zaczyna być ściskany. Niżej (np. -20) = mocniejsza kompresja, wyżej (np. -6) = łagodniejsza."
+        :min="-30"
+        :max="0"
+        :step="1"
+      />
+
+      <AudioParameterSlider
+        v-model="limiterThreshold"
+        label="Próg Limitera"
+        description="Maksymalny sufit sygnału (w dB), który limiter przepuści bez cięcia. Typowo blisko 0 dB, np. -1 dB, aby uniknąć clippingu i przesteru."
+        :min="-12"
+        :max="0"
+        :step="0.5"
+      />
     </AudioParametersPanel>
 
     <div class="bg-[#1e1e1e] border border-[#333] rounded-lg p-4">
@@ -64,6 +82,14 @@
         <div class="flex justify-between">
           <span class="text-[#888]">Hold Frames:</span>
           <span class="text-[#a6e22e]">{{ Math.round(holdFrames) }}</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-[#888]">Próg Wejścia:</span>
+          <span class="text-[#a6e22e]">{{ inputThreshold.toFixed(1) }} dB</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-[#888]">Próg Limitera:</span>
+          <span class="text-[#a6e22e]">{{ limiterThreshold.toFixed(1) }} dB</span>
         </div>
       </div>
     </div>
@@ -109,6 +135,8 @@ const duckingSystemGain = ref<number>(webRtcStore.audioDuckingLevel)
 const speechThreshold = ref<number>(webRtcStore.audioSpeechThreshold)
 const gainSmoothing = ref<number>(webRtcStore.audioGainSmoothing)
 const holdFrames = ref<number>(webRtcStore.audioHoldFrames)
+const inputThreshold = ref<number>(webRtcStore.audioInputThreshold)
+const limiterThreshold = ref<number>(webRtcStore.audioLimiterThreshold)
 
 onMounted(() => {
   // Synchronizuj z store jeśli zmieniły się wartości poza tym komponentem
@@ -116,6 +144,8 @@ onMounted(() => {
   speechThreshold.value = webRtcStore.audioSpeechThreshold
   gainSmoothing.value = webRtcStore.audioGainSmoothing
   holdFrames.value = webRtcStore.audioHoldFrames
+  inputThreshold.value = webRtcStore.audioInputThreshold
+  limiterThreshold.value = webRtcStore.audioLimiterThreshold
 })
 
 const applyAudioParameters = (): void => {
@@ -124,12 +154,16 @@ const applyAudioParameters = (): void => {
   webRtcStore.audioSpeechThreshold = speechThreshold.value
   webRtcStore.audioGainSmoothing = gainSmoothing.value
   webRtcStore.audioHoldFrames = holdFrames.value
+  webRtcStore.audioInputThreshold = inputThreshold.value
+  webRtcStore.audioLimiterThreshold = limiterThreshold.value
 
   console.log('Parametry Audio Zaktualizowane w Store:', {
     audioDuckingLevel: webRtcStore.audioDuckingLevel,
     audioSpeechThreshold: webRtcStore.audioSpeechThreshold,
     audioGainSmoothing: webRtcStore.audioGainSmoothing,
-    audioHoldFrames: webRtcStore.audioHoldFrames
+    audioHoldFrames: webRtcStore.audioHoldFrames,
+    audioInputThreshold: webRtcStore.audioInputThreshold,
+    audioLimiterThreshold: webRtcStore.audioLimiterThreshold
   })
 
   panelRef.value?.showStatus('Parametry audio zostały zapisane ✓', 'success')

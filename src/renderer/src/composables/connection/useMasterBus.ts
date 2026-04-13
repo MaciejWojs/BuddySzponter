@@ -5,19 +5,24 @@ interface UseMasterBusResult {
   destroy: () => void
 }
 
-export function useMasterBus(): UseMasterBusResult {
+interface UseMasterBusOptions {
+  inputThreshold?: number
+  limiterThreshold?: number
+}
+
+export function useMasterBus(options: UseMasterBusOptions = {}): UseMasterBusResult {
   const audioContext = getAudioContext()
   const inputNode = audioContext.createGain()
   const compressor = audioContext.createDynamicsCompressor()
   const limiter = audioContext.createDynamicsCompressor()
 
-  compressor.threshold.value = -10
+  compressor.threshold.value = options.inputThreshold ?? -10
   compressor.knee.value = 10
   compressor.ratio.value = 12
   compressor.attack.value = 0.003
   compressor.release.value = 0.25
 
-  limiter.threshold.value = -1
+  limiter.threshold.value = options.limiterThreshold ?? -1
   limiter.ratio.value = 20
   limiter.attack.value = 0.001
   limiter.release.value = 0.05

@@ -22,6 +22,8 @@ export function useAudioMixer(): {
   const getSpeechThreshold = (): number => webRtcStore.audioSpeechThreshold
   const getGainSmoothing = (): number => webRtcStore.audioGainSmoothing
   const getHoldFrames = (): number => webRtcStore.audioHoldFrames
+  const getInputThreshold = (): number => webRtcStore.audioInputThreshold
+  const getLimiterThreshold = (): number => webRtcStore.audioLimiterThreshold
 
   if (!sharedEngine) {
     sharedEngine = useAudioMixerEngine({
@@ -30,7 +32,9 @@ export function useAudioMixer(): {
       duckingLevel: getDuckingLevel(),
       speechThreshold: getSpeechThreshold(),
       smoothing: getGainSmoothing(),
-      holdFrames: Math.round(getHoldFrames())
+      holdFrames: Math.round(getHoldFrames()),
+      inputThreshold: getInputThreshold(),
+      limiterThreshold: getLimiterThreshold()
     })
   }
   sharedEngineConsumers += 1
