@@ -1,4 +1,4 @@
-import { onUnmounted, watch, type Ref } from 'vue'
+import { watch, type Ref } from 'vue'
 import { getAudioContext, resumeAudioContext } from '@renderer/composables/useSharedAudioContext'
 import { useAudioInputs } from './useAudioInputs'
 import { useAudioProcessingLayer } from './useAudioProcessingLayer'
@@ -21,6 +21,7 @@ interface UseAudioMixerEngineResult {
   setSystemVolume: (volume: number) => void
   start: () => void
   stop: () => void
+  destroy: () => void
 }
 
 export function useAudioMixerEngine(
@@ -154,14 +155,11 @@ export function useAudioMixerEngine(
     masterBus.destroy()
   }
 
-  onUnmounted(() => {
-    destroy()
-  })
-
   return {
     setMicVolume: processingLayer.setMicVolume,
     setSystemVolume: processingLayer.setSystemVolume,
     start,
-    stop
+    stop,
+    destroy
   }
 }
