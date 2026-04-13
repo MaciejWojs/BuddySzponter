@@ -22,6 +22,7 @@ class MicrophoneService {
   private noiseSuppressionEnabled = true
   private echoCancellationEnabled = true
   private studioModeEnabled = false
+  private voicePreset = 'none'
 
   private localMonitoringEnabled = false
   private monitorElement: HTMLAudioElement | null = null
@@ -118,6 +119,7 @@ class MicrophoneService {
       nextEffectsChain.setLimiter(this.limiterEnabled)
       nextEffectsChain.setVolume(volume)
       nextEffectsChain.setBassBoost(this.bassBoostDb)
+      nextEffectsChain.setVoicePreset(this.voicePreset)
 
       const gateAnalyserNode = nextEffectsChain.getGateAnalyserNode()
       const gateTargetNode = nextEffectsChain.getGateTargetNode()
@@ -246,6 +248,11 @@ class MicrophoneService {
   public setBassBoost(dbValue: number): void {
     this.bassBoostDb = dbValue
     this.effectsChain?.setBassBoost(dbValue)
+  }
+
+  public setVoicePreset(name: string): void {
+    this.voicePreset = name
+    this.effectsChain?.setVoicePreset(name)
   }
 
   public stop(): void {

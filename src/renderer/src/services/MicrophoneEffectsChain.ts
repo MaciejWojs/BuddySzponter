@@ -1,3 +1,7 @@
+import * as Tone from 'tone'
+
+type VoicePresetName = 'none' | 'studio' | 'high' | 'demon' | 'robot' | 'radio'
+
 export class MicrophoneEffectsChain {
   private sourceNode: MediaStreamAudioSourceNode | null
   private gateNode: GainNode | null
@@ -8,6 +12,12 @@ export class MicrophoneEffectsChain {
   private presenceEQNode: BiquadFilterNode | null
   private highShelfEQNode: BiquadFilterNode | null
   private limiterNode: DynamicsCompressorNode | null
+  private toneInputNode: Tone.Gain | null
+  private toneOutputNode: Tone.Gain | null
+  private pitchShiftNode: Tone.PitchShift | null
+  private bitCrusherNode: Tone.BitCrusher | null
+  private reverbNode: Tone.Reverb | null
+  private chebyshevNode: Tone.Chebyshev | null
   private gainNode: GainNode | null
   private destinationNode: MediaStreamAudioDestinationNode | null
   private analyserNode: AnalyserNode | null
@@ -17,6 +27,8 @@ export class MicrophoneEffectsChain {
     private readonly rawStream: MediaStream
   ) {
     this.sourceNode = this.audioContext.createMediaStreamSource(this.rawStream)
+    Tone.setContext(this.audioContext)
+
     this.gateNode = this.audioContext.createGain()
     this.gateAnalyserNode = this.audioContext.createAnalyser()
     this.highPassEQNode = this.audioContext.createBiquadFilter()
@@ -25,6 +37,13 @@ export class MicrophoneEffectsChain {
     this.presenceEQNode = this.audioContext.createBiquadFilter()
     this.highShelfEQNode = this.audioContext.createBiquadFilter()
     this.limiterNode = this.audioContext.createDynamicsCompressor()
+    this.toneInputNode = new Tone.Gain(1)
+    this.toneOutputNode = new Tone.Gain(1)
+    this.pitchShiftNode = new Tone.PitchShift({ pitch: 0, wet: 0 })
+    this.bitCrusherNode = new Tone.BitCrusher({ bits: 8 })
+    this.bitCrusherNode.wet.value = 0
+    this.reverbNode = new Tone.Reverb({ decay: 1.2, preDelay: 0.01, wet: 0 })
+    this.chebyshevNode = new Tone.Chebyshev({ order: 1, wet: 0 })
     this.gainNode = this.audioContext.createGain()
     this.destinationNode = this.audioContext.createMediaStreamDestination()
     this.analyserNode = this.audioContext.createAnalyser()
@@ -64,13 +83,114 @@ export class MicrophoneEffectsChain {
     this.deMudEQNode.connect(this.lowShelfEQNode)
     this.lowShelfEQNode.connect(this.presenceEQNode)
     this.presenceEQNode.connect(this.highShelfEQNode)
-    this.highShelfEQNode.connect(this.limiterNode)
+    this.highShelfEQNode.connect(this.toneInputNode.input)
+    this.toneInputNode.chain(
+      this.pitchShiftNode,
+      this.bitCrusherNode,
+      this.reverbNode,
+      this.chebyshevNode,
+      this.toneOutputNode
+    )
+    this.toneOutputNode.output.connect(this.limiterNode)
     this.limiterNode.connect(this.gainNode)
     this.gainNode.connect(this.analyserNode)
     this.gainNode.connect(this.destinationNode)
 
     this.setLimiter(true)
     this.setVolume(1)
+    this.setVoicePreset('none')
+  }
+
+  private smoothSetParam(
+    param: AudioParam,
+    value: number,
+    transitionSeconds = 0.03,
+    fromCurrent = true
+  ): void {
+    const now = this.audioContext.currentTime
+    if (fromCurrent) {
+      param.cancelScheduledValues(now)
+      param.setValueAtTime(param.value, now)
+    }
+    param.linearRampToValueAtTime(value, now + transitionSeconds)
+  }
+
+  private resetToneEffects(): void {
+    if (!this.pitchShiftNode || !this.bitCrusherNode || !this.reverbNode || !this.chebyshevNode)
+      return
+
+    this.pitchShiftNode.pitch = 0
+    this.pitchShiftNode.wet.rampTo(0, 0.03)
+
+    this.bitCrusherNode.set({ bits: 8 })
+    this.bitCrusherNode.wet.rampTo(0, 0.03)
+
+    this.reverbNode.decay = 1.2
+    this.reverbNode.preDelay = 0.01
+    this.reverbNode.wet.rampTo(0, 0.03)
+
+    this.chebyshevNode.order = 1
+    this.chebyshevNode.wet.rampTo(0, 0.03)
+
+    if (this.highPassEQNode) {
+      this.smoothSetParam(this.highPassEQNode.frequency, 80)
+    }
+
+    this.toneOutputNode?.gain.rampTo(1, 0.03)
+  }
+
+  public setVoicePreset(presetName: string): void {
+    if (!this.limiterNode || !this.pitchShiftNode || !this.bitCrusherNode || !this.reverbNode)
+      return
+
+    const preset = (presetName as VoicePresetName) || 'none'
+    this.resetToneEffects()
+
+    switch (preset) {
+      case 'studio':
+        this.limiterNode.threshold.value = -20
+        this.limiterNode.knee.value = 24
+        this.limiterNode.ratio.value = 2.2
+        this.limiterNode.attack.value = 0.006
+        this.limiterNode.release.value = 0.14
+        break
+
+      case 'high':
+        this.pitchShiftNode.pitch = 7
+        this.pitchShiftNode.wet.rampTo(1, 0.04)
+        break
+
+      case 'demon':
+        this.pitchShiftNode.pitch = -5
+        this.pitchShiftNode.wet.rampTo(1, 0.04)
+        this.bitCrusherNode.set({ bits: 8 })
+        this.bitCrusherNode.wet.rampTo(0.3, 0.04)
+        break
+
+      case 'robot':
+        this.pitchShiftNode.pitch = -2
+        this.pitchShiftNode.wet.rampTo(0.75, 0.04)
+        this.bitCrusherNode.set({ bits: 4 })
+        this.bitCrusherNode.wet.rampTo(0.55, 0.04)
+        this.reverbNode.wet.rampTo(0.2, 0.04)
+        this.toneOutputNode?.gain.rampTo(1.2, 0.05)
+        break
+
+      case 'radio':
+        if (this.chebyshevNode) {
+          this.chebyshevNode.order = 50
+          this.chebyshevNode.wet.rampTo(1, 0.04)
+        }
+        if (this.highPassEQNode) {
+          this.smoothSetParam(this.highPassEQNode.frequency, 400)
+        }
+        break
+
+      case 'none':
+      default:
+        this.setLimiter(true)
+        break
+    }
   }
 
   public setLimiter(enabled: boolean): void {
@@ -202,6 +322,60 @@ export class MicrophoneEffectsChain {
         console.warn('[MicrophoneEffectsChain] Failed to disconnect limiter node')
       }
       this.limiterNode = null
+    }
+
+    if (this.toneInputNode) {
+      try {
+        this.toneInputNode.dispose()
+      } catch {
+        console.warn('[MicrophoneEffectsChain] Failed to dispose tone input node')
+      }
+      this.toneInputNode = null
+    }
+
+    if (this.pitchShiftNode) {
+      try {
+        this.pitchShiftNode.dispose()
+      } catch {
+        console.warn('[MicrophoneEffectsChain] Failed to dispose pitch shift node')
+      }
+      this.pitchShiftNode = null
+    }
+
+    if (this.bitCrusherNode) {
+      try {
+        this.bitCrusherNode.dispose()
+      } catch {
+        console.warn('[MicrophoneEffectsChain] Failed to dispose bit crusher node')
+      }
+      this.bitCrusherNode = null
+    }
+
+    if (this.reverbNode) {
+      try {
+        this.reverbNode.dispose()
+      } catch {
+        console.warn('[MicrophoneEffectsChain] Failed to dispose reverb node')
+      }
+      this.reverbNode = null
+    }
+
+    if (this.chebyshevNode) {
+      try {
+        this.chebyshevNode.dispose()
+      } catch {
+        console.warn('[MicrophoneEffectsChain] Failed to dispose chebyshev node')
+      }
+      this.chebyshevNode = null
+    }
+
+    if (this.toneOutputNode) {
+      try {
+        this.toneOutputNode.dispose()
+      } catch {
+        console.warn('[MicrophoneEffectsChain] Failed to dispose tone output node')
+      }
+      this.toneOutputNode = null
     }
 
     if (this.gainNode) {

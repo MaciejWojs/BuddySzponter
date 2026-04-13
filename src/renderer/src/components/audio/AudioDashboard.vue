@@ -18,6 +18,11 @@ interface DuckingPreset {
   }
 }
 
+interface VoicePresetOption {
+  id: 'none' | 'studio' | 'high' | 'robot' | 'demon' | 'radio'
+  label: string
+}
+
 const webRtcStore = useWebRtcStore()
 const sessionStore = SessionStore()
 const { selectedMicrophoneDeviceId } = storeToRefs(sessionStore)
@@ -32,6 +37,16 @@ const micStudioModeEnabled = ref(false)
 const micMonitoringEnabled = ref(false)
 const micInputThresholdDb = ref(-60)
 const isAutoGate = computed(() => micInputThresholdDb.value <= -60)
+const activeVoicePreset = ref<VoicePresetOption['id']>('none')
+
+const voicePresets: VoicePresetOption[] = [
+  { id: 'none', label: 'Czysty' },
+  { id: 'studio', label: 'Studyjny' },
+  { id: 'high', label: 'Wysoki' },
+  { id: 'robot', label: 'Robot' },
+  { id: 'demon', label: 'Demon' },
+  { id: 'radio', label: 'Radio' }
+]
 
 const duckingPresets: DuckingPreset[] = [
   {
@@ -215,6 +230,11 @@ const toggleGuestSystemMute = (): void => {
   webRtcStore.remoteSystemVolume = isGuestSystemMuted.value ? 0 : 1
 }
 
+const selectVoicePreset = (presetId: VoicePresetOption['id']): void => {
+  activeVoicePreset.value = presetId
+  microphoneService.setVoicePreset(presetId)
+}
+
 onMounted(() => {
   micMonitoringEnabled.value = microphoneService.getLocalMonitoringEnabled()
   micInputThresholdDb.value = clampDb(linearToDb(microphoneService.getInputThreshold()), -60, 0)
@@ -224,6 +244,7 @@ onMounted(() => {
   syncGateThresholdToService()
   microphoneService.setStudioModeEnabled(micStudioModeEnabled.value)
   microphoneService.setBassBoost(micBassBoostEnabled.value ? 3 : 0)
+  microphoneService.setVoicePreset(activeVoicePreset.value)
 
   void sessionStore.refreshMicrophones()
   navigator.mediaDevices?.addEventListener?.('devicechange', handleDeviceChange)
@@ -412,6 +433,26 @@ watch(micStudioModeEnabled, (enabled) => {
                 >
                   Odsłuch {{ micMonitoringEnabled ? 'ON' : 'OFF' }}
                 </button>
+              </div>
+
+              <div class="mt-3 border border-[#2f2f2f] rounded-md bg-[#0f0f0f] p-3">
+                <p class="text-xs text-gray-300 mb-2">Presety Głosowe</p>
+                <div class="flex flex-wrap gap-2">
+                  <button
+                    v-for="preset in voicePresets"
+                    :key="preset.id"
+                    type="button"
+                    class="px-3 py-1.5 rounded-full border text-[11px] transition-colors"
+                    :class="
+                      activeVoicePreset === preset.id
+                        ? 'bg-blue-600 border-blue-400 text-white'
+                        : 'bg-[#111] border-[#3a3a3a] text-gray-400 hover:border-gray-500'
+                    "
+                    @click="selectVoicePreset(preset.id)"
+                  >
+                    {{ preset.label }}
+                  </button>
+                </div>
               </div>
 
               <div>
