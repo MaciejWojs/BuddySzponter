@@ -17,9 +17,11 @@ const currentDb = ref<number>(-60)
 const peakDb = ref<number>(-60)
 const clipIndicator = ref<boolean>(false)
 const adaptiveThresholdDb = ref<number | null>(null)
+const RMS_SMOOTHING = 0.85
 
 let rafId: number | null = null
 let dataArray: Float32Array<ArrayBuffer> | null = null
+let smoothedRms = 0
 
 const getEffectiveAnalyser = (): AnalyserNode | null => {
   if (props.contextMode === 'auto-mic') {
@@ -108,6 +110,7 @@ const resetMeterState = (): void => {
   peakDb.value = -60
   clipIndicator.value = false
   adaptiveThresholdDb.value = null
+  smoothedRms = 0
 }
 
 const stopMeter = (): void => {
@@ -150,8 +153,10 @@ const tick = (): void => {
     sumSquares += sample * sample
   }
 
-  const rms = Math.sqrt(sumSquares / dataArray.length)
-  const db = Math.max(-60, 20 * Math.log10(Math.max(rms, 1e-8)))
+  const currentRms = Math.sqrt(sumSquares / dataArray.length)
+  smoothedRms = RMS_SMOOTHING * smoothedRms + (1 - RMS_SMOOTHING) * currentRms
+
+  const db = Math.max(-60, 20 * Math.log10(Math.max(smoothedRms, 1e-8)))
   const limitedDb = clampDb(db)
 
   currentDb.value = limitedDb

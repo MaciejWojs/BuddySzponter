@@ -13,6 +13,8 @@ export class NoiseGateEngine {
   private currentDynamicThreshold = this.threshold
   private readonly NOISE_FLOOR_ALPHA = 0.95
   private readonly THRESHOLD_OFFSET = 2.5
+  private smoothedRms = 0
+  private readonly RMS_SMOOTHING = 0.85
 
   private rafId: number | null = null
   private gateData: Float32Array<ArrayBuffer> | null = null
@@ -65,7 +67,11 @@ export class NoiseGateEngine {
       sumSquares += sample * sample
     }
 
-    const rms = Math.sqrt(sumSquares / this.gateData.length)
+    const currentRms = Math.sqrt(sumSquares / this.gateData.length)
+
+    this.smoothedRms = this.RMS_SMOOTHING * this.smoothedRms + (1 - this.RMS_SMOOTHING) * currentRms
+
+    const rms = this.smoothedRms
 
     if (!this.isGateOpen) {
       this.noiseFloor =
