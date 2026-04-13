@@ -1,4 +1,6 @@
 import { getAudioContext, resumeAudioContext } from '@renderer/composables/useSharedAudioContext'
+import { MicrophoneEffectsChain } from '@renderer/services/MicrophoneEffectsChain'
+import { NoiseGateEngine } from '@renderer/services/NoiseGateEngine'
 
 export interface AudioInputDeviceOption {
   deviceId: string
@@ -8,34 +10,21 @@ export interface AudioInputDeviceOption {
 class MicrophoneService {
   private currentStream: MediaStream | null = null
   private audioContext: AudioContext | null = null
-  private sourceNode: MediaStreamAudioSourceNode | null = null
-  private inputGateNode: GainNode | null = null
-  private inputLevelAnalyserNode: AnalyserNode | null = null
-  private highPassEQNode: BiquadFilterNode | null = null
-  private lowShelfEQNode: BiquadFilterNode | null = null
-  private highShelfEQNode: BiquadFilterNode | null = null
-  private limiterNode: DynamicsCompressorNode | null = null
-  private gainNode: GainNode | null = null
-  private destinationNode: MediaStreamAudioDestinationNode | null = null
-  private analyserNode: AnalyserNode | null = null
+  private effectsChain: MicrophoneEffectsChain | null = null
+  private noiseGate: NoiseGateEngine | null = null
   private limiterEnabled = true
+  private bassBoostDb = 0
   private inputThreshold = 0.008
+  private gateHoldFramesMax = 20
+  private gateAttackTime = 0.015
+  private gateReleaseTime = 0.8
   private autoGainControlEnabled = true
   private noiseSuppressionEnabled = true
   private echoCancellationEnabled = true
   private studioModeEnabled = false
 
-  // Parametry Bramki Szumów
-  private gateHoldFramesCounter = 0
-  private gateHoldFramesMax = 20
-  private isGateOpen = true
-  private gateAttackTime = 0.015
-  private gateReleaseTime = 0.8 // Wydłużony czas na naturalne opadanie
-
   private localMonitoringEnabled = false
   private monitorElement: HTMLAudioElement | null = null
-  private gateRafId: number | null = null
-  private gateData: Float32Array<ArrayBuffer> | null = null
 
   private syncMonitoringOutput(): void {
     if (!this.localMonitoringEnabled) {
@@ -46,7 +35,8 @@ class MicrophoneService {
       return
     }
 
-    if (!this.destinationNode) return
+    const processedStream = this.effectsChain?.getProcessedStream() ?? null
+    if (!processedStream) return
 
     if (!this.monitorElement) {
       this.monitorElement = document.createElement('audio')
@@ -55,202 +45,19 @@ class MicrophoneService {
       this.monitorElement.volume = 1
     }
 
-    if (this.monitorElement.srcObject !== this.destinationNode.stream) {
-      this.monitorElement.srcObject = this.destinationNode.stream
+    if (this.monitorElement.srcObject !== processedStream) {
+      this.monitorElement.srcObject = processedStream
     }
 
     void this.monitorElement.play().catch(() => {})
   }
 
-  private applyLimiterSettings(): void {
-    if (!this.limiterNode) return
-
-    if (this.limiterEnabled) {
-      this.limiterNode.threshold.value = -18
-      this.limiterNode.knee.value = 12
-      this.limiterNode.ratio.value = 4
-      this.limiterNode.attack.value = 0.005
-      this.limiterNode.release.value = 0.15
-      return
-    }
-
-    this.limiterNode.threshold.value = 0
-    this.limiterNode.knee.value = 0
-    this.limiterNode.ratio.value = 1
-    this.limiterNode.attack.value = 0.003
-    this.limiterNode.release.value = 0.25
-  }
-
-  private stopGateLoop(): void {
-    if (this.gateRafId !== null) {
-      cancelAnimationFrame(this.gateRafId)
-      this.gateRafId = null
-    }
-    this.gateHoldFramesCounter = 0
-    this.isGateOpen = true
-    this.gateData = null
-  }
-
-  private tickGate = (): void => {
-    if (
-      !this.inputLevelAnalyserNode ||
-      !this.inputGateNode ||
-      !this.audioContext ||
-      !this.gateData
-    ) {
-      this.stopGateLoop()
-      return
-    }
-
-    this.inputLevelAnalyserNode.getFloatTimeDomainData(this.gateData)
-
-    let sumSquares = 0
-    for (let i = 0; i < this.gateData.length; i += 1) {
-      const sample = this.gateData[i]
-      sumSquares += sample * sample
-    }
-
-    const rms = Math.sqrt(sumSquares / this.gateData.length)
-
-    // Logika Podtrzymania (Hold)
-    if (rms >= this.inputThreshold) {
-      this.gateHoldFramesCounter = this.gateHoldFramesMax
-    } else {
-      this.gateHoldFramesCounter = Math.max(0, this.gateHoldFramesCounter - 1)
-    }
-
-    const shouldBeOpen = this.inputThreshold <= 0 ? true : this.gateHoldFramesCounter > 0
-
-    // Reagujemy tylko wtedy, gdy stan bramki (otwarta/zamknięta) ulega zmianie
-    if (shouldBeOpen !== this.isGateOpen) {
-      this.isGateOpen = shouldBeOpen
-
-      const now = this.audioContext.currentTime
-      const currentGain = this.inputGateNode.gain.value
-
-      this.inputGateNode.gain.cancelScheduledValues(now)
-      this.inputGateNode.gain.setValueAtTime(currentGain, now)
-
-      if (shouldBeOpen) {
-        this.inputGateNode.gain.linearRampToValueAtTime(1, now + this.gateAttackTime)
-      } else {
-        const t1 = now + this.gateReleaseTime * 0.25
-        const t2 = now + this.gateReleaseTime * 0.5
-        const t3 = now + this.gateReleaseTime * 0.75
-        const t4 = now + this.gateReleaseTime
-
-        this.inputGateNode.gain.linearRampToValueAtTime(currentGain * 0.98, t1)
-        this.inputGateNode.gain.linearRampToValueAtTime(currentGain * 0.85, t2)
-        this.inputGateNode.gain.linearRampToValueAtTime(currentGain * 0.5, t3)
-        this.inputGateNode.gain.linearRampToValueAtTime(0, t4)
-      }
-    }
-
-    this.gateRafId = requestAnimationFrame(this.tickGate)
-  }
-
-  private startGateLoop(): void {
-    if (!this.inputLevelAnalyserNode) return
-
-    this.stopGateLoop()
-    this.gateData = new Float32Array(
-      this.inputLevelAnalyserNode.fftSize
-    ) as Float32Array<ArrayBuffer>
-    this.gateRafId = requestAnimationFrame(this.tickGate)
-  }
-
   private clearCurrentGraph(): void {
-    this.stopGateLoop()
+    this.noiseGate?.stop()
+    this.noiseGate = null
 
-    if (this.sourceNode) {
-      try {
-        this.sourceNode.disconnect()
-      } catch {
-        console.warn('[MicrophoneService] Failed to disconnect source node')
-      }
-      this.sourceNode = null
-    }
-
-    if (this.inputGateNode) {
-      try {
-        this.inputGateNode.disconnect()
-      } catch {
-        console.warn('[MicrophoneService] Failed to disconnect input gate node')
-      }
-      this.inputGateNode = null
-    }
-
-    if (this.inputLevelAnalyserNode) {
-      try {
-        this.inputLevelAnalyserNode.disconnect()
-      } catch {
-        console.warn('[MicrophoneService] Failed to disconnect input level analyser node')
-      }
-      this.inputLevelAnalyserNode = null
-    }
-
-    if (this.highPassEQNode) {
-      try {
-        this.highPassEQNode.disconnect()
-      } catch {
-        console.warn('[MicrophoneService] Failed to disconnect high-pass node')
-      }
-      this.highPassEQNode = null
-    }
-
-    if (this.lowShelfEQNode) {
-      try {
-        this.lowShelfEQNode.disconnect()
-      } catch {
-        console.warn('[MicrophoneService] Failed to disconnect low-shelf node')
-      }
-      this.lowShelfEQNode = null
-    }
-
-    if (this.highShelfEQNode) {
-      try {
-        this.highShelfEQNode.disconnect()
-      } catch {
-        console.warn('[MicrophoneService] Failed to disconnect high-shelf node')
-      }
-      this.highShelfEQNode = null
-    }
-
-    if (this.limiterNode) {
-      try {
-        this.limiterNode.disconnect()
-      } catch {
-        console.warn('[MicrophoneService] Failed to disconnect limiter node')
-      }
-      this.limiterNode = null
-    }
-
-    if (this.gainNode) {
-      try {
-        this.gainNode.disconnect()
-      } catch {
-        console.warn('[MicrophoneService] Failed to disconnect gain node')
-      }
-      this.gainNode = null
-    }
-
-    if (this.analyserNode) {
-      try {
-        this.analyserNode.disconnect()
-      } catch {
-        console.warn('[MicrophoneService] Failed to disconnect analyser node')
-      }
-      this.analyserNode = null
-    }
-
-    if (this.destinationNode) {
-      try {
-        this.destinationNode.disconnect()
-      } catch {
-        console.warn('[MicrophoneService] Failed to disconnect destination node')
-      }
-      this.destinationNode = null
-    }
+    this.effectsChain?.destroy()
+    this.effectsChain = null
 
     if (this.currentStream) {
       this.currentStream.getTracks().forEach((track) => track.stop())
@@ -307,91 +114,40 @@ class MicrophoneService {
 
       this.clearCurrentGraph()
 
-      const nextSourceNode = this.audioContext.createMediaStreamSource(stream)
-      const nextInputGate = this.audioContext.createGain()
-      const nextInputLevelAnalyser = this.audioContext.createAnalyser()
-      const nextHighPassEQ = this.audioContext.createBiquadFilter()
-      const nextLowShelfEQ = this.audioContext.createBiquadFilter()
-      const nextHighShelfEQ = this.audioContext.createBiquadFilter()
-      const nextLimiter = this.audioContext.createDynamicsCompressor()
-      const nextGainNode = this.audioContext.createGain()
-      const nextAnalyserNode = this.audioContext.createAnalyser()
-      const nextDestinationNode = this.audioContext.createMediaStreamDestination()
+      const nextEffectsChain = new MicrophoneEffectsChain(this.audioContext, stream)
+      nextEffectsChain.setLimiter(this.limiterEnabled)
+      nextEffectsChain.setVolume(volume)
+      nextEffectsChain.setBassBoost(this.bassBoostDb)
 
-      nextInputGate.gain.value = 1
-      nextInputLevelAnalyser.fftSize = 1024
-      nextInputLevelAnalyser.smoothingTimeConstant = 0.1
-
-      nextHighPassEQ.type = 'highpass'
-      nextHighPassEQ.frequency.value = 80
-
-      nextLowShelfEQ.type = 'lowshelf'
-      nextLowShelfEQ.frequency.value = 150
-      nextLowShelfEQ.gain.value = 3
-
-      nextHighShelfEQ.type = 'highshelf'
-      nextHighShelfEQ.frequency.value = 5000
-      nextHighShelfEQ.gain.value = 3
-
-      nextGainNode.gain.value = Math.max(0, Math.min(2, volume))
-      nextAnalyserNode.fftSize = 1024
-      nextAnalyserNode.smoothingTimeConstant = 0.2
-
-      this.inputGateNode = nextInputGate
-      this.inputLevelAnalyserNode = nextInputLevelAnalyser
-      this.highPassEQNode = nextHighPassEQ
-      this.lowShelfEQNode = nextLowShelfEQ
-      this.highShelfEQNode = nextHighShelfEQ
-      this.limiterNode = nextLimiter
-
-      nextSourceNode.connect(nextInputLevelAnalyser)
-      nextSourceNode.connect(nextInputGate)
-      nextInputGate.connect(nextHighPassEQ)
-      nextHighPassEQ.connect(nextLowShelfEQ)
-      nextLowShelfEQ.connect(nextHighShelfEQ)
-      nextHighShelfEQ.connect(nextLimiter)
-      nextLimiter.connect(nextGainNode)
-      nextGainNode.connect(nextAnalyserNode)
-      nextGainNode.connect(nextDestinationNode)
-
-      const processedTrack = nextDestinationNode.stream.getAudioTracks()[0] ?? null
+      const gateAnalyserNode = nextEffectsChain.getGateAnalyserNode()
+      const gateTargetNode = nextEffectsChain.getGateTargetNode()
+      const processedTrack = nextEffectsChain.getProcessedTrack()
       if (!processedTrack) {
-        nextSourceNode.disconnect()
-        nextInputGate.disconnect()
-        nextInputLevelAnalyser.disconnect()
-        nextHighPassEQ.disconnect()
-        nextLowShelfEQ.disconnect()
-        nextHighShelfEQ.disconnect()
-        nextLimiter.disconnect()
-        nextGainNode.disconnect()
-        nextAnalyserNode.disconnect()
-        nextDestinationNode.disconnect()
+        nextEffectsChain.destroy()
         stream.getTracks().forEach((track) => track.stop())
-        this.inputGateNode = null
-        this.inputLevelAnalyserNode = null
-        this.highPassEQNode = null
-        this.lowShelfEQNode = null
-        this.highShelfEQNode = null
-        this.limiterNode = null
+        this.effectsChain = null
+        this.noiseGate = null
         return null
       }
+
+      if (!gateAnalyserNode || !gateTargetNode) {
+        nextEffectsChain.destroy()
+        stream.getTracks().forEach((track) => track.stop())
+        this.effectsChain = null
+        this.noiseGate = null
+        return null
+      }
+
+      const nextNoiseGate = new NoiseGateEngine(this.audioContext, gateAnalyserNode, gateTargetNode)
+      nextNoiseGate.setThreshold(this.inputThreshold)
+      nextNoiseGate.setGateParams(this.gateHoldFramesMax, this.gateAttackTime, this.gateReleaseTime)
+      nextNoiseGate.start()
 
       processedTrack.contentHint = 'speech'
 
       this.currentStream = stream
-      this.sourceNode = nextSourceNode
-      this.inputGateNode = nextInputGate
-      this.inputLevelAnalyserNode = nextInputLevelAnalyser
-      this.highPassEQNode = nextHighPassEQ
-      this.lowShelfEQNode = nextLowShelfEQ
-      this.highShelfEQNode = nextHighShelfEQ
-      this.limiterNode = nextLimiter
-      this.gainNode = nextGainNode
-      this.analyserNode = nextAnalyserNode
-      this.destinationNode = nextDestinationNode
-
-      this.applyLimiterSettings()
-      this.startGateLoop()
+      this.effectsChain = nextEffectsChain
+      this.noiseGate = nextNoiseGate
       this.syncMonitoringOutput()
 
       return processedTrack
@@ -402,17 +158,16 @@ class MicrophoneService {
   }
 
   public getAnalyserNode(): AnalyserNode | null {
-    return this.analyserNode
+    return this.effectsChain?.getFinalAnalyserNode() ?? null
   }
 
   public setVolume(volume: number): void {
-    if (!this.gainNode) return
-    this.gainNode.gain.value = Math.max(0, Math.min(2, volume))
+    this.effectsChain?.setVolume(volume)
   }
 
   public setLimiter(enabled: boolean): void {
     this.limiterEnabled = enabled
-    this.applyLimiterSettings()
+    this.effectsChain?.setLimiter(enabled)
   }
 
   /** UWAGA: Zmiana tej flagi wymaga ponownego wywolania metody start(), aby pobrac nowy strumien z urzadzenia. */
@@ -462,6 +217,7 @@ class MicrophoneService {
 
   public setInputThreshold(threshold: number): void {
     this.inputThreshold = Math.max(0, Math.min(1, threshold))
+    this.noiseGate?.setThreshold(this.inputThreshold)
   }
 
   public getInputThreshold(): number {
@@ -472,12 +228,12 @@ class MicrophoneService {
     this.gateHoldFramesMax = Math.max(0, holdFrames)
     this.gateAttackTime = Math.max(0, attackTime)
     this.gateReleaseTime = Math.max(0, releaseTime)
+    this.noiseGate?.setGateParams(this.gateHoldFramesMax, this.gateAttackTime, this.gateReleaseTime)
   }
 
   public setBassBoost(dbValue: number): void {
-    if (this.lowShelfEQNode) {
-      this.lowShelfEQNode.gain.value = dbValue
-    }
+    this.bassBoostDb = dbValue
+    this.effectsChain?.setBassBoost(dbValue)
   }
 
   public stop(): void {
