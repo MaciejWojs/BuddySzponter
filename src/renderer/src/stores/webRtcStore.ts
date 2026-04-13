@@ -13,7 +13,7 @@ import { ChatChannel } from '@renderer/composables/channels/ChatChannel'
 import { HidChannel } from '@renderer/composables/channels/HidChannel'
 import { SystemEventsChannel } from '@renderer/composables/channels/SystemEventsChannel'
 import { videoService } from '@renderer/services/videoService'
-import { microphoneService } from '@renderer/services/MicrophoneService'
+import { microphoneService } from '@renderer/services/micService'
 
 export const useWebRtcStore = defineStore('webrtc', () => {
   const getSocketStore = (): ReturnType<typeof useSocketStore> => useSocketStore()

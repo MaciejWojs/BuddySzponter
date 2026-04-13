@@ -5,7 +5,7 @@ import { useSocketStore } from './socketStore'
 import { useWebRtcStore } from './webRtcStore'
 import { useLogStore } from './devStores/logStore' // Upewnij się, że ta ścieżka jest poprawna
 import { videoService } from '@renderer/services/videoService'
-import { microphoneService } from '@renderer/services/MicrophoneService'
+import { microphoneService } from '@renderer/services/micService'
 
 // Zmieniono nazwę na useSessionStore (konwencja Vue)
 export const SessionStore = defineStore('session', () => {

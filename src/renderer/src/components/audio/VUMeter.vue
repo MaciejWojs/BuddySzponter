@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
-import { microphoneService } from '@renderer/services/MicrophoneService'
+import { microphoneService } from '@renderer/services/micService'
 
 const props = defineProps<{
   analyser?: AnalyserNode | null
