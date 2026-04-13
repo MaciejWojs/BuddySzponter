@@ -9,12 +9,14 @@ export function useMasterBus(): UseMasterBusResult {
   const audioContext = getAudioContext()
   const inputNode = audioContext.createGain()
   const compressor = audioContext.createDynamicsCompressor()
+  const makeupGain = audioContext.createGain()
 
-  compressor.threshold.value = -10
-  compressor.knee.value = 10
+  compressor.threshold.value = -24
+  compressor.knee.value = 30
   compressor.ratio.value = 12
   compressor.attack.value = 0.003
   compressor.release.value = 0.25
+  makeupGain.gain.value = 2.5
 
   let isConnected = false
   let isDestroyed = false
@@ -22,7 +24,8 @@ export function useMasterBus(): UseMasterBusResult {
   const connectGraph = (): void => {
     if (isConnected || isDestroyed) return
     inputNode.connect(compressor)
-    compressor.connect(audioContext.destination)
+    compressor.connect(makeupGain)
+    makeupGain.connect(audioContext.destination)
     isConnected = true
   }
 
@@ -39,6 +42,11 @@ export function useMasterBus(): UseMasterBusResult {
       compressor.disconnect()
     } catch {
       console.warn('[MasterBus] Failed to disconnect compressor')
+    }
+    try {
+      makeupGain.disconnect()
+    } catch {
+      console.warn('[MasterBus] Failed to disconnect makeup gain')
     }
 
     isConnected = false

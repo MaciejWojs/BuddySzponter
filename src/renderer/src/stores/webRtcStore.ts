@@ -37,7 +37,7 @@ export const useWebRtcStore = defineStore('webrtc', () => {
   const audioHoldFrames = ref<number>(8)
 
   watch(localSystemAudioVolume, (val): void => videoService.setSystemAudioVolume(val))
-  watch(localMicrophoneVolume, (val): void => videoService.setMicrophoneVolume(val))
+  watch(localMicrophoneVolume, (val): void => videoService.setLocalMicrophoneVolume(val))
 
   const connectionMetrics = useConnectionMetrics(rtcStatus)
   const chat = ChatChannel()

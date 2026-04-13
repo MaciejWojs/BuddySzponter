@@ -3,7 +3,7 @@
 import { useSettingsStore } from '@renderer/stores/settingsStore'
 import { useUserStore } from './stores/userStore'
 import { useSocketStore } from '@renderer/stores/socketStore'
-import { useAudioMixer } from '@renderer/composables/audio/useAudioMixer'
+import { useAudioMixer } from './composables/audio/useAudioMixer'
 
 const toaster = { position: 'top-left', duration: 3000, dismissible: true, max: 3, expand: false }
 

@@ -37,6 +37,8 @@ class VideoService {
   private audioContext: AudioContext | null = null
   private systemVolumeNode: GainNode | null = null
   private micVolumeNode: GainNode | null = null
+  private localMicSourceNode: MediaStreamAudioSourceNode | null = null
+  private localAudioDestinationNode: MediaStreamAudioDestinationNode | null = null
 
   public get isRunning(): boolean {
     return this.isCapturing
@@ -143,25 +145,78 @@ class VideoService {
 
   private async addMicrophoneTrack(deviceId: string | undefined, volume: number): Promise<void> {
     try {
+      const audioConstraints = {
+        autoGainControl: true,
+        noiseSuppression: true,
+        echoCancellation: true,
+        advanced: [{ googAutoGainControl: true }, { googNoiseSuppression: true }],
+        ...(deviceId ? { deviceId: { exact: deviceId } } : {})
+      } as unknown as MediaTrackConstraints
+
       const micStream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          ...(deviceId ? { deviceId: { exact: deviceId } } : {})
-        }
+        audio: audioConstraints
       })
 
       this.allStreamsToCleanUp.push(micStream)
 
       const rawAudioTrack = micStream.getAudioTracks()[0]
       if (rawAudioTrack) {
-        const processedTrack = this.applyVolumeToTrack(micStream, volume, 'microphone')
+        const processedTrack = this.applyLocalMicrophoneProcessing(micStream, volume)
         processedTrack.contentHint = 'speech'
         this.activeStream!.addTrack(processedTrack)
       }
     } catch (e) {
       console.warn('Nie udało się pobrać mikrofonu:', e)
     }
+  }
+
+  private applyLocalMicrophoneProcessing(stream: MediaStream, volume: number): MediaStreamTrack {
+    if (!this.audioContext) {
+      this.audioContext = getAudioContext()
+    }
+    void resumeAudioContext().catch(() => {})
+
+    if (this.localMicSourceNode) {
+      try {
+        this.localMicSourceNode.disconnect()
+      } catch {
+        console.warn('[VideoService] Failed to disconnect previous local mic source node')
+      }
+      this.localMicSourceNode = null
+    }
+
+    if (this.micVolumeNode) {
+      try {
+        this.micVolumeNode.disconnect()
+      } catch {
+        console.warn('[VideoService] Failed to disconnect previous local mic gain node')
+      }
+      this.micVolumeNode = null
+    }
+
+    if (this.localAudioDestinationNode) {
+      try {
+        this.localAudioDestinationNode.disconnect()
+      } catch {
+        console.warn('[VideoService] Failed to disconnect previous local mic destination node')
+      }
+      this.localAudioDestinationNode = null
+    }
+
+    const sourceNode = this.audioContext.createMediaStreamSource(stream)
+    const localMicGain = this.audioContext.createGain()
+    const localAudioDestination = this.audioContext.createMediaStreamDestination()
+
+    localMicGain.gain.value = Math.max(0, Math.min(2, volume))
+
+    sourceNode.connect(localMicGain)
+    localMicGain.connect(localAudioDestination)
+
+    this.localMicSourceNode = sourceNode
+    this.micVolumeNode = localMicGain
+    this.localAudioDestinationNode = localAudioDestination
+
+    return localAudioDestination.stream.getAudioTracks()[0]
   }
 
   // --- ZARZĄDZANIE GŁOŚNOŚCIĄ (Web Audio API) ---
@@ -201,6 +256,10 @@ class VideoService {
   }
 
   public setMicrophoneVolume(volume: number): void {
+    this.setLocalMicrophoneVolume(volume)
+  }
+
+  public setLocalMicrophoneVolume(volume: number): void {
     if (this.micVolumeNode) {
       this.micVolumeNode.gain.value = Math.max(0, Math.min(2, volume))
     }
@@ -236,8 +295,34 @@ class VideoService {
     })
     this.allStreamsToCleanUp = []
 
+    if (this.localMicSourceNode) {
+      try {
+        this.localMicSourceNode.disconnect()
+      } catch {
+        console.warn('[VideoService] Failed to disconnect local mic source node')
+      }
+      this.localMicSourceNode = null
+    }
+
+    if (this.micVolumeNode) {
+      try {
+        this.micVolumeNode.disconnect()
+      } catch {
+        console.warn('[VideoService] Failed to disconnect local mic gain node')
+      }
+      this.micVolumeNode = null
+    }
+
+    if (this.localAudioDestinationNode) {
+      try {
+        this.localAudioDestinationNode.disconnect()
+      } catch {
+        console.warn('[VideoService] Failed to disconnect local mic destination node')
+      }
+      this.localAudioDestinationNode = null
+    }
+
     this.systemVolumeNode = null
-    this.micVolumeNode = null
     this.audioContext = null
 
     try {
