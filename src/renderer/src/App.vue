@@ -3,6 +3,7 @@
 import { useSettingsStore } from '@renderer/stores/settingsStore'
 import { useUserStore } from './stores/userStore'
 import { useSocketStore } from '@renderer/stores/socketStore'
+import RemoteAudioPlayer from '@renderer/components/p2p/RemoteAudioPlayer.vue'
 
 const toaster = { position: 'top-left', duration: 3000, dismissible: true, max: 3, expand: false }
 
@@ -21,6 +22,7 @@ void userStore.initSession()
 <template>
   <UApp :toaster="toaster">
     <router-view />
+    <RemoteAudioPlayer />
   </UApp>
 </template>
 

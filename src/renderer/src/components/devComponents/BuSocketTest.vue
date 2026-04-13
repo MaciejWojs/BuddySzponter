@@ -5,7 +5,6 @@ import { useSocketStore } from '@renderer/stores/socketStore'
 import { useWebRtcStore } from '@renderer/stores/webRtcStore'
 import { SessionStore } from '@renderer/stores/sessionStore' // Używamy poprawnej nazwy composable z Pinii
 
-import RemoteAudioPlayer from '../p2p/RemoteAudioPlayer.vue'
 import VideoPlayer from '../p2p/VideoPlayer.vue'
 
 const connectionStore = useConnectionStore()
@@ -452,8 +451,6 @@ onUnmounted(() => {
         </button>
       </div>
     </footer>
-
-    <RemoteAudioPlayer />
   </div>
 </template>
 
