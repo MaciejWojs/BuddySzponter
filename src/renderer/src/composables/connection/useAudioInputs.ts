@@ -13,6 +13,8 @@ interface InputState {
 interface UseAudioInputsOptions {
   micTrack: Ref<MaybeTrack>
   systemTrack: Ref<MaybeTrack>
+  enableKeepAliveDummy?: boolean
+  debugKeepAliveDummy?: boolean
 }
 
 interface UseAudioInputsResult {
@@ -49,7 +51,9 @@ const syncInputSource = (
   state: InputState,
   target: Ref<MediaStreamAudioSourceNode | null>,
   audioContext: AudioContext,
-  label: 'mic' | 'system'
+  label: 'mic' | 'system',
+  enableKeepAliveDummy: boolean,
+  debugKeepAliveDummy: boolean
 ): void => {
   const nextTrackId = track?.id ?? null
   if (nextTrackId === state.id) return
@@ -60,18 +64,30 @@ const syncInputSource = (
   state.id = nextTrackId
   state.stream = new MediaStream([track])
 
-  // Keep stream alive on browsers/environments that gate audio pipelines without a media element.
-  state.dummy = new Audio()
-  state.dummy.muted = true
-  state.dummy.srcObject = state.stream
-  void state.dummy.play().catch(() => {})
+  if (enableKeepAliveDummy) {
+    state.dummy = new Audio()
+    state.dummy.muted = true
+    state.dummy.srcObject = state.stream
+    void state.dummy.play().catch(() => {})
+
+    if (debugKeepAliveDummy) {
+      console.info(`[useAudioInputs] keep-alive dummy attached for ${label} track`, {
+        trackId: track.id
+      })
+    }
+  }
 
   state.source = audioContext.createMediaStreamSource(state.stream)
   target.value = state.source
 }
 
 export function useAudioInputs(options: UseAudioInputsOptions): UseAudioInputsResult {
-  const { micTrack, systemTrack } = options
+  const {
+    micTrack,
+    systemTrack,
+    enableKeepAliveDummy = true,
+    debugKeepAliveDummy = false
+  } = options
   const audioContext = getAudioContext()
 
   const micSource = ref<MediaStreamAudioSourceNode | null>(null)
@@ -83,7 +99,15 @@ export function useAudioInputs(options: UseAudioInputsOptions): UseAudioInputsRe
   const unwatchMic = watch(
     micTrack,
     (track) => {
-      syncInputSource(track, micState, micSource, audioContext, 'mic')
+      syncInputSource(
+        track,
+        micState,
+        micSource,
+        audioContext,
+        'mic',
+        enableKeepAliveDummy,
+        debugKeepAliveDummy
+      )
     },
     { immediate: true }
   )
@@ -91,7 +115,15 @@ export function useAudioInputs(options: UseAudioInputsOptions): UseAudioInputsRe
   const unwatchSystem = watch(
     systemTrack,
     (track) => {
-      syncInputSource(track, systemState, systemSource, audioContext, 'system')
+      syncInputSource(
+        track,
+        systemState,
+        systemSource,
+        audioContext,
+        'system',
+        enableKeepAliveDummy,
+        debugKeepAliveDummy
+      )
     },
     { immediate: true }
   )

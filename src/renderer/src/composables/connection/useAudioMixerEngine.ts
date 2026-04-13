@@ -14,6 +14,8 @@ interface UseAudioMixerEngineOptions {
   speechThreshold?: number
   smoothing?: number
   holdFrames?: number
+  enableKeepAliveDummy?: boolean
+  debugKeepAliveDummy?: boolean
 }
 
 interface UseAudioMixerEngineResult {
@@ -30,7 +32,9 @@ export function useAudioMixerEngine(
   const audioContext = getAudioContext()
   const { micSource, systemSource } = useAudioInputs({
     micTrack: options.micTrack,
-    systemTrack: options.systemTrack
+    systemTrack: options.systemTrack,
+    enableKeepAliveDummy: options.enableKeepAliveDummy,
+    debugKeepAliveDummy: options.debugKeepAliveDummy
   })
   const processingLayer = useAudioProcessingLayer()
   const masterBus = useMasterBus()
