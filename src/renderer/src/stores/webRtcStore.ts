@@ -133,8 +133,8 @@ export const useWebRtcStore = defineStore('webrtc', () => {
     }
 
     if (isRecording.value) {
-  webRtcService.stopRecording()
-  isRecording.value = false
+      webRtcService.stopRecording()
+      isRecording.value = false
     }
   }
 
@@ -162,25 +162,59 @@ export const useWebRtcStore = defineStore('webrtc', () => {
     connectionMetrics.setLocalPreviewQuality(quality)
   }
 
+  const resolveLocalAudioTracks = (
+    audioTracks: MediaStreamTrack[]
+  ): { micTrack: MediaStreamTrack | null; systemTrack: MediaStreamTrack | null } => {
+    if (audioTracks.length === 0) return { micTrack: null, systemTrack: null }
+
+    // 1. Zbieramy mocne poszlaki
+    const hintedMic = audioTracks.find((t) => t.contentHint === 'speech')
+    const hintedSystem = audioTracks.find((t) => t.contentHint === 'music')
+    const monoTrack = audioTracks.find((t) => t.getSettings().channelCount === 1)
+    const stereoTrack = audioTracks.find((t) => t.getSettings().channelCount === 2)
+
+    // 2. Bezpieczne przypisanie na podstawie poszlak
+    let micTrack: MediaStreamTrack | null = hintedMic ?? monoTrack ?? null
+    let systemTrack: MediaStreamTrack | null = hintedSystem ?? stereoTrack ?? null
+
+    // Zabezpieczenie: jeśli z jakiegoś powodu obie heurystyki wskazały ten sam track
+    if (micTrack && systemTrack && micTrack.id === systemTrack.id) {
+      systemTrack = null
+    }
+
+    // 3. Fallbacki "ostateczne" (jeśli brakuje poszlak)
+    if (!micTrack) {
+      micTrack = audioTracks[0] // Bierzemy pierwszy lepszy jako mikrofon
+    }
+
+    if (!systemTrack) {
+      // Szukamy czegokolwiek, co NIE JEST przypisanym już mikrofonem
+      systemTrack = audioTracks.find((t) => t.id !== micTrack?.id) ?? null
+    }
+
+    return { micTrack, systemTrack }
+  }
+
   const toggleMicrophone = (isMuted: boolean): void => {
     if (!localStream.value) return
     const audioTracks = localStream.value.getAudioTracks()
-    const micTrack =
-      audioTracks.find((t) => t.contentHint === 'speech') ||
-      audioTracks.find((t) => t.getSettings().channelCount === 1) ||
-      audioTracks[0]
+    const { micTrack } = resolveLocalAudioTracks(audioTracks)
     if (micTrack) micTrack.enabled = !isMuted
   }
 
   const toggleSystemAudio = (isMuted: boolean): void => {
     if (!localStream.value) return
     const audioTracks = localStream.value.getAudioTracks()
-    const sysTrack =
-      audioTracks.find((t) => t.contentHint === 'music') ||
-      audioTracks.find((t) => t.getSettings().channelCount === 2) ||
-      audioTracks[1] ||
-      audioTracks[0]
-    if (sysTrack) sysTrack.enabled = !isMuted
+    const { systemTrack } = resolveLocalAudioTracks(audioTracks)
+
+    if (!systemTrack) {
+      console.warn(
+        '[WebRtcStore] Nie znaleziono dedykowanej sciezki audio systemu do przełączenia.'
+      )
+      return
+    }
+
+    systemTrack.enabled = !isMuted
   }
 
   const toggleScreenVideo = (isHidden: boolean): void => {
@@ -190,23 +224,23 @@ export const useWebRtcStore = defineStore('webrtc', () => {
   }
 
   const startRecording = (): void => {
-  if (!remoteStream.value) {
-    console.warn('[WebRtcStore] brak remoteStream')
-    return
-  }
+    if (!remoteStream.value) {
+      console.warn('[WebRtcStore] brak remoteStream')
+      return
+    }
 
-  webRtcService.startRecording()
-  isRecording.value = true
+    webRtcService.startRecording()
+    isRecording.value = true
   }
 
   const stopRecording = (): void => {
-  webRtcService.stopRecording()
-  isRecording.value = false
+    webRtcService.stopRecording()
+    isRecording.value = false
   }
 
   webRtcService.onRecordingReady = async (blob) => {
-  const buffer = await blob.arrayBuffer()
-  await window.recorder.saveFile(buffer)
+    const buffer = await blob.arrayBuffer()
+    await window.recorder.saveFile(buffer)
   }
 
   return {
