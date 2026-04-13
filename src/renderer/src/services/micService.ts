@@ -13,12 +13,25 @@ class MicrophoneService {
   private inputLevelAnalyserNode: AnalyserNode | null = null
   private highPassEQNode: BiquadFilterNode | null = null
   private lowShelfEQNode: BiquadFilterNode | null = null
+  private highShelfEQNode: BiquadFilterNode | null = null
   private limiterNode: DynamicsCompressorNode | null = null
   private gainNode: GainNode | null = null
   private destinationNode: MediaStreamAudioDestinationNode | null = null
   private analyserNode: AnalyserNode | null = null
   private limiterEnabled = true
   private inputThreshold = 0.008
+  private autoGainControlEnabled = true
+  private noiseSuppressionEnabled = true
+  private echoCancellationEnabled = true
+  private studioModeEnabled = false
+
+  // Parametry Bramki Szumów
+  private gateHoldFramesCounter = 0
+  private readonly GATE_HOLD_FRAMES_MAX = 20
+  private isGateOpen = true
+  private readonly GATE_ATTACK_TIME = 0.015
+  private readonly GATE_RELEASE_TIME = 0.8 // Wydłużony czas na naturalne opadanie
+
   private localMonitoringEnabled = false
   private monitorElement: HTMLAudioElement | null = null
   private gateRafId: number | null = null
@@ -53,11 +66,11 @@ class MicrophoneService {
     if (!this.limiterNode) return
 
     if (this.limiterEnabled) {
-      this.limiterNode.threshold.value = -10
+      this.limiterNode.threshold.value = -18
       this.limiterNode.knee.value = 12
-      this.limiterNode.ratio.value = 8
-      this.limiterNode.attack.value = 0.006
-      this.limiterNode.release.value = 0.4
+      this.limiterNode.ratio.value = 4
+      this.limiterNode.attack.value = 0.005
+      this.limiterNode.release.value = 0.15
       return
     }
 
@@ -73,6 +86,8 @@ class MicrophoneService {
       cancelAnimationFrame(this.gateRafId)
       this.gateRafId = null
     }
+    this.gateHoldFramesCounter = 0
+    this.isGateOpen = true
     this.gateData = null
   }
 
@@ -96,14 +111,40 @@ class MicrophoneService {
     }
 
     const rms = Math.sqrt(sumSquares / this.gateData.length)
-    const isSpeaking = rms >= this.inputThreshold
-    const gateTarget = this.inputThreshold <= 0 ? 1 : isSpeaking ? 1 : 0
 
-    // Szybki atak (10ms) zapobiega ucinaniu początku słowa.
-    // Długi release (400ms) pozwala końcówkom zdań płynnie wybrzmieć.
-    const smoothing = isSpeaking ? 0.01 : 0.4
+    // Logika Podtrzymania (Hold)
+    if (rms >= this.inputThreshold) {
+      this.gateHoldFramesCounter = this.GATE_HOLD_FRAMES_MAX
+    } else {
+      this.gateHoldFramesCounter = Math.max(0, this.gateHoldFramesCounter - 1)
+    }
 
-    this.inputGateNode.gain.setTargetAtTime(gateTarget, this.audioContext.currentTime, smoothing)
+    const shouldBeOpen = this.inputThreshold <= 0 ? true : this.gateHoldFramesCounter > 0
+
+    // Reagujemy tylko wtedy, gdy stan bramki (otwarta/zamknięta) ulega zmianie
+    if (shouldBeOpen !== this.isGateOpen) {
+      this.isGateOpen = shouldBeOpen
+
+      const now = this.audioContext.currentTime
+      const currentGain = this.inputGateNode.gain.value
+
+      this.inputGateNode.gain.cancelScheduledValues(now)
+      this.inputGateNode.gain.setValueAtTime(currentGain, now)
+
+      if (shouldBeOpen) {
+        this.inputGateNode.gain.linearRampToValueAtTime(1, now + this.GATE_ATTACK_TIME)
+      } else {
+        const t1 = now + this.GATE_RELEASE_TIME * 0.25
+        const t2 = now + this.GATE_RELEASE_TIME * 0.5
+        const t3 = now + this.GATE_RELEASE_TIME * 0.75
+        const t4 = now + this.GATE_RELEASE_TIME
+
+        this.inputGateNode.gain.linearRampToValueAtTime(currentGain * 0.98, t1)
+        this.inputGateNode.gain.linearRampToValueAtTime(currentGain * 0.85, t2)
+        this.inputGateNode.gain.linearRampToValueAtTime(currentGain * 0.5, t3)
+        this.inputGateNode.gain.linearRampToValueAtTime(0, t4)
+      }
+    }
 
     this.gateRafId = requestAnimationFrame(this.tickGate)
   }
@@ -166,6 +207,15 @@ class MicrophoneService {
       this.lowShelfEQNode = null
     }
 
+    if (this.highShelfEQNode) {
+      try {
+        this.highShelfEQNode.disconnect()
+      } catch {
+        console.warn('[MicrophoneService] Failed to disconnect high-shelf node')
+      }
+      this.highShelfEQNode = null
+    }
+
     if (this.limiterNode) {
       try {
         this.limiterNode.disconnect()
@@ -222,13 +272,23 @@ class MicrophoneService {
 
   public async start(deviceId?: string, volume = 1): Promise<MediaStreamTrack | null> {
     try {
-      const audioConstraints = {
-        autoGainControl: true,
-        noiseSuppression: true,
-        echoCancellation: true,
-        advanced: [{ googAutoGainControl: true }, { googNoiseSuppression: true }],
-        ...(deviceId ? { deviceId: { exact: deviceId } } : {})
-      } as unknown as MediaTrackConstraints
+      const audioConstraints = this.studioModeEnabled
+        ? ({
+            autoGainControl: false,
+            noiseSuppression: false,
+            echoCancellation: false,
+            ...(deviceId ? { deviceId: { exact: deviceId } } : {})
+          } as unknown as MediaTrackConstraints)
+        : ({
+            autoGainControl: this.autoGainControlEnabled,
+            noiseSuppression: this.noiseSuppressionEnabled,
+            echoCancellation: this.echoCancellationEnabled,
+            advanced: [
+              { googAutoGainControl: this.autoGainControlEnabled },
+              { googNoiseSuppression: this.noiseSuppressionEnabled }
+            ],
+            ...(deviceId ? { deviceId: { exact: deviceId } } : {})
+          } as unknown as MediaTrackConstraints)
 
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: audioConstraints
@@ -252,6 +312,7 @@ class MicrophoneService {
       const nextInputLevelAnalyser = this.audioContext.createAnalyser()
       const nextHighPassEQ = this.audioContext.createBiquadFilter()
       const nextLowShelfEQ = this.audioContext.createBiquadFilter()
+      const nextHighShelfEQ = this.audioContext.createBiquadFilter()
       const nextLimiter = this.audioContext.createDynamicsCompressor()
       const nextGainNode = this.audioContext.createGain()
       const nextAnalyserNode = this.audioContext.createAnalyser()
@@ -268,6 +329,10 @@ class MicrophoneService {
       nextLowShelfEQ.frequency.value = 150
       nextLowShelfEQ.gain.value = 0
 
+      nextHighShelfEQ.type = 'highshelf'
+      nextHighShelfEQ.frequency.value = 5000
+      nextHighShelfEQ.gain.value = 3
+
       nextGainNode.gain.value = Math.max(0, Math.min(2, volume))
       nextAnalyserNode.fftSize = 1024
       nextAnalyserNode.smoothingTimeConstant = 0.2
@@ -276,13 +341,15 @@ class MicrophoneService {
       this.inputLevelAnalyserNode = nextInputLevelAnalyser
       this.highPassEQNode = nextHighPassEQ
       this.lowShelfEQNode = nextLowShelfEQ
+      this.highShelfEQNode = nextHighShelfEQ
       this.limiterNode = nextLimiter
 
       nextSourceNode.connect(nextInputLevelAnalyser)
       nextSourceNode.connect(nextInputGate)
       nextInputGate.connect(nextHighPassEQ)
       nextHighPassEQ.connect(nextLowShelfEQ)
-      nextLowShelfEQ.connect(nextLimiter)
+      nextLowShelfEQ.connect(nextHighShelfEQ)
+      nextHighShelfEQ.connect(nextLimiter)
       nextLimiter.connect(nextGainNode)
       nextGainNode.connect(nextAnalyserNode)
       nextGainNode.connect(nextDestinationNode)
@@ -294,6 +361,7 @@ class MicrophoneService {
         nextInputLevelAnalyser.disconnect()
         nextHighPassEQ.disconnect()
         nextLowShelfEQ.disconnect()
+        nextHighShelfEQ.disconnect()
         nextLimiter.disconnect()
         nextGainNode.disconnect()
         nextAnalyserNode.disconnect()
@@ -303,6 +371,7 @@ class MicrophoneService {
         this.inputLevelAnalyserNode = null
         this.highPassEQNode = null
         this.lowShelfEQNode = null
+        this.highShelfEQNode = null
         this.limiterNode = null
         return null
       }
@@ -315,6 +384,7 @@ class MicrophoneService {
       this.inputLevelAnalyserNode = nextInputLevelAnalyser
       this.highPassEQNode = nextHighPassEQ
       this.lowShelfEQNode = nextLowShelfEQ
+      this.highShelfEQNode = nextHighShelfEQ
       this.limiterNode = nextLimiter
       this.gainNode = nextGainNode
       this.analyserNode = nextAnalyserNode
@@ -343,6 +413,38 @@ class MicrophoneService {
   public setLimiter(enabled: boolean): void {
     this.limiterEnabled = enabled
     this.applyLimiterSettings()
+  }
+
+  public setAutoGainControlEnabled(enabled: boolean): void {
+    this.autoGainControlEnabled = enabled
+  }
+
+  public getAutoGainControlEnabled(): boolean {
+    return this.autoGainControlEnabled
+  }
+
+  public setNoiseSuppressionEnabled(enabled: boolean): void {
+    this.noiseSuppressionEnabled = enabled
+  }
+
+  public getNoiseSuppressionEnabled(): boolean {
+    return this.noiseSuppressionEnabled
+  }
+
+  public setEchoCancellationEnabled(enabled: boolean): void {
+    this.echoCancellationEnabled = enabled
+  }
+
+  public getEchoCancellationEnabled(): boolean {
+    return this.echoCancellationEnabled
+  }
+
+  public setStudioModeEnabled(enabled: boolean): void {
+    this.studioModeEnabled = enabled
+  }
+
+  public getStudioModeEnabled(): boolean {
+    return this.studioModeEnabled
   }
 
   public setLocalMonitoringEnabled(enabled: boolean): void {
