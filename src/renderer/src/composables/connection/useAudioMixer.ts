@@ -2,15 +2,9 @@ import { onMounted, onUnmounted, watch } from 'vue'
 import { useRemoteAudioTracks } from './useRemoteAudioTracks'
 import { useWebRtcStore } from '@renderer/stores/webRtcStore'
 import { getAudioContext, resumeAudioContext } from '@renderer/composables/useSharedAudioContext'
+import { useAudioInputs } from './useAudioInputs'
 
 const clampVolume = (volume: number): number => Math.max(0, Math.min(2, volume))
-
-interface TrackState {
-  id: string | null
-  stream: MediaStream | null
-  dummy: HTMLAudioElement | null
-  source: MediaStreamAudioSourceNode | null
-}
 
 export function useAudioMixer(): {
   setMicVolume: (volume: number) => void
@@ -23,6 +17,7 @@ export function useAudioMixer(): {
 
   const webRtcStore = useWebRtcStore()
   const { micTrack, systemTrack } = useRemoteAudioTracks()
+  const { micSource, systemSource } = useAudioInputs({ micTrack, systemTrack })
   const audioContext = getAudioContext()
 
   const micGain = audioContext.createGain()
@@ -45,11 +40,10 @@ export function useAudioMixer(): {
   systemDuckGain.connect(compressor)
   compressor.connect(audioContext.destination)
 
-  const micState: TrackState = { id: null, stream: null, dummy: null, source: null }
-  const sysState: TrackState = { id: null, stream: null, dummy: null, source: null }
-
   let duckingFrameId: number | null = null
   let speechHoldFrames = 0
+  let connectedMicSource: MediaStreamAudioSourceNode | null = null
+  let connectedSystemSource: MediaStreamAudioSourceNode | null = null
 
   const ensureRunning = async (): Promise<void> => {
     if (audioContext.state === 'running') return
@@ -60,42 +54,48 @@ export function useAudioMixer(): {
     }
   }
 
-  const syncTrack = (
-    track: MediaStreamTrack | null,
-    state: TrackState,
-    targetGain: GainNode,
-    extraTarget?: AnalyserNode
-  ): void => {
-    const nextTrackId = track?.id ?? null
-    if (nextTrackId === state.id) return
+  const reconnectMicSource = (nextSource: MediaStreamAudioSourceNode | null): void => {
+    if (nextSource === connectedMicSource) return
 
-    if (state.source) {
+    if (connectedMicSource) {
       try {
-        state.source.disconnect()
+        connectedMicSource.disconnect(micGain)
       } catch {
-        console.warn('[AudioMixer] Failed to disconnect previous source node')
+        console.warn('[AudioMixer] Failed to disconnect previous mic source from gain')
+      }
+      try {
+        connectedMicSource.disconnect(micAnalyser)
+      } catch {
+        console.warn('[AudioMixer] Failed to disconnect previous mic source from analyser')
       }
     }
-    if (state.dummy) state.dummy.srcObject = null
 
-    Object.assign(state, { id: nextTrackId, stream: null, dummy: null, source: null })
+    connectedMicSource = nextSource
 
-    if (!track) return
+    if (connectedMicSource) {
+      connectedMicSource.connect(micGain)
+      connectedMicSource.connect(micAnalyser)
+      void ensureRunning()
+    }
+  }
 
-    void ensureRunning()
+  const reconnectSystemSource = (nextSource: MediaStreamAudioSourceNode | null): void => {
+    if (nextSource === connectedSystemSource) return
 
-    state.stream = new MediaStream([track])
+    if (connectedSystemSource) {
+      try {
+        connectedSystemSource.disconnect(systemGain)
+      } catch {
+        console.warn('[AudioMixer] Failed to disconnect previous system source from gain')
+      }
+    }
 
-    state.dummy = new Audio()
-    state.dummy.muted = true
-    state.dummy.srcObject = state.stream
-    void state.dummy.play().catch(() => {})
+    connectedSystemSource = nextSource
 
-    state.source = audioContext.createMediaStreamSource(state.stream)
-    state.source.connect(targetGain)
-    if (extraTarget) state.source.connect(extraTarget)
-
-    console.info(`[AudioMixer] Track connected: ${track.kind}`, { id: track.id })
+    if (connectedSystemSource) {
+      connectedSystemSource.connect(systemGain)
+      void ensureRunning()
+    }
   }
 
   const analyserBuffer = new Uint8Array(micAnalyser.fftSize)
@@ -135,12 +135,8 @@ export function useAudioMixer(): {
   }
   const unlock = async (): Promise<void> => await ensureRunning()
 
-  const unwatchMic = watch(micTrack, (t) => syncTrack(t, micState, micGain, micAnalyser), {
-    immediate: true
-  })
-  const unwatchSys = watch(systemTrack, (t) => syncTrack(t, sysState, systemGain), {
-    immediate: true
-  })
+  const unwatchMicSource = watch(micSource, reconnectMicSource, { immediate: true })
+  const unwatchSystemSource = watch(systemSource, reconnectSystemSource, { immediate: true })
   const unwatchMicVol = watch(() => webRtcStore.remoteMicVolume, setMicVolume, { immediate: true })
   const unwatchSysVol = watch(() => webRtcStore.remoteSystemVolume, setSystemVolume, {
     immediate: true
@@ -154,8 +150,8 @@ export function useAudioMixer(): {
   })
 
   onUnmounted(() => {
-    unwatchMic()
-    unwatchSys()
+    unwatchMicSource()
+    unwatchSystemSource()
     unwatchMicVol()
     unwatchSysVol()
 
@@ -164,8 +160,8 @@ export function useAudioMixer(): {
 
     if (duckingFrameId !== null) globalThis.cancelAnimationFrame(duckingFrameId)
 
-    syncTrack(null, micState, micGain)
-    syncTrack(null, sysState, systemGain)
+    reconnectMicSource(null)
+    reconnectSystemSource(null)
 
     micGain.disconnect()
     systemGain.disconnect()
