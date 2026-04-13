@@ -3,7 +3,6 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useWebRtcStore } from '@renderer/stores/webRtcStore'
 import { SessionStore } from '@renderer/stores/sessionStore'
-import { getAudioContext, resumeAudioContext } from '@renderer/composables/useSharedAudioContext'
 import VUMeter from './VUMeter.vue'
 
 interface DuckingPreset {
@@ -53,9 +52,6 @@ const duckingPresets: DuckingPreset[] = [
     values: { level: 0.38, threshold: 0.018, smoothing: 0.12, holdFrames: 18 }
   }
 ]
-
-const micAnalyser = ref<AnalyserNode | null>(null)
-let micSourceNode: MediaStreamAudioSourceNode | null = null
 
 const myMicPercent = computed<number>({
   get: () => Math.round(webRtcStore.localMicrophoneVolume * 100),
@@ -114,55 +110,14 @@ const resetDuckingToDefault = (): void => {
   applyDuckingPreset(defaultPreset)
 }
 
-const cleanupMeterGraph = (): void => {
-  if (micSourceNode) {
-    try {
-      micSourceNode.disconnect()
-    } catch {
-      // no-op
-    }
-    micSourceNode = null
-  }
-
-  if (micAnalyser.value) {
-    try {
-      micAnalyser.value.disconnect()
-    } catch {
-      // no-op
-    }
-    micAnalyser.value = null
-  }
-}
-
-const bindMeterToMicrophone = (stream: MediaStream | null): void => {
-  cleanupMeterGraph()
-  if (!stream) return
-
-  const micTrack =
-    stream.getAudioTracks().find((track) => track.contentHint === 'speech') ??
-    stream.getAudioTracks()[0]
-
-  if (!micTrack) return
-
-  const audioContext = getAudioContext()
-  void resumeAudioContext().catch(() => {})
-  const analyser = audioContext.createAnalyser()
-  analyser.fftSize = 1024
-  analyser.smoothingTimeConstant = 0.2
-
-  const meterStream = new MediaStream([micTrack])
-  micSourceNode = audioContext.createMediaStreamSource(meterStream)
-  micSourceNode.connect(analyser)
-  micAnalyser.value = analyser
-}
-
 const handleDeviceChange = (): void => {
   void sessionStore.refreshMicrophones()
 }
 
 const handleSelectedMicrophoneChange = async (): Promise<void> => {
-  await sessionStore.applySelectedMicrophone()
-  bindMeterToMicrophone(webRtcStore.localStream)
+  if (sessionStore.isCapturing) {
+    await sessionStore.applySelectedMicrophone()
+  }
   syncMicMuteStateFromStream(webRtcStore.localStream)
 }
 
@@ -203,19 +158,16 @@ const toggleGuestSystemMute = (): void => {
 onMounted(() => {
   void sessionStore.refreshMicrophones()
   navigator.mediaDevices?.addEventListener?.('devicechange', handleDeviceChange)
-  bindMeterToMicrophone(webRtcStore.localStream)
   syncMicMuteStateFromStream(webRtcStore.localStream)
 })
 
 onUnmounted(() => {
-  cleanupMeterGraph()
   navigator.mediaDevices?.removeEventListener?.('devicechange', handleDeviceChange)
 })
 
 watch(
   () => webRtcStore.localStream,
   (stream) => {
-    bindMeterToMicrophone(stream)
     syncMicMuteStateFromStream(stream)
   }
 )
@@ -289,7 +241,14 @@ watch(
               </button>
             </div>
 
-            <VUMeter class="w-full" :analyser="isMyMicMuted ? null : micAnalyser" />
+            <VUMeter
+              class="w-full"
+              context-mode="auto-mic"
+              :enabled="sessionStore.includeMicrophone && !isMyMicMuted"
+              :is-capturing="sessionStore.isCapturing"
+              :device-id="selectedMicrophoneDeviceId || undefined"
+              :volume="webRtcStore.localMicrophoneVolume"
+            />
           </div>
         </div>
 

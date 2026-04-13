@@ -1,8 +1,14 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { microphoneService } from '@renderer/services/MicrophoneService'
 
 const props = defineProps<{
   analyser?: AnalyserNode | null
+  contextMode?: 'manual' | 'auto-mic'
+  enabled?: boolean
+  isCapturing?: boolean
+  deviceId?: string
+  volume?: number
 }>()
 
 const currentDb = ref<number>(-60)
@@ -11,6 +17,41 @@ const clipIndicator = ref<boolean>(false)
 
 let rafId: number | null = null
 let dataArray: Float32Array<ArrayBuffer> | null = null
+const effectiveAnalyser = ref<AnalyserNode | null>(null)
+
+const refreshEffectiveAnalyser = (): void => {
+  if (props.contextMode === 'auto-mic') {
+    effectiveAnalyser.value = microphoneService.getAnalyserNode()
+    return
+  }
+
+  effectiveAnalyser.value = props.analyser ?? null
+}
+
+const syncAutoMicContext = async (): Promise<void> => {
+  if (props.contextMode !== 'auto-mic') {
+    refreshEffectiveAnalyser()
+    return
+  }
+
+  const isEnabled = props.enabled ?? true
+  const isCapturing = props.isCapturing ?? false
+  const volume = props.volume ?? 1
+
+  if (!isEnabled) {
+    if (!isCapturing) {
+      microphoneService.stop()
+    }
+    refreshEffectiveAnalyser()
+    return
+  }
+
+  if (!isCapturing) {
+    await microphoneService.start(props.deviceId || undefined, volume)
+  }
+
+  refreshEffectiveAnalyser()
+}
 
 const clampDb = (value: number): number => {
   if (!Number.isFinite(value)) return -60
@@ -51,7 +92,7 @@ const stopMeter = (): void => {
 }
 
 const tick = (): void => {
-  const analyser = props.analyser
+  const analyser = effectiveAnalyser.value
   if (!analyser || !dataArray) {
     stopAnimationLoop()
     resetMeterState()
@@ -83,7 +124,7 @@ const tick = (): void => {
 }
 
 const startMeter = (): void => {
-  const analyser = props.analyser
+  const analyser = effectiveAnalyser.value
   if (!analyser) {
     stopMeter()
     return
@@ -95,25 +136,34 @@ const startMeter = (): void => {
   rafId = requestAnimationFrame(tick)
 }
 
-watch(
-  () => props.analyser,
-  (analyser) => {
-    if (!analyser) {
-      stopMeter()
-      dataArray = null
-      return
-    }
-
-    dataArray = new Float32Array(analyser.fftSize) as Float32Array<ArrayBuffer>
-    startMeter()
+watch(effectiveAnalyser, (analyser) => {
+  if (!analyser) {
+    stopMeter()
+    dataArray = null
+    return
   }
+
+  dataArray = new Float32Array(analyser.fftSize) as Float32Array<ArrayBuffer>
+  startMeter()
+})
+
+watch(
+  () => [props.contextMode, props.enabled, props.isCapturing, props.deviceId, props.volume],
+  () => {
+    void syncAutoMicContext()
+  },
+  { immediate: true }
 )
 
 onMounted(() => {
+  void syncAutoMicContext()
   startMeter()
 })
 
 onUnmounted(() => {
+  if (props.contextMode === 'auto-mic' && !(props.isCapturing ?? false)) {
+    microphoneService.stop()
+  }
   stopMeter()
   dataArray = null
 })
