@@ -4,6 +4,7 @@ import { useWebRtcStore } from '@renderer/stores/webRtcStore'
 import { getAudioContext, resumeAudioContext } from '@renderer/composables/useSharedAudioContext'
 import { useAudioInputs } from './useAudioInputs'
 import { useDuckingEngine } from './useDuckingEngine'
+import { useMasterBus } from './useMasterBus'
 
 const clampVolume = (volume: number): number => Math.max(0, Math.min(2, volume))
 
@@ -25,21 +26,14 @@ export function useAudioMixer(): {
   const systemGain = audioContext.createGain()
   const systemDuckGain = audioContext.createGain()
   const micAnalyser = audioContext.createAnalyser()
-  const compressor = audioContext.createDynamicsCompressor()
+  const masterBus = useMasterBus()
 
   micAnalyser.fftSize = 1024
   micAnalyser.smoothingTimeConstant = 0.85
 
-  compressor.threshold.value = -10
-  compressor.knee.value = 10
-  compressor.ratio.value = 12
-  compressor.attack.value = 0.003
-  compressor.release.value = 0.25
-
-  micGain.connect(compressor)
+  micGain.connect(masterBus.inputNode)
   systemGain.connect(systemDuckGain)
-  systemDuckGain.connect(compressor)
-  compressor.connect(audioContext.destination)
+  systemDuckGain.connect(masterBus.inputNode)
 
   let connectedMicSource: MediaStreamAudioSourceNode | null = null
   let connectedSystemSource: MediaStreamAudioSourceNode | null = null
@@ -148,7 +142,7 @@ export function useAudioMixer(): {
     systemGain.disconnect()
     systemDuckGain.disconnect()
     micAnalyser.disconnect()
-    compressor.disconnect()
+    masterBus.destroy()
   })
 
   return { setMicVolume, setSystemVolume, unlock }
