@@ -138,6 +138,11 @@ const clampMicThresholdToContext = (): void => {
   micInputThresholdDb.value = clampDb(micInputThresholdDb.value, -60, limiterThresholdDb.value)
 }
 
+const syncGateThresholdToService = (): void => {
+  const threshold = isAutoGate.value ? 0 : dbToLinear(micInputThresholdDb.value)
+  microphoneService.setInputThreshold(threshold)
+}
+
 const isNear = (a: number, b: number, epsilon = 0.0005): boolean => Math.abs(a - b) <= epsilon
 
 const isPresetActive = (preset: DuckingPreset): boolean => {
@@ -216,7 +221,7 @@ onMounted(() => {
   clampMicThresholdToContext()
 
   microphoneService.setLimiter(micLimiterEnabled.value)
-  microphoneService.setInputThreshold(dbToLinear(micInputThresholdDb.value))
+  syncGateThresholdToService()
   microphoneService.setStudioModeEnabled(micStudioModeEnabled.value)
   microphoneService.setBassBoost(micBassBoostEnabled.value ? 3 : 0)
 
@@ -239,7 +244,7 @@ watch(
 watch(micLimiterEnabled, (enabled) => {
   microphoneService.setLimiter(enabled)
   clampMicThresholdToContext()
-  microphoneService.setInputThreshold(dbToLinear(micInputThresholdDb.value))
+  syncGateThresholdToService()
 })
 
 watch(micMonitoringEnabled, (enabled) => {
@@ -251,7 +256,8 @@ watch(limiterThresholdDb, () => {
 })
 
 watch(micInputThresholdDb, (thresholdDb) => {
-  microphoneService.setInputThreshold(dbToLinear(thresholdDb))
+  const nextThreshold = isAutoGate.value ? 0 : dbToLinear(thresholdDb)
+  microphoneService.setInputThreshold(nextThreshold)
 })
 
 watch(micBassBoostEnabled, (enabled) => {
