@@ -226,13 +226,14 @@ onUnmounted(() => {
       ></div>
 
       <div
+        v-if="!isAutoGate"
         class="absolute top-0 h-full w-[2px] bg-cyan-400/90"
         :style="{ left: `${inputThresholdPercent}%` }"
         title="Próg wejścia (Gate)"
       ></div>
 
       <div
-        v-if="adaptiveThresholdDb !== null"
+        v-if="isAutoGate && adaptiveThresholdDb !== null"
         class="absolute top-0 h-full w-[2px] bg-emerald-300/90"
         :style="{ left: `${adaptiveThresholdPercent}%` }"
         title="Adaptacyjny próg Gate"
@@ -247,11 +248,14 @@ onUnmounted(() => {
 
     <div class="mt-1 flex items-center justify-between text-[10px] text-gray-500">
       <span class="inline-flex items-center gap-1">
-        <span class="h-2 w-2 rounded-full bg-cyan-400"></span>
+        <span
+          class="h-2 w-2 rounded-full"
+          :class="isAutoGate ? 'bg-emerald-300' : 'bg-cyan-400'"
+        ></span>
         Gate
         {{
           isAutoGate && adaptiveThresholdDb !== null
-            ? `${adaptiveThresholdDb.toFixed(1)} dB`
+            ? `AUTO ${adaptiveThresholdDb.toFixed(1)} dB`
             : `${inputThresholdDb.toFixed(1)} dB`
         }}
       </span>
