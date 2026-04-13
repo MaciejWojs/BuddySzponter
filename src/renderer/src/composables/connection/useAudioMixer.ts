@@ -3,6 +3,7 @@ import { useRemoteAudioTracks } from './useRemoteAudioTracks'
 import { useWebRtcStore } from '@renderer/stores/webRtcStore'
 import { getAudioContext, resumeAudioContext } from '@renderer/composables/useSharedAudioContext'
 import { useAudioInputs } from './useAudioInputs'
+import { useDuckingEngine } from './useDuckingEngine'
 
 const clampVolume = (volume: number): number => Math.max(0, Math.min(2, volume))
 
@@ -40,10 +41,17 @@ export function useAudioMixer(): {
   systemDuckGain.connect(compressor)
   compressor.connect(audioContext.destination)
 
-  let duckingFrameId: number | null = null
-  let speechHoldFrames = 0
   let connectedMicSource: MediaStreamAudioSourceNode | null = null
   let connectedSystemSource: MediaStreamAudioSourceNode | null = null
+
+  const duckingEngine = useDuckingEngine({
+    analyserNode: micAnalyser,
+    targetGainNode: systemDuckGain,
+    duckingLevel: DUCKED_SYSTEM_GAIN,
+    speechThreshold: SPEECH_THRESHOLD,
+    smoothing: GAIN_SMOOTHING,
+    holdFrames: 8
+  })
 
   const ensureRunning = async (): Promise<void> => {
     if (audioContext.state === 'running') return
@@ -98,34 +106,7 @@ export function useAudioMixer(): {
     }
   }
 
-  const analyserBuffer = new Uint8Array(micAnalyser.fftSize)
-
-  const duckingLoop = (): void => {
-    micAnalyser.getByteTimeDomainData(analyserBuffer)
-    let sum = 0
-    for (let i = 0; i < analyserBuffer.length; i++) {
-      const normalized = analyserBuffer[i] / 128 - 1
-      sum += normalized * normalized
-    }
-
-    const speakingNow = Math.sqrt(sum / analyserBuffer.length) > SPEECH_THRESHOLD
-
-    if (speakingNow) {
-      speechHoldFrames = 8
-    } else {
-      speechHoldFrames = Math.max(0, speechHoldFrames - 1)
-    }
-
-    const targetGain = speechHoldFrames > 0 ? DUCKED_SYSTEM_GAIN : 1
-    const now = audioContext.currentTime
-
-    systemDuckGain.gain.cancelScheduledValues(now)
-    systemDuckGain.gain.setTargetAtTime(targetGain, now, GAIN_SMOOTHING)
-
-    duckingFrameId = globalThis.requestAnimationFrame(duckingLoop)
-  }
-
-  duckingFrameId = globalThis.requestAnimationFrame(duckingLoop)
+  duckingEngine.start()
 
   const setMicVolume = (v: number): void => {
     micGain.gain.value = clampVolume(v)
@@ -158,7 +139,7 @@ export function useAudioMixer(): {
     document.removeEventListener('click', handleInteraction)
     document.removeEventListener('touchstart', handleInteraction)
 
-    if (duckingFrameId !== null) globalThis.cancelAnimationFrame(duckingFrameId)
+    duckingEngine.stop()
 
     reconnectMicSource(null)
     reconnectSystemSource(null)
