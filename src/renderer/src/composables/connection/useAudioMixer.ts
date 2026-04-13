@@ -13,7 +13,6 @@ const createAudioContext = (): AudioContext => {
   return new ContextCtor()
 }
 
-// Typ pomocniczy dla stanu konkretnego tracka
 interface TrackState {
   id: string | null
   stream: MediaStream | null
@@ -34,7 +33,6 @@ export function useAudioMixer(): {
   const { micTrack, systemTrack } = useRemoteAudioTracks()
   const audioContext = createAudioContext()
 
-  // --- Węzły Audio ---
   const micGain = audioContext.createGain()
   const systemGain = audioContext.createGain()
   const systemDuckGain = audioContext.createGain()
@@ -50,13 +48,11 @@ export function useAudioMixer(): {
   compressor.attack.value = 0.003
   compressor.release.value = 0.25
 
-  // --- Routing ---
   micGain.connect(compressor)
   systemGain.connect(systemDuckGain)
   systemDuckGain.connect(compressor)
   compressor.connect(audioContext.destination)
 
-  // --- Stan strumieni (Zhermetyzowany!) ---
   const micState: TrackState = { id: null, stream: null, dummy: null, source: null }
   const sysState: TrackState = { id: null, stream: null, dummy: null, source: null }
 
@@ -72,7 +68,6 @@ export function useAudioMixer(): {
     }
   }
 
-  // --- Generyczna funkcja do łączenia tracków (Zastępuje reconnectMic i reconnectSystem) ---
   const syncTrack = (
     track: MediaStreamTrack | null,
     state: TrackState,
@@ -82,7 +77,6 @@ export function useAudioMixer(): {
     const nextTrackId = track?.id ?? null
     if (nextTrackId === state.id) return
 
-    // Czyszczenie starego stanu
     if (state.source) {
       try {
         state.source.disconnect()
@@ -98,16 +92,13 @@ export function useAudioMixer(): {
 
     void ensureRunning()
 
-    // Odbudowa
     state.stream = new MediaStream([track])
 
-    // Dummy Hack dla Chromium
     state.dummy = new Audio()
     state.dummy.muted = true
     state.dummy.srcObject = state.stream
     void state.dummy.play().catch(() => {})
 
-    // Podłączenie do Web Audio
     state.source = audioContext.createMediaStreamSource(state.stream)
     state.source.connect(targetGain)
     if (extraTarget) state.source.connect(extraTarget)
@@ -115,7 +106,6 @@ export function useAudioMixer(): {
     console.info(`[AudioMixer] Track connected: ${track.kind}`, { id: track.id })
   }
 
-  // --- Ducking Logic ---
   const analyserBuffer = new Uint8Array(micAnalyser.fftSize)
 
   const duckingLoop = (): void => {
@@ -145,7 +135,6 @@ export function useAudioMixer(): {
 
   duckingFrameId = globalThis.requestAnimationFrame(duckingLoop)
 
-  // --- Interfejs API Composabla ---
   const setMicVolume = (v: number): void => {
     micGain.gain.value = clampVolume(v)
   }
@@ -154,7 +143,6 @@ export function useAudioMixer(): {
   }
   const unlock = async (): Promise<void> => await ensureRunning()
 
-  // --- Watchery ---
   const unwatchMic = watch(micTrack, (t) => syncTrack(t, micState, micGain, micAnalyser), {
     immediate: true
   })
@@ -166,7 +154,6 @@ export function useAudioMixer(): {
     immediate: true
   })
 
-  // --- Event Listenery ---
   const handleInteraction = (): void => void ensureRunning()
 
   onMounted(() => {
@@ -174,7 +161,6 @@ export function useAudioMixer(): {
     document.addEventListener('touchstart', handleInteraction, { once: true })
   })
 
-  // --- Sprzątanie ---
   onUnmounted(() => {
     unwatchMic()
     unwatchSys()
@@ -186,11 +172,9 @@ export function useAudioMixer(): {
 
     if (duckingFrameId !== null) globalThis.cancelAnimationFrame(duckingFrameId)
 
-    // Czyścimy strumienie używając naszej logiki synchronicznej (przekazanie null je rozłączy)
     syncTrack(null, micState, micGain)
     syncTrack(null, sysState, systemGain)
 
-    // Odłączenie głównych węzłów
     micGain.disconnect()
     systemGain.disconnect()
     systemDuckGain.disconnect()
