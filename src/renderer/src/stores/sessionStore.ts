@@ -15,6 +15,8 @@ export const SessionStore = defineStore('session', () => {
 
   const includeSystemAudio = ref(true)
   const includeMicrophone = ref(true)
+  const availableMicrophones = ref<Array<{ deviceId: string; label: string }>>([])
+  const selectedMicrophoneDeviceId = ref<string>('')
 
   const sharedTextureStream = shallowRef<MediaStream | null>(null)
   const currentCaptureMode = ref<'host-shared' | 'host-native' | 'guest-mic' | null>(null)
@@ -81,6 +83,7 @@ export const SessionStore = defineStore('session', () => {
       sharedTextureStream.value = await videoService.startWithExternalVideoTrack(canvasVideoTrack, {
         includeSystemAudio: includeSystemAudio.value,
         includeMicrophone: includeMicrophone.value,
+        microphoneDeviceId: selectedMicrophoneDeviceId.value || undefined,
         systemAudioVolume: webRtcStore.localSystemAudioVolume,
         microphoneVolume: webRtcStore.localMicrophoneVolume
       })
@@ -120,6 +123,7 @@ export const SessionStore = defineStore('session', () => {
         includeScreen: true,
         includeSystemAudio: includeSystemAudio.value,
         includeMicrophone: includeMicrophone.value,
+        microphoneDeviceId: selectedMicrophoneDeviceId.value || undefined,
         systemAudioVolume: webRtcStore.localSystemAudioVolume,
         microphoneVolume: webRtcStore.localMicrophoneVolume
       })
@@ -147,6 +151,7 @@ export const SessionStore = defineStore('session', () => {
         includeScreen: false,
         includeSystemAudio: false,
         includeMicrophone: includeMicrophone.value,
+        microphoneDeviceId: selectedMicrophoneDeviceId.value || undefined,
         microphoneVolume: webRtcStore.localMicrophoneVolume
       })
       currentCaptureMode.value = 'guest-mic'
@@ -187,6 +192,50 @@ export const SessionStore = defineStore('session', () => {
     logStore.addLog('WS_SENDING_RESPONSE', `Odpowiedź: ${accept}`, 'socket')
     if (accept) await startCapture()
     await socketStore.respondToRequest(accept)
+  }
+
+  const refreshMicrophones = async (): Promise<void> => {
+    try {
+      const microphones = await videoService.getAvailableMicrophones()
+      availableMicrophones.value = microphones
+
+      const hasSelected = microphones.some(
+        (device) => device.deviceId === selectedMicrophoneDeviceId.value
+      )
+      if (!hasSelected) {
+        selectedMicrophoneDeviceId.value = microphones[0]?.deviceId ?? ''
+      }
+    } catch (err) {
+      logStore.addLog('ERROR', `Błąd odczytu mikrofonów: ${err}`, 'api')
+      availableMicrophones.value = []
+      selectedMicrophoneDeviceId.value = ''
+    }
+  }
+
+  const applySelectedMicrophone = async (): Promise<void> => {
+    if (!isCapturing.value || !includeMicrophone.value) return
+
+    const updatedStream = await videoService.switchMicrophone(
+      selectedMicrophoneDeviceId.value || undefined,
+      webRtcStore.localMicrophoneVolume
+    )
+
+    if (!updatedStream) {
+      webRtcStore.toggleMicrophone(true)
+      logStore.addLog(
+        'ERROR',
+        `Nie udało się przełączyć mikrofonu na: ${selectedMicrophoneDeviceId.value || 'domyślny systemowy'}. Mikrofon został wyciszony.`,
+        'api'
+      )
+      return
+    }
+
+    await assignLocalStream(updatedStream)
+    logStore.addLog(
+      'MIC_CAPTURE',
+      `Przełączono mikrofon na: ${selectedMicrophoneDeviceId.value || 'domyślny systemowy'}`,
+      'api'
+    )
   }
 
   // ==========================================
@@ -242,12 +291,18 @@ export const SessionStore = defineStore('session', () => {
     webRtcStore.toggleSystemAudio(!isMuted)
   })
 
+  void refreshMicrophones()
+
   return {
     includeSystemAudio,
     includeMicrophone,
+    availableMicrophones,
+    selectedMicrophoneDeviceId,
     isCapturing,
     startCapture,
     stopCapture,
-    handleRespond
+    handleRespond,
+    refreshMicrophones,
+    applySelectedMicrophone
   }
 })

@@ -1,13 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useWebRtcStore } from '@renderer/stores/webRtcStore'
-import { getAudioContext } from '@renderer/composables/useSharedAudioContext'
+import { SessionStore } from '@renderer/stores/sessionStore'
+import { getAudioContext, resumeAudioContext } from '@renderer/composables/useSharedAudioContext'
 import VUMeter from './VUMeter.vue'
-
-interface MicrophoneOption {
-  deviceId: string
-  label: string
-}
 
 interface DuckingPreset {
   id: 'balanced' | 'voice-focus' | 'aggressive' | 'stream'
@@ -21,9 +17,8 @@ interface DuckingPreset {
   }
 }
 
-const availableMicrophones = ref<MicrophoneOption[]>([])
-const selectedMicId = ref<string>('')
 const webRtcStore = useWebRtcStore()
+const sessionStore = SessionStore()
 
 const isMyMicMuted = ref(false)
 const isMySystemMuted = ref(false)
@@ -117,38 +112,6 @@ const resetDuckingToDefault = (): void => {
   applyDuckingPreset(defaultPreset)
 }
 
-const requestMicPermissionForLabels = async (): Promise<void> => {
-  try {
-    const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false })
-    tempStream.getTracks().forEach((track) => track.stop())
-  } catch {
-    // If permission is denied, we still show device IDs fallback labels.
-  }
-}
-
-const refreshMicrophones = async (): Promise<void> => {
-  try {
-    await requestMicPermissionForLabels()
-    const devices = await navigator.mediaDevices.enumerateDevices()
-
-    const microphones = devices
-      .filter((device) => device.kind === 'audioinput' && !!device.deviceId)
-      .map((device, index) => ({
-        deviceId: device.deviceId,
-        label: device.label || `Mikrofon ${index + 1}`
-      }))
-
-    availableMicrophones.value = microphones
-
-    if (!microphones.some((mic) => mic.deviceId === selectedMicId.value)) {
-      selectedMicId.value = microphones[0]?.deviceId ?? ''
-    }
-  } catch {
-    availableMicrophones.value = []
-    selectedMicId.value = ''
-  }
-}
-
 const cleanupMeterGraph = (): void => {
   if (micSourceNode) {
     try {
@@ -180,6 +143,7 @@ const bindMeterToMicrophone = (stream: MediaStream | null): void => {
   if (!micTrack) return
 
   const audioContext = getAudioContext()
+  void resumeAudioContext().catch(() => {})
   const analyser = audioContext.createAnalyser()
   analyser.fftSize = 1024
   analyser.smoothingTimeConstant = 0.2
@@ -191,12 +155,31 @@ const bindMeterToMicrophone = (stream: MediaStream | null): void => {
 }
 
 const handleDeviceChange = (): void => {
-  void refreshMicrophones()
+  void sessionStore.refreshMicrophones()
 }
 
 const toggleMyMicMute = (): void => {
   isMyMicMuted.value = !isMyMicMuted.value
   webRtcStore.toggleMicrophone(isMyMicMuted.value)
+}
+
+const syncMicMuteStateFromStream = (stream: MediaStream | null): void => {
+  if (!stream) {
+    isMyMicMuted.value = false
+    return
+  }
+
+  const micTrack =
+    stream.getAudioTracks().find((track) => track.contentHint === 'speech') ??
+    stream.getAudioTracks()[0] ??
+    null
+
+  if (!micTrack) {
+    isMyMicMuted.value = false
+    return
+  }
+
+  isMyMicMuted.value = !micTrack.enabled
 }
 
 const toggleMySystemMute = (): void => {
@@ -210,9 +193,10 @@ const toggleGuestSystemMute = (): void => {
 }
 
 onMounted(() => {
-  void refreshMicrophones()
+  void sessionStore.refreshMicrophones()
   navigator.mediaDevices?.addEventListener?.('devicechange', handleDeviceChange)
   bindMeterToMicrophone(webRtcStore.localStream)
+  syncMicMuteStateFromStream(webRtcStore.localStream)
 })
 
 onUnmounted(() => {
@@ -224,6 +208,18 @@ watch(
   () => webRtcStore.localStream,
   (stream) => {
     bindMeterToMicrophone(stream)
+    syncMicMuteStateFromStream(stream)
+  }
+)
+
+watch(
+  () => sessionStore.selectedMicrophoneDeviceId,
+  async (next, prev) => {
+    if (next === prev) return
+
+    await sessionStore.applySelectedMicrophone()
+    bindMeterToMicrophone(webRtcStore.localStream)
+    syncMicMuteStateFromStream(webRtcStore.localStream)
   }
 )
 </script>
@@ -244,11 +240,15 @@ watch(
         <div class="mb-4">
           <label class="text-xs text-gray-300 block mb-1.5">Mikrofon</label>
           <select
-            v-model="selectedMicId"
+            v-model="sessionStore.selectedMicrophoneDeviceId"
             class="w-full px-3 py-2 rounded-md bg-[#111] border border-[#3a3a3a] text-gray-200 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
           >
             <option value="">Domyslny mikrofon</option>
-            <option v-for="mic in availableMicrophones" :key="mic.deviceId" :value="mic.deviceId">
+            <option
+              v-for="mic in sessionStore.availableMicrophones"
+              :key="mic.deviceId"
+              :value="mic.deviceId"
+            >
               {{ mic.label }}
             </option>
           </select>

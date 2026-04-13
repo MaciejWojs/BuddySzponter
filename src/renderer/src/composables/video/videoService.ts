@@ -24,6 +24,11 @@ export interface VideoCaptureOptions {
   microphoneVolume?: number
 }
 
+export interface AudioInputDeviceOption {
+  deviceId: string
+  label: string
+}
+
 class VideoService {
   private isCapturing = false
   private activeStream: MediaStream | null = null
@@ -39,9 +44,20 @@ class VideoService {
   private micVolumeNode: GainNode | null = null
   private localMicSourceNode: MediaStreamAudioSourceNode | null = null
   private localAudioDestinationNode: MediaStreamAudioDestinationNode | null = null
+  private currentMicrophoneTrack: MediaStreamTrack | null = null
 
   public get isRunning(): boolean {
     return this.isCapturing
+  }
+
+  public async getAvailableMicrophones(): Promise<AudioInputDeviceOption[]> {
+    const devices = await navigator.mediaDevices.enumerateDevices()
+    return devices
+      .filter((device) => device.kind === 'audioinput' && !!device.deviceId)
+      .map((device, index) => ({
+        deviceId: device.deviceId,
+        label: device.label || `Mikrofon ${index + 1}`
+      }))
   }
 
   public async start(options: VideoCaptureOptions = {}): Promise<MediaStream> {
@@ -164,9 +180,77 @@ class VideoService {
         const processedTrack = this.applyLocalMicrophoneProcessing(micStream, volume)
         processedTrack.contentHint = 'speech'
         this.activeStream!.addTrack(processedTrack)
+        this.currentMicrophoneTrack = processedTrack
       }
     } catch (e) {
       console.warn('Nie udało się pobrać mikrofonu:', e)
+    }
+  }
+
+  private resolveMicrophoneTrack(stream: MediaStream): MediaStreamTrack | null {
+    const audioTracks = stream.getAudioTracks()
+    const hintedMic = audioTracks.find((track) => track.contentHint === 'speech')
+    const monoTrack = audioTracks.find((track) => track.getSettings().channelCount === 1)
+    const firstNonSystem = audioTracks.find((track) => track.contentHint !== 'music')
+
+    if (hintedMic) return hintedMic
+    if (monoTrack) return monoTrack
+    if (firstNonSystem) return firstNonSystem
+
+    return null
+  }
+
+  public async switchMicrophone(
+    deviceId: string | undefined,
+    volume = 1
+  ): Promise<MediaStream | null> {
+    if (!this.activeStream) return null
+
+    try {
+      const audioConstraints = {
+        autoGainControl: true,
+        noiseSuppression: true,
+        echoCancellation: true,
+        advanced: [{ googAutoGainControl: true }, { googNoiseSuppression: true }],
+        ...(deviceId ? { deviceId: { exact: deviceId } } : {})
+      } as unknown as MediaTrackConstraints
+
+      const micStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints })
+      this.allStreamsToCleanUp.push(micStream)
+
+      const rawAudioTrack = micStream.getAudioTracks()[0]
+      if (!rawAudioTrack) {
+        const previousMicTrack =
+          this.currentMicrophoneTrack ?? this.resolveMicrophoneTrack(this.activeStream)
+        if (previousMicTrack) {
+          previousMicTrack.enabled = false
+        }
+        return null
+      }
+
+      const processedTrack = this.applyLocalMicrophoneProcessing(micStream, volume)
+      processedTrack.contentHint = 'speech'
+
+      const previousMicTrack =
+        this.currentMicrophoneTrack ?? this.resolveMicrophoneTrack(this.activeStream)
+      if (previousMicTrack) {
+        this.activeStream.removeTrack(previousMicTrack)
+        previousMicTrack.stop()
+      }
+
+      this.activeStream.addTrack(processedTrack)
+      this.currentMicrophoneTrack = processedTrack
+      return this.activeStream
+    } catch (e) {
+      console.warn('Nie udało się przełączyć mikrofonu:', e)
+
+      const previousMicTrack =
+        this.currentMicrophoneTrack ?? this.resolveMicrophoneTrack(this.activeStream)
+      if (previousMicTrack) {
+        previousMicTrack.enabled = false
+      }
+
+      return null
     }
   }
 
@@ -289,6 +373,7 @@ class VideoService {
       this.activeStream.getTracks().forEach((track) => track.stop())
       this.activeStream = null
     }
+    this.currentMicrophoneTrack = null
 
     this.allStreamsToCleanUp.forEach((stream) => {
       stream.getTracks().forEach((track) => track.stop())

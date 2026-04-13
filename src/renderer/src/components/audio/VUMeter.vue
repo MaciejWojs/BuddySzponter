@@ -32,21 +32,29 @@ const dbColorClass = computed<string>(() => {
   return 'text-emerald-400'
 })
 
-const stopMeter = (): void => {
+const stopAnimationLoop = (): void => {
   if (rafId !== null) {
     cancelAnimationFrame(rafId)
     rafId = null
   }
+}
 
+const resetMeterState = (): void => {
   currentDb.value = -60
   peakDb.value = -60
   clipIndicator.value = false
 }
 
+const stopMeter = (): void => {
+  stopAnimationLoop()
+  resetMeterState()
+}
+
 const tick = (): void => {
   const analyser = props.analyser
   if (!analyser || !dataArray) {
-    stopMeter()
+    stopAnimationLoop()
+    resetMeterState()
     return
   }
 
@@ -83,9 +91,7 @@ const startMeter = (): void => {
 
   dataArray = new Float32Array(analyser.fftSize) as Float32Array<ArrayBuffer>
 
-  if (rafId !== null) {
-    cancelAnimationFrame(rafId)
-  }
+  stopAnimationLoop()
   rafId = requestAnimationFrame(tick)
 }
 
