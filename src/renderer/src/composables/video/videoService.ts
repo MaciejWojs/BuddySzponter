@@ -1,10 +1,5 @@
 // src/renderer/services/VideoService.ts
-
-declare global {
-  interface Window {
-    webkitAudioContext?: typeof AudioContext
-  }
-}
+import { getAudioContext, resumeAudioContext } from '@renderer/composables/useSharedAudioContext'
 
 interface WindowWithCapture extends Window {
   MediaStreamTrackGenerator: {
@@ -177,9 +172,9 @@ class VideoService {
     type: 'system' | 'microphone'
   ): MediaStreamTrack {
     if (!this.audioContext) {
-      const AudioCtx = window.AudioContext || window.webkitAudioContext
-      this.audioContext = new AudioCtx!()
+      this.audioContext = getAudioContext()
     }
+    void resumeAudioContext().catch(() => {})
 
     const sourceNode = this.audioContext.createMediaStreamSource(stream)
     const gainNode = this.audioContext.createGain()
@@ -243,10 +238,7 @@ class VideoService {
 
     this.systemVolumeNode = null
     this.micVolumeNode = null
-    if (this.audioContext) {
-      this.audioContext.close().catch(() => {})
-      this.audioContext = null
-    }
+    this.audioContext = null
 
     try {
       const win = window as unknown as WindowWithCapture

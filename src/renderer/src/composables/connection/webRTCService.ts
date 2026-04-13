@@ -1,4 +1,6 @@
 // composables/webrtc/webRtcService.ts
+import { getAudioContext, resumeAudioContext } from '@renderer/composables/useSharedAudioContext'
+
 export type DataChannelLabel = 'chat-channel' | 'hid-control' | 'system-events' | 'metrics'
 export type ConnectionMetrics = {
   rttMs: number | null
@@ -343,7 +345,8 @@ export class WebRTCService {
       return
     }
 
-    const ctx = new AudioContext()
+    const ctx = getAudioContext()
+    void resumeAudioContext().catch(() => {})
     const dest = ctx.createMediaStreamDestination()
 
     this.remoteStream.getAudioTracks().forEach((track) => {

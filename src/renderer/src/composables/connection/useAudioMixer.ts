@@ -1,17 +1,9 @@
 import { onMounted, onUnmounted, watch } from 'vue'
 import { useRemoteAudioTracks } from './useRemoteAudioTracks'
 import { useWebRtcStore } from '@renderer/stores/webRtcStore'
+import { getAudioContext, resumeAudioContext } from '@renderer/composables/useSharedAudioContext'
 
 const clampVolume = (volume: number): number => Math.max(0, Math.min(2, volume))
-
-const createAudioContext = (): AudioContext => {
-  const webkitContextCtor = (
-    globalThis as typeof globalThis & { webkitAudioContext?: typeof AudioContext }
-  ).webkitAudioContext
-  const ContextCtor = globalThis.AudioContext || webkitContextCtor
-  if (!ContextCtor) throw new Error('Web Audio API is not available in this environment.')
-  return new ContextCtor()
-}
 
 interface TrackState {
   id: string | null
@@ -31,7 +23,7 @@ export function useAudioMixer(): {
 
   const webRtcStore = useWebRtcStore()
   const { micTrack, systemTrack } = useRemoteAudioTracks()
-  const audioContext = createAudioContext()
+  const audioContext = getAudioContext()
 
   const micGain = audioContext.createGain()
   const systemGain = audioContext.createGain()
@@ -60,9 +52,9 @@ export function useAudioMixer(): {
   let speechHoldFrames = 0
 
   const ensureRunning = async (): Promise<void> => {
-    if (audioContext.state !== 'suspended') return
+    if (audioContext.state === 'running') return
     try {
-      await audioContext.resume()
+      await resumeAudioContext()
     } catch {
       console.warn('[AudioMixer] AudioContext resume failed')
     }
@@ -180,8 +172,6 @@ export function useAudioMixer(): {
     systemDuckGain.disconnect()
     micAnalyser.disconnect()
     compressor.disconnect()
-
-    void audioContext.close()
   })
 
   return { setMicVolume, setSystemVolume, unlock }
