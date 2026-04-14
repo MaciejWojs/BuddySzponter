@@ -203,12 +203,13 @@ if (process.contextIsolated) {
   try {
     contextBridge.exposeInMainWorld('electron', electronAPI)
     contextBridge.exposeInMainWorld('api', api)
-    
+
     contextBridge.exposeInMainWorld('recorder', recorder)
 
     contextBridge.exposeInMainWorld('capture', {
       start: () => ipcRenderer.invoke('capture:start'),
       stop: () => ipcRenderer.invoke('capture:stop'),
+      getFps: () => ipcRenderer.invoke('capture:getFps'),
       subscribeStream: (onFrame: (frame: VideoFrame) => void) => {
         currentOnFrame = onFrame
 
