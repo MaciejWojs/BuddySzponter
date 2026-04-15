@@ -123,6 +123,17 @@ declare global {
       desktop: {
         getSources: () => Promise<DesktopSource[]>
       }
+      app: {
+        quitApp: () => Promise<void>
+        showApp: () => Promise<void>
+        hideToTray: () => Promise<void>
+        setHostTrayMode: (active: boolean) => Promise<void>
+      }
+      events: {
+        onToggleMic: (callback: () => void) => void
+        onStopSession: (callback: () => void) => void
+        removeAllListeners: () => void
+      }
     }
     capture: {
       start: () => Promise<void>
