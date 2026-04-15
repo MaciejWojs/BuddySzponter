@@ -1,17 +1,8 @@
-import {
-  app,
-  shell,
-  BrowserWindow,
-  ipcMain,
-  session,
-  desktopCapturer,
-  dialog,
-  Tray,
-  Menu
-} from 'electron'
+import { app, shell, BrowserWindow, ipcMain, session, desktopCapturer, dialog } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
+import trayIconDefault from '../../resources/tray/default.png?asset'
 import { handshake } from './utils/handshake'
 import { secureStore } from './store/secureStore'
 import { API_ROUTES } from './apiRoutes'
@@ -24,13 +15,13 @@ import { connectionService } from './services/ConnectionService'
 import { screenService } from './services/screenService'
 import { wsService } from './services/ws/WsService'
 import fs from 'fs'
+import { closeHostWidget, createHostWidget, registerHostWidgetHandlers } from './hostWidget'
+import { trayService } from './services/trayService'
 
 let mainWindow: BrowserWindow | null = null
-let tray: Tray | null = null
-let isQuitting = false
+export let isQuitting = false
 
 function createWindow(): void {
-  // Create the browser window.
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 670,
@@ -52,7 +43,7 @@ function createWindow(): void {
   mainWindow.on('close', (event) => {
     if (!isQuitting) {
       event.preventDefault()
-      mainWindow?.hide()
+      mainWindow?.hide() // Ukrywa zamiast zamykać
     }
   })
 
@@ -69,7 +60,6 @@ function createWindow(): void {
 }
 
 const useSingleInstanceLock = !import.meta.env.DEV
-
 const gotTheLock = useSingleInstanceLock ? app.requestSingleInstanceLock() : true
 
 app.on('before-quit', () => {
@@ -81,9 +71,9 @@ if (!gotTheLock) {
 } else {
   if (useSingleInstanceLock) {
     app.on('second-instance', () => {
-      // Ktoś próbował uruchomić drugą instancję, więc przywracamy pierwszą
       if (mainWindow) {
         if (mainWindow.isMinimized()) mainWindow.restore()
+        mainWindow.show()
         mainWindow.focus()
       }
       dialog.showErrorBox(
@@ -126,13 +116,34 @@ if (!gotTheLock) {
     screenService.registerHandlers()
     wsService.registerWsHandlers()
 
+    registerHostWidgetHandlers(mainWindow)
+
+    ipcMain.handle('show-host-widget', () => {
+      createHostWidget()
+      if (mainWindow && !mainWindow.isDestroyed()) mainWindow.hide()
+    })
+
+    ipcMain.handle('hide-host-widget', () => {
+      closeHostWidget()
+      if (mainWindow && !mainWindow.isDestroyed()) mainWindow.show()
+    })
+
+    ipcMain.handle('hide-to-tray', () => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.hide()
+      }
+    })
+
+    ipcMain.handle('show-main-window', () => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.show()
+        mainWindow.focus()
+      }
+    })
+
     session.defaultSession.setDisplayMediaRequestHandler(
       (_request, callback) => {
         desktopCapturer.getSources({ types: ['screen'] }).then((sources) => {
-          console.log(
-            'Available screens for capture:',
-            sources.map((s) => s.name)
-          )
           callback({ video: sources[0], audio: 'loopback' })
         })
       },
@@ -140,6 +151,10 @@ if (!gotTheLock) {
     )
 
     createWindow()
+
+    if (mainWindow) {
+      trayService.init(mainWindow, trayIconDefault)
+    }
 
     ipcMain.handle('save-file', async (_, buffer: ArrayBuffer) => {
       const { filePath } = await dialog.showSaveDialog({
@@ -149,30 +164,6 @@ if (!gotTheLock) {
       if (!filePath) return
 
       fs.writeFileSync(filePath, Buffer.from(buffer))
-    })
-
-    tray = new Tray(icon)
-    const contextMenu = Menu.buildFromTemplate([
-      {
-        label: 'Show App',
-        click: () => {
-          mainWindow?.show()
-        }
-      },
-      {
-        label: 'Close App',
-        click: () => {
-          isQuitting = true
-          app.quit()
-        }
-      }
-    ])
-
-    tray.setToolTip(import.meta.env.VITE_APP_NAME || 'Electron App')
-    tray.setContextMenu(contextMenu)
-
-    tray.on('click', () => {
-      mainWindow?.show()
     })
 
     try {
