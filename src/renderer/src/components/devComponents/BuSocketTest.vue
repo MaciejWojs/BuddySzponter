@@ -15,6 +15,10 @@ const sessionStore = SessionStore()
 // FIX: Dodane : void do każdej z tych funkcji dla ESLint
 const handleManualConnect = (): void => void socketStore.connect('awaryjny-token-z-palca')
 const handleManualDisconnect = (): void => void socketStore.disconnect()
+const handleMoveMouseToOrigin = (): void => {
+  if (webRtcStore.rtcStatus !== 'connected') return
+  webRtcStore.sendMousePosition(0, 0)
+}
 const placeholderAction = (name: string): void => alert(`Funkcja "${name}" jest w przygotowaniu!`)
 
 // Mapowanie do diagnostyki
@@ -282,6 +286,13 @@ onUnmounted(() => {
           @click="handleManualDisconnect()"
         >
           Rozłącz gniazdko
+        </button>
+        <button
+          v-if="webRtcStore.rtcStatus === 'connected'"
+          class="px-4 py-2 bg-transparent border border-[#444] hover:border-cyan-500 hover:text-cyan-400 text-gray-400 text-xs font-semibold rounded transition-colors"
+          @click="handleMoveMouseToOrigin()"
+        >
+          Wyślij MOUSE_MOVE 0,0
         </button>
         <button
           v-if="webRtcStore.rtcStatus === 'connected'"

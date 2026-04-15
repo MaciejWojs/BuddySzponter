@@ -1,4 +1,13 @@
-import { app, shell, BrowserWindow, ipcMain, session, desktopCapturer, dialog } from 'electron'
+import {
+  app,
+  shell,
+  BrowserWindow,
+  ipcMain,
+  session,
+  desktopCapturer,
+  dialog,
+  screen
+} from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
@@ -17,9 +26,30 @@ import { wsService } from './services/ws/WsService'
 import fs from 'fs'
 import { closeHostWidget, createHostWidget, registerHostWidgetHandlers } from './hostWidget'
 import { trayService } from './services/trayService'
+import { InputBridge } from '@maciejwojs/input-bridge'
 
 let mainWindow: BrowserWindow | null = null
 export let isQuitting = false
+
+let inputBridge: InputBridge | null = null
+let inputBridgeInitPromise: Promise<void> | null = null
+
+const ensureInputBridgeReady = async (): Promise<InputBridge> => {
+  if (!inputBridge) {
+    inputBridge = new InputBridge({ autoFlush: false })
+    inputBridge.setLogger((msg) => console.log(`[InputBridge] ${msg}`))
+  }
+
+  if (!inputBridgeInitPromise) {
+    inputBridgeInitPromise = inputBridge.init().catch((error: unknown) => {
+      inputBridgeInitPromise = null
+      throw error
+    })
+  }
+
+  await inputBridgeInitPromise
+  return inputBridge
+}
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -139,6 +169,25 @@ if (!gotTheLock) {
         mainWindow.show()
         mainWindow.focus()
       }
+    })
+
+    ipcMain.handle('input:moveMousePercent', async (_event, xPercent: number, yPercent: number) => {
+      const normalizedX = Number.isFinite(xPercent) ? Math.min(Math.max(xPercent, 0), 100) : 0
+      const normalizedY = Number.isFinite(yPercent) ? Math.min(Math.max(yPercent, 0), 100) : 0
+
+      const primaryDisplayBounds = screen.getPrimaryDisplay().bounds
+      const absoluteX = Math.round(
+        primaryDisplayBounds.x + (normalizedX / 100) * primaryDisplayBounds.width
+      )
+      const absoluteY = Math.round(
+        primaryDisplayBounds.y + (normalizedY / 100) * primaryDisplayBounds.height
+      )
+
+      const bridge = await ensureInputBridgeReady()
+      bridge.moveMouseAbsolute(absoluteX, absoluteY)
+      bridge.flush()
+
+      return { ok: true }
     })
 
     session.defaultSession.setDisplayMediaRequestHandler(

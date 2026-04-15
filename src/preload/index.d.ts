@@ -129,6 +129,9 @@ declare global {
         hideToTray: () => Promise<void>
         setHostTrayMode: (active: boolean) => Promise<void>
       }
+      input: {
+        moveMousePercent: (xPercent: number, yPercent: number) => Promise<{ ok: boolean }>
+      }
       events: {
         onToggleMic: (callback: () => void) => void
         onStopSession: (callback: () => void) => void

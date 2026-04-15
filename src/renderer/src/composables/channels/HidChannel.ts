@@ -20,6 +20,10 @@ export function HidChannel(): HidChannelApi {
 
   const handleIncomingMessage = (payload: MouseMovePayload): void => {
     remoteMouse.value = { x: payload.x, y: payload.y }
+
+    void window.api.input.moveMousePercent(payload.x, payload.y).catch((error: unknown) => {
+      console.error('[HidChannel] Failed to move OS mouse pointer:', error)
+    })
   }
 
   const sendMousePosition = (x: number, y: number): void => {

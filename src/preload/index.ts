@@ -163,6 +163,10 @@ const api = {
     setHostTrayMode: (active: boolean): Promise<void> =>
       ipcRenderer.invoke('set-host-tray-mode', active)
   },
+  input: {
+    moveMousePercent: (xPercent: number, yPercent: number): Promise<{ ok: boolean }> =>
+      ipcRenderer.invoke('input:moveMousePercent', xPercent, yPercent)
+  },
 
   events: {
     onToggleMic: (callback: () => void) => {
