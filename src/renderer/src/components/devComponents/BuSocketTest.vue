@@ -6,6 +6,7 @@ import { useWebRtcStore } from '@renderer/stores/webRtcStore'
 import { SessionStore } from '@renderer/stores/sessionStore' // Używamy poprawnej nazwy composable z Pinii
 
 import VideoPlayer from '../p2p/VideoPlayer.vue'
+import BuHostMouseRealtimeControl from './BuHostMouseRealtimeControl.vue'
 
 const connectionStore = useConnectionStore()
 const socketStore = useSocketStore()
@@ -303,6 +304,8 @@ onUnmounted(() => {
         </button>
       </div>
     </footer>
+
+    <BuHostMouseRealtimeControl />
   </div>
 </template>
 
