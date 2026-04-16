@@ -1,6 +1,6 @@
 // renderer/src/stores/webRtcStore.ts
 import { defineStore } from 'pinia'
-import { ref, shallowRef } from 'vue'
+import { ref, shallowRef, computed } from 'vue'
 import { useSocketStore } from './socketStore'
 import {
   guestTrackPolicy,
@@ -35,7 +35,7 @@ export const useWebRtcStore = defineStore('webrtc', () => {
   const audioHoldFrames = ref<number>(8)
 
   // HID Control State
-  const isGuestControlAllowed = ref<boolean>(false)
+  const isGuestControlAllowed = computed(() => hid.isControlGranted.value)
 
   const connectionMetrics = useConnectionMetrics(rtcStatus)
   const chat = ChatChannel()
@@ -103,10 +103,11 @@ export const useWebRtcStore = defineStore('webrtc', () => {
       if (channelLabel === 'chat-channel' && msg.type === 'CHAT')
         chat.handleIncomingMessage(msg.payload)
       if (channelLabel === 'hid-control') {
-        if (msg.type === 'HID_HANDSHAKE') {
-          hid.handleIncomingMessage(msg)
-          isGuestControlAllowed.value = msg.payload.isControlGranted
-        } else if (msg.type === 'MOUSE_MOVE' || msg.type === 'HID_PERMISSION_UPDATE') {
+        if (
+          msg.type === 'HID_HANDSHAKE' ||
+          msg.type === 'MOUSE_MOVE' ||
+          msg.type === 'HID_PERMISSION_UPDATE'
+        ) {
           hid.handleIncomingMessage(msg)
         }
       }
