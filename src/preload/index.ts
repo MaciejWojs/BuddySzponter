@@ -164,7 +164,42 @@ const api = {
   }
 }
 
-let currentOnFrame: ((frame: VideoFrame) => void) | null = null
+const frameConsumers = new Set<(frame: VideoFrame) => void>()
+
+const addFrameConsumer = (callback: (frame: VideoFrame) => void): (() => void) => {
+  frameConsumers.add(callback)
+  return () => {
+    frameConsumers.delete(callback)
+    if (frameConsumers.size === 0) {
+      ipcRenderer.postMessage('capture:stop-stream', null)
+    }
+  }
+}
+
+const dispatchFrame = (frame: VideoFrame): void => {
+  const consumers = Array.from(frameConsumers)
+  if (consumers.length === 0) {
+    frame.close()
+    return
+  }
+
+  const [firstConsumer, ...otherConsumers] = consumers
+  try {
+    firstConsumer(frame)
+  } catch (e) {
+    console.error('[Preload] Error delivering frame to consumer:', e)
+  }
+
+  for (const consumer of otherConsumers) {
+    const clonedFrame = frame.clone()
+    try {
+      consumer(clonedFrame)
+    } catch (e) {
+      console.error('[Preload] Error delivering cloned frame to consumer:', e)
+      clonedFrame.close()
+    }
+  }
+}
 
 const registerSharedTextureReceiver = (): void => {
   const receiverApi = sharedTexture as unknown as {
@@ -179,11 +214,9 @@ const registerSharedTextureReceiver = (): void => {
 try {
   sharedTexture.setSharedTextureReceiver(async (data) => {
     try {
-      if (currentOnFrame) {
-        const frame = data.importedSharedTexture.getVideoFrame()
-        if (frame) {
-          currentOnFrame(frame)
-        }
+      const frame = data.importedSharedTexture.getVideoFrame()
+      if (frame) {
+        dispatchFrame(frame)
       }
     } catch (e) {
       console.error('[Preload] Odbiór klatki sharedTexture:', e)
@@ -205,7 +238,7 @@ interface RawFramePayload {
 }
 
 ipcRenderer.on('capture:raw-frame', async (_, rawFrame: RawFramePayload) => {
-  if (!currentOnFrame || !rawFrame) {
+  if (!rawFrame) {
     return
   }
 
@@ -230,7 +263,7 @@ ipcRenderer.on('capture:raw-frame', async (_, rawFrame: RawFramePayload) => {
     const bitmap = await createImageBitmap(imageData)
     const frame = new VideoFrame(bitmap, { timestamp: performance.now() * 1000 })
 
-    currentOnFrame(frame)
+    dispatchFrame(frame)
   } catch (e) {
     console.error('[Preload] Odbiór surowej klatki:', e)
   }
@@ -250,13 +283,10 @@ if (process.contextIsolated) {
       start: () => ipcRenderer.invoke('capture:start'),
       stop: () => ipcRenderer.invoke('capture:stop'),
       subscribeStream: (onFrame: (frame: VideoFrame) => void) => {
-        currentOnFrame = onFrame
+        const cleanupSubscription = addFrameConsumer(onFrame)
 
         const cleanup = (): void => {
-          if (currentOnFrame) {
-            currentOnFrame = null
-            ipcRenderer.postMessage('capture:stop-stream', null)
-          }
+          cleanupSubscription()
         }
         window.addEventListener('beforeunload', cleanup, { once: true })
 
@@ -283,12 +313,10 @@ if (process.contextIsolated) {
         registerSharedTextureReceiver()
       },
       onFrameReceived: (callback: (frame: VideoFrame) => void) => {
-        currentOnFrame = callback
+        const cleanupSubscription = addFrameConsumer(callback)
 
         return () => {
-          if (currentOnFrame === callback) {
-            currentOnFrame = null
-          }
+          cleanupSubscription()
         }
       },
       shouldUseCpu: async (): Promise<boolean> => {
