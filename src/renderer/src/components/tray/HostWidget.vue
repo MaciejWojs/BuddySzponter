@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue'
 import { useSocketStore } from '@renderer/stores/socketStore'
-import { hidReceiver } from '@renderer/services/hid/hidReceiverService'
+import { useHidChannel } from '@renderer/composables/channels/HidChannel'
 
 const isMuted = ref<boolean>(false)
 const hasUnread = ref<boolean>(true)
@@ -39,8 +39,9 @@ const endSession = async (): Promise<void> => {
   window.electron.ipcRenderer.send('widget-close-session')
 }
 
+const hid = useHidChannel()
 const giveControl = (): void => {
-  hidReceiver.grantControl()
+  hid.grantControl()
 }
 
 onMounted(() => {
@@ -109,7 +110,6 @@ onUnmounted(() => {
             fill="currentColor"
           />
         </svg>
-        <span style="font-size: 11px; margin-left: 4px">Oddaj kontrolę</span>
       </button>
 
       <button class="tool-btn idle chat-btn" type="button" title="Czat" @click="toggleChat">
