@@ -15,7 +15,12 @@ import { connectionService } from './services/ConnectionService'
 import { screenService } from './services/screenService'
 import { wsService } from './services/ws/WsService'
 import fs from 'fs'
-import { closeHostWidget, createHostWidget, registerHostWidgetHandlers } from './hostWidget'
+import {
+  closeHostWidget,
+  initHostWidget,
+  registerHostWidgetHandlers,
+  showHostWidget
+} from './hostWidget'
 import { trayService } from './services/trayService'
 import { inputService } from './services/inputService'
 
@@ -116,17 +121,25 @@ if (!gotTheLock) {
     connectionService.registerHandlers()
     screenService.registerHandlers()
     wsService.registerWsHandlers()
-    await inputService.init()
+    createWindow()
 
-    registerHostWidgetHandlers(mainWindow)
+    if (mainWindow) {
+      trayService.init(mainWindow, trayIconDefault)
+      await inputService.init(mainWindow)
+      registerHostWidgetHandlers(mainWindow)
+    } else {
+      console.error('[Main] mainWindow nie zostało poprawnie utworzone!')
+    }
+
+    initHostWidget()
 
     ipcMain.handle('show-host-widget', () => {
-      createHostWidget()
+      showHostWidget()
       if (mainWindow && !mainWindow.isDestroyed()) mainWindow.hide()
     })
 
     ipcMain.handle('hide-host-widget', () => {
-      closeHostWidget()
+      closeHostWidget() // Zgodnie z nowym kodem widgetu, to teraz wywołuje .hide()
       if (mainWindow && !mainWindow.isDestroyed()) mainWindow.show()
     })
 
@@ -151,12 +164,6 @@ if (!gotTheLock) {
       },
       { useSystemPicker: true }
     )
-
-    createWindow()
-
-    if (mainWindow) {
-      trayService.init(mainWindow, trayIconDefault)
-    }
 
     ipcMain.handle('save-file', async (_, buffer: ArrayBuffer) => {
       const { filePath } = await dialog.showSaveDialog({
