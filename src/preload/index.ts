@@ -159,6 +159,8 @@ const api = {
     showApp: (): Promise<void> => ipcRenderer.invoke('show-main-window'),
     hideToTray: (): Promise<void> => ipcRenderer.invoke('hide-to-tray'),
     quitApp: (): Promise<void> => ipcRenderer.invoke('quit-app'),
+    showHostWidget: (): Promise<void> => ipcRenderer.invoke('show-host-widget'),
+    hideHostWidget: (): Promise<void> => ipcRenderer.invoke('hide-host-widget'),
 
     setHostTrayMode: (active: boolean): Promise<void> =>
       ipcRenderer.invoke('set-host-tray-mode', active)

@@ -127,6 +127,8 @@ declare global {
         quitApp: () => Promise<void>
         showApp: () => Promise<void>
         hideToTray: () => Promise<void>
+        showHostWidget: () => Promise<void>
+        hideHostWidget: () => Promise<void>
         setHostTrayMode: (active: boolean) => Promise<void>
       }
       input: {
