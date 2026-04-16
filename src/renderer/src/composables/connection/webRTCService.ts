@@ -84,8 +84,8 @@ export class WebRTCService {
       config.iceServers!.push(
         { urls: `stun:${server}:3478` },
         { urls: `turn:${server}:3478`, username: serverUser, credential: serverPass },
-        { urls: `turns:${server}:443`, username: serverUser, credential: serverPass },
-        { urls: `turns:${server}:5349`, username: serverUser, credential: serverPass }
+        { urls: `turns:${server}:5349`, username: serverUser, credential: serverPass },
+        { urls: `turns:${server}:443`, username: serverUser, credential: serverPass }
       )
     } else {
       config.iceServers!.push({ urls: 'stun:stun.l.google.com:19302' })
