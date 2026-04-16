@@ -130,7 +130,7 @@ declare global {
         setHostTrayMode: (active: boolean) => Promise<void>
       }
       input: {
-        moveMousePercent: (xPercent: number, yPercent: number) => Promise<{ ok: boolean }>
+        moveAbsolute: (x: number, y: number) => Promise<void>
       }
       events: {
         onToggleMic: (callback: () => void) => void

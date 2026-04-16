@@ -164,8 +164,8 @@ const api = {
       ipcRenderer.invoke('set-host-tray-mode', active)
   },
   input: {
-    moveMousePercent: (xPercent: number, yPercent: number): Promise<{ ok: boolean }> =>
-      ipcRenderer.invoke('input:moveMousePercent', xPercent, yPercent)
+    moveAbsolute: (x: number, y: number): Promise<void> =>
+      ipcRenderer.invoke('input:move-absolute', x, y)
   },
 
   events: {
