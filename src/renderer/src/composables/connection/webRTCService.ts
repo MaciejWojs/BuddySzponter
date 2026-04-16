@@ -73,7 +73,7 @@ export class WebRTCService {
     this.systemTransceiver = null
 
     const server = import.meta.env.VITE_ICE_SERVER
-    const serverUser = import.meta.env.VITE_ICE_SERVER_USER || 'user'
+    const serverUser = import.meta.env.VITE_ICE_SERVER_USER || 'test'
     const serverPass = import.meta.env.VITE_ICE_SERVER_PASS || '1234'
 
     const config: RTCConfiguration = {

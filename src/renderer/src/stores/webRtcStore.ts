@@ -10,7 +10,7 @@ import {
 import { useConnectionMetrics } from '@renderer/composables/connection/useConnectionMetrics'
 import { WsWebRTCOffer, WsWebRTCAnswer, WsWebRTCIceCandidate } from '@shared/schemas/ws'
 import { ChatChannel } from '@renderer/composables/channels/ChatChannel'
-import { HidChannel } from '@renderer/composables/channels/HidChannel'
+import { useHidChannel } from '@renderer/composables/channels/HidChannel'
 import { SystemEventsChannel } from '@renderer/composables/channels/SystemEventsChannel'
 import { videoService } from '@renderer/services/videoService'
 import { microphoneService } from '@renderer/services/micService'
@@ -42,7 +42,7 @@ export const useWebRtcStore = defineStore('webrtc', () => {
 
   const connectionMetrics = useConnectionMetrics(rtcStatus)
   const chat = ChatChannel()
-  const hid = HidChannel()
+  const hid = useHidChannel()
   const system = SystemEventsChannel((): void => forceDisconnect())
 
   const getCurrentTrackPolicy = (): typeof hostTrackPolicy => {
@@ -53,6 +53,7 @@ export const useWebRtcStore = defineStore('webrtc', () => {
 
   const startConnectionAsHost = async (): Promise<void> => {
     localPublishProfile.value = 'host'
+    hid.setLocalRole('host')
     webRtcService.cleanup()
     webRtcService.initialize(true)
     if (localStream.value)
@@ -64,6 +65,7 @@ export const useWebRtcStore = defineStore('webrtc', () => {
   }
 
   const handleOffer = async (data: WsWebRTCOffer): Promise<void> => {
+    hid.setLocalRole('guest')
     webRtcService.cleanup()
     webRtcService.initialize(false)
     rtcStatus.value = 'connecting'
@@ -104,8 +106,13 @@ export const useWebRtcStore = defineStore('webrtc', () => {
       const msg = JSON.parse(data)
       if (channelLabel === 'chat-channel' && msg.type === 'CHAT')
         chat.handleIncomingMessage(msg.payload)
-      if (channelLabel === 'hid-control' && msg.type === 'MOUSE_MOVE')
-        hid.handleIncomingMessage(msg.payload)
+      if (
+        channelLabel === 'hid-control' &&
+        (msg.type === 'MOUSE_MOVE' ||
+          msg.type === 'HID_HANDSHAKE' ||
+          msg.type === 'HID_PERMISSION_UPDATE')
+      )
+        hid.handleIncomingMessage(msg)
       if (channelLabel === 'system-events') system.handleIncomingMessage(msg)
       if (channelLabel === 'metrics' && msg.type === 'METRICS')
         connectionMetrics.applyRemoteMetrics(msg.payload)
@@ -129,6 +136,7 @@ export const useWebRtcStore = defineStore('webrtc', () => {
     connectionMetrics.stop()
     rtcStatus.value = 'disconnected'
     webRtcService.cleanup()
+    hid.resetState()
     remoteStream.value = null
     localPublishProfile.value = 'host'
 
@@ -152,6 +160,7 @@ export const useWebRtcStore = defineStore('webrtc', () => {
 
   const setLocalPublishProfile = (profile: 'host' | 'guest'): void => {
     localPublishProfile.value = profile
+    hid.setLocalRole(profile)
     if (rtcStatus.value !== 'disconnected' && localStream.value) {
       webRtcService.publishLocalStream(localStream.value, getCurrentTrackPolicy())
     }
@@ -263,7 +272,11 @@ export const useWebRtcStore = defineStore('webrtc', () => {
     localMetrics: connectionMetrics.localMetrics,
     remoteMetrics: connectionMetrics.remoteMetrics,
     sendChatMessage: chat.sendChatMessage,
-    sendMousePosition: hid.sendMousePosition,
+    sendMousePosition: (x: number, y: number): void =>
+      hid.sendMouseFromVideo(
+        Math.min(Math.max(x, 0), 100) / 100,
+        Math.min(Math.max(y, 0), 100) / 100
+      ),
     sendVideoCommand: system.sendVideoCommand,
     toggleMicrophone,
     toggleSystemAudio,
