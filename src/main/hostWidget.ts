@@ -112,8 +112,8 @@ export function registerHostWidgetHandlers(mainWindow: BrowserWindow | null): vo
   })
 }
 
-export function broadcastLockoutToWidget(isLockedOut: boolean): void {
+export function broadcastLockoutToWidget(payload: { active: boolean; until: number }): void {
   if (hostWidgetWindow && !hostWidgetWindow.isDestroyed()) {
-    hostWidgetWindow.webContents.send('input:host-lockout', isLockedOut)
+    hostWidgetWindow.webContents.send('input:host-lockout', payload)
   }
 }

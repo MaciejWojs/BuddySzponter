@@ -18,7 +18,7 @@ let mainWindowRef: BrowserWindow | null = null
 // Konfiguracja
 const GRACE_PERIOD_MS = 200 // Ignoruj ruchy systemowe przez 200ms po iniekcji
 const LOCKOUT_DURATION_MS = 3000 // Blokada na 3 sekundy po wykryciu ruchu hosta
-const MOVEMENT_THRESHOLD = 3 // Czułość (piksele)
+const MOVEMENT_THRESHOLD = 0 // Czułość (piksele)
 
 const ensureBridgeReady = async (): Promise<InputBridge> => {
   if (bridge) return bridge
@@ -62,16 +62,18 @@ const startHostTracker = (): void => {
 
       if (!isCurrentlyLockedOut) {
         isCurrentlyLockedOut = true
-        mainWindowRef?.webContents.send('input:host-lockout', true)
-        broadcastLockoutToWidget(true)
+        const payload = { active: true, until: hostLockoutUntil }
+        mainWindowRef?.webContents.send('input:host-lockout', payload)
+        broadcastLockoutToWidget(payload)
         console.log('[InputService] Host moved mouse - Lockout engaged')
       }
     }
     // 3. Zdejmowanie blokady po czasie bezczynności
     else if (isCurrentlyLockedOut && now >= hostLockoutUntil) {
       isCurrentlyLockedOut = false
-      mainWindowRef?.webContents.send('input:host-lockout', false)
-      broadcastLockoutToWidget(false)
+      const payload = { active: false, until: 0 }
+      mainWindowRef?.webContents.send('input:host-lockout', payload)
+      broadcastLockoutToWidget(payload)
       console.log('[InputService] Lockout released')
     }
   }, 50)
