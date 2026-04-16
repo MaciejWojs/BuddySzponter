@@ -17,6 +17,7 @@ import fs from 'fs'
 
 // --- ODBLOKOWANE: Importy hostWidget ---
 import { closeHostWidget, createHostWidget, registerHostWidgetHandlers } from './hostWidget'
+import { inputService } from './services/inputService'
 // import trayIconDefault from '../../resources/tray/default.png?asset'
 // import { trayService } from './services/trayService'
 
@@ -146,6 +147,7 @@ if (!gotTheLock) {
     try {
       if (mainWindow) {
         registerHostWidgetHandlers(mainWindow)
+        inputService.init(mainWindow)
       }
     } catch (error) {
       console.error('Error registering host widget handlers:', error)
