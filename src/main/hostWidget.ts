@@ -91,6 +91,13 @@ export function registerHostWidgetHandlers(mainWindow: BrowserWindow | null): vo
     }
   })
 
+  // Dodany handler do przekazania kontroli
+  ipcMain.handle('widget:toggle-control', (_event, payload: { granted: boolean }) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('widget:toggle-control', payload)
+    }
+  })
+
   ipcMain.handle('widget:toggle-chat', () => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('widget:toggle-chat')
