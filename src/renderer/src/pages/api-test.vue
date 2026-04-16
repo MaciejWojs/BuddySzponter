@@ -13,10 +13,14 @@ const isHostConnected = computed(() => connectionStore.isHost && isRtcConnected.
 const isGuestConnected = computed(() => !connectionStore.isHost && isRtcConnected.value)
 
 const syncWindowMode = async (hostActive: boolean): Promise<void> => {
-  if (hostActive) {
-    await window.api.app.showHostWidget()
-  } else {
-    await window.api.app.hideHostWidget()
+  try {
+    if (hostActive) {
+      await window.api.app.showHostWidget()
+    } else {
+      await window.api.app.hideHostWidget()
+    }
+  } catch (error) {
+    console.warn('[SyncWindowMode] Nie udało się zsynchronizować widgetu:', error)
   }
 }
 
@@ -29,11 +33,11 @@ watch(
 )
 
 onUnmounted(() => {
-  void window.api.app.hideHostWidget()
+  window.api.app.hideHostWidget().catch(() => {})
 })
 </script>
 
 <template>
   <BuGuestVideo v-if="isGuestConnected" />
-  <BuApiTestPanel v-else />
+  <BuApiTestPanel />
 </template>

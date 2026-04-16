@@ -3,7 +3,7 @@ import { computed, onUnmounted } from 'vue'
 import { useConnectionStore } from '@renderer/stores/connectionStore'
 import { useSocketStore } from '@renderer/stores/socketStore'
 import { useWebRtcStore } from '@renderer/stores/webRtcStore'
-import { SessionStore } from '@renderer/stores/sessionStore' // Używamy poprawnej nazwy composable z Pinii
+import { useSessionStore } from '@renderer/stores/sessionStore' // Używamy poprawnej nazwy composable z Pinii
 
 import VideoPlayer from '../p2p/VideoPlayer.vue'
 import BuHostMouseRealtimeControl from './BuHostMouseRealtimeControl.vue'
@@ -11,7 +11,7 @@ import BuHostMouseRealtimeControl from './BuHostMouseRealtimeControl.vue'
 const connectionStore = useConnectionStore()
 const socketStore = useSocketStore()
 const webRtcStore = useWebRtcStore()
-const sessionStore = SessionStore()
+const sessionStore = useSessionStore()
 
 // FIX: Dodane : void do każdej z tych funkcji dla ESLint
 const handleManualConnect = (): void => void socketStore.connect('awaryjny-token-z-palca')

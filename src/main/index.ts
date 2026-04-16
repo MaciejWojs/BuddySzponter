@@ -2,7 +2,6 @@ import { app, shell, BrowserWindow, ipcMain, session, desktopCapturer, dialog } 
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
-import trayIconDefault from '../../resources/tray/default.png?asset'
 import { handshake } from './utils/handshake'
 import { secureStore } from './store/secureStore'
 import { API_ROUTES } from './apiRoutes'
@@ -15,17 +14,41 @@ import { connectionService } from './services/ConnectionService'
 import { screenService } from './services/screenService'
 import { wsService } from './services/ws/WsService'
 import fs from 'fs'
-import {
-  closeHostWidget,
-  initHostWidget,
-  registerHostWidgetHandlers,
-  showHostWidget
-} from './hostWidget'
-import { trayService } from './services/trayService'
-import { inputService } from './services/inputService'
+
+// --- ODBLOKOWANE: Importy hostWidget ---
+import { closeHostWidget, createHostWidget, registerHostWidgetHandlers } from './hostWidget'
+// import trayIconDefault from '../../resources/tray/default.png?asset'
+// import { trayService } from './services/trayService'
 
 let mainWindow: BrowserWindow | null = null
-export let isQuitting = false
+let isQuitting = false
+
+export function quitApp(): void {
+  isQuitting = true
+  app.quit()
+}
+
+// Funkcja bezpiecznego ukrywania (minimalizacji) bez zabijania WebRTC
+function hideWindowSafely(win: BrowserWindow | null): void {
+  if (win && !win.isDestroyed()) {
+    win.minimize()
+    // Jeśli wolisz, żeby okno całkowicie zniknęło, a nie było zminimalizowane na pasku,
+    // użyj poniższych dwóch linii zamiast win.minimize():
+    // win.setOpacity(0)
+    // win.setSkipTaskbar(true)
+  }
+}
+
+function showWindowSafely(win: BrowserWindow | null): void {
+  if (win && !win.isDestroyed()) {
+    if (win.isMinimized()) win.restore()
+    // Jeśli używasz opacity zamiast minimize, odkomentuj to:
+    // win.setOpacity(1)
+    // win.setSkipTaskbar(false)
+    win.show()
+    win.focus()
+  }
+}
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -49,7 +72,7 @@ function createWindow(): void {
   mainWindow.on('close', (event) => {
     if (!isQuitting) {
       event.preventDefault()
-      mainWindow?.hide() // Ukrywa zamiast zamykać
+      hideWindowSafely(mainWindow)
     }
   })
 
@@ -77,43 +100,27 @@ if (!gotTheLock) {
 } else {
   if (useSingleInstanceLock) {
     app.on('second-instance', () => {
-      if (mainWindow) {
-        if (mainWindow.isMinimized()) mainWindow.restore()
-        mainWindow.show()
-        mainWindow.focus()
-      }
-      dialog.showErrorBox(
-        'Welcome Back',
-        'Another instance of the app was attempted to be opened, but it has been prevented. The existing instance has been focused instead.'
-      )
+      showWindowSafely(mainWindow)
     })
   }
 
-  // This method will be called when Electron has finished
-  // initialization and is ready to create browser windows.
-  // Some APIs can only be used after this event occurs.
   app.whenReady().then(async () => {
-    // Set app user model id for windows
     electronApp.setAppUserModelId('com.electron')
 
     app.commandLine.appendSwitch('disable-renderer-backgrounding')
     app.commandLine.appendSwitch('disable-background-timer-throttling')
+    app.commandLine.appendSwitch('disable-backgrounding-occluded-windows')
 
-    // Default open or close DevTools by F12 in development
-    // and ignore CommandOrControl + R in production.
-    // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
     app.on('browser-window-created', (_, window) => {
       optimizer.watchWindowShortcuts(window)
     })
-
-    // IPC test
-    ipcMain.on('ping', () => console.log('pong'))
 
     if (import.meta.env.VITE_CLEAR_STORES === 'true') {
       clearLocalStore()
       secureStore.clearSession()
       console.log('Stores cleared on startup due to VITE_CLEAR_STORES=true')
     }
+
     authService.registerHandler()
     appSettings.registerHandlers()
     coreService.registerHandlers()
@@ -121,39 +128,60 @@ if (!gotTheLock) {
     connectionService.registerHandlers()
     screenService.registerHandlers()
     wsService.registerWsHandlers()
-    createWindow()
 
-    if (mainWindow) {
-      trayService.init(mainWindow, trayIconDefault)
-      await inputService.init(mainWindow)
-      registerHostWidgetHandlers(mainWindow)
-    } else {
-      console.error('[Main] mainWindow nie zostało poprawnie utworzone!')
+    try {
+      const baseURL = import.meta.env.VITE_API_BASE_URL
+      const url = `${baseURL}${API_ROUTES.CRYPTO.HANDSHAKE}`
+      const r = await handshake(url)
+      secureStore.setSecure('sessionId', r.sessionId)
+      secureStore.setSecure('aesKey', r.aesKey)
+      console.log('Handshake completed, sessionId and aesKey stored securely')
+    } catch (error) {
+      console.error('Error during handshake:', error)
     }
 
-    initHostWidget()
+    createWindow()
 
+    // --- BEZPIECZNA REJESTRACJA WIDGETU ---
+    try {
+      if (mainWindow) {
+        registerHostWidgetHandlers(mainWindow)
+      }
+    } catch (error) {
+      console.error('Error registering host widget handlers:', error)
+    }
+
+    // --- IPC MAIN HANDLERY DLA WIDGETU ---
     ipcMain.handle('show-host-widget', () => {
-      showHostWidget()
-      if (mainWindow && !mainWindow.isDestroyed()) mainWindow.hide()
+      createHostWidget()
+      hideWindowSafely(mainWindow) // Bezpieczne chowanie okna
     })
 
     ipcMain.handle('hide-host-widget', () => {
-      closeHostWidget() // Zgodnie z nowym kodem widgetu, to teraz wywołuje .hide()
-      if (mainWindow && !mainWindow.isDestroyed()) mainWindow.show()
+      closeHostWidget()
+      showWindowSafely(mainWindow) // Przywracanie okna
     })
 
     ipcMain.handle('hide-to-tray', () => {
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.hide()
-      }
+      hideWindowSafely(mainWindow)
     })
 
     ipcMain.handle('show-main-window', () => {
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.show()
-        mainWindow.focus()
-      }
+      showWindowSafely(mainWindow)
+    })
+
+    ipcMain.handle('set-host-tray-mode', () => {
+      /* na razie wyłączone z trayService */
+    })
+
+    ipcMain.handle('quit-app', () => {
+      quitApp()
+    })
+
+    ipcMain.handle('save-file', async (_, buffer: ArrayBuffer) => {
+      const { filePath } = await dialog.showSaveDialog({ defaultPath: 'recording.webm' })
+      if (!filePath) return
+      fs.writeFileSync(filePath, Buffer.from(buffer))
     })
 
     session.defaultSession.setDisplayMediaRequestHandler(
@@ -165,45 +193,11 @@ if (!gotTheLock) {
       { useSystemPicker: true }
     )
 
-    ipcMain.handle('save-file', async (_, buffer: ArrayBuffer) => {
-      const { filePath } = await dialog.showSaveDialog({
-        defaultPath: 'recording.webm'
-      })
-
-      if (!filePath) return
-
-      fs.writeFileSync(filePath, Buffer.from(buffer))
-    })
-
-    try {
-      const baseURL = import.meta.env.VITE_API_BASE_URL
-      const url = `${baseURL}${API_ROUTES.CRYPTO.HANDSHAKE}`
-
-      const r = await handshake(url)
-
-      secureStore.setSecure('sessionId', r.sessionId)
-      secureStore.setSecure('aesKey', r.aesKey)
-
-      console.log('Handshake completed, sessionId and aesKey stored securely')
-    } catch (error) {
-      console.error('Error during handshake:', error)
-    }
-
-    //! Test handshake and encryption
-    // handshake()
-    //   .then((r) => console.log('Handshake completed'))
-    //   .catch((e) => console.error('Handshake failed:', e))
-
     app.on('activate', function () {
-      // On macOS it's common to re-create a window in the app when the
-      // dock icon is clicked and there are no other windows open.
       if (BrowserWindow.getAllWindows().length === 0) createWindow()
     })
   })
 
-  // Quit when all windows are closed, except on macOS. There, it's common
-  // for applications and their menu bar to stay active until the user quits
-  // explicitly with Cmd + Q.
   app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') {
       app.quit()
