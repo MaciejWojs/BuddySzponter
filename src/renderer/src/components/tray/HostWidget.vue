@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from 'vue'
 import { useSocketStore } from '@renderer/stores/socketStore'
+import { hidReceiver } from '@renderer/services/hid/hidReceiverService'
 
 const isMuted = ref<boolean>(false)
 const hasUnread = ref<boolean>(true)
@@ -36,6 +37,10 @@ const endSession = async (): Promise<void> => {
   await invokeAction('widget:end-session')
   useSocketStore().disconnect()
   window.electron.ipcRenderer.send('widget-close-session')
+}
+
+const giveControl = (): void => {
+  hidReceiver.grantControl()
 }
 
 onMounted(() => {
@@ -97,6 +102,16 @@ onUnmounted(() => {
         </svg>
       </button>
 
+      <button class="tool-btn idle" type="button" title="Oddaj kontrolę" @click="giveControl">
+        <svg viewBox="0 0 24 24" class="icon">
+          <path
+            d="M12 2a5 5 0 0 1 5 5v3h1a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h1V7a5 5 0 0 1 5-5Zm0 2a3 3 0 0 0-3 3v3h6V7a3 3 0 0 0-3-3Zm-4 8v8h12v-8H8Z"
+            fill="currentColor"
+          />
+        </svg>
+        <span style="font-size: 11px; margin-left: 4px">Oddaj kontrolę</span>
+      </button>
+
       <button class="tool-btn idle chat-btn" type="button" title="Czat" @click="toggleChat">
         <svg viewBox="0 0 24 24" class="icon">
           <path
@@ -156,6 +171,8 @@ onUnmounted(() => {
 
 .center-group {
   gap: 8px;
+  /* Zwiększ odstęp na dodatkowy przycisk */
+  gap: 12px;
 }
 
 .drag-handle {
