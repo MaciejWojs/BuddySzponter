@@ -5,11 +5,8 @@ import { is } from '@electron-toolkit/utils'
 
 let hostWidgetWindow: BrowserWindow | null = null
 
-export function createHostWidget(): void {
-  if (hostWidgetWindow) {
-    hostWidgetWindow.show()
-    return
-  }
+export function initHostWidget(): void {
+  if (hostWidgetWindow) return
 
   const primaryDisplay = screen.getPrimaryDisplay()
   const { width } = primaryDisplay.workAreaSize
@@ -22,7 +19,7 @@ export function createHostWidget(): void {
     height: WIDGET_HEIGHT,
     x: width / 2 - WIDGET_WIDTH / 2,
     y: 20,
-
+    show: false,
     frame: false,
     transparent: true,
     alwaysOnTop: true,
@@ -31,7 +28,6 @@ export function createHostWidget(): void {
     minimizable: false,
     maximizable: false,
     hasShadow: true,
-
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,
@@ -48,16 +44,18 @@ export function createHostWidget(): void {
   } else {
     hostWidgetWindow.loadFile(join(__dirname, '../renderer/index.html'), { hash: 'host-widget' })
   }
+}
 
-  hostWidgetWindow.on('closed', () => {
-    hostWidgetWindow = null
-  })
+export function showHostWidget(): void {
+  if (hostWidgetWindow) {
+    hostWidgetWindow.show()
+  }
 }
 
 export function closeHostWidget(): void {
   if (hostWidgetWindow) {
-    hostWidgetWindow.close()
-    hostWidgetWindow = null
+    // 2. UKRYWAMY ZAMIAST NISZCZYĆ
+    hostWidgetWindow.hide()
   }
 }
 
@@ -68,4 +66,10 @@ export function registerHostWidgetHandlers(mainWindow: BrowserWindow | null): vo
     }
     closeHostWidget()
   })
+}
+
+export function broadcastLockoutToWidget(isLockedOut: boolean): void {
+  if (hostWidgetWindow && !hostWidgetWindow.isDestroyed()) {
+    hostWidgetWindow.webContents.send('input:host-lockout', isLockedOut)
+  }
 }
