@@ -1,7 +1,7 @@
-// src/main/services/trayService.ts
-import { Tray, BrowserWindow, nativeImage, screen, ipcMain, app } from 'electron'
+import { Tray, BrowserWindow, nativeImage, screen, ipcMain } from 'electron'
 import { isAbsolute, join } from 'path'
 import { is } from '@electron-toolkit/utils'
+import { quitApp } from '../index' // <-- Importujemy bezpieczne zamykanie
 
 let tray: Tray | null = null
 let trayWindow: BrowserWindow | null = null
@@ -31,8 +31,8 @@ export const trayService = {
 
     this.createTrayWindow()
 
-    mainWindow.on('hide', () => this.showTrayIcon())
-    mainWindow.on('show', () => this.hideTrayIcon())
+    // USUNIĘTE: Nasłuchiwanie na mainWindow.on('hide') i ('show').
+    // Teraz będziemy to kontrolować ręcznie z poziomu index.ts
 
     ipcMain.handle('set-host-tray-mode', (_event, active: boolean) => {
       isHostMode = active
@@ -41,8 +41,9 @@ export const trayService = {
       }
     })
 
+    // Używamy bezpiecznej funkcji zamykania z ustawieniem flagi
     ipcMain.handle('quit-app', () => {
-      app.quit()
+      quitApp()
     })
   },
 
@@ -66,12 +67,13 @@ export const trayService = {
   restoreMainWindow() {
     if (mainWindowRef && !mainWindowRef.isDestroyed()) {
       mainWindowRef.show()
+      mainWindowRef.setOpacity(1) // <-- PRZYWRACAMY WIDOCZNOŚĆ
+      mainWindowRef.setSkipTaskbar(false) // <-- PRZYWRACAMY NA PASEK ZADAŃ
       mainWindowRef.focus()
     }
-    if (trayWindow) {
-      isMenuOpen = false
-      trayWindow.setPosition(-10000, -10000)
-    }
+
+    // Ukrywamy tray i menu po przywróceniu okna
+    this.hideTrayIcon()
   },
 
   hideTrayIcon() {
