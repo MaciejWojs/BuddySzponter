@@ -12,16 +12,16 @@
 
     <div class="flex gap-2">
       <button
-        @click="startCapture"
         :disabled="isCapturing"
         class="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-4 py-2 rounded font-medium transition-colors"
+        @click="startCapture"
       >
         Start
       </button>
       <button
-        @click="stopCapture"
         :disabled="!isCapturing"
         class="bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-4 py-2 rounded font-medium transition-colors"
+        @click="stopCapture"
       >
         Stop
       </button>
@@ -30,7 +30,7 @@
     <div
       class="border border-[#444] rounded overflow-hidden bg-black/80 aspect-video relative flex items-center justify-center"
     >
-      <canvas ref="canvasRef" class="w-full h-full object-contain" v-if="isCapturing"></canvas>
+      <canvas v-if="isCapturing" ref="canvasRef" class="w-full h-full object-contain"></canvas>
       <p v-else class="text-gray-500 font-medium absolute">Podgląd zablokowany</p>
     </div>
   </div>
@@ -42,44 +42,64 @@ import { ref, onBeforeUnmount } from 'vue'
 const isCapturing = ref(false)
 const canvasRef = ref<HTMLCanvasElement | null>(null)
 let stopStream: (() => void) | null = null
+const shouldUseCpu = ref(false)
+const hasNativeScreenCapture =
+  typeof window.screenCapture?.onFrameReceived === 'function' &&
+  typeof window.screenCapture?.requestStream === 'function' &&
+  typeof window.screenCapture?.stopStream === 'function'
+const canRegisterSharedTexture = typeof window.screenCapture?.registerReceiver === 'function'
 
-const startCapture = async () => {
+const startCapture = async (): Promise<void> => {
+  if (window.screenCapture?.shouldUseCpu) {
+    shouldUseCpu.value = await window.screenCapture.shouldUseCpu()
+  }
   if (isCapturing.value) return
 
   try {
-    await window.capture.start()
-    isCapturing.value = true
-
-    stopStream = window.capture.subscribeStream((frame: VideoFrame) => {
-      if (isCapturing.value && canvasRef.value) {
-        const canvas = canvasRef.value
-        const width = frame.displayWidth || frame.codedWidth || canvas.width
-        const height = frame.displayHeight || frame.codedHeight || canvas.height
-
-        if (canvas.width !== width || canvas.height !== height) {
-          canvas.width = width
-          canvas.height = height
-        }
-
-        const ctx = canvas.getContext('2d')
-        if (ctx) {
-          ctx.drawImage(frame, 0, 0, canvas.width, canvas.height)
-        }
+    if (hasNativeScreenCapture) {
+      if (!shouldUseCpu.value && canRegisterSharedTexture) {
+        window.screenCapture.registerReceiver()
       }
-      
-      frame.close()
-    })
+      stopStream = window.screenCapture.onFrameReceived((frame: VideoFrame): void => {
+        if (isCapturing.value && canvasRef.value) {
+          const canvas = canvasRef.value
+          const width = frame.displayWidth || frame.codedWidth || canvas.width
+          const height = frame.displayHeight || frame.codedHeight || canvas.height
+
+          if (canvas.width !== width || canvas.height !== height) {
+            canvas.width = width
+            canvas.height = height
+          }
+
+          const ctx = canvas.getContext('2d')
+          if (ctx) {
+            ctx.drawImage(frame, 0, 0, canvas.width, canvas.height)
+          }
+        }
+
+        frame.close()
+      })
+
+      window.screenCapture.requestStream()
+    } else {
+      console.warn(
+        'Nie znaleziono dostępnej metody screenCapture w preload. Przechwytywanie nie zostało uruchomione.'
+      )
+      return
+    }
+
+    isCapturing.value = true
   } catch (error) {
     console.error('Failed to start capture:', error)
   }
 }
 
-const stopCapture = async () => {
+const stopCapture = async (): Promise<void> => {
   if (!isCapturing.value) return
 
   try {
     isCapturing.value = false
-    
+
     if (stopStream) {
       stopStream()
       stopStream = null
@@ -94,7 +114,9 @@ const stopCapture = async () => {
       }
     }
 
-    await window.capture.stop()
+    if (hasNativeScreenCapture) {
+      window.screenCapture.stopStream()
+    }
   } catch (error) {
     console.error('Failed to stop capture:', error)
   }

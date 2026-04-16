@@ -196,6 +196,46 @@ try {
   console.error('[Preload] Failed to set shared texture receiver:', e)
 }
 
+interface RawFramePayload {
+  buffer: ArrayBuffer | Uint8Array
+  width: number
+  height: number
+  stride: number
+  format: number
+}
+
+ipcRenderer.on('capture:raw-frame', async (_, rawFrame: RawFramePayload) => {
+  if (!currentOnFrame || !rawFrame) {
+    return
+  }
+
+  try {
+    let pixelData: Uint8ClampedArray
+
+    if (rawFrame.buffer instanceof ArrayBuffer) {
+      pixelData = new Uint8ClampedArray(rawFrame.buffer)
+    } else {
+      pixelData = new Uint8ClampedArray(
+        rawFrame.buffer.buffer as ArrayBuffer,
+        rawFrame.buffer.byteOffset,
+        rawFrame.buffer.byteLength
+      )
+    }
+
+    const imageData = new ImageData(
+      pixelData as unknown as ImageDataArray,
+      rawFrame.width,
+      rawFrame.height
+    )
+    const bitmap = await createImageBitmap(imageData)
+    const frame = new VideoFrame(bitmap, { timestamp: performance.now() * 1000 })
+
+    currentOnFrame(frame)
+  } catch (e) {
+    console.error('[Preload] Odbiór surowej klatki:', e)
+  }
+})
+
 // Use `contextBridge` APIs to expose Electron APIs to
 // renderer only if context isolation is enabled, otherwise
 // just add to the DOM global.
@@ -203,7 +243,7 @@ if (process.contextIsolated) {
   try {
     contextBridge.exposeInMainWorld('electron', electronAPI)
     contextBridge.exposeInMainWorld('api', api)
-    
+
     contextBridge.exposeInMainWorld('recorder', recorder)
 
     contextBridge.exposeInMainWorld('capture', {
@@ -250,6 +290,9 @@ if (process.contextIsolated) {
             currentOnFrame = null
           }
         }
+      },
+      shouldUseCpu: async (): Promise<boolean> => {
+        return ipcRenderer.invoke('capture:should-use-cpu')
       }
     })
   } catch (error) {
