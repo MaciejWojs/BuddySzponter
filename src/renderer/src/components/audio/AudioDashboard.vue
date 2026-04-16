@@ -5,6 +5,7 @@ import { useWebRtcStore } from '@renderer/stores/webRtcStore'
 import { SessionStore } from '@renderer/stores/sessionStore'
 import { microphoneService } from '@renderer/services/micService'
 import VUMeter from './VUMeter.vue'
+import SelectMicrophone from './SelectMicrophone.vue'
 
 interface DuckingPreset {
   id: 'balanced' | 'voice-focus' | 'aggressive' | 'stream'
@@ -189,13 +190,6 @@ const handleDeviceChange = (): void => {
   void sessionStore.refreshMicrophones()
 }
 
-const handleSelectedMicrophoneChange = async (): Promise<void> => {
-  if (sessionStore.isCapturing) {
-    await sessionStore.applySelectedMicrophone()
-  }
-  syncMicMuteStateFromStream(webRtcStore.localStream)
-}
-
 const toggleMyMicMute = (): void => {
   isMyMicMuted.value = !isMyMicMuted.value
   webRtcStore.toggleMicrophone(isMyMicMuted.value)
@@ -306,23 +300,7 @@ watch(micStudioModeEnabled, (enabled) => {
           <h3 class="text-sm font-bold text-blue-300">🎙️ Moje Audio (Wysylane w siec)</h3>
         </div>
 
-        <div class="mb-4">
-          <label class="text-xs text-gray-300 block mb-1.5">Mikrofon</label>
-          <select
-            v-model="selectedMicrophoneDeviceId"
-            class="w-full px-3 py-2 rounded-md bg-[#111] border border-[#3a3a3a] text-gray-200 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
-            @change="handleSelectedMicrophoneChange"
-          >
-            <option value="">Domyslny mikrofon</option>
-            <option
-              v-for="mic in sessionStore.availableMicrophones"
-              :key="mic.deviceId"
-              :value="mic.deviceId"
-            >
-              {{ mic.label }}
-            </option>
-          </select>
-        </div>
+        <SelectMicrophone />
 
         <div class="mb-4">
           <div class="flex items-center justify-between mb-2">
