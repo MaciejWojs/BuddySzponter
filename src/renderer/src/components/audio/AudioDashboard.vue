@@ -5,7 +5,7 @@ import { useWebRtcStore } from '@renderer/stores/webRtcStore'
 import { SessionStore } from '@renderer/stores/sessionStore'
 import { microphoneService } from '@renderer/services/micService'
 import VUMeter from './VUMeter.vue'
-import SelectMicrophone from './SelectMicrophone.vue'
+import SelectMicrophoneL from './smart/SelectMicrophoneL.vue'
 
 interface DuckingPreset {
   id: 'balanced' | 'voice-focus' | 'aggressive' | 'stream'
@@ -300,7 +300,7 @@ watch(micStudioModeEnabled, (enabled) => {
           <h3 class="text-sm font-bold text-blue-300">🎙️ Moje Audio (Wysylane w siec)</h3>
         </div>
 
-        <SelectMicrophone />
+        <SelectMicrophoneL />
 
         <div class="mb-4">
           <div class="flex items-center justify-between mb-2">
