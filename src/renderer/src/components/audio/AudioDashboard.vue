@@ -6,6 +6,7 @@ import { SessionStore } from '@renderer/stores/sessionStore'
 import { microphoneService } from '@renderer/services/micService'
 import VUMeter from './VUMeter.vue'
 import SelectMicrophoneL from './smart/SelectMicrophoneL.vue'
+import MicrophoneVolumeL from './smart/MicrophoneVolumeL.vue'
 
 interface DuckingPreset {
   id: 'balanced' | 'voice-focus' | 'aggressive' | 'stream'
@@ -97,15 +98,6 @@ const mapSinePercentToValue = (percent: number, min: number, max: number): numbe
   return min + easeInOutSine(percent / 100) * (max - min)
 }
 
-const myMicPercent = computed<number>(() => Math.round(webRtcStore.localMicrophoneVolume * 100))
-
-const micVolumeSliderPercent = computed<number>({
-  get: () => mapValueToSinePercent(webRtcStore.localMicrophoneVolume, 0, 2),
-  set: (value) => {
-    webRtcStore.localMicrophoneVolume = mapSinePercentToValue(value, 0, 2)
-  }
-})
-
 const mySystemPercent = computed<number>({
   get: () => Math.round(webRtcStore.localSystemAudioVolume * 100),
   set: (value) => {
@@ -127,7 +119,6 @@ const guestSystemPercent = computed<number>({
   }
 })
 
-const isBoosting = computed(() => myMicPercent.value > 100)
 const limiterThresholdDb = computed<number>(() => (micLimiterEnabled.value ? -10 : 0))
 
 const micInputThresholdSliderPercent = computed<number>({
@@ -190,28 +181,8 @@ const handleDeviceChange = (): void => {
   void sessionStore.refreshMicrophones()
 }
 
-const toggleMyMicMute = (): void => {
-  isMyMicMuted.value = !isMyMicMuted.value
-  webRtcStore.toggleMicrophone(isMyMicMuted.value)
-}
-
-const syncMicMuteStateFromStream = (stream: MediaStream | null): void => {
-  if (!stream) {
-    isMyMicMuted.value = false
-    return
-  }
-
-  const micTrack =
-    stream.getAudioTracks().find((track) => track.contentHint === 'speech') ??
-    stream.getAudioTracks()[0] ??
-    null
-
-  if (!micTrack) {
-    isMyMicMuted.value = false
-    return
-  }
-
-  isMyMicMuted.value = !micTrack.enabled
+const handleMicMuteStateChange = (isMuted: boolean): void => {
+  isMyMicMuted.value = isMuted
 }
 
 const toggleMySystemMute = (): void => {
@@ -242,19 +213,11 @@ onMounted(() => {
 
   void sessionStore.refreshMicrophones()
   navigator.mediaDevices?.addEventListener?.('devicechange', handleDeviceChange)
-  syncMicMuteStateFromStream(webRtcStore.localStream)
 })
 
 onUnmounted(() => {
   navigator.mediaDevices?.removeEventListener?.('devicechange', handleDeviceChange)
 })
-
-watch(
-  () => webRtcStore.localStream,
-  (stream) => {
-    syncMicMuteStateFromStream(stream)
-  }
-)
 
 watch(micLimiterEnabled, (enabled) => {
   microphoneService.setLimiter(enabled)
@@ -303,43 +266,8 @@ watch(micStudioModeEnabled, (enabled) => {
         <SelectMicrophoneL />
 
         <div class="mb-4">
-          <div class="flex items-center justify-between mb-2">
-            <span class="text-xs text-gray-300">Glosnosc mikrofonu</span>
-            <span
-              class="text-xs font-mono font-semibold transition-colors"
-              :class="isBoosting ? 'text-amber-400' : 'text-blue-400'"
-            >
-              {{ myMicPercent }}%
-            </span>
-          </div>
-
           <div class="flex flex-col gap-3">
-            <div class="flex items-center gap-3">
-              <!-- //TODO - przerobić slider -->
-              <input
-                v-model.number="micVolumeSliderPercent"
-                type="range"
-                min="0"
-                max="100"
-                step="1"
-                class="pro-slider flex-1"
-                :class="isBoosting ? 'boost' : 'normal'"
-              />
-              <!-- TODO - przerobić button -->
-              <button
-                type="button"
-                class="h-9 w-9 rounded-md border text-xs font-bold transition-colors"
-                :class="
-                  isMyMicMuted
-                    ? 'bg-rose-900/30 border-rose-700 text-rose-300'
-                    : 'bg-[#202020] border-[#3f3f3f] text-gray-200 hover:border-blue-500'
-                "
-                :title="isMyMicMuted ? 'Wlacz mikrofon' : 'Wycisz mikrofon'"
-                @click="toggleMyMicMute()"
-              >
-                {{ isMyMicMuted ? '🎙️x' : '🎙️' }}
-              </button>
-            </div>
+            <MicrophoneVolumeL @mute-state-change="handleMicMuteStateChange" />
 
             <VUMeter
               class="w-full"
