@@ -61,18 +61,29 @@ onMounted(() => {
     <select
       ref="selectElement"
       v-model="selected"
-      class="w-full px-3 py-2 rounded-md text-gray-200 text-xs focus:outline-none focus:ring-1"
-      style="background-color: #06001f; border: 1px solid #2d0f44; transition: all 0.3s"
+      class="microphone-select w-full px-3 py-2 rounded-md text-gray-200 text-xs focus:outline-none focus:ring-1"
     >
-      <option value="" style="background-color: #06001f">Domyslny mikrofon</option>
+      <option value="" class="microphone-option">Domyslny mikrofon</option>
       <option
         v-for="mic in microphones"
         :key="mic.deviceId"
         :value="mic.deviceId"
-        style="background-color: #06001f"
+        class="microphone-option"
       >
         {{ mic.label }}
       </option>
     </select>
   </div>
 </template>
+
+<style scoped>
+.microphone-select {
+  background-color: #06001f;
+  border: 1px solid #2d0f44;
+  transition: all 0.3s;
+}
+
+.microphone-option {
+  background-color: #06001f;
+}
+</style>

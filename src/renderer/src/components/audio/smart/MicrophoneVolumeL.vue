@@ -1,8 +1,12 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useWebRtcStore } from '@renderer/stores/webRtcStore'
 import MicrophoneVolumeS from '../simple/MicrophoneVolumeS.vue'
+
+const emit = defineEmits<{
+  (e: 'mute-state-change', value: boolean): void
+}>()
 
 const webRtcStore = useWebRtcStore()
 const { localMicrophoneVolume, localStream } = storeToRefs(webRtcStore)
@@ -43,6 +47,14 @@ const isMyMicMuted = computed(() => {
 const toggleMyMicMute = (): void => {
   webRtcStore.toggleMicrophone(!isMyMicMuted.value)
 }
+
+watch(
+  isMyMicMuted,
+  (muted) => {
+    emit('mute-state-change', muted)
+  },
+  { immediate: true }
+)
 </script>
 
 <template>
