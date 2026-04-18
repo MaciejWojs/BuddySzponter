@@ -7,6 +7,7 @@ import { microphoneService } from '@renderer/services/micService'
 import SelectMicrophoneL from './smart/SelectMicrophoneL.vue'
 import MicrophoneVolumeL from './smart/MicrophoneVolumeL.vue'
 import VUMeterL from './smart/VUMeterL.vue'
+import InputThresholdL from './smart/InputThresholdL.vue'
 
 interface DuckingPreset {
   id: 'balanced' | 'voice-focus' | 'aggressive' | 'stream'
@@ -77,27 +78,6 @@ const duckingPresets: DuckingPreset[] = [
   }
 ]
 
-const clampUnit = (value: number): number => Math.max(0, Math.min(1, value))
-
-const easeInOutSine = (value: number): number => {
-  return 0.5 - Math.cos(Math.PI * clampUnit(value)) / 2
-}
-
-const inverseEaseInOutSine = (value: number): number => {
-  return Math.acos(1 - 2 * clampUnit(value)) / Math.PI
-}
-
-const mapValueToSinePercent = (value: number, min: number, max: number): number => {
-  if (max <= min) return 0
-  const normalized = clampUnit((value - min) / (max - min))
-  return inverseEaseInOutSine(normalized) * 100
-}
-
-const mapSinePercentToValue = (percent: number, min: number, max: number): number => {
-  if (max <= min) return min
-  return min + easeInOutSine(percent / 100) * (max - min)
-}
-
 const mySystemPercent = computed<number>({
   get: () => Math.round(webRtcStore.localSystemAudioVolume * 100),
   set: (value) => {
@@ -120,13 +100,6 @@ const guestSystemPercent = computed<number>({
 })
 
 const limiterThresholdDb = computed<number>(() => (micLimiterEnabled.value ? -10 : 0))
-
-const micInputThresholdSliderPercent = computed<number>({
-  get: () => mapValueToSinePercent(micInputThresholdDb.value, -60, limiterThresholdDb.value),
-  set: (value) => {
-    micInputThresholdDb.value = mapSinePercentToValue(value, -60, limiterThresholdDb.value)
-  }
-})
 
 const clampDb = (value: number, min = -60, max = 0): number => {
   if (!Number.isFinite(value)) return min
@@ -363,29 +336,10 @@ watch(micStudioModeEnabled, (enabled) => {
                 </div>
               </div>
 
-              <div>
-                <div class="flex items-center justify-between mb-2">
-                  <span class="text-xs text-gray-300">Próg wejścia (Noise Gate)</span>
-                  <span
-                    class="text-xs font-mono font-bold"
-                    :class="isAutoGate ? 'text-emerald-400' : 'text-cyan-300'"
-                  >
-                    {{ isAutoGate ? 'AUTO (Adaptacyjny)' : micInputThresholdDb.toFixed(1) + ' dB' }}
-                  </span>
-                </div>
-                <input
-                  v-model.number="micInputThresholdSliderPercent"
-                  type="range"
-                  min="0"
-                  max="100"
-                  step="0.5"
-                  class="pro-slider monitor w-full"
-                  :class="isAutoGate ? 'system' : ''"
-                />
-                <p v-if="isAutoGate" class="mt-1 text-[10px] text-gray-500">
-                  Bramka automatycznie uczy sie poziomu szumu w Twoim pokoju.
-                </p>
-              </div>
+              <InputThresholdL
+                v-model="micInputThresholdDb"
+                :limiter-threshold-db="limiterThresholdDb"
+              />
             </div>
           </div>
         </div>
