@@ -4,9 +4,9 @@ import { storeToRefs } from 'pinia'
 import { useWebRtcStore } from '@renderer/stores/webRtcStore'
 import { SessionStore } from '@renderer/stores/sessionStore'
 import { microphoneService } from '@renderer/services/micService'
-import VUMeter from './VUMeter.vue'
 import SelectMicrophoneL from './smart/SelectMicrophoneL.vue'
 import MicrophoneVolumeL from './smart/MicrophoneVolumeL.vue'
+import VUMeterL from './smart/VUMeterL.vue'
 
 interface DuckingPreset {
   id: 'balanced' | 'voice-focus' | 'aggressive' | 'stream'
@@ -269,7 +269,7 @@ watch(micStudioModeEnabled, (enabled) => {
           <div class="flex flex-col gap-3">
             <MicrophoneVolumeL @mute-state-change="handleMicMuteStateChange" />
 
-            <VUMeter
+            <VUMeterL
               class="w-full"
               context-mode="auto-mic"
               :enabled="sessionStore.includeMicrophone && !isMyMicMuted"
