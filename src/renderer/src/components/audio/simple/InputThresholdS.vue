@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import gsap from 'gsap'
 
 const props = defineProps<{
@@ -14,6 +14,7 @@ const emit = defineEmits<{
 
 const panelRef = ref<HTMLDivElement | null>(null)
 const sliderRef = ref<HTMLInputElement | null>(null)
+const valueRef = ref<HTMLSpanElement | null>(null)
 
 const thresholdLabel = computed(() =>
   props.isAutoGate ? 'AUTO (Adaptacyjny)' : `${props.thresholdDb.toFixed(1)} dB`
@@ -62,13 +63,32 @@ onUnmounted(() => {
   sliderRef.value?.removeEventListener('mouseenter', handleSliderEnter)
   sliderRef.value?.removeEventListener('mouseleave', handleSliderLeave)
 })
+
+watch(
+  () => props.thresholdDb,
+  () => {
+    if (!valueRef.value) return
+    gsap.fromTo(
+      valueRef.value,
+      { scale: 0.97, y: 0.5 },
+      {
+        scale: 1,
+        y: 0,
+        duration: 0.18,
+        ease: 'power2.out',
+        overwrite: true
+      }
+    )
+  }
+)
 </script>
 
 <template>
-  <div ref="panelRef">
+  <div ref="panelRef" class="rounded-md border border-[#2d0f44] bg-[#06001f]/75 p-2.5">
     <div class="mb-2 flex items-center justify-between">
-      <span class="text-xs text-gray-300">Próg wejścia (Noise Gate)</span>
+      <span class="text-xs text-violet-200/85">Próg wejścia (Noise Gate)</span>
       <span
+        ref="valueRef"
         class="text-xs font-mono font-bold"
         :class="isAutoGate ? 'text-emerald-400' : 'text-cyan-300'"
       >
@@ -88,7 +108,7 @@ onUnmounted(() => {
       @input="handleSliderInput"
     />
 
-    <p v-if="isAutoGate" class="mt-1 text-[10px] text-gray-500">
+    <p v-if="isAutoGate" class="mt-1 text-[10px] text-violet-300/55">
       Bramka automatycznie uczy sie poziomu szumu w Twoim pokoju.
     </p>
   </div>
@@ -99,8 +119,8 @@ onUnmounted(() => {
   appearance: none;
   height: 8px;
   border-radius: 999px;
-  background: linear-gradient(90deg, #1f2937 0%, #374151 100%);
-  border: 1px solid #2d0f44;
+  background: linear-gradient(90deg, #06001f 0%, #18072f 55%, #481566 100%);
+  border: 1px solid #3a1760;
   outline: none;
   transition:
     border-color 0.25s ease,
@@ -112,7 +132,7 @@ onUnmounted(() => {
   width: 16px;
   height: 16px;
   border-radius: 999px;
-  border: 2px solid #dbeafe;
+  border: 2px solid #f5d0fe;
   cursor: pointer;
   transition: all 160ms ease;
 }
@@ -130,7 +150,7 @@ onUnmounted(() => {
 .input-threshold-slider::-moz-range-thumb {
   width: 16px;
   height: 16px;
-  border: 2px solid #dbeafe;
+  border: 2px solid #f5d0fe;
   border-radius: 999px;
   cursor: pointer;
 }
@@ -146,7 +166,7 @@ onUnmounted(() => {
 .input-threshold-slider::-moz-range-track {
   height: 8px;
   border-radius: 999px;
-  background: linear-gradient(90deg, #1f2937 0%, #374151 100%);
-  border: 1px solid #2d0f44;
+  background: linear-gradient(90deg, #06001f 0%, #18072f 55%, #481566 100%);
+  border: 1px solid #3a1760;
 }
 </style>
