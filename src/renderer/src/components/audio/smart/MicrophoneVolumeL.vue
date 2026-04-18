@@ -48,6 +48,10 @@ const toggleMyMicMute = (): void => {
   webRtcStore.toggleMicrophone(!isMyMicMuted.value)
 }
 
+const handleMicVolumeSliderPercentChange = (value: number): void => {
+  micVolumeSliderPercent.value = value
+}
+
 watch(
   isMyMicMuted,
   (muted) => {
@@ -63,7 +67,7 @@ watch(
     :my-mic-percent="myMicPercent"
     :is-boosting="isBoosting"
     :is-my-mic-muted="isMyMicMuted"
-    @update:mic-volume-slider-percent="micVolumeSliderPercent = $event"
+    @update:mic-volume-slider-percent="handleMicVolumeSliderPercentChange"
     @toggle-mute="toggleMyMicMute"
   />
 </template>
