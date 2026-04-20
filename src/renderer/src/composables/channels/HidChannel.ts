@@ -163,7 +163,7 @@ export function useHidChannel(): HidChannelApi {
       'hid-control',
       JSON.stringify({
         type: 'MOUSE_ACTION',
-        payload: { btn: button, act: action, x: absoluteX, y: absoluteY }
+        payload: { button, action, x: absoluteX, y: absoluteY }
       })
     )
   }
