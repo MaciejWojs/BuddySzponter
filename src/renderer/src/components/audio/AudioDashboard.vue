@@ -2,7 +2,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useWebRtcStore } from '@renderer/stores/webRtcStore'
-import { SessionStore } from '@renderer/stores/sessionStore'
+import { useSessionStore } from '@renderer/stores/sessionStore'
 import { microphoneService } from '@renderer/services/micService'
 import VUMeter from './VUMeter.vue'
 
@@ -24,10 +24,16 @@ interface VoicePresetOption {
 }
 
 const webRtcStore = useWebRtcStore()
-const sessionStore = SessionStore()
+const sessionStore = useSessionStore()
 const { selectedMicrophoneDeviceId } = storeToRefs(sessionStore)
 
-const isMyMicMuted = ref(false)
+// Trwały stan mutowania mikrofonu w sessionStore
+const isMyMicMuted = computed({
+  get: () => sessionStore.microphoneMuted,
+  set: (val: boolean) => {
+    sessionStore.microphoneMuted = val
+  }
+})
 const isMySystemMuted = ref(false)
 const isGuestSystemMuted = ref(false)
 const isAdvancedOpen = ref(false)
@@ -96,19 +102,19 @@ const mapSinePercentToValue = (percent: number, min: number, max: number): numbe
   return min + easeInOutSine(percent / 100) * (max - min)
 }
 
-const myMicPercent = computed<number>(() => Math.round(webRtcStore.localMicrophoneVolume * 100))
+const myMicPercent = computed<number>(() => Math.round(sessionStore.localMicrophoneVolume * 100))
 
 const micVolumeSliderPercent = computed<number>({
-  get: () => mapValueToSinePercent(webRtcStore.localMicrophoneVolume, 0, 2),
+  get: () => mapValueToSinePercent(sessionStore.localMicrophoneVolume, 0, 2),
   set: (value) => {
-    webRtcStore.localMicrophoneVolume = mapSinePercentToValue(value, 0, 2)
+    sessionStore.localMicrophoneVolume = mapSinePercentToValue(value, 0, 2)
   }
 })
 
 const mySystemPercent = computed<number>({
-  get: () => Math.round(webRtcStore.localSystemAudioVolume * 100),
+  get: () => Math.round(sessionStore.localSystemAudioVolume * 100),
   set: (value) => {
-    webRtcStore.localSystemAudioVolume = Math.max(0, Math.min(1, value / 100))
+    sessionStore.localSystemAudioVolume = Math.max(0, Math.min(1, value / 100))
   }
 })
 
@@ -198,31 +204,31 @@ const handleSelectedMicrophoneChange = async (): Promise<void> => {
 
 const toggleMyMicMute = (): void => {
   isMyMicMuted.value = !isMyMicMuted.value
-  webRtcStore.toggleMicrophone(isMyMicMuted.value)
+  sessionStore.toggleMicrophone(isMyMicMuted.value)
+  // Ustaw ścieżkę audio w aktualnym strumieniu
+  if (webRtcStore.localStream) {
+    const micTrack =
+      webRtcStore.localStream.getAudioTracks().find((track) => track.contentHint === 'speech') ??
+      webRtcStore.localStream.getAudioTracks()[0] ??
+      null
+    if (micTrack) micTrack.enabled = !isMyMicMuted.value
+  }
 }
 
 const syncMicMuteStateFromStream = (stream: MediaStream | null): void => {
-  if (!stream) {
-    isMyMicMuted.value = false
-    return
-  }
-
+  if (!stream) return
   const micTrack =
     stream.getAudioTracks().find((track) => track.contentHint === 'speech') ??
     stream.getAudioTracks()[0] ??
     null
-
-  if (!micTrack) {
-    isMyMicMuted.value = false
-    return
+  if (micTrack) {
+    micTrack.enabled = !isMyMicMuted.value
   }
-
-  isMyMicMuted.value = !micTrack.enabled
 }
 
 const toggleMySystemMute = (): void => {
   isMySystemMuted.value = !isMySystemMuted.value
-  webRtcStore.toggleSystemAudio(isMySystemMuted.value)
+  sessionStore.toggleSystemAudio(isMySystemMuted.value)
 }
 
 const toggleGuestSystemMute = (): void => {
@@ -259,6 +265,20 @@ watch(
   () => webRtcStore.localStream,
   (stream) => {
     syncMicMuteStateFromStream(stream)
+  }
+)
+
+// Synchronizuj mute po zmianie flagi w store
+watch(
+  () => isMyMicMuted.value,
+  (muted) => {
+    if (webRtcStore.localStream) {
+      const micTrack =
+        webRtcStore.localStream.getAudioTracks().find((track) => track.contentHint === 'speech') ??
+        webRtcStore.localStream.getAudioTracks()[0] ??
+        null
+      if (micTrack) micTrack.enabled = !muted
+    }
   }
 )
 
@@ -369,7 +389,7 @@ watch(micStudioModeEnabled, (enabled) => {
               :enabled="sessionStore.includeMicrophone && !isMyMicMuted"
               :is-capturing="sessionStore.isCapturing"
               :device-id="selectedMicrophoneDeviceId || undefined"
-              :volume="webRtcStore.localMicrophoneVolume"
+              :volume="sessionStore.localMicrophoneVolume"
               :input-threshold-linear="dbToLinear(micInputThresholdDb)"
               :limiter-threshold-db="limiterThresholdDb"
             />

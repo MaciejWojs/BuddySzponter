@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useWebRtcStore } from '@renderer/stores/webRtcStore'
+import { useSessionStore } from '@renderer/stores/sessionStore'
 
 const webRtcStore = useWebRtcStore()
 const isMicMuted = ref(false)
@@ -11,7 +12,7 @@ const handleOpenApp = async (): Promise<void> => {
 
 const handleToggleMic = (): void => {
   isMicMuted.value = !isMicMuted.value
-  webRtcStore.toggleMicrophone(isMicMuted.value)
+  useSessionStore().toggleMicrophone(isMicMuted.value)
 }
 
 const handleStopSession = (): void => {

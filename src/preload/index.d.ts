@@ -127,7 +127,16 @@ declare global {
         quitApp: () => Promise<void>
         showApp: () => Promise<void>
         hideToTray: () => Promise<void>
+        showHostWidget: () => Promise<void>
+        hideHostWidget: () => Promise<void>
         setHostTrayMode: (active: boolean) => Promise<void>
+      }
+      input: {
+        moveAbsolute: (x: number, y: number) => Promise<void>
+        mouseAction: (button: string, action: string, x: number, y: number) => Promise<void>
+        keyboardEvent: (keyCode: string, action: string) => Promise<void>
+        getHostScreenSize: () => Promise<{ width: number; height: number }>
+        scrollMouse: (deltaY: number) => Promise<void>
       }
       events: {
         onToggleMic: (callback: () => void) => void

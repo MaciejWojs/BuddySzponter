@@ -159,9 +159,25 @@ const api = {
     showApp: (): Promise<void> => ipcRenderer.invoke('show-main-window'),
     hideToTray: (): Promise<void> => ipcRenderer.invoke('hide-to-tray'),
     quitApp: (): Promise<void> => ipcRenderer.invoke('quit-app'),
+    showHostWidget: (): Promise<void> => ipcRenderer.invoke('show-host-widget'),
+    hideHostWidget: (): Promise<void> => ipcRenderer.invoke('hide-host-widget'),
 
     setHostTrayMode: (active: boolean): Promise<void> =>
       ipcRenderer.invoke('set-host-tray-mode', active)
+  },
+  input: {
+    moveAbsolute: (x: number, y: number): Promise<void> =>
+      ipcRenderer.invoke('input:move-absolute', x, y),
+
+    mouseAction: (button: string, action: string, x: number, y: number): Promise<void> =>
+      ipcRenderer.invoke('input:mouse-action', button, action, x, y),
+
+    keyboardEvent: (keyCode: string, action: string): Promise<void> =>
+      ipcRenderer.invoke('input:keyboard-event', keyCode, action),
+    scrollMouse: (deltaY: number): Promise<void> =>
+      ipcRenderer.invoke('input:scroll-mouse', deltaY),
+    getHostScreenSize: (): Promise<{ width: number; height: number }> =>
+      ipcRenderer.invoke('input:get-host-screen-size')
   },
 
   events: {

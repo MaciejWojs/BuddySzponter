@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain, session, desktopCapturer, dialog } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, session, desktopCapturer } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
@@ -13,11 +13,11 @@ import { userService } from './services/UserService'
 import { connectionService } from './services/ConnectionService'
 import { screenService } from './services/screenService'
 import { wsService } from './services/ws/WsService'
-import fs from 'fs'
 
-// --- TYMCZASOWO WYŁĄCZONE DO TESTÓW ---
+// --- ODBLOKOWANE: Importy hostWidget ---
+import { closeHostWidget, createHostWidget, registerHostWidgetHandlers } from './hostWidget'
+import { inputService } from './services/inputService'
 // import trayIconDefault from '../../resources/tray/default.png?asset'
-// import { closeHostWidget, createHostWidget, registerHostWidgetHandlers } from './hostWidget'
 // import { trayService } from './services/trayService'
 
 let mainWindow: BrowserWindow | null = null
@@ -26,6 +26,28 @@ let isQuitting = false
 export function quitApp(): void {
   isQuitting = true
   app.quit()
+}
+
+// Funkcja bezpiecznego ukrywania (minimalizacji) bez zabijania WebRTC
+function hideWindowSafely(win: BrowserWindow | null): void {
+  if (win && !win.isDestroyed()) {
+    win.minimize()
+    // Jeśli wolisz, żeby okno całkowicie zniknęło, a nie było zminimalizowane na pasku,
+    // użyj poniższych dwóch linii zamiast win.minimize():
+    // win.setOpacity(0)
+    // win.setSkipTaskbar(true)
+  }
+}
+
+function showWindowSafely(win: BrowserWindow | null): void {
+  if (win && !win.isDestroyed()) {
+    if (win.isMinimized()) win.restore()
+    // Jeśli używasz opacity zamiast minimize, odkomentuj to:
+    // win.setOpacity(1)
+    // win.setSkipTaskbar(false)
+    win.show()
+    win.focus()
+  }
 }
 
 function createWindow(): void {
@@ -50,9 +72,7 @@ function createWindow(): void {
   mainWindow.on('close', (event) => {
     if (!isQuitting) {
       event.preventDefault()
-      // Do testów WebRTC: okno się tylko minimalizuje na pasek.
-      // Dzięki temu mamy 100% pewności, że Chromium go nie uśpi.
-      if (mainWindow) mainWindow.minimize()
+      hideWindowSafely(mainWindow)
     }
   })
 
@@ -80,11 +100,7 @@ if (!gotTheLock) {
 } else {
   if (useSingleInstanceLock) {
     app.on('second-instance', () => {
-      if (mainWindow) {
-        if (mainWindow.isMinimized()) mainWindow.restore()
-        mainWindow.show()
-        mainWindow.focus()
-      }
+      showWindowSafely(mainWindow)
     })
   }
 
@@ -93,6 +109,7 @@ if (!gotTheLock) {
 
     app.commandLine.appendSwitch('disable-renderer-backgrounding')
     app.commandLine.appendSwitch('disable-background-timer-throttling')
+    app.commandLine.appendSwitch('disable-backgrounding-occluded-windows')
     app.commandLine.appendSwitch('disable-backgrounding-occluded-windows')
 
     app.on('browser-window-created', (_, window) => {
@@ -126,32 +143,48 @@ if (!gotTheLock) {
 
     createWindow()
 
-    // --- MOCKI IPC (aby frontend się nie wywalił, jeśli wywoła te funkcje) ---
+    // --- BEZPIECZNA REJESTRACJA WIDGETU ---
+    try {
+      if (mainWindow) {
+        registerHostWidgetHandlers(mainWindow)
+        inputService.init(mainWindow)
+      }
+    } catch (error) {
+      console.error('Error registering host widget handlers:', error)
+    }
+
+    // --- IPC MAIN HANDLERY DLA WIDGETU ---
     ipcMain.handle('show-host-widget', () => {
-      console.log('Widget wyłączony na czas testów')
+      createHostWidget()
+      hideWindowSafely(mainWindow) // Bezpieczne chowanie okna
     })
+
     ipcMain.handle('hide-host-widget', () => {
-      console.log('Widget wyłączony na czas testów')
+      closeHostWidget()
+      showWindowSafely(mainWindow) // Przywracanie okna
     })
+
     ipcMain.handle('hide-to-tray', () => {
-      mainWindow?.minimize()
+      hideWindowSafely(mainWindow)
     })
+
     ipcMain.handle('show-main-window', () => {
-      mainWindow?.show()
-      mainWindow?.focus()
+      showWindowSafely(mainWindow)
     })
+
     ipcMain.handle('set-host-tray-mode', () => {
-      /* test */
+      /* na razie wyłączone z trayService */
     })
+
     ipcMain.handle('quit-app', () => {
       quitApp()
     })
 
-    ipcMain.handle('save-file', async (_, buffer: ArrayBuffer) => {
-      const { filePath } = await dialog.showSaveDialog({ defaultPath: 'recording.webm' })
-      if (!filePath) return
-      fs.writeFileSync(filePath, Buffer.from(buffer))
-    })
+    // ipcMain.handle('save-file', async (_, buffer: ArrayBuffer) => {
+    //   const { filePath } = await dialog.showSaveDialog({ defaultPath: 'recording.webm' })
+    //   if (!filePath) return
+    //   fs.writeFileSync(filePath, Buffer.from(buffer))
+    // })
 
     session.defaultSession.setDisplayMediaRequestHandler(
       (_request, callback) => {

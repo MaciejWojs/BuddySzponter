@@ -3,18 +3,23 @@ import { computed, onUnmounted } from 'vue'
 import { useConnectionStore } from '@renderer/stores/connectionStore'
 import { useSocketStore } from '@renderer/stores/socketStore'
 import { useWebRtcStore } from '@renderer/stores/webRtcStore'
-import { SessionStore } from '@renderer/stores/sessionStore' // Używamy poprawnej nazwy composable z Pinii
+import { useSessionStore } from '@renderer/stores/sessionStore' // Używamy poprawnej nazwy composable z Pinii
 
 import VideoPlayer from '../p2p/VideoPlayer.vue'
+import BuHostMouseRealtimeControl from './BuHostMouseRealtimeControl.vue'
 
 const connectionStore = useConnectionStore()
 const socketStore = useSocketStore()
 const webRtcStore = useWebRtcStore()
-const sessionStore = SessionStore()
+const sessionStore = useSessionStore()
 
 // FIX: Dodane : void do każdej z tych funkcji dla ESLint
 const handleManualConnect = (): void => void socketStore.connect('awaryjny-token-z-palca')
 const handleManualDisconnect = (): void => void socketStore.disconnect()
+const handleMoveMouseToOrigin = (): void => {
+  if (webRtcStore.rtcStatus !== 'connected') return
+  webRtcStore.sendMousePosition(0, 0)
+}
 const placeholderAction = (name: string): void => alert(`Funkcja "${name}" jest w przygotowaniu!`)
 
 // Mapowanie do diagnostyki
@@ -285,6 +290,13 @@ onUnmounted(() => {
         </button>
         <button
           v-if="webRtcStore.rtcStatus === 'connected'"
+          class="px-4 py-2 bg-transparent border border-[#444] hover:border-cyan-500 hover:text-cyan-400 text-gray-400 text-xs font-semibold rounded transition-colors"
+          @click="handleMoveMouseToOrigin()"
+        >
+          Wyślij MOUSE_MOVE 0,0
+        </button>
+        <button
+          v-if="webRtcStore.rtcStatus === 'connected'"
           class="px-4 py-2 bg-transparent border border-[#444] hover:border-rose-500 hover:text-rose-400 text-gray-400 text-xs font-semibold rounded transition-colors"
           @click="webRtcStore.disconnect()"
         >
@@ -292,6 +304,8 @@ onUnmounted(() => {
         </button>
       </div>
     </footer>
+
+    <BuHostMouseRealtimeControl />
   </div>
 </template>
 

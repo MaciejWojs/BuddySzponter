@@ -1,6 +1,20 @@
 // composables/webrtc/webRtcService.ts
 import { getAudioContext, resumeAudioContext } from '@renderer/composables/useSharedAudioContext'
 
+interface CustomRTCCodecStats {
+  id: string
+  type: string
+  mimeType: string
+  sdpFmtpLine?: string
+}
+
+interface CustomRTCStreamStats {
+  type: string
+  kind: string
+  codecId?: string
+}
+// -----------------------------------
+
 export type DataChannelLabel = 'chat-channel' | 'hid-control' | 'system-events' | 'metrics'
 export type ConnectionMetrics = {
   rttMs: number | null
@@ -73,7 +87,7 @@ export class WebRTCService {
     this.systemTransceiver = null
 
     const server = import.meta.env.VITE_ICE_SERVER
-    const serverUser = import.meta.env.VITE_ICE_SERVER_USER || 'user'
+    const serverUser = import.meta.env.VITE_ICE_SERVER_USER || 'test'
     const serverPass = import.meta.env.VITE_ICE_SERVER_PASS || '1234'
 
     const config: RTCConfiguration = {
@@ -82,10 +96,9 @@ export class WebRTCService {
 
     if (server) {
       config.iceServers!.push(
+        { urls: `turns:${server}:5349`, username: serverUser, credential: serverPass },
         { urls: `stun:${server}:3478` },
-        { urls: `turn:${server}:3478`, username: serverUser, credential: serverPass },
-        { urls: `turns:${server}:443`, username: serverUser, credential: serverPass },
-        { urls: `turns:${server}:5349`, username: serverUser, credential: serverPass }
+        { urls: `turn:${server}:3478`, username: serverUser, credential: serverPass }
       )
     } else {
       config.iceServers!.push({ urls: 'stun:stun.l.google.com:19302' })
@@ -94,18 +107,25 @@ export class WebRTCService {
     this.peerConnection = new RTCPeerConnection(config)
 
     if (isHost) {
-      this.videoTransceiver = this.peerConnection.addTransceiver('video', { direction: 'sendrecv' })
+      this.videoTransceiver = this.peerConnection.addTransceiver('video', { direction: 'sendonly' })
       this.micTransceiver = this.peerConnection.addTransceiver('audio', { direction: 'sendrecv' })
       this.systemTransceiver = this.peerConnection.addTransceiver('audio', {
         direction: 'sendrecv'
       })
 
       const capabilities = RTCRtpReceiver.getCapabilities('video')
-      const h264Codecs =
-        capabilities?.codecs.filter((c) => c.mimeType.toLowerCase() === 'video/h264') || []
 
-      if (h264Codecs.length > 0 && this.videoTransceiver.setCodecPreferences) {
-        this.videoTransceiver.setCodecPreferences(h264Codecs)
+      if (capabilities?.codecs && this.videoTransceiver?.setCodecPreferences) {
+        const codecs = capabilities.codecs
+
+        const videoCodecs = codecs.filter((c) => c.mimeType.startsWith('video/'))
+
+        const h264 = videoCodecs.filter((c) => c.mimeType.toLowerCase() === 'video/h264')
+        const nonH264 = videoCodecs.filter((c) => c.mimeType.toLowerCase() !== 'video/h264')
+
+        const ordered = [...nonH264, ...h264]
+
+        this.videoTransceiver.setCodecPreferences(ordered)
       }
     }
 
@@ -128,9 +148,9 @@ export class WebRTCService {
 
       if (this.onRemoteStreamReceived) {
         this.onRemoteStreamReceived(new MediaStream(this.remoteStream.getTracks()))
-        if (!this.recorder) {
-          this.startRecording()
-        }
+        // if (!this.recorder) {
+        //   this.startRecording()
+        // }
       }
     }
 
@@ -138,7 +158,39 @@ export class WebRTCService {
       const state = this.peerConnection?.connectionState
       if (state === 'failed' && !this.isIntentionallyClosing) this.onConnectionFailed?.()
       else if (state === 'closed') this.onConnectionClosed?.()
+      if (state === 'connected') {
+        setTimeout(() => this.logActiveVideoCodec(), 1000)
+      }
     }
+  }
+
+  public async logActiveVideoCodec(): Promise<void> {
+    if (!this.peerConnection) return
+
+    const stats = await this.peerConnection.getStats()
+
+    const codecMap = new Map<string, string>()
+    let activeCodec: string | null = null
+
+    for (const report of stats.values()) {
+      if (report.type === 'codec') {
+        const codec = report as unknown as CustomRTCCodecStats
+        codecMap.set(codec.id, `${codec.mimeType} (${codec.sdpFmtpLine || ''})`)
+      }
+    }
+
+    for (const report of stats.values()) {
+      if (report.type === 'outbound-rtp' || report.type === 'inbound-rtp') {
+        const streamStats = report as unknown as CustomRTCStreamStats
+
+        if (streamStats.kind === 'video' && streamStats.codecId) {
+          activeCodec = codecMap.get(streamStats.codecId) || null
+          break
+        }
+      }
+    }
+
+    console.log('[WebRTC] Active video codec:', activeCodec ?? 'UNKNOWN')
   }
 
   public publishLocalStream(stream: MediaStream, policy: LocalTrackPolicy): void {
@@ -370,7 +422,7 @@ export class WebRTCService {
 
     try {
       this.recorder = new MediaRecorder(this.recordingStream, {
-        mimeType: 'video/webm; codecs=vp9,opus'
+        mimeType: 'video/webm; codecs=vp8,opus'
       })
     } catch {
       // fallback (np. Safari / słabsze wsparcie)
@@ -402,7 +454,7 @@ export class WebRTCService {
     const currentPeerConnection = this.peerConnection
 
     this.isIntentionallyClosing = true
-    this.stopRecording()
+    // this.stopRecording()
     this.recordingStream?.getTracks().forEach((t) => t.stop())
     this.recordingStream = null
     this.recordedChunks = []

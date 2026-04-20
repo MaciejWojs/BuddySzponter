@@ -1,24 +1,35 @@
+// renderer/src/stores/sessionStore.ts
 import { defineStore } from 'pinia'
 import { ref, computed, shallowRef, watch } from 'vue'
 import { useConnectionStore } from './connectionStore'
 import { useSocketStore } from './socketStore'
 import { useWebRtcStore } from './webRtcStore'
-import { useLogStore } from './devStores/logStore' // Upewnij się, że ta ścieżka jest poprawna
+import { useLogStore } from './devStores/logStore'
 import { videoService } from '@renderer/services/videoService'
 import { microphoneService } from '@renderer/services/micService'
 
-// Zmieniono nazwę na useSessionStore (konwencja Vue)
-export const SessionStore = defineStore('session', () => {
+export const useSessionStore = defineStore('session', () => {
   const connectionStore = useConnectionStore()
   const socketStore = useSocketStore()
   const webRtcStore = useWebRtcStore()
   const logStore = useLogStore()
+  const includeScreenVideo = ref(true)
 
+  // Local Capture State
   const includeSystemAudio = ref(true)
   const includeMicrophone = ref(true)
+
+  const microphoneMuted = ref(false)
+
+  // Local Volume State (Moved from WebRTC store as it relates to local device capture)
+  const localSystemAudioVolume = ref<number>(1)
+  const localMicrophoneVolume = ref<number>(1)
+
+  // Device Management
   const availableMicrophones = ref<Array<{ deviceId: string; label: string }>>([])
   const selectedMicrophoneDeviceId = ref<string>('')
 
+  // Capture Orchestration
   const sharedTextureStream = shallowRef<MediaStream | null>(null)
   const currentCaptureMode = ref<'host-shared' | 'host-native' | 'guest-mic' | null>(null)
   const isCapturing = computed((): boolean => currentCaptureMode.value !== null)
@@ -27,12 +38,31 @@ export const SessionStore = defineStore('session', () => {
   let stopFrameSubscription: (() => void) | null = null
   let hiddenCanvas: HTMLCanvasElement | null = null
 
-  // Dodano typ zwracany : boolean
+  // --- FUNKCJE TOGGLE DLA UI ---
+
+  const toggleMicrophone = (isMuted: boolean): void => {
+    microphoneMuted.value = isMuted
+    includeMicrophone.value = !isMuted
+  }
+
+  const toggleSystemAudio = (isMuted: boolean): void => {
+    includeSystemAudio.value = !isMuted
+  }
+
+  const toggleScreenVideo = (isHidden: boolean): void => {
+    includeScreenVideo.value = !isHidden
+    // Dla wideo wywołujemy uniwersalną funkcję z WebRtcStore (nie ma contentHint, więc dajemy puste '')
+    webRtcStore.toggleTrackByHint('video', '', !isHidden)
+  }
+
+  // --- DEVICE VOLUME BINDINGS ---
+  watch(localSystemAudioVolume, (val): void => videoService.setSystemAudioVolume(val))
+  watch(localMicrophoneVolume, (val): void => microphoneService.setVolume(val))
+
   const hasLocalAudioTrack = (hint: 'speech' | 'music'): boolean => {
     return !!webRtcStore.localStream?.getAudioTracks().some((t) => t.contentHint === hint)
   }
 
-  // FIX: Funkcja musi być async, aby obsłużyć re-negocjację WebRTC
   const assignLocalStream = async (stream: MediaStream): Promise<void> => {
     if (webRtcStore.rtcStatus === 'disconnected') {
       webRtcStore.localStream = stream
@@ -46,10 +76,9 @@ export const SessionStore = defineStore('session', () => {
       microphoneService.stop()
       return null
     }
-
     return microphoneService.start(
       selectedMicrophoneDeviceId.value || undefined,
-      webRtcStore.localMicrophoneVolume
+      localMicrophoneVolume.value
     )
   }
 
@@ -98,7 +127,7 @@ export const SessionStore = defineStore('session', () => {
       sharedTextureStream.value = await videoService.startWithExternalVideoTrack(canvasVideoTrack, {
         includeSystemAudio: includeSystemAudio.value,
         externalMicTrack: micTrack ?? undefined,
-        systemAudioVolume: webRtcStore.localSystemAudioVolume
+        systemAudioVolume: localSystemAudioVolume.value
       })
 
       const videoTrack = sharedTextureStream.value.getVideoTracks()[0]
@@ -137,7 +166,7 @@ export const SessionStore = defineStore('session', () => {
         includeScreen: true,
         includeSystemAudio: includeSystemAudio.value,
         externalMicTrack: micTrack ?? undefined,
-        systemAudioVolume: webRtcStore.localSystemAudioVolume
+        systemAudioVolume: localSystemAudioVolume.value
       })
       currentCaptureMode.value = 'host-native'
       await assignLocalStream(stream)
@@ -189,7 +218,13 @@ export const SessionStore = defineStore('session', () => {
     currentCaptureMode.value = null
     microphoneService.stop()
     await videoService.stop()
-    webRtcStore.localStream = null
+
+    // IMPORTANT: Clear the stream in WebRtcStore when capture stops
+    if (webRtcStore.localStream) {
+      webRtcStore.localStream.getTracks().forEach((t) => t.stop())
+      webRtcStore.localStream = null
+    }
+
     webRtcStore.setLocalPreviewFps(null)
     webRtcStore.setLocalPreviewQuality(null)
 
@@ -225,24 +260,19 @@ export const SessionStore = defineStore('session', () => {
   }
 
   const applySelectedMicrophone = async (): Promise<void> => {
-    if (!includeMicrophone.value) {
-      return
-    }
-
-    if (!isCapturing.value) {
-      return
-    }
+    if (!includeMicrophone.value) return
+    if (!isCapturing.value) return
 
     const nextMicTrack = await microphoneService.start(
       selectedMicrophoneDeviceId.value || undefined,
-      webRtcStore.localMicrophoneVolume
+      localMicrophoneVolume.value
     )
 
     if (!nextMicTrack) {
-      webRtcStore.toggleMicrophone(true)
+      includeMicrophone.value = false // Sync state
       logStore.addLog(
         'ERROR',
-        `Nie udało się przełączyć mikrofonu na: ${selectedMicrophoneDeviceId.value || 'domyślny systemowy'}. Mikrofon został wyciszony.`,
+        `Nie udało się przełączyć mikrofonu na: ${selectedMicrophoneDeviceId.value || 'domyślny systemowy'}.`,
         'api'
       )
       return
@@ -261,14 +291,6 @@ export const SessionStore = defineStore('session', () => {
       track.stop()
     })
 
-    if (tracksToRemove.length === 0 && audioTracks.length > 0) {
-      logStore.addLog(
-        'WARN',
-        'Nie znaleziono jednoznacznej ścieżki mikrofonowej do podmiany. Dodano nowy track mikrofonu obok istniejących audio.',
-        'api'
-      )
-    }
-
     currentStream.addTrack(nextMicTrack)
     await assignLocalStream(currentStream)
     logStore.addLog(
@@ -279,7 +301,7 @@ export const SessionStore = defineStore('session', () => {
   }
 
   // ==========================================
-  // ORKIESTRACJA (Reakcje na stan systemu)
+  // ORCHESTRATION (Reacting to system state)
   // ==========================================
 
   watch(
@@ -325,14 +347,24 @@ export const SessionStore = defineStore('session', () => {
     }
   )
 
+  // Synchronizuj mute mikrofonu z UI
+  watch(microphoneMuted, (muted) => {
+    if (muted) {
+      includeMicrophone.value = false
+    }
+    // Jeśli odmutowany, nie wymuszaj włączenia mikrofonu, pozwól UI sterować
+  })
+
+  // Syncing UI toggles to track enabled states
   watch(includeMicrophone, (isEnabled): void => {
-    webRtcStore.toggleMicrophone(!isEnabled)
+    if (!isEnabled) microphoneMuted.value = true
+    webRtcStore.toggleTrackByHint('audio', 'speech', isEnabled)
     if (!isEnabled || connectionStore.isHost || !socketStore.isAcknowledged) return
     if (!hasLocalAudioTrack('speech')) void startMicrophoneCaptureForGuest()
   })
 
-  watch(includeSystemAudio, (isMuted): void => {
-    webRtcStore.toggleSystemAudio(!isMuted)
+  watch(includeSystemAudio, (isEnabled): void => {
+    webRtcStore.toggleTrackByHint('audio', 'music', isEnabled)
   })
 
   void refreshMicrophones()
@@ -340,6 +372,16 @@ export const SessionStore = defineStore('session', () => {
   return {
     includeSystemAudio,
     includeMicrophone,
+    localSystemAudioVolume,
+    localMicrophoneVolume,
+    includeScreenVideo, // (opcjonalnie)
+
+    microphoneMuted,
+
+    toggleMicrophone,
+    toggleSystemAudio,
+    toggleScreenVideo,
+
     availableMicrophones,
     selectedMicrophoneDeviceId,
     isCapturing,
