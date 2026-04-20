@@ -40,9 +40,6 @@ class InputController {
   private queue: QueuedInput[] = []
   private frameLoop: NodeJS.Timeout | null = null
 
-  private virtualX = 0
-  private virtualY = 0
-
   private targetScroll = 0
   private currentScroll = 0
 
@@ -52,12 +49,9 @@ class InputController {
     const bridge = new InputBridge({ autoFlush: false })
     await bridge.init()
 
-    this.isOptimizationEnabled = bridge.toggleOptimization()
+    // this.isOptimizationEnabled = bridge.toggleOptimization()
+    bridge.optimizeMouseMovesAbsolute(2)
     this.bridge = bridge
-
-    const startPos = screen.getCursorScreenPoint()
-    this.virtualX = startPos.x
-    this.virtualY = startPos.y
 
     this.startFrameLoop()
   }
@@ -82,15 +76,8 @@ class InputController {
       for (const item of filteredQueue) {
         if (item.type === 'move') {
           const { x, y } = item.payload
-          const dx = x - this.virtualX
-          const dy = y - this.virtualY
-
-          if (dx !== 0 || dy !== 0) {
-            this.bridge.moveMouseRelative(dx, dy)
-            this.virtualX = x
-            this.virtualY = y
-            needsFlush = true
-          }
+          this.bridge.moveMouseAbsolute(x, y)
+          needsFlush = true
         } else if (item.type === 'click') {
           this.bridge.mouseClick(item.payload.btn, item.payload.down)
           needsFlush = true
@@ -129,7 +116,7 @@ class InputController {
     }
   }
 
-  // --- API  ---
+  // --- API ---
 
   async move(targetX: number, targetY: number): Promise<void> {
     this.queue.push({
