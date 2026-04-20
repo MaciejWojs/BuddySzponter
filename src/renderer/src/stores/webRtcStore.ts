@@ -34,13 +34,13 @@ export const useWebRtcStore = defineStore('webrtc', () => {
   const audioGainSmoothing = ref<number>(0.08)
   const audioHoldFrames = ref<number>(8)
 
-  // HID Control State
-  const isGuestControlAllowed = computed(() => hid.isControlGranted.value)
-
   const connectionMetrics = useConnectionMetrics(rtcStatus)
   const chat = ChatChannel()
   const hid = useHidChannel()
   const system = SystemEventsChannel((): void => forceDisconnect())
+
+  // HID Control State (Computed directly from the channel)
+  const isGuestControlAllowed = computed(() => hid.isControlGranted.value)
 
   const getCurrentTrackPolicy = (): typeof hostTrackPolicy => {
     return localPublishProfile.value === 'guest' ? guestTrackPolicy : hostTrackPolicy
@@ -100,20 +100,31 @@ export const useWebRtcStore = defineStore('webrtc', () => {
   webRtcService.onMessageReceived = (data: string, channelLabel: string): void => {
     try {
       const msg = JSON.parse(data)
-      if (channelLabel === 'chat-channel' && msg.type === 'CHAT')
+
+      if (channelLabel === 'chat-channel' && msg.type === 'CHAT') {
         chat.handleIncomingMessage(msg.payload)
+      }
+
       if (channelLabel === 'hid-control') {
+        // FIX: Allow MOUSE_ACTION and KEYBOARD_EVENT to pass through to the HID Channel
         if (
           msg.type === 'HID_HANDSHAKE' ||
           msg.type === 'MOUSE_MOVE' ||
-          msg.type === 'HID_PERMISSION_UPDATE'
+          msg.type === 'HID_PERMISSION_UPDATE' ||
+          msg.type === 'MOUSE_ACTION' ||
+          msg.type === 'KEYBOARD_EVENT'
         ) {
           hid.handleIncomingMessage(msg)
         }
       }
-      if (channelLabel === 'system-events') system.handleIncomingMessage(msg)
-      if (channelLabel === 'metrics' && msg.type === 'METRICS')
+
+      if (channelLabel === 'system-events') {
+        system.handleIncomingMessage(msg)
+      }
+
+      if (channelLabel === 'metrics' && msg.type === 'METRICS') {
         connectionMetrics.applyRemoteMetrics(msg.payload)
+      }
     } catch (e) {
       console.error('[WebRtcStore] Error:', e)
     }
@@ -169,7 +180,6 @@ export const useWebRtcStore = defineStore('webrtc', () => {
     connectionMetrics.setLocalPreviewQuality(quality)
   }
 
-  // Toggling specific track types. Requires the orchestrator to have added them properly.
   const toggleTrackByHint = (
     kind: 'audio' | 'video',
     contentHint: string,
@@ -180,7 +190,6 @@ export const useWebRtcStore = defineStore('webrtc', () => {
       kind === 'audio' ? localStream.value.getAudioTracks() : localStream.value.getVideoTracks()
     const targetTrack = tracks.find((t) => t.contentHint === contentHint)
 
-    // Fallback logic if hints are missing (assuming standard 1 mic, 1 sys audio setup)
     if (!targetTrack && kind === 'audio') {
       if (contentHint === 'speech') {
         const track = tracks.find((t) => t.getSettings().channelCount === 1) || tracks[0]
@@ -233,6 +242,15 @@ export const useWebRtcStore = defineStore('webrtc', () => {
         Math.min(Math.max(x, 0), 100) / 100,
         Math.min(Math.max(y, 0), 100) / 100
       ),
+    sendMouseAction: (
+      button: 'left' | 'right' | 'middle',
+      action: 'click' | 'double',
+      x: number,
+      y: number
+    ): void => {
+      hid.sendMouseAction(button, action, x, y)
+    },
+    sendKeyboardEvent: hid.sendKeyboardEvent,
     sendVideoCommand: system.sendVideoCommand,
     toggleTrackByHint,
     setLocalPublishProfile,

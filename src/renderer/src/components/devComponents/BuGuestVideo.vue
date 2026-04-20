@@ -51,7 +51,14 @@
         'cursor-not-allowed':
           !webRtcStore.isGuestControlAllowed && webRtcStore.rtcStatus === 'connected'
       }"
+      tabindex="0"
+      @mouseenter="focusContainer"
       @mousemove="handleMouseMove"
+      @click="handleMouseAction($event, 'click')"
+      @contextmenu.prevent="handleMouseAction($event, 'click')"
+      @dblclick="handleMouseAction($event, 'double')"
+      @keydown.prevent="handleKeyDown"
+      @keyup.prevent="handleKeyUp"
     >
       <VideoPlayer
         class="absolute inset-0 w-full h-full object-contain pointer-events-none"
@@ -135,25 +142,47 @@ import VideoPlayer from '../p2p/VideoPlayer.vue'
 const webRtcStore = useWebRtcStore()
 const videoContainer = ref<HTMLElement | null>(null)
 
+const focusContainer = (): void => {
+  videoContainer.value?.focus()
+}
+
 // --- OBSŁUGA RUCHU MYSZY ---
 const handleMouseMove = (event: MouseEvent): void => {
-  // Jeśli host nie pozwolił na kontrolę - ignoruj ruchy
   if (!webRtcStore.isGuestControlAllowed) return
   if (!videoContainer.value) return
-
-  // Pobierz wymiary kontenera wideo
   const rect = videoContainer.value.getBoundingClientRect()
+  const percentX = ((event.clientX - rect.left) / rect.width) * 100
+  const percentY = ((event.clientY - rect.top) / rect.height) * 100
+  const clampedX = Math.max(0, Math.min(100, percentX))
+  const clampedY = Math.max(0, Math.min(100, percentY))
+  webRtcStore.sendMousePosition(clampedX, clampedY)
+}
 
-  // Oblicz pozycję w procentach (0 do 100)
+const handleMouseAction = (event: MouseEvent, action: 'click' | 'double'): void => {
+  if (!webRtcStore.isGuestControlAllowed || !videoContainer.value) return
+
+  const rect = videoContainer.value.getBoundingClientRect()
   const percentX = ((event.clientX - rect.left) / rect.width) * 100
   const percentY = ((event.clientY - rect.top) / rect.height) * 100
 
-  // Zabezpieczenie przed wyjściem poza granice elementu
   const clampedX = Math.max(0, Math.min(100, percentX))
   const clampedY = Math.max(0, Math.min(100, percentY))
 
-  // Wyślij do store'a (który podzieli to przez 100 i wyśle przez HID Channel)
-  webRtcStore.sendMousePosition(clampedX, clampedY)
+  // Rozpoznawanie przycisku (0: lewy, 1: środkowy, 2: prawy)
+  const button = event.button === 0 ? 'left' : event.button === 2 ? 'right' : 'middle'
+
+  webRtcStore.sendMouseAction(button, action, clampedX, clampedY)
+}
+
+// --- OBSŁUGA KLAWIATURY ---
+const handleKeyDown = (e: KeyboardEvent): void => {
+  if (!webRtcStore.isGuestControlAllowed) return
+  webRtcStore.sendKeyboardEvent(e.code, 'down')
+}
+
+const handleKeyUp = (e: KeyboardEvent): void => {
+  if (!webRtcStore.isGuestControlAllowed) return
+  webRtcStore.sendKeyboardEvent(e.code, 'up')
 }
 </script>
 
