@@ -29,6 +29,17 @@ export class ScreenService {
   }
 
   public registerHandlers(): void {
+    ipcMain.handle('capture:getFps', async () => {
+      if (this.capturer && typeof this.capturer.getFps === 'function') {
+        try {
+          return await this.capturer.getFps()
+        } catch (e) {
+          console.error('[ScreenService] Error occurred while fetching FPS:', e)
+          return null
+        }
+      }
+      return null
+    })
     ipcMain.handle('desktop:get-sources', async () => {
       const sources = await desktopCapturer.getSources({
         types: ['screen'],

@@ -127,6 +127,7 @@ declare global {
     capture: {
       start: () => Promise<void>
       stop: () => Promise<void>
+      getFps(): Promise<number | null>
       subscribeStream: (onFrame: (frame: VideoFrame) => void) => () => void
     }
     screenCapture: {

@@ -282,6 +282,7 @@ if (process.contextIsolated) {
     contextBridge.exposeInMainWorld('capture', {
       start: () => ipcRenderer.invoke('capture:start'),
       stop: () => ipcRenderer.invoke('capture:stop'),
+      getFps: () => ipcRenderer.invoke('capture:getFps'),
       subscribeStream: (onFrame: (frame: VideoFrame) => void) => {
         const cleanupSubscription = addFrameConsumer(onFrame)
 
