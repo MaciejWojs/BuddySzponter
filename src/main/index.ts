@@ -110,6 +110,7 @@ if (!gotTheLock) {
     app.commandLine.appendSwitch('disable-renderer-backgrounding')
     app.commandLine.appendSwitch('disable-background-timer-throttling')
     app.commandLine.appendSwitch('disable-backgrounding-occluded-windows')
+    app.commandLine.appendSwitch('disable-backgrounding-occluded-windows')
 
     app.on('browser-window-created', (_, window) => {
       optimizer.watchWindowShortcuts(window)
