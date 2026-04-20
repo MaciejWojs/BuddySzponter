@@ -137,6 +137,10 @@ export const useWebRtcStore = defineStore('webrtc', () => {
   webRtcService.onDataChannelOpened = (): void => {
     rtcStatus.value = 'connected'
     connectionMetrics.start()
+    // Host po otwarciu kanału danych wysyła handshake z rozmiarem ekranu
+    if (localPublishProfile.value === 'host') {
+      hid.sendHandshake()
+    }
   }
 
   // --- UTILS ---

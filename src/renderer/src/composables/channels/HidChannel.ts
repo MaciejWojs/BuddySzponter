@@ -86,6 +86,7 @@ export function useHidChannel(): HidChannelApi {
       screenHeight: window.screen.height,
       isControlGranted: isControlGranted.value
     }
+    console.log('[HID] Wysyłam HID_HANDSHAKE:', payload)
     webRtcService.sendData('hid-control', JSON.stringify({ type: 'HID_HANDSHAKE', payload }))
   }
 
@@ -170,7 +171,8 @@ export function useHidChannel(): HidChannelApi {
 
   const handleIncomingMessage = (msg: P2PMessage): void => {
     switch (msg.type) {
-      case 'HID_HANDSHAKE':
+      case 'HID_HANDSHAKE': {
+        console.log('[HID] Otrzymano HID_HANDSHAKE:', msg.payload)
         remoteScreenSize.value = {
           width: msg.payload.screenWidth,
           height: msg.payload.screenHeight
@@ -179,6 +181,7 @@ export function useHidChannel(): HidChannelApi {
           isControlGranted.value = msg.payload.isControlGranted
         }
         break
+      }
 
       case 'HID_PERMISSION_UPDATE':
         if (localRole.value !== 'host') {

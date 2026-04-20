@@ -201,9 +201,9 @@ export const inputService = {
         if (isLocked()) return
 
         const map: Record<string, number> = {
-          left: 1,
-          right: 2,
-          middle: 3
+          left: 0,
+          right: 1,
+          middle: 2
         }
 
         if (!map[button]) return
