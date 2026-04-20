@@ -1,4 +1,4 @@
-import fs from 'node:fs'
+// import fs from 'node:fs'
 import { desktopCapturer, ipcMain, sharedTexture, WebFrameMain } from 'electron'
 import { IScreenCapture, ScreenCapture } from '@maciejwojs/screen-capture'
 
@@ -7,21 +7,16 @@ export class ScreenService {
   private captureInterval: NodeJS.Timeout | null = null
   private activeFrames: { frame: WebFrameMain; wc: Electron.WebContents }[] = []
   private isProcessingFrame = false
-  private readonly captureFps = 144
+  private readonly captureFps = 60
   private isHandleLogged = false
-  private readonly useCpuPath: boolean
+  private useCpuPath: boolean
+  private lastSharedTextureInfoSignature: string | null = null
+  private lastSharedTextureWarning: 'noInfo' | 'noHandle' | null = null
 
   private constructor() {
     console.log('[ScreenService] Initializing service...')
 
-    const isLinux = process.platform === 'linux'
-    const isWayland = process.env.XDG_SESSION_TYPE === 'wayland'
-    const isNvidia = isLinux && fs.existsSync('/proc/driver/nvidia/version')
-    this.useCpuPath = isLinux && isWayland && isNvidia
-
-    console.log(
-      `[ScreenService] Using ${this.useCpuPath ? 'CPU raw buffer' : 'sharedTexture'} path`
-    )
+    this.useCpuPath = false
   }
 
   private static instance: ScreenService
@@ -116,23 +111,45 @@ export class ScreenService {
     })
     if (!this.capturer || this.activeFrames.length === 0) return
 
-    if (this.useCpuPath) {
-      this.processFrameViaCpu()
-      return
-    }
-
     let info: Electron.SharedTextureImportTextureInfo | null = null
 
     if (typeof this.capturer.getSharedTextureInfo === 'function') {
       info = this.capturer.getSharedTextureInfo() as Electron.SharedTextureImportTextureInfo | null
-      if (info && !info.handle) {
-        console.warn('[Capture] Otrzymano info o sharedTexture, ale brak handle:', {
-          pixelFormat: info.pixelFormat,
-          codedSize: info.codedSize
-        })
+
+      const currentSignature = info
+        ? `${info.pixelFormat}-${info.codedSize.width}x${info.codedSize.height}-${Object.keys(info.handle ?? {}).join(',')}`
+        : 'no-info'
+
+      if (currentSignature !== this.lastSharedTextureInfoSignature) {
+        this.lastSharedTextureInfoSignature = currentSignature
+        this.isHandleLogged = false
+        this.lastSharedTextureWarning = null
+      }
+
+      if (!info) {
+        this.useCpuPath = true
+        if (this.lastSharedTextureWarning !== 'noInfo') {
+          console.warn('[Capture] Nie można uzyskać sharedTexture info, przełączanie na CPU path')
+          this.lastSharedTextureWarning = 'noInfo'
+        }
+        this.processFrameViaCpu()
+        return
+      } else {
+        this.useCpuPath = false
+      }
+
+      if (!info.handle) {
+        if (this.lastSharedTextureWarning !== 'noHandle') {
+          console.warn('[Capture] Otrzymano info o sharedTexture, ale brak handle:', {
+            pixelFormat: info.pixelFormat,
+            codedSize: info.codedSize
+          })
+          this.lastSharedTextureWarning = 'noHandle'
+        }
         return
       }
-      if (info && !this.isHandleLogged) {
+
+      if (!this.isHandleLogged) {
         console.log('[Capture] Otrzymano info o sharedTexture:', {
           pixelFormat: info.pixelFormat,
           codedSize: info.codedSize,
@@ -191,13 +208,7 @@ export class ScreenService {
   }
 
   private processFrameViaCpu(): void {
-    const capturer = this.capturer as {
-      getPixelData?: () => Buffer
-      getWidth?: () => number
-      getHeight?: () => number
-      getStride?: () => number
-      getPixelFormat?: () => number
-    }
+    const capturer = this.capturer
     const buffer = capturer?.getPixelData?.()
     if (!buffer) {
       return
