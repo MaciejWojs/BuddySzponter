@@ -28,8 +28,9 @@ export async function logout(): Promise<LogoutRendererResponse> {
 
   if (!parsed.success) {
     console.error('Refresh token validation failed:', parsed.error)
-    secureStore.setSecure('refreshToken', '')
+    secureStore.clearRefreshToken()
     authStore.set('accessToken', '')
+    authStore.set('user', null)
     return {
       success: false,
       message: 'Invalid refresh token format. Local session cleared.'
@@ -58,8 +59,9 @@ export async function logout(): Promise<LogoutRendererResponse> {
       }
     }
 
-    secureStore.setSecure('refreshToken', '')
+    secureStore.clearRefreshToken()
     authStore.set('accessToken', '')
+    authStore.set('user', null)
     return {
       success: true,
       data: undefined,
@@ -68,8 +70,9 @@ export async function logout(): Promise<LogoutRendererResponse> {
   } catch (error) {
     console.error('Logout request failed:', error)
 
-    secureStore.setSecure('refreshToken', '')
+    secureStore.clearRefreshToken()
     authStore.set('accessToken', '')
+    authStore.set('user', null)
 
     return {
       success: false,

@@ -7,6 +7,11 @@ export interface AudioInputDeviceOption {
   label: string
 }
 
+export interface AudioOutputDeviceOption {
+  deviceId: string
+  label: string
+}
+
 class MicrophoneService {
   private currentStream: MediaStream | null = null
   private audioContext: AudioContext | null = null
@@ -25,6 +30,7 @@ class MicrophoneService {
   private voicePreset = 'none'
 
   private localMonitoringEnabled = false
+  private monitoringOutputDeviceId = ''
   private monitorElement: HTMLAudioElement | null = null
 
   private syncMonitoringOutput(): void {
@@ -50,7 +56,24 @@ class MicrophoneService {
       this.monitorElement.srcObject = processedStream
     }
 
+    this.applyMonitoringSinkId()
+
     void this.monitorElement.play().catch(() => {})
+  }
+
+  private applyMonitoringSinkId(): void {
+    if (!this.monitorElement) return
+
+    const targetDeviceId = this.monitoringOutputDeviceId || ''
+    const mediaElementWithSink = this.monitorElement as HTMLMediaElement & {
+      setSinkId?: (sinkId: string) => Promise<void>
+    }
+
+    if (typeof mediaElementWithSink.setSinkId === 'function') {
+      void mediaElementWithSink.setSinkId(targetDeviceId).catch((error) => {
+        console.warn('[MicrophoneService] Nie udalo sie ustawic urzadzenia odsluchu:', error)
+      })
+    }
   }
 
   private clearCurrentGraph(): void {
@@ -75,6 +98,16 @@ class MicrophoneService {
       .map((device, index) => ({
         deviceId: device.deviceId,
         label: device.label || `Mikrofon ${index + 1}`
+      }))
+  }
+
+  public async getAvailableSpeakers(): Promise<AudioOutputDeviceOption[]> {
+    const devices = await navigator.mediaDevices.enumerateDevices()
+    return devices
+      .filter((device) => device.kind === 'audiooutput' && !!device.deviceId)
+      .map((device, index) => ({
+        deviceId: device.deviceId,
+        label: device.label || `Glosnik ${index + 1}`
       }))
   }
 
@@ -215,6 +248,15 @@ class MicrophoneService {
   public setLocalMonitoringEnabled(enabled: boolean): void {
     this.localMonitoringEnabled = enabled
     this.syncMonitoringOutput()
+  }
+
+  public setMonitoringOutputDeviceId(deviceId: string): void {
+    this.monitoringOutputDeviceId = deviceId || ''
+    this.applyMonitoringSinkId()
+  }
+
+  public getMonitoringOutputDeviceId(): string {
+    return this.monitoringOutputDeviceId
   }
 
   public getLocalMonitoringEnabled(): boolean {

@@ -4,6 +4,7 @@ import { localStore, translationStore } from '../store/localStore'
 import { ipcMain } from 'electron'
 import { AppLanguage, Translation } from '../../shared/schemas/langSchemas'
 import fallbackTranslations from '../../shared/locales/en.json'
+import type { AppAudioSettings } from '../../shared/schemas/ipc'
 
 export class AppSettingsService {
   private static instance: AppSettingsService
@@ -65,11 +66,43 @@ export class AppSettingsService {
     return true
   }
 
+  // --- AUDIO DEVICE SETTINGS ---
+
+  public getMicrophoneDeviceId(): string {
+    return localStore.get('microphoneDeviceId') || ''
+  }
+
+  public setMicrophoneDeviceId(deviceId: string): boolean {
+    localStore.set('microphoneDeviceId', deviceId || '')
+    return true
+  }
+
+  public getSpeakerDeviceId(): string {
+    return localStore.get('speakerDeviceId') || ''
+  }
+
+  public setSpeakerDeviceId(deviceId: string): boolean {
+    localStore.set('speakerDeviceId', deviceId || '')
+    return true
+  }
+
+  public getAudioSettings(): AppAudioSettings {
+    return localStore.get('audioSettings')
+  }
+
+  public setAudioSettings(settings: Partial<AppAudioSettings>): boolean {
+    const current = this.getAudioSettings()
+    localStore.set('audioSettings', {
+      ...current,
+      ...settings
+    })
+    return true
+  }
+
   // --- HARDWARE ID MANAGEMENT ---
 
   public getHardwareId(): string {
-    let hwId = ''
-    localStore.get('hardwareId')
+    let hwId = localStore.get('hardwareId')
 
     if (!hwId) {
       hwId = this.generateHardwareId()
@@ -130,6 +163,30 @@ export class AppSettingsService {
 
     ipcMain.handle('settings:setLanguage', (_event, lang: AppLanguage) => {
       return this.setLanguage(lang)
+    })
+
+    ipcMain.handle('settings:getMicrophoneDeviceId', () => {
+      return this.getMicrophoneDeviceId()
+    })
+
+    ipcMain.handle('settings:setMicrophoneDeviceId', (_event, deviceId: string) => {
+      return this.setMicrophoneDeviceId(deviceId)
+    })
+
+    ipcMain.handle('settings:getSpeakerDeviceId', () => {
+      return this.getSpeakerDeviceId()
+    })
+
+    ipcMain.handle('settings:setSpeakerDeviceId', (_event, deviceId: string) => {
+      return this.setSpeakerDeviceId(deviceId)
+    })
+
+    ipcMain.handle('settings:getAudioSettings', () => {
+      return this.getAudioSettings()
+    })
+
+    ipcMain.handle('settings:setAudioSettings', (_event, settings: Partial<AppAudioSettings>) => {
+      return this.setAudioSettings(settings)
     })
   }
 }

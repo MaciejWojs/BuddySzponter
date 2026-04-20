@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { UserResponseSchema } from '../../shared/schemas/user'
 
 export const ApiResultSchema = z.object({
   success: z.boolean(),
@@ -59,7 +60,8 @@ export type RegisterApiResult = z.infer<typeof RegisterApiResultSchema>
 
 export const loginPayloadSchema = z.object({
   message: z.string(),
-  accessToken: z.jwt()
+  accessToken: z.jwt(),
+  user: UserResponseSchema.optional()
 })
 
 export const registerPayloadSchema = z.object({

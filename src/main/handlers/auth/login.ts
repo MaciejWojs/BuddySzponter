@@ -88,6 +88,8 @@ export async function login(data: LoginInput): Promise<LoginRendererResponse> {
       authService.setAccessToken(parsedResponse.accessToken)
     }
 
+    authService.setUserData(parsedResponse.user ?? null)
+
     return {
       success: true,
       data: { accessTokenSaved: !!parsedResponse.accessToken },

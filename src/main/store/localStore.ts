@@ -1,6 +1,7 @@
 import Store from 'electron-store'
 import { AppLanguage, Translation } from '../../shared/schemas/langSchemas'
-import { UserResponseSchema } from '../../shared/schemas/user'
+import type { UserResponseSchema } from '../../shared/schemas/user'
+import type { AppAudioSettings } from '../../shared/schemas/ipc'
 
 type StoreModule = { default: typeof Store }
 
@@ -12,6 +13,9 @@ interface LocalStoreSchema {
   language: AppLanguage
   availableLanguages: AppLanguage[]
   hardwareId: string | null
+  microphoneDeviceId: string
+  speakerDeviceId: string
+  audioSettings: AppAudioSettings
 }
 
 export const localStore = new StoreClass<LocalStoreSchema>({
@@ -19,7 +23,27 @@ export const localStore = new StoreClass<LocalStoreSchema>({
   defaults: {
     language: 'en',
     availableLanguages: [],
-    hardwareId: null
+    hardwareId: null,
+    microphoneDeviceId: '',
+    speakerDeviceId: '',
+    audioSettings: {
+      includeSystemAudio: true,
+      includeMicrophone: true,
+      localMicrophoneVolume: 1,
+      localSystemAudioVolume: 1,
+      remoteMicVolume: 1,
+      remoteSystemVolume: 1,
+      micLimiterEnabled: true,
+      micBassBoostEnabled: false,
+      micStudioModeEnabled: false,
+      micMonitoringEnabled: false,
+      micInputThresholdDb: -60,
+      activeVoicePreset: 'none',
+      audioDuckingLevel: 0.3,
+      audioSpeechThreshold: 0.02,
+      audioGainSmoothing: 0.08,
+      audioHoldFrames: 8
+    }
   }
 })
 

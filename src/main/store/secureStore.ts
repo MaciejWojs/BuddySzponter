@@ -46,6 +46,11 @@ class SecureStore {
   clearSession(): void {
     this.store.delete('sessionId')
     this.store.delete('aesKey')
+    this.store.delete('refreshToken')
+  }
+
+  clearRefreshToken(): void {
+    this.store.delete('refreshToken')
   }
 }
 

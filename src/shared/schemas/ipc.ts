@@ -33,6 +33,25 @@ export interface DesktopSource {
   thumbnail: string
 }
 
+export interface AppAudioSettings {
+  includeSystemAudio: boolean
+  includeMicrophone: boolean
+  localMicrophoneVolume: number
+  localSystemAudioVolume: number
+  remoteMicVolume: number
+  remoteSystemVolume: number
+  micLimiterEnabled: boolean
+  micBassBoostEnabled: boolean
+  micStudioModeEnabled: boolean
+  micMonitoringEnabled: boolean
+  micInputThresholdDb: number
+  activeVoicePreset: 'none' | 'studio' | 'high' | 'robot' | 'demon' | 'radio'
+  audioDuckingLevel: number
+  audioSpeechThreshold: number
+  audioGainSmoothing: number
+  audioHoldFrames: number
+}
+
 // --- AUTH ---
 export type LoginRendererResponse = IpcResponse<{ accessTokenSaved: boolean }>
 export type RegisterRendererResponse = IpcResponse

@@ -6,6 +6,7 @@ import { useWebRtcStore } from './webRtcStore'
 import { useLogStore } from './devStores/logStore' // Upewnij się, że ta ścieżka jest poprawna
 import { videoService } from '@renderer/services/videoService'
 import { microphoneService } from '@renderer/services/micService'
+import type { AppAudioSettings } from '@shared/schemas/ipc'
 
 // Zmieniono nazwę na useSessionStore (konwencja Vue)
 export const SessionStore = defineStore('session', () => {
@@ -17,7 +18,16 @@ export const SessionStore = defineStore('session', () => {
   const includeSystemAudio = ref(true)
   const includeMicrophone = ref(true)
   const availableMicrophones = ref<Array<{ deviceId: string; label: string }>>([])
+  const availableSpeakers = ref<Array<{ deviceId: string; label: string }>>([])
   const selectedMicrophoneDeviceId = ref<string>('')
+  const selectedSpeakerDeviceId = ref<string>('')
+  const micLimiterEnabled = ref<boolean>(true)
+  const micBassBoostEnabled = ref<boolean>(false)
+  const micStudioModeEnabled = ref<boolean>(false)
+  const micMonitoringEnabled = ref<boolean>(false)
+  const micInputThresholdDb = ref<number>(-60)
+  const activeVoicePreset = ref<AppAudioSettings['activeVoicePreset']>('none')
+  const areAudioSettingsHydrated = ref(false)
 
   const sharedTextureStream = shallowRef<MediaStream | null>(null)
   const currentCaptureMode = ref<'host-shared' | 'host-native' | 'guest-mic' | null>(null)
@@ -224,6 +234,44 @@ export const SessionStore = defineStore('session', () => {
     }
   }
 
+  const refreshSpeakers = async (): Promise<void> => {
+    try {
+      const speakers = await microphoneService.getAvailableSpeakers()
+      availableSpeakers.value = speakers
+
+      const hasSelected = speakers.some(
+        (device) => device.deviceId === selectedSpeakerDeviceId.value
+      )
+      if (!hasSelected) {
+        selectedSpeakerDeviceId.value = speakers[0]?.deviceId ?? ''
+      }
+
+      microphoneService.setMonitoringOutputDeviceId(selectedSpeakerDeviceId.value)
+    } catch (err) {
+      logStore.addLog('ERROR', `Błąd odczytu głośników: ${err}`, 'api')
+      availableSpeakers.value = []
+      selectedSpeakerDeviceId.value = ''
+      microphoneService.setMonitoringOutputDeviceId('')
+    }
+  }
+
+  const hydrateAudioDeviceSettings = async (): Promise<void> => {
+    try {
+      const [savedMicDeviceId, savedSpeakerDeviceId] = await Promise.all([
+        window.api.settings.getMicrophoneDeviceId(),
+        window.api.settings.getSpeakerDeviceId()
+      ])
+
+      selectedMicrophoneDeviceId.value = savedMicDeviceId || ''
+      selectedSpeakerDeviceId.value = savedSpeakerDeviceId || ''
+      microphoneService.setMonitoringOutputDeviceId(selectedSpeakerDeviceId.value)
+    } catch (err) {
+      logStore.addLog('ERROR', `Błąd wczytywania ustawień audio: ${err}`, 'api')
+    } finally {
+      areAudioSettingsHydrated.value = true
+    }
+  }
+
   const applySelectedMicrophone = async (): Promise<void> => {
     if (!includeMicrophone.value) {
       return
@@ -335,18 +383,41 @@ export const SessionStore = defineStore('session', () => {
     webRtcStore.toggleSystemAudio(!isMuted)
   })
 
-  void refreshMicrophones()
+  watch(selectedMicrophoneDeviceId, (deviceId): void => {
+    if (!areAudioSettingsHydrated.value) return
+    void window.api.settings.setMicrophoneDeviceId(deviceId || '')
+  })
+
+  watch(selectedSpeakerDeviceId, (deviceId): void => {
+    microphoneService.setMonitoringOutputDeviceId(deviceId || '')
+    if (!areAudioSettingsHydrated.value) return
+    void window.api.settings.setSpeakerDeviceId(deviceId || '')
+  })
+
+  void (async () => {
+    await hydrateAudioDeviceSettings()
+    await Promise.all([refreshMicrophones(), refreshSpeakers()])
+  })()
 
   return {
     includeSystemAudio,
     includeMicrophone,
     availableMicrophones,
+    availableSpeakers,
     selectedMicrophoneDeviceId,
+    selectedSpeakerDeviceId,
+    micLimiterEnabled,
+    micBassBoostEnabled,
+    micStudioModeEnabled,
+    micMonitoringEnabled,
+    micInputThresholdDb,
+    activeVoicePreset,
     isCapturing,
     startCapture,
     stopCapture,
     handleRespond,
     refreshMicrophones,
+    refreshSpeakers,
     applySelectedMicrophone
   }
 })

@@ -96,11 +96,10 @@ export class AuthService {
 
   clearTokens(): void {
     this.setAccessToken('')
-    this.setRefreshToken('')
+    secureStore.clearRefreshToken()
     this.clearRefreshTimeout()
 
-    authStore.set('user', null)
-    this.currentUser = null
+    this.setUserData(null)
   }
 
   private scheduleRefresh(delay: number): void {
@@ -125,6 +124,11 @@ export class AuthService {
   }
 
   private saveUserData(userData: UserResponseSchema): void {
+    authStore.set('user', userData)
+    this.currentUser = userData
+  }
+
+  public setUserData(userData: UserResponseSchema | null): void {
     authStore.set('user', userData)
     this.currentUser = userData
   }

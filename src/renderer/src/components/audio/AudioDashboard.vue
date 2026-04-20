@@ -25,19 +25,22 @@ interface VoicePresetOption {
 
 const webRtcStore = useWebRtcStore()
 const sessionStore = SessionStore()
-const { selectedMicrophoneDeviceId } = storeToRefs(sessionStore)
+const {
+  selectedMicrophoneDeviceId,
+  selectedSpeakerDeviceId,
+  micLimiterEnabled,
+  micBassBoostEnabled,
+  micStudioModeEnabled,
+  micMonitoringEnabled,
+  micInputThresholdDb,
+  activeVoicePreset
+} = storeToRefs(sessionStore)
 
 const isMyMicMuted = ref(false)
 const isMySystemMuted = ref(false)
 const isGuestSystemMuted = ref(false)
 const isAdvancedOpen = ref(false)
-const micLimiterEnabled = ref(true)
-const micBassBoostEnabled = ref(false)
-const micStudioModeEnabled = ref(false)
-const micMonitoringEnabled = ref(false)
-const micInputThresholdDb = ref(-60)
 const isAutoGate = computed(() => micInputThresholdDb.value <= -60)
-const activeVoicePreset = ref<VoicePresetOption['id']>('none')
 
 const voicePresets: VoicePresetOption[] = [
   { id: 'none', label: 'Czysty' },
@@ -141,10 +144,6 @@ const clampDb = (value: number, min = -60, max = 0): number => {
   return Math.max(min, Math.min(max, value))
 }
 
-const linearToDb = (linear: number): number => {
-  return clampDb(20 * Math.log10(Math.max(1e-8, linear)))
-}
-
 const dbToLinear = (db: number): number => {
   return Math.max(0, Math.min(1, Math.pow(10, clampDb(db) / 20)))
 }
@@ -186,7 +185,7 @@ const resetDuckingToDefault = (): void => {
 }
 
 const handleDeviceChange = (): void => {
-  void sessionStore.refreshMicrophones()
+  void Promise.all([sessionStore.refreshMicrophones(), sessionStore.refreshSpeakers()])
 }
 
 const handleSelectedMicrophoneChange = async (): Promise<void> => {
@@ -194,6 +193,10 @@ const handleSelectedMicrophoneChange = async (): Promise<void> => {
     await sessionStore.applySelectedMicrophone()
   }
   syncMicMuteStateFromStream(webRtcStore.localStream)
+}
+
+const handleSelectedSpeakerChange = (): void => {
+  // Zapis dzieje się reaktywnie w sessionStore (watch na selectedSpeakerDeviceId).
 }
 
 const toggleMyMicMute = (): void => {
@@ -236,17 +239,16 @@ const selectVoicePreset = (presetId: VoicePresetOption['id']): void => {
 }
 
 onMounted(() => {
-  micMonitoringEnabled.value = microphoneService.getLocalMonitoringEnabled()
-  micInputThresholdDb.value = clampDb(linearToDb(microphoneService.getInputThreshold()), -60, 0)
   clampMicThresholdToContext()
 
   microphoneService.setLimiter(micLimiterEnabled.value)
+  microphoneService.setLocalMonitoringEnabled(micMonitoringEnabled.value)
   syncGateThresholdToService()
   microphoneService.setStudioModeEnabled(micStudioModeEnabled.value)
   microphoneService.setBassBoost(micBassBoostEnabled.value ? 3 : 0)
   microphoneService.setVoicePreset(activeVoicePreset.value)
 
-  void sessionStore.refreshMicrophones()
+  void Promise.all([sessionStore.refreshMicrophones(), sessionStore.refreshSpeakers()])
   navigator.mediaDevices?.addEventListener?.('devicechange', handleDeviceChange)
   syncMicMuteStateFromStream(webRtcStore.localStream)
 })
@@ -320,6 +322,24 @@ watch(micStudioModeEnabled, (enabled) => {
               :value="mic.deviceId"
             >
               {{ mic.label }}
+            </option>
+          </select>
+        </div>
+
+        <div class="mb-4">
+          <label class="text-xs text-gray-300 block mb-1.5">Głośniki / wyjście audio</label>
+          <select
+            v-model="selectedSpeakerDeviceId"
+            class="w-full px-3 py-2 rounded-md bg-[#111] border border-[#3a3a3a] text-gray-200 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+            @change="handleSelectedSpeakerChange"
+          >
+            <option value="">Domyślne wyjście systemowe</option>
+            <option
+              v-for="speaker in sessionStore.availableSpeakers"
+              :key="speaker.deviceId"
+              :value="speaker.deviceId"
+            >
+              {{ speaker.label }}
             </option>
           </select>
         </div>
