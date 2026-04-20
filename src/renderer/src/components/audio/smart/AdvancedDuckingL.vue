@@ -15,6 +15,15 @@ interface DuckingPreset {
   }
 }
 
+const props = withDefaults(
+  defineProps<{
+    compact?: boolean
+  }>(),
+  {
+    compact: false
+  }
+)
+
 const webRtcStore = useWebRtcStore()
 
 const isAdvancedOpen = ref(false)
@@ -107,6 +116,7 @@ const updateAudioHoldFrames = (value: number): void => {
 
 <template>
   <AdvancedDuckingS
+    :compact="props.compact"
     :is-advanced-open="isAdvancedOpen"
     :ducking-presets="duckingPresets"
     :active-preset-id="activePresetId"

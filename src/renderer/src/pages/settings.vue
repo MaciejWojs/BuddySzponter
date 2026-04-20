@@ -6,6 +6,7 @@ import type { NavBarItem } from '@renderer/components/UI/NavBar.vue'
 import DevicesButton from '@renderer/components/simpleComponents/DevicesButton.vue'
 import HomeButton from '@renderer/components/simpleComponents/HomeButton.vue'
 import SettingButton from '@renderer/components/simpleComponents/SettingButton.vue'
+import AudioSettingsCard from '@renderer/components/audio/AudioSettingsCard.vue'
 import { useSettingsStore } from '@renderer/stores/settingsStore'
 import { useUserStore } from '@renderer/stores/userStore'
 import { storeToRefs } from 'pinia'
@@ -21,8 +22,6 @@ const props = withDefaults(
 
 const accelerationEnabled = ref(true)
 const remoteCursorEnabled = ref(true)
-const blockMouseEnabled = ref(true)
-const blockKeyboardEnabled = ref(true)
 const autoRecordEnabled = ref(true)
 const allowWindowsShortcuts = ref(true)
 const autostartEnabled = ref(true)
@@ -192,24 +191,9 @@ watch(activeTopNav, (nextTab) => {
         </div>
       </article>
 
-      <article class="settings-card">
-        <h3>Bezpieczeństwo</h3>
-        <div class="settings-row">
-          <span>Zasady połączeń</span>
-          <button>Zasady połączeń</button>
-        </div>
-        <div class="settings-row">
-          <span>Gdy sesja się kończy</span>
-          <button>Koniec sesji</button>
-        </div>
-        <label class="settings-row settings-row-checkbox">
-          <span>Zablokuj mysz oponentowi</span>
-          <input v-model="blockMouseEnabled" type="checkbox" />
-        </label>
-        <label class="settings-row settings-row-checkbox">
-          <span>Zablokuj klawiaturę oponentowi</span>
-          <input v-model="blockKeyboardEnabled" type="checkbox" />
-        </label>
+      <article class="settings-card settings-card--audio">
+        <h3>Audio</h3>
+        <AudioSettingsCard class="settings-audio-content" />
       </article>
 
       <article class="settings-card">
@@ -391,6 +375,39 @@ watch(activeTopNav, (nextTab) => {
   box-shadow:
     0 0 0 1px color-mix(in srgb, var(--settings-border) 18%, transparent 82%),
     0 14px 32px rgba(0, 0, 0, 0.36);
+}
+
+.settings-card--audio {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.settings-audio-content {
+  max-height: 220px;
+  overflow-y: scroll;
+  overflow-x: hidden;
+  padding-right: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--color-accent) 64%, #ffffff 36%) transparent;
+}
+
+.settings-audio-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.settings-audio-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.settings-audio-content::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--settings-border) 56%, transparent 44%);
+  background: color-mix(in srgb, var(--color-accent) 44%, #2b1740 56%);
+}
+
+.settings-audio-content::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--color-accent) 58%, #2b1740 42%);
 }
 
 .settings-card h3 {
@@ -671,6 +688,12 @@ watch(activeTopNav, (nextTab) => {
     width: 100%;
     gap: 8px;
     flex-wrap: wrap;
+  }
+
+  .settings-audio-content {
+    max-height: none;
+    overflow: visible;
+    padding-right: 0;
   }
 
   .settings-checkbox-with-label {

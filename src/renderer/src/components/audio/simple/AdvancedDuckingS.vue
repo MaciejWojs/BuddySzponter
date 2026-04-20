@@ -9,6 +9,7 @@ interface DuckingPreset {
 }
 
 const props = defineProps<{
+  compact?: boolean
   isAdvancedOpen: boolean
   duckingPresets: DuckingPreset[]
   activePresetId: DuckingPreset['id'] | null
@@ -161,7 +162,9 @@ watch(
       @mouseleave="animateButtonLeave"
       @click="handleToggleAdvanced"
     >
-      <h3 class="text-sm font-bold text-amber-300">⚙️ Zaawansowane Ustawienia Duckingu</h3>
+      <h3 class="text-sm font-bold text-amber-300">
+        {{ props.compact ? '⚙️ Ducking' : '⚙️ Zaawansowane Ustawienia Duckingu' }}
+      </h3>
       <span class="text-xs text-amber-400">{{ props.isAdvancedOpen ? 'Ukryj' : 'Pokaz' }}</span>
     </button>
 
@@ -170,7 +173,9 @@ watch(
         <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
           <p class="text-xs text-violet-200/85">
             Presety Duckingu
-            <span class="text-violet-300/55">(szybkie profile reakcji na mowę)</span>
+            <span v-if="!props.compact" class="text-violet-300/55"
+              >(szybkie profile reakcji na mowę)</span
+            >
           </p>
           <button
             type="button"
@@ -183,13 +188,17 @@ watch(
           </button>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-2">
+        <div
+          class="grid gap-2"
+          :class="props.compact ? 'grid-cols-2' : 'grid-cols-1 md:grid-cols-2 xl:grid-cols-4'"
+        >
           <button
             v-for="preset in props.duckingPresets"
             :key="preset.id"
             data-preset-button
             type="button"
             class="text-left rounded-md border px-3 py-2 transition-colors"
+            :title="preset.hint"
             :class="
               props.activePresetId === preset.id
                 ? 'border-amber-500 bg-amber-500/10 shadow-[0_0_12px_rgba(245,158,11,0.25)]'
@@ -206,6 +215,7 @@ watch(
               {{ preset.label }}
             </p>
             <p
+              v-if="!props.compact"
               class="mt-1 text-[11px]"
               :class="
                 props.activePresetId === preset.id ? 'text-amber-200/80' : 'text-violet-300/55'
@@ -223,7 +233,8 @@ watch(
       </div>
 
       <div
-        class="grid grid-cols-1 lg:grid-cols-2 gap-4 rounded-lg border border-[#2d0f44] bg-[#090223] p-3"
+        class="grid grid-cols-1 gap-4 rounded-lg border border-[#2d0f44] bg-[#090223] p-3"
+        :class="!props.compact ? 'lg:grid-cols-2' : ''"
       >
         <div class="space-y-2">
           <div class="flex items-center justify-between">
