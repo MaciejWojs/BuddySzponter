@@ -8,7 +8,7 @@
       <div class="flex items-center gap-3">
         <div
           v-if="webRtcStore.rtcStatus === 'connected'"
-          class="px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors duration-300 border"
+          class="px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 border"
           :class="
             webRtcStore.isGuestControlAllowed
               ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
@@ -18,40 +18,18 @@
           <span v-if="webRtcStore.isGuestControlAllowed">✅ Kontrola Aktywna</span>
           <span v-else>🔒 Tylko podgląd</span>
         </div>
-
-        <div
-          class="flex items-center gap-2 bg-black/40 px-3 py-1 rounded-full border border-[#444]"
-        >
-          <span
-            class="w-2.5 h-2.5 rounded-full shadow-inner transition-colors duration-300"
-            :class="{
-              'bg-emerald-500 shadow-[0_0_8px_#10b981] animate-pulse':
-                webRtcStore.rtcStatus === 'connected',
-              'bg-gray-600': webRtcStore.rtcStatus === 'disconnected',
-              'bg-blue-500 shadow-[0_0_8px_#3b82f6] animate-pulse':
-                webRtcStore.rtcStatus === 'connecting'
-            }"
-          ></span>
-          <span class="text-[10px] font-mono text-gray-300 uppercase tracking-widest">
-            {{
-              webRtcStore.rtcStatus === 'connected'
-                ? 'POŁĄCZONO'
-                : webRtcStore.rtcStatus.toUpperCase()
-            }}
-          </span>
-        </div>
       </div>
     </header>
 
+    <!-- VIDEO -->
     <div
       ref="videoContainer"
-      class="bg-black border border-[#444] rounded-lg overflow-hidden aspect-video relative block w-full shadow-[0_0_15px_rgba(0,0,0,0.5)] transition-all"
+      class="bg-black border border-[#444] overflow-hidden aspect-video relative w-full"
+      tabindex="0"
       :class="{
         'cursor-crosshair': webRtcStore.isGuestControlAllowed,
-        'cursor-not-allowed':
-          !webRtcStore.isGuestControlAllowed && webRtcStore.rtcStatus === 'connected'
+        'cursor-not-allowed': !webRtcStore.isGuestControlAllowed
       }"
-      tabindex="0"
       @mouseenter="focusContainer"
       @mousemove="handleMouseMove"
       @mousedown="handleMouseDown"
@@ -63,7 +41,7 @@
       @wheel="handleWheel"
     >
       <VideoPlayer
-        class="absolute inset-0 w-full h-full object-contain pointer-events-none"
+        class="absolute inset-0 w-full h-full pointer-events-none"
         :stream="webRtcStore.remoteStream"
         :placeholder-text="
           webRtcStore.rtcStatus === 'connected'
@@ -90,17 +68,17 @@ const focusContainer = (): void => {
   videoContainer.value?.focus()
 }
 
-/* ================= MOUSE ================= */
+/* ================= HELPERS ================= */
 
 const getPercentCoords = (event: MouseEvent): { x: number; y: number } => {
   const rect = videoContainer.value!.getBoundingClientRect()
 
-  const percentX = ((event.clientX - rect.left) / rect.width) * 100
-  const percentY = ((event.clientY - rect.top) / rect.height) * 100
+  const x = ((event.clientX - rect.left) / rect.width) * 100
+  const y = ((event.clientY - rect.top) / rect.height) * 100
 
   return {
-    x: Math.max(0, Math.min(100, percentX)),
-    y: Math.max(0, Math.min(100, percentY))
+    x: Math.max(0, Math.min(100, x)),
+    y: Math.max(0, Math.min(100, y))
   }
 }
 
@@ -110,19 +88,17 @@ const getButton = (event: MouseEvent): 'l' | 'r' | 'm' => {
   return 'r'
 }
 
+/* ================= MOUSE ================= */
+
 const handleMouseMove = (event: MouseEvent): void => {
   if (!webRtcStore.isGuestControlAllowed || !videoContainer.value) return
-
-  event.preventDefault()
 
   const { x, y } = getPercentCoords(event)
   webRtcStore.sendMousePosition(x, y)
 }
 
 const handleMouseDown = (event: MouseEvent): void => {
-  if (!webRtcStore.isGuestControlAllowed || !videoContainer.value) return
-
-  event.preventDefault()
+  if (!webRtcStore.isGuestControlAllowed) return
 
   isMouseDown.value = true
   currentButton.value = getButton(event)
@@ -133,10 +109,7 @@ const handleMouseDown = (event: MouseEvent): void => {
 }
 
 const handleMouseUp = (event: MouseEvent): void => {
-  if (!webRtcStore.isGuestControlAllowed || !videoContainer.value) return
-  if (!isMouseDown.value) return
-
-  event.preventDefault()
+  if (!webRtcStore.isGuestControlAllowed || !isMouseDown.value) return
 
   isMouseDown.value = false
 
@@ -145,12 +118,34 @@ const handleMouseUp = (event: MouseEvent): void => {
   webRtcStore.sendMouseAction(currentButton.value, 'u', x, y)
 }
 
-/* ================= SCROLL (WHEEL) ================= */
+/* ================= SCROLL FIX (MOUSE + TOUCHPAD) ================= */
+
+const normalizeScroll = (deltaY: number): number => {
+  const isTrackpad = Math.abs(deltaY) < 40
+
+  let value = deltaY
+
+  // touchpad: miękki scroll
+  if (isTrackpad) {
+    value *= 0.6
+  }
+
+  // myszka: często naturalnie odwrotny kierunek
+  if (!isTrackpad) {
+    value *= -1
+  }
+
+  return value
+}
 
 const handleWheel = (event: WheelEvent): void => {
-  if (!webRtcStore.isGuestControlAllowed || !videoContainer.value) return
+  if (!webRtcStore.isGuestControlAllowed) return
+
   event.preventDefault()
-  webRtcStore.sendMouseScroll(event.deltaY)
+
+  const scroll = normalizeScroll(event.deltaY)
+
+  webRtcStore.sendMouseScroll(scroll)
 }
 
 /* ================= KEYBOARD ================= */
@@ -165,7 +160,7 @@ const handleKeyUp = (e: KeyboardEvent): void => {
   webRtcStore.sendKeyboardEvent(e.code, 'u')
 }
 
-/* ================= GLOBAL LISTENERS ================= */
+/* ================= LIFECYCLE ================= */
 
 onMounted(() => {
   window.addEventListener('mouseup', handleMouseUp)
