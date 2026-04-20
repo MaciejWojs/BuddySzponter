@@ -29,11 +29,20 @@ export const P2PMessageSchema = z.discriminatedUnion('type', [
   }),
 
   // NOWE: Klawiatura
+
   z.object({
     type: z.literal('KEYBOARD_EVENT'),
     payload: z.object({
       keyCode: z.string(),
       action: z.enum(['down', 'up'])
+    })
+  }),
+
+  // SCROLL_MOUSE
+  z.object({
+    type: z.literal('SCROLL_MOUSE'),
+    payload: z.object({
+      deltaY: z.number()
     })
   }),
 

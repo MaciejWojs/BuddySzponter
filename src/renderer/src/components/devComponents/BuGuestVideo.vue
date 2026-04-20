@@ -59,6 +59,7 @@
       @contextmenu.prevent
       @keydown.prevent="handleKeyDown"
       @keyup.prevent="handleKeyUp"
+      @wheel="handleWheel"
     >
       <VideoPlayer
         class="absolute inset-0 w-full h-full object-contain pointer-events-none"
@@ -141,6 +142,16 @@ const handleMouseUp = (event: MouseEvent): void => {
   const { x, y } = getPercentCoords(event)
 
   webRtcStore.sendMouseAction(currentButton.value, 'u', x, y)
+}
+
+/* ================= SCROLL (WHEEL) ================= */
+
+const handleWheel = (event: WheelEvent): void => {
+  if (!webRtcStore.isGuestControlAllowed || !videoContainer.value) return
+  event.preventDefault()
+  // WheelEvent.deltaY: dodatnie = w dół, ujemne = w górę
+  // Można przekazać Math.sign(event.deltaY) lub cały deltaY
+  webRtcStore.sendMouseScroll(event.deltaY)
 }
 
 /* ================= KEYBOARD ================= */

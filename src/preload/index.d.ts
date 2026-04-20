@@ -136,6 +136,7 @@ declare global {
         mouseAction: (button: string, action: string, x: number, y: number) => Promise<void>
         keyboardEvent: (keyCode: string, action: string) => Promise<void>
         getHostScreenSize: () => Promise<{ width: number; height: number }>
+        scrollMouse: (deltaY: number) => Promise<void>
       }
       events: {
         onToggleMic: (callback: () => void) => void

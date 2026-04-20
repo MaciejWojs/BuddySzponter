@@ -254,6 +254,11 @@ export const useWebRtcStore = defineStore('webrtc', () => {
       hid.sendMouseAction(button, action, x, y)
     },
     sendKeyboardEvent: hid.sendKeyboardEvent,
+    sendMouseScroll: (deltaY: number): void => {
+      if (typeof hid.sendMouseScroll === 'function') {
+        hid.sendMouseScroll(deltaY)
+      }
+    },
     sendVideoCommand: system.sendVideoCommand,
     toggleTrackByHint,
     setLocalPublishProfile,

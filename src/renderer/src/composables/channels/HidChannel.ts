@@ -35,6 +35,7 @@ export interface HidChannelApi {
     percentY: number
   ) => void
   sendKeyboardEvent: (keyCode: string, action: 'd' | 'u') => void
+  sendMouseScroll: (deltaY: number) => void
   resetState: () => void
 
   // --- router ---
@@ -180,6 +181,18 @@ export function useHidChannel(): HidChannelApi {
     )
   }
 
+  // SENDING MOUSE SCROLL
+  const sendMouseScroll = (deltaY: number): void => {
+    if (localRole.value !== 'guest' || !isControlGranted.value) return
+    webRtcService.sendData(
+      'hid-control',
+      JSON.stringify({
+        type: 'SCROLL_MOUSE',
+        payload: { deltaY }
+      })
+    )
+  }
+
   // ==========================================
   // MAIN MESSAGE ROUTER
   // ==========================================
@@ -224,6 +237,11 @@ export function useHidChannel(): HidChannelApi {
         if (localRole.value !== 'host' || !isControlGranted.value) return
         void window.api.input.keyboardEvent(msg.payload.keyCode, msg.payload.action)
         break
+
+      case 'SCROLL_MOUSE':
+        if (localRole.value !== 'host' || !isControlGranted.value) return
+        void window.api.input.scrollMouse?.(msg.payload.deltaY)
+        break
     }
   }
 
@@ -239,6 +257,7 @@ export function useHidChannel(): HidChannelApi {
     sendMouseFromVideo,
     sendMouseAction,
     sendKeyboardEvent,
+    sendMouseScroll,
     resetState,
     handleIncomingMessage
   }

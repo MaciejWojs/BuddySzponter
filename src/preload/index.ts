@@ -174,6 +174,8 @@ const api = {
 
     keyboardEvent: (keyCode: string, action: string): Promise<void> =>
       ipcRenderer.invoke('input:keyboard-event', keyCode, action),
+    scrollMouse: (deltaY: number): Promise<void> =>
+      ipcRenderer.invoke('input:scroll-mouse', deltaY),
     getHostScreenSize: (): Promise<{ width: number; height: number }> =>
       ipcRenderer.invoke('input:get-host-screen-size')
   },

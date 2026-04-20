@@ -65,6 +65,14 @@ class InputController {
     bridge.flush()
   }
 
+  async scrollMouse(deltaY: number): Promise<void> {
+    const bridge = await this.ensure()
+    if (bridge.scrollMouse) {
+      bridge.scrollMouse(deltaY)
+      bridge.flush()
+    }
+  }
+
   async key(domCode: string, action: string): Promise<void> {
     const bridge = await this.ensure()
     bridge.keyPressDOM(domCode, action === 'down')
@@ -258,6 +266,11 @@ export const inputService = {
 
     ipcMain.handle('input:get-optimization-status', () => {
       return this.controller.getOptimizationStatus()
+    })
+
+    ipcMain.handle('input:scroll-mouse', async (_e, deltaY: number) => {
+      if (isLocked()) return
+      await this.controller.scrollMouse?.(deltaY)
     })
   }
 }
