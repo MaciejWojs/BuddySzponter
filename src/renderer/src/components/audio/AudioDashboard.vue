@@ -9,6 +9,7 @@ import MicrophoneVolumeL from './smart/MicrophoneVolumeL.vue'
 import VUMeterL from './smart/VUMeterL.vue'
 import MicrophoneEffectsL from './smart/MicrophoneEffectsL.vue'
 import MySystemAudioL from './smart/MySystemAudioL.vue'
+import LocalMixerL from './smart/LocalMixerL.vue'
 
 interface DuckingPreset {
   id: 'balanced' | 'voice-focus' | 'aggressive' | 'stream'
@@ -32,7 +33,6 @@ const sessionStore = SessionStore()
 const { selectedMicrophoneDeviceId } = storeToRefs(sessionStore)
 
 const isMyMicMuted = ref(false)
-const isGuestSystemMuted = ref(false)
 const isAdvancedOpen = ref(false)
 const micLimiterEnabled = ref(true)
 const micBassBoostEnabled = ref(false)
@@ -77,20 +77,6 @@ const duckingPresets: DuckingPreset[] = [
     values: { level: 0.38, threshold: 0.018, smoothing: 0.12, holdFrames: 18 }
   }
 ]
-
-const guestMicPercent = computed<number>({
-  get: () => Math.round(webRtcStore.remoteMicVolume * 100),
-  set: (value) => {
-    webRtcStore.remoteMicVolume = Math.max(0, Math.min(1, value / 100))
-  }
-})
-
-const guestSystemPercent = computed<number>({
-  get: () => Math.round(webRtcStore.remoteSystemVolume * 100),
-  set: (value) => {
-    webRtcStore.remoteSystemVolume = Math.max(0, Math.min(1, value / 100))
-  }
-})
 
 const limiterThresholdDb = computed<number>(() => (micLimiterEnabled.value ? -10 : 0))
 
@@ -149,11 +135,6 @@ const handleDeviceChange = (): void => {
 
 const handleMicMuteStateChange = (isMuted: boolean): void => {
   isMyMicMuted.value = isMuted
-}
-
-const toggleGuestSystemMute = (): void => {
-  isGuestSystemMuted.value = !isGuestSystemMuted.value
-  webRtcStore.remoteSystemVolume = isGuestSystemMuted.value ? 0 : 1
 }
 
 onMounted(() => {
@@ -252,66 +233,7 @@ watch(micStudioModeEnabled, (enabled) => {
         <MySystemAudioL />
       </article>
 
-      <article class="bg-[#161616] border border-[#333] rounded-lg p-4">
-        <div class="flex items-center justify-between mb-3">
-          <h3 class="text-sm font-bold text-cyan-300">🎧 Odsluch (Lokalny mikser)</h3>
-        </div>
-
-        <div class="mb-4">
-          <div class="flex items-center justify-between mb-2">
-            <span class="text-xs text-gray-300 flex items-center gap-2">
-              Mikrofon Goscia
-              <span
-                class="inline-flex h-4 w-4 items-center justify-center rounded-full border border-cyan-700 text-cyan-400 text-[10px]"
-                title="Dzwiek scisza sie automatycznie, gdy Gosc mowi (Audio Ducking)."
-                >i</span
-              >
-            </span>
-            <span class="text-xs font-mono text-cyan-400">{{ guestMicPercent }}%</span>
-          </div>
-          <p class="text-[11px] text-gray-500 mb-2">
-            Dzwiek scisza sie automatycznie, gdy Gosc mowi (Audio Ducking).
-          </p>
-          <input
-            v-model.number="guestMicPercent"
-            type="range"
-            min="0"
-            max="100"
-            step="1"
-            class="pro-slider monitor w-full"
-          />
-        </div>
-
-        <div>
-          <div class="flex items-center justify-between mb-2">
-            <span class="text-xs text-gray-300">System Goscia</span>
-            <span class="text-xs font-mono text-fuchsia-300">{{ guestSystemPercent }}%</span>
-          </div>
-          <div class="flex items-center gap-3">
-            <input
-              v-model.number="guestSystemPercent"
-              type="range"
-              min="0"
-              max="100"
-              step="1"
-              class="pro-slider guest-system flex-1"
-            />
-            <button
-              type="button"
-              class="h-9 w-9 rounded-md border text-xs font-bold transition-colors"
-              :class="
-                isGuestSystemMuted
-                  ? 'bg-rose-900/30 border-rose-700 text-rose-300'
-                  : 'bg-[#202020] border-[#3f3f3f] text-gray-200 hover:border-fuchsia-500'
-              "
-              :title="isGuestSystemMuted ? 'Wlacz system Goscia' : 'Wycisz system Goscia'"
-              @click="toggleGuestSystemMute()"
-            >
-              {{ isGuestSystemMuted ? '🔇' : '🔊' }}
-            </button>
-          </div>
-        </div>
-      </article>
+      <LocalMixerL />
     </div>
 
     <article class="mt-4 bg-[#161616] border border-[#333] rounded-lg p-4">
