@@ -8,6 +8,7 @@ import SelectMicrophoneL from './smart/SelectMicrophoneL.vue'
 import MicrophoneVolumeL from './smart/MicrophoneVolumeL.vue'
 import VUMeterL from './smart/VUMeterL.vue'
 import MicrophoneEffectsL from './smart/MicrophoneEffectsL.vue'
+import MySystemAudioL from './smart/MySystemAudioL.vue'
 
 interface DuckingPreset {
   id: 'balanced' | 'voice-focus' | 'aggressive' | 'stream'
@@ -31,7 +32,6 @@ const sessionStore = SessionStore()
 const { selectedMicrophoneDeviceId } = storeToRefs(sessionStore)
 
 const isMyMicMuted = ref(false)
-const isMySystemMuted = ref(false)
 const isGuestSystemMuted = ref(false)
 const isAdvancedOpen = ref(false)
 const micLimiterEnabled = ref(true)
@@ -77,13 +77,6 @@ const duckingPresets: DuckingPreset[] = [
     values: { level: 0.38, threshold: 0.018, smoothing: 0.12, holdFrames: 18 }
   }
 ]
-
-const mySystemPercent = computed<number>({
-  get: () => Math.round(webRtcStore.localSystemAudioVolume * 100),
-  set: (value) => {
-    webRtcStore.localSystemAudioVolume = Math.max(0, Math.min(1, value / 100))
-  }
-})
 
 const guestMicPercent = computed<number>({
   get: () => Math.round(webRtcStore.remoteMicVolume * 100),
@@ -156,11 +149,6 @@ const handleDeviceChange = (): void => {
 
 const handleMicMuteStateChange = (isMuted: boolean): void => {
   isMyMicMuted.value = isMuted
-}
-
-const toggleMySystemMute = (): void => {
-  isMySystemMuted.value = !isMySystemMuted.value
-  webRtcStore.toggleSystemAudio(isMySystemMuted.value)
 }
 
 const toggleGuestSystemMute = (): void => {
@@ -261,36 +249,7 @@ watch(micStudioModeEnabled, (enabled) => {
           </div>
         </div>
 
-        <div>
-          <div class="flex items-center justify-between mb-2">
-            <span class="text-xs text-gray-300">Moje audio systemowe</span>
-            <span class="text-xs font-mono text-emerald-400">{{ mySystemPercent }}%</span>
-          </div>
-
-          <div class="flex items-center gap-3">
-            <input
-              v-model.number="mySystemPercent"
-              type="range"
-              min="0"
-              max="100"
-              step="1"
-              class="pro-slider system flex-1"
-            />
-            <button
-              type="button"
-              class="h-9 w-9 rounded-md border text-xs font-bold transition-colors"
-              :class="
-                isMySystemMuted
-                  ? 'bg-rose-900/30 border-rose-700 text-rose-300'
-                  : 'bg-[#202020] border-[#3f3f3f] text-gray-200 hover:border-emerald-500'
-              "
-              :title="isMySystemMuted ? 'Wlacz system audio' : 'Wycisz system audio'"
-              @click="toggleMySystemMute()"
-            >
-              {{ isMySystemMuted ? '🔇' : '🔊' }}
-            </button>
-          </div>
-        </div>
+        <MySystemAudioL />
       </article>
 
       <article class="bg-[#161616] border border-[#333] rounded-lg p-4">
