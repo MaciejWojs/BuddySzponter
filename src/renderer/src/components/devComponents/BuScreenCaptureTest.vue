@@ -1,3 +1,46 @@
+<template>
+  <div class="bg-black/50 border border-[#333] rounded-lg p-5 flex flex-col gap-4">
+    <h3 class="text-xl font-semibold m-0 flex justify-between items-center">
+      <span>Test Screen Capture</span>
+      <div class="flex items-center gap-3">
+        <span v-if="isCapturing" class="text-xs bg-gray-700/60 text-gray-200 px-2 py-1 rounded"
+          >FPS: {{ fps }}</span
+        >
+        <span
+          class="text-xs px-2 py-1 rounded"
+          :class="isCapturing ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'"
+        >
+          {{ isCapturing ? 'Aktywne' : 'Wyłączone' }}
+        </span>
+      </div>
+    </h3>
+
+    <div class="flex gap-2">
+      <button
+        :disabled="isCapturing"
+        class="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-4 py-2 rounded font-medium transition-colors"
+        @click="startCapture"
+      >
+        Start
+      </button>
+      <button
+        :disabled="!isCapturing"
+        class="bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-4 py-2 rounded font-medium transition-colors"
+        @click="stopCapture"
+      >
+        Stop
+      </button>
+    </div>
+
+    <div
+      class="border border-[#444] rounded overflow-hidden bg-black/80 aspect-video relative flex items-center justify-center"
+    >
+      <canvas v-if="isCapturing" ref="canvasRef" class="w-full h-full object-contain"></canvas>
+      <p v-else class="text-gray-500 font-medium absolute">Podgląd zablokowany</p>
+    </div>
+  </div>
+</template>
+
 <script setup lang="ts">
 import { ref, onBeforeUnmount } from 'vue'
 
@@ -15,9 +58,7 @@ const hasNativeScreenCapture =
   typeof window.screenCapture?.requestStream === 'function' &&
   typeof window.screenCapture?.stopStream === 'function'
 
-const canRegisterSharedTexture =
-  typeof window.screenCapture?.registerReceiver === 'function'
-
+const canRegisterSharedTexture = typeof window.screenCapture?.registerReceiver === 'function'
 
 const updateFps = async (): Promise<void> => {
   if (typeof window.capture?.getFps === 'function') {
@@ -90,9 +131,7 @@ const startCapture = async (): Promise<void> => {
         frame.close()
       })
     } else {
-      console.warn(
-        'Brak dostępnej metody przechwytywania (screenCapture ani capture).'
-      )
+      console.warn('Brak dostępnej metody przechwytywania (screenCapture ani capture).')
       return
     }
 
