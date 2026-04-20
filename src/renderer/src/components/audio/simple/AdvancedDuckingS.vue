@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { nextTick, onMounted, ref, watch } from 'vue'
+import gsap from 'gsap'
+
 interface DuckingPreset {
   id: 'balanced' | 'voice-focus' | 'aggressive' | 'stream'
   label: string
@@ -46,30 +49,135 @@ const onAudioGainSmoothingInput = (event: Event): void => {
 const onAudioHoldFramesInput = (event: Event): void => {
   emit('update:audio-hold-frames', toNumber(event))
 }
+
+const articleRef = ref<HTMLElement | null>(null)
+const advancedContentRef = ref<HTMLDivElement | null>(null)
+
+const animateButtonEnter = (event: MouseEvent): void => {
+  const button = event.currentTarget as HTMLButtonElement | null
+  if (!button) return
+
+  gsap.to(button, {
+    duration: 0.2,
+    y: -1,
+    scale: 1.01,
+    boxShadow: '0 8px 18px rgba(72, 21, 102, 0.28)',
+    ease: 'power2.out'
+  })
+}
+
+const animateButtonLeave = (event: MouseEvent): void => {
+  const button = event.currentTarget as HTMLButtonElement | null
+  if (!button) return
+
+  gsap.to(button, {
+    duration: 0.2,
+    y: 0,
+    scale: 1,
+    boxShadow: '0 0 0 rgba(0, 0, 0, 0)',
+    ease: 'power2.out'
+  })
+}
+
+const animateButtonClick = (event: MouseEvent): void => {
+  const button = event.currentTarget as HTMLButtonElement | null
+  if (!button) return
+
+  gsap.fromTo(
+    button,
+    { scale: 0.97 },
+    {
+      scale: 1,
+      duration: 0.16,
+      ease: 'power2.out'
+    }
+  )
+}
+
+const handleToggleAdvanced = (event: MouseEvent): void => {
+  animateButtonClick(event)
+  emit('toggle-advanced')
+}
+
+const handleResetDefault = (event: MouseEvent): void => {
+  animateButtonClick(event)
+  emit('reset-default')
+}
+
+const handleApplyPreset = (presetId: DuckingPreset['id'], event: MouseEvent): void => {
+  animateButtonClick(event)
+  emit('apply-preset', presetId)
+}
+
+onMounted(() => {
+  if (articleRef.value) {
+    gsap.from(articleRef.value, {
+      duration: 0.5,
+      opacity: 0,
+      y: 14,
+      ease: 'power2.out'
+    })
+  }
+})
+
+watch(
+  () => props.isAdvancedOpen,
+  async (isOpen) => {
+    if (!isOpen) return
+
+    await nextTick()
+    if (!advancedContentRef.value) return
+
+    gsap.from(advancedContentRef.value, {
+      duration: 0.32,
+      opacity: 0,
+      y: 8,
+      ease: 'power2.out'
+    })
+
+    const presetButtons = advancedContentRef.value.querySelectorAll('[data-preset-button]')
+    if (presetButtons.length > 0) {
+      gsap.from(presetButtons, {
+        duration: 0.26,
+        opacity: 0,
+        y: 6,
+        stagger: 0.03,
+        ease: 'power2.out'
+      })
+    }
+  }
+)
 </script>
 
 <template>
-  <article class="mt-4 bg-[#161616] border border-[#333] rounded-lg p-4">
+  <article
+    ref="articleRef"
+    class="mt-4 rounded-lg border border-[#2d0f44] bg-[#06001f] p-4 shadow-[0_10px_26px_rgba(3,0,18,0.45)]"
+  >
     <button
       type="button"
       class="w-full flex items-center justify-between text-left"
-      @click="emit('toggle-advanced')"
+      @mouseenter="animateButtonEnter"
+      @mouseleave="animateButtonLeave"
+      @click="handleToggleAdvanced"
     >
       <h3 class="text-sm font-bold text-amber-300">⚙️ Zaawansowane Ustawienia Duckingu</h3>
       <span class="text-xs text-amber-400">{{ props.isAdvancedOpen ? 'Ukryj' : 'Pokaz' }}</span>
     </button>
 
-    <div v-if="props.isAdvancedOpen" class="mt-4 space-y-4">
-      <div class="rounded-lg border border-[#3a3a3a] bg-[#111] p-3">
+    <div v-if="props.isAdvancedOpen" ref="advancedContentRef" class="mt-4 space-y-4">
+      <div class="rounded-lg border border-[#2d0f44] bg-[#090223] p-3">
         <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
-          <p class="text-xs text-gray-300">
+          <p class="text-xs text-violet-200/85">
             Presety Duckingu
-            <span class="text-gray-500">(szybkie profile reakcji na mowę)</span>
+            <span class="text-violet-300/55">(szybkie profile reakcji na mowę)</span>
           </p>
           <button
             type="button"
-            class="px-3 py-1.5 rounded border border-[#505050] text-[11px] text-gray-300 hover:border-amber-500 hover:text-amber-300 transition-colors"
-            @click="emit('reset-default')"
+            class="rounded border border-[#3a1760] bg-[#0d0426] px-3 py-1.5 text-[11px] text-violet-200/80 transition-colors hover:border-amber-500 hover:text-amber-200"
+            @mouseenter="animateButtonEnter"
+            @mouseleave="animateButtonLeave"
+            @click="handleResetDefault"
           >
             Reset do domyslnego
           </button>
@@ -79,42 +187,47 @@ const onAudioHoldFramesInput = (event: Event): void => {
           <button
             v-for="preset in props.duckingPresets"
             :key="preset.id"
+            data-preset-button
             type="button"
             class="text-left rounded-md border px-3 py-2 transition-colors"
             :class="
               props.activePresetId === preset.id
-                ? 'border-amber-500 bg-amber-500/10'
-                : 'border-[#3d3d3d] bg-[#1b1b1b] hover:border-amber-600/70'
+                ? 'border-amber-500 bg-amber-500/10 shadow-[0_0_12px_rgba(245,158,11,0.25)]'
+                : 'border-[#3a1760] bg-[#0d0426] hover:border-amber-600/70'
             "
-            @click="emit('apply-preset', preset.id)"
+            @mouseenter="animateButtonEnter"
+            @mouseleave="animateButtonLeave"
+            @click="handleApplyPreset(preset.id, $event)"
           >
             <p
               class="text-xs font-semibold"
-              :class="props.activePresetId === preset.id ? 'text-amber-300' : 'text-gray-200'"
+              :class="props.activePresetId === preset.id ? 'text-amber-200' : 'text-violet-200/85'"
             >
               {{ preset.label }}
             </p>
             <p
               class="mt-1 text-[11px]"
-              :class="props.activePresetId === preset.id ? 'text-amber-200/80' : 'text-gray-500'"
+              :class="
+                props.activePresetId === preset.id ? 'text-amber-200/80' : 'text-violet-300/55'
+              "
             >
               {{ preset.hint }}
             </p>
           </button>
         </div>
 
-        <p class="mt-3 text-[11px] text-gray-500">
+        <p class="mt-3 text-[11px] text-violet-300/55">
           Aktywny preset:
           <span class="text-amber-300 font-medium">{{ props.activePresetLabel ?? 'Custom' }}</span>
         </p>
       </div>
 
       <div
-        class="grid grid-cols-1 lg:grid-cols-2 gap-4 rounded-lg border border-[#3a3a3a] bg-[#111] p-3"
+        class="grid grid-cols-1 lg:grid-cols-2 gap-4 rounded-lg border border-[#2d0f44] bg-[#090223] p-3"
       >
         <div class="space-y-2">
           <div class="flex items-center justify-between">
-            <span class="text-xs text-gray-300">Sila wyciszenia (Ducking Level)</span>
+            <span class="text-xs text-violet-200/85">Sila wyciszenia (Ducking Level)</span>
             <span class="text-xs font-mono text-amber-300">{{
               props.audioDuckingLevel.toFixed(2)
             }}</span>
@@ -132,7 +245,7 @@ const onAudioHoldFramesInput = (event: Event): void => {
 
         <div class="space-y-2">
           <div class="flex items-center justify-between">
-            <span class="text-xs text-gray-300">Prog aktywacji (Threshold)</span>
+            <span class="text-xs text-violet-200/85">Prog aktywacji (Threshold)</span>
             <span class="text-xs font-mono text-amber-300">{{
               props.audioSpeechThreshold.toFixed(3)
             }}</span>
@@ -150,7 +263,7 @@ const onAudioHoldFramesInput = (event: Event): void => {
 
         <div class="space-y-2">
           <div class="flex items-center justify-between">
-            <span class="text-xs text-gray-300">Atak (Attack smoothing)</span>
+            <span class="text-xs text-violet-200/85">Atak (Attack smoothing)</span>
             <span class="text-xs font-mono text-amber-300"
               >{{ props.audioGainSmoothing.toFixed(2) }} s</span
             >
@@ -168,7 +281,7 @@ const onAudioHoldFramesInput = (event: Event): void => {
 
         <div class="space-y-2">
           <div class="flex items-center justify-between">
-            <span class="text-xs text-gray-300">Podtrzymanie (Hold Frames)</span>
+            <span class="text-xs text-violet-200/85">Podtrzymanie (Hold Frames)</span>
             <span class="text-xs font-mono text-amber-300">{{ props.audioHoldFrames }} klatek</span>
           </div>
           <input
@@ -191,9 +304,10 @@ const onAudioHoldFramesInput = (event: Event): void => {
   appearance: none;
   height: 8px;
   border-radius: 999px;
-  background: linear-gradient(90deg, #1f2937 0%, #374151 100%);
-  border: 1px solid #3b3b3b;
+  background: linear-gradient(90deg, #06001f 0%, #1a0830 55%, #481566 100%);
+  border: 1px solid #3a1760;
   outline: none;
+  transition: box-shadow 180ms ease;
 }
 
 .pro-slider::-webkit-slider-thumb {
@@ -201,9 +315,7 @@ const onAudioHoldFramesInput = (event: Event): void => {
   width: 16px;
   height: 16px;
   border-radius: 999px;
-  background: #60a5fa;
-  border: 2px solid #dbeafe;
-  box-shadow: 0 0 10px rgba(96, 165, 250, 0.4);
+  border: 2px solid #fde68a;
   cursor: pointer;
   transition: all 160ms ease;
 }
@@ -216,17 +328,18 @@ const onAudioHoldFramesInput = (event: Event): void => {
 .pro-slider::-moz-range-thumb {
   width: 16px;
   height: 16px;
-  border: 2px solid #dbeafe;
+  border: 2px solid #fde68a;
   border-radius: 999px;
-  background: #60a5fa;
+  background: #f59e0b;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.45);
   cursor: pointer;
 }
 
 .pro-slider::-moz-range-track {
   height: 8px;
   border-radius: 999px;
-  background: linear-gradient(90deg, #1f2937 0%, #374151 100%);
-  border: 1px solid #3b3b3b;
+  background: linear-gradient(90deg, #06001f 0%, #1a0830 55%, #481566 100%);
+  border: 1px solid #3a1760;
 }
 
 .pro-slider.ducking::-moz-range-thumb {
