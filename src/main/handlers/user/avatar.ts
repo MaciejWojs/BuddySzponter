@@ -9,7 +9,6 @@ import { buildRoute } from '../../utils/api/path'
 import { authService } from '../../services/AuthService'
 import { secureStore } from '../../store/secureStore'
 import { decryptData } from '../../utils/api/crypt'
-import { string } from 'zod'
 
 function normalizePngFileName(fileName: string, mimeType: string): string {
   if (mimeType.toLowerCase() !== 'image/png') return fileName
