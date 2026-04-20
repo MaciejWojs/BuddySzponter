@@ -289,7 +289,8 @@ export const inputService = {
 
     ipcMain.handle('input:scroll-mouse', async (_e, deltaY: number) => {
       if (isLocked()) return
-      await this.controller.scrollMouse(deltaY)
+      // Logowanie do debugowania
+      console.log('[inputService] SCROLL_MOUSE odebrany, deltaY:', deltaY)
     })
   }
 }
