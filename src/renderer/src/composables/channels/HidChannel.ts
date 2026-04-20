@@ -71,6 +71,8 @@ export function useHidChannel(): HidChannelApi {
   const grantControl = (): void => {
     isControlGranted.value = true
     broadcastPermission()
+    // Host po nadaniu uprawnień zawsze wysyła handshake z aktualnym rozmiarem ekranu
+    if (localRole.value === 'host') sendHandshake()
   }
 
   const revokeControl = (): void => {
@@ -85,6 +87,11 @@ export function useHidChannel(): HidChannelApi {
       isControlGranted: isControlGranted.value
     }
     webRtcService.sendData('hid-control', JSON.stringify({ type: 'HID_HANDSHAKE', payload }))
+  }
+
+  // Host wysyła handshake automatycznie po połączeniu
+  if (localRole.value === 'host') {
+    setTimeout(() => sendHandshake(), 500)
   }
 
   const broadcastPermission = (): void => {
