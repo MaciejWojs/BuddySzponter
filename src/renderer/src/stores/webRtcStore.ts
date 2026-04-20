@@ -241,11 +241,13 @@ export const useWebRtcStore = defineStore('webrtc', () => {
     remoteMetrics: connectionMetrics.remoteMetrics,
     isGuestControlAllowed,
     sendChatMessage: chat.sendChatMessage,
-    sendMousePosition: (x: number, y: number): void =>
-      hid.sendMouseFromVideo(Math.min(Math.max(x, 0), 100), Math.min(Math.max(y, 0), 100)),
+    sendMousePosition: (x: number, y: number): void => {
+      hid.sendMouseFromVideo(x, y)
+    },
+
     sendMouseAction: (
-      button: 'left' | 'right' | 'middle',
-      action: 'click' | 'double',
+      button: 'l' | 'r' | 'm',
+      action: 'c' | 'dc' | 'd' | 'u',
       x: number,
       y: number
     ): void => {

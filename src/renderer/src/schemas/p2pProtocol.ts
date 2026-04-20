@@ -21,8 +21,8 @@ export const P2PMessageSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('MOUSE_ACTION'),
     payload: z.object({
-      button: z.enum(['left', 'right', 'middle']),
-      action: z.enum(['click', 'double', 'down', 'up']),
+      button: z.enum(['l', 'r', 'm']),
+      action: z.enum(['c', 'dc', 'd', 'u']),
       x: z.number().min(0),
       y: z.number().min(0)
     })

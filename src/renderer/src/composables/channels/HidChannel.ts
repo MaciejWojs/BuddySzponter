@@ -29,12 +29,12 @@ export interface HidChannelApi {
   // --- guest ---
   sendMouseFromVideo: (percentX: number, percentY: number) => void
   sendMouseAction: (
-    button: 'left' | 'right' | 'middle',
-    action: 'click' | 'double' | 'down' | 'up',
+    button: 'l' | 'r' | 'm',
+    action: 'c' | 'dc' | 'd' | 'u',
     percentX: number,
     percentY: number
   ) => void
-  sendKeyboardEvent: (keyCode: string, action: 'down' | 'up') => void
+  sendKeyboardEvent: (keyCode: string, action: 'd' | 'u') => void
   resetState: () => void
 
   // --- router ---
@@ -148,8 +148,8 @@ export function useHidChannel(): HidChannelApi {
 
   // SENDING MOUSE ACTIONS WITH COORDINATES
   const sendMouseAction = (
-    button: 'left' | 'right' | 'middle',
-    action: 'click' | 'double' | 'down' | 'up',
+    button: 'l' | 'r' | 'm',
+    action: 'c' | 'dc' | 'd' | 'u',
     percentX: number,
     percentY: number
   ): void => {
@@ -162,13 +162,13 @@ export function useHidChannel(): HidChannelApi {
       'hid-control',
       JSON.stringify({
         type: 'MOUSE_ACTION',
-        payload: { button, action, x: absoluteX, y: absoluteY }
+        payload: { btn: button, act: action, x: absoluteX, y: absoluteY }
       })
     )
   }
 
   // SENDING KEYBOARD EVENTS
-  const sendKeyboardEvent = (keyCode: string, action: 'down' | 'up'): void => {
+  const sendKeyboardEvent = (keyCode: string, action: 'd' | 'u'): void => {
     if (localRole.value !== 'guest' || !isControlGranted.value) return
 
     webRtcService.sendData(

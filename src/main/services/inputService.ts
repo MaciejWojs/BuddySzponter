@@ -221,26 +221,26 @@ export const inputService = {
 
     ipcMain.handle(
       'input:mouse-action',
-      async (_e, button: string, action: string, x: number, y: number) => {
+      async (_e, btn: string, act: string, x: number, y: number) => {
         if (isLocked()) return
 
         const map: Record<string, number> = {
-          left: 0,
-          middle: 2,
-          right: 1
+          l: 0,
+          m: 2,
+          r: 1
         }
 
-        if (typeof map[button] !== 'number') return
+        if (typeof map[btn] !== 'number') return
 
         const tx = Math.round(x)
         const ty = Math.round(y)
 
         await this.controller.move(tx, ty)
 
-        if (action === 'click') {
-          await this.controller.click(map[button])
-        } else if (action === 'double') {
-          await this.controller.doubleClick(map[button])
+        if (act === 'c') {
+          await this.controller.click(map[btn])
+        } else if (act === 'dc') {
+          await this.controller.doubleClick(map[btn])
         }
 
         this.tracker?.updateInjection(tx, ty)
