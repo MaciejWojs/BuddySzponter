@@ -10,8 +10,8 @@
         "@fontsource-variable/jetbrains-mono": "^5.2.8",
         "@fontsource-variable/plus-jakarta-sans": "^5.2.8",
         "@iconify-json/lucide": "^1.2.99",
-        "@maciejwojs/input-bridge": "^0.1.0",
-        "@maciejwojs/screen-capture": "^0.3.4",
+        "@maciejwojs/input-bridge": "^0.2.0",
+        "@maciejwojs/screen-capture": "^0.4.0",
         "@nuxt/ui": "^4.6.0",
         "@types/electron-store": "^3.2.2",
         "@vue/devtools-api": "^8.1.1",
@@ -307,9 +307,9 @@
 
     "@jridgewell/trace-mapping": ["@jridgewell/trace-mapping@0.3.31", "", { "dependencies": { "@jridgewell/resolve-uri": "^3.1.0", "@jridgewell/sourcemap-codec": "^1.4.14" } }, "sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw=="],
 
-    "@maciejwojs/input-bridge": ["@maciejwojs/input-bridge@0.1.0", "", { "dependencies": { "node-addon-api": "^8.7.0", "node-gyp-build": "^4.8.4" }, "peerDependencies": { "typescript": "^5" }, "os": [ "linux", "win32", "darwin", ] }, "sha512-F0w29y3debwIqCdfd3pGLa+Sl0vKcyBia2pW6QpdNth24G70VBm33bxPP5HXPBzwf2WFLh34RqkJzM36TVr2Iw=="],
+    "@maciejwojs/input-bridge": ["@maciejwojs/input-bridge@0.2.0", "", { "dependencies": { "node-addon-api": "^8.7.0", "node-gyp-build": "^4.8.4" }, "peerDependencies": { "typescript": "^5.9.3" }, "os": [ "linux", "win32", "darwin", ] }, "sha512-f7LGh+gzptdt2JozIHAv/LejhZNmc2B8zE3FiACToAn73HxlBW9Dl3S/K6Hk9Fc9ckyJJqcniZwSAxdByjksxA=="],
 
-    "@maciejwojs/screen-capture": ["@maciejwojs/screen-capture@0.3.4", "", { "dependencies": { "node-addon-api": "^8.7.0", "node-gyp-build": "^4.8.4" }, "peerDependencies": { "typescript": "^6.0.2" }, "os": [ "linux", "win32", "darwin", ] }, "sha512-JuZbd5ckEh7LslkX/2D+j6+/T+sBFsG6kPHFdhGIMmiupPmzZYtU2cu582wLu+SuETMVUxw3USmD60VU0/mbKQ=="],
+    "@maciejwojs/screen-capture": ["@maciejwojs/screen-capture@0.4.0", "", { "dependencies": { "node-addon-api": "^8.7.0", "node-gyp-build": "^4.8.4" }, "peerDependencies": { "typescript": "^6.0.2" }, "os": [ "linux", "win32", "darwin", ] }, "sha512-uklsq5/Hocd9dBoskIa8UXWzyIDLENG4ZpEnyJKmM/wdDR6zuSzzu2nBj1HhJiKNLWUhgrN6EsxnUaeV0PjXnQ=="],
 
     "@malept/cross-spawn-promise": ["@malept/cross-spawn-promise@2.0.0", "", { "dependencies": { "cross-spawn": "^7.0.1" } }, "sha512-1DpKU0Z5ThltBwjNySMC14g0CkbyhCaz9FkhxqNsZI6uAPJXFS8cMXlBKo26FJ8ZuW6S9GCMcR9IO5k2X5/9Fg=="],
 
