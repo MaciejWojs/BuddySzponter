@@ -38,6 +38,7 @@ class InputController {
     this.bridge = bridge
   }
 
+  // Zostawiamy prywatne - nikt z zewnątrz nie ma prawa dotykać bridge'a!
   private async ensure(): Promise<InputBridge> {
     if (!this.bridge) await this.init()
     return this.bridge!
@@ -62,6 +63,20 @@ class InputController {
       bridge.mouseClick(button, true)
       bridge.mouseClick(button, false)
     }
+    bridge.flush()
+  }
+
+  // NOWE: Pełna kontrola nad wciskaniem przycisku
+  async mouseDown(button: number): Promise<void> {
+    const bridge = await this.ensure()
+    bridge.mouseClick(button, true)
+    bridge.flush()
+  }
+
+  // NOWE: Pełna kontrola nad puszczaniem przycisku
+  async mouseUp(button: number): Promise<void> {
+    const bridge = await this.ensure()
+    bridge.mouseClick(button, false)
     bridge.flush()
   }
 
@@ -249,6 +264,10 @@ export const inputService = {
           await this.controller.click(map[btn])
         } else if (act === 'dc') {
           await this.controller.doubleClick(map[btn])
+        } else if (act === 'd') {
+          await this.controller.mouseDown(map[btn])
+        } else if (act === 'u') {
+          await this.controller.mouseUp(map[btn])
         }
 
         this.tracker?.updateInjection(tx, ty)
@@ -270,7 +289,7 @@ export const inputService = {
 
     ipcMain.handle('input:scroll-mouse', async (_e, deltaY: number) => {
       if (isLocked()) return
-      await this.controller.scrollMouse?.(deltaY)
+      await this.controller.scrollMouse(deltaY)
     })
   }
 }
