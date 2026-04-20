@@ -33,21 +33,28 @@ class InputController {
     await bridge.init()
 
     this.isOptimizationEnabled = bridge.toggleOptimization()
-    bridge.optimizeMouseMovesAbsolute(2)
+    // bridge.optimizeMouseMovesAbsolute(2)
 
     this.bridge = bridge
   }
 
-  // Zostawiamy prywatne - nikt z zewnątrz nie ma prawa dotykać bridge'a!
   private async ensure(): Promise<InputBridge> {
     if (!this.bridge) await this.init()
     return this.bridge!
   }
 
-  async move(x: number, y: number): Promise<void> {
+  async move(targetX: number, targetY: number): Promise<void> {
     const bridge = await this.ensure()
-    bridge.moveMouseAbsolute(x, y)
-    bridge.flush()
+
+    const currentPos = screen.getCursorScreenPoint()
+
+    const dx = targetX - currentPos.x
+    const dy = targetY - currentPos.y
+
+    if (dx !== 0 || dy !== 0) {
+      bridge.moveMouseRelative(dx, dy)
+      bridge.flush()
+    }
   }
 
   async click(button: number): Promise<void> {
@@ -66,14 +73,12 @@ class InputController {
     bridge.flush()
   }
 
-  // NOWE: Pełna kontrola nad wciskaniem przycisku
   async mouseDown(button: number): Promise<void> {
     const bridge = await this.ensure()
     bridge.mouseClick(button, true)
     bridge.flush()
   }
 
-  // NOWE: Pełna kontrola nad puszczaniem przycisku
   async mouseUp(button: number): Promise<void> {
     const bridge = await this.ensure()
     bridge.mouseClick(button, false)
