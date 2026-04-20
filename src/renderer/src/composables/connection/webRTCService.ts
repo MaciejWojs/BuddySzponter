@@ -118,12 +118,12 @@ export class WebRTCService {
       if (capabilities?.codecs && this.videoTransceiver?.setCodecPreferences) {
         const codecs = capabilities.codecs
 
-        const preferred = codecs.filter((c) => c.mimeType.toLowerCase() !== 'video/h264')
+        const videoCodecs = codecs.filter((c) => c.mimeType.startsWith('video/'))
 
-        const h264 = codecs.filter((c) => c.mimeType.toLowerCase() === 'video/h264')
+        const h264 = videoCodecs.filter((c) => c.mimeType.toLowerCase() === 'video/h264')
+        const nonH264 = videoCodecs.filter((c) => c.mimeType.toLowerCase() !== 'video/h264')
 
-        // final order: VP8/VP9/AV1 -> H264 (fallback)
-        const ordered = [...preferred, ...h264]
+        const ordered = [...nonH264, ...h264]
 
         this.videoTransceiver.setCodecPreferences(ordered)
       }
@@ -159,7 +159,7 @@ export class WebRTCService {
       if (state === 'failed' && !this.isIntentionallyClosing) this.onConnectionFailed?.()
       else if (state === 'closed') this.onConnectionClosed?.()
       if (state === 'connected') {
-        this.logActiveVideoCodec()
+        setTimeout(() => this.logActiveVideoCodec(), 1000)
       }
     }
   }
@@ -422,7 +422,7 @@ export class WebRTCService {
 
     try {
       this.recorder = new MediaRecorder(this.recordingStream, {
-        mimeType: 'video/webm; codecs=vp9,opus'
+        mimeType: 'video/webm; codecs=vp8,opus'
       })
     } catch {
       // fallback (np. Safari / słabsze wsparcie)
