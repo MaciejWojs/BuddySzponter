@@ -106,13 +106,14 @@ export const useWebRtcStore = defineStore('webrtc', () => {
       }
 
       if (channelLabel === 'hid-control') {
-        // FIX: Allow MOUSE_ACTION and KEYBOARD_EVENT to pass through to the HID Channel
+        // Przepuszczaj wszystkie istotne typy do HID Channel
         if (
           msg.type === 'HID_HANDSHAKE' ||
           msg.type === 'MOUSE_MOVE' ||
           msg.type === 'HID_PERMISSION_UPDATE' ||
           msg.type === 'MOUSE_ACTION' ||
-          msg.type === 'KEYBOARD_EVENT'
+          msg.type === 'KEYBOARD_EVENT' ||
+          msg.type === 'SCROLL_MOUSE'
         ) {
           hid.handleIncomingMessage(msg)
         }
