@@ -167,7 +167,13 @@ const api = {
   },
   input: {
     moveAbsolute: (x: number, y: number): Promise<void> =>
-      ipcRenderer.invoke('input:move-absolute', x, y)
+      ipcRenderer.invoke('input:move-absolute', x, y),
+
+    mouseAction: (button: string, action: string, x: number, y: number): Promise<void> =>
+      ipcRenderer.invoke('input:mouse-action', button, action, x, y),
+
+    keyboardEvent: (keyCode: string, action: string): Promise<void> =>
+      ipcRenderer.invoke('input:keyboard-event', keyCode, action)
   },
 
   events: {
