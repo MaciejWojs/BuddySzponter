@@ -10,18 +10,7 @@ import VUMeterL from './smart/VUMeterL.vue'
 import MicrophoneEffectsL from './smart/MicrophoneEffectsL.vue'
 import MySystemAudioL from './smart/MySystemAudioL.vue'
 import LocalMixerL from './smart/LocalMixerL.vue'
-
-interface DuckingPreset {
-  id: 'balanced' | 'voice-focus' | 'aggressive' | 'stream'
-  label: string
-  hint: string
-  values: {
-    level: number
-    threshold: number
-    smoothing: number
-    holdFrames: number
-  }
-}
+import AdvancedDuckingL from './smart/AdvancedDuckingL.vue'
 
 interface VoicePresetOption {
   id: 'none' | 'studio' | 'high' | 'robot' | 'demon' | 'radio'
@@ -33,7 +22,6 @@ const sessionStore = SessionStore()
 const { selectedMicrophoneDeviceId } = storeToRefs(sessionStore)
 
 const isMyMicMuted = ref(false)
-const isAdvancedOpen = ref(false)
 const micLimiterEnabled = ref(true)
 const micBassBoostEnabled = ref(false)
 const micStudioModeEnabled = ref(false)
@@ -49,33 +37,6 @@ const voicePresets: VoicePresetOption[] = [
   { id: 'robot', label: 'Robot' },
   { id: 'demon', label: 'Demon' },
   { id: 'radio', label: 'Radio' }
-]
-
-const duckingPresets: DuckingPreset[] = [
-  {
-    id: 'balanced',
-    label: 'Balanced',
-    hint: 'Uniwersalny profil do codziennej rozmowy.',
-    values: { level: 0.3, threshold: 0.02, smoothing: 0.08, holdFrames: 8 }
-  },
-  {
-    id: 'voice-focus',
-    label: 'Voice Focus',
-    hint: 'Szybciej reaguje na mowę gościa.',
-    values: { level: 0.42, threshold: 0.016, smoothing: 0.05, holdFrames: 10 }
-  },
-  {
-    id: 'aggressive',
-    label: 'Aggressive',
-    hint: 'Mocne tłumienie tła przy aktywnej mowie.',
-    values: { level: 0.62, threshold: 0.012, smoothing: 0.04, holdFrames: 14 }
-  },
-  {
-    id: 'stream',
-    label: 'Stream',
-    hint: 'Płynniejsze przejścia i dłuższe podtrzymanie.',
-    values: { level: 0.38, threshold: 0.018, smoothing: 0.12, holdFrames: 18 }
-  }
 ]
 
 const limiterThresholdDb = computed<number>(() => (micLimiterEnabled.value ? -10 : 0))
@@ -100,33 +61,6 @@ const clampMicThresholdToContext = (): void => {
 const syncGateThresholdToService = (): void => {
   const threshold = isAutoGate.value ? 0 : dbToLinear(micInputThresholdDb.value)
   microphoneService.setInputThreshold(threshold)
-}
-
-const isNear = (a: number, b: number, epsilon = 0.0005): boolean => Math.abs(a - b) <= epsilon
-
-const isPresetActive = (preset: DuckingPreset): boolean => {
-  return (
-    isNear(webRtcStore.audioDuckingLevel, preset.values.level) &&
-    isNear(webRtcStore.audioSpeechThreshold, preset.values.threshold) &&
-    isNear(webRtcStore.audioGainSmoothing, preset.values.smoothing) &&
-    webRtcStore.audioHoldFrames === preset.values.holdFrames
-  )
-}
-
-const activeDuckingPreset = computed<DuckingPreset | null>(() => {
-  return duckingPresets.find((preset) => isPresetActive(preset)) ?? null
-})
-
-const applyDuckingPreset = (preset: DuckingPreset): void => {
-  webRtcStore.audioDuckingLevel = preset.values.level
-  webRtcStore.audioSpeechThreshold = preset.values.threshold
-  webRtcStore.audioGainSmoothing = preset.values.smoothing
-  webRtcStore.audioHoldFrames = preset.values.holdFrames
-}
-
-const resetDuckingToDefault = (): void => {
-  const defaultPreset = duckingPresets[0]
-  applyDuckingPreset(defaultPreset)
 }
 
 const handleDeviceChange = (): void => {
@@ -236,141 +170,7 @@ watch(micStudioModeEnabled, (enabled) => {
       <LocalMixerL />
     </div>
 
-    <article class="mt-4 bg-[#161616] border border-[#333] rounded-lg p-4">
-      <button
-        type="button"
-        class="w-full flex items-center justify-between text-left"
-        @click="isAdvancedOpen = !isAdvancedOpen"
-      >
-        <h3 class="text-sm font-bold text-amber-300">⚙️ Zaawansowane Ustawienia Duckingu</h3>
-        <span class="text-xs text-amber-400">{{ isAdvancedOpen ? 'Ukryj' : 'Pokaz' }}</span>
-      </button>
-
-      <div v-if="isAdvancedOpen" class="mt-4 space-y-4">
-        <div class="rounded-lg border border-[#3a3a3a] bg-[#111] p-3">
-          <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
-            <p class="text-xs text-gray-300">
-              Presety Duckingu
-              <span class="text-gray-500">(szybkie profile reakcji na mowę)</span>
-            </p>
-            <button
-              type="button"
-              class="px-3 py-1.5 rounded border border-[#505050] text-[11px] text-gray-300 hover:border-amber-500 hover:text-amber-300 transition-colors"
-              @click="resetDuckingToDefault()"
-            >
-              Reset do domyslnego
-            </button>
-          </div>
-
-          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-2">
-            <button
-              v-for="preset in duckingPresets"
-              :key="preset.id"
-              type="button"
-              class="text-left rounded-md border px-3 py-2 transition-colors"
-              :class="
-                isPresetActive(preset)
-                  ? 'border-amber-500 bg-amber-500/10'
-                  : 'border-[#3d3d3d] bg-[#1b1b1b] hover:border-amber-600/70'
-              "
-              @click="applyDuckingPreset(preset)"
-            >
-              <p
-                class="text-xs font-semibold"
-                :class="isPresetActive(preset) ? 'text-amber-300' : 'text-gray-200'"
-              >
-                {{ preset.label }}
-              </p>
-              <p
-                class="mt-1 text-[11px]"
-                :class="isPresetActive(preset) ? 'text-amber-200/80' : 'text-gray-500'"
-              >
-                {{ preset.hint }}
-              </p>
-            </button>
-          </div>
-
-          <p class="mt-3 text-[11px] text-gray-500">
-            Aktywny preset:
-            <span class="text-amber-300 font-medium">{{
-              activeDuckingPreset?.label ?? 'Custom'
-            }}</span>
-          </p>
-        </div>
-
-        <div
-          class="grid grid-cols-1 lg:grid-cols-2 gap-4 rounded-lg border border-[#3a3a3a] bg-[#111] p-3"
-        >
-          <div class="space-y-2">
-            <div class="flex items-center justify-between">
-              <span class="text-xs text-gray-300">Sila wyciszenia (Ducking Level)</span>
-              <span class="text-xs font-mono text-amber-300">{{
-                webRtcStore.audioDuckingLevel.toFixed(2)
-              }}</span>
-            </div>
-            <input
-              v-model.number="webRtcStore.audioDuckingLevel"
-              class="pro-slider ducking w-full"
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
-            />
-          </div>
-
-          <div class="space-y-2">
-            <div class="flex items-center justify-between">
-              <span class="text-xs text-gray-300">Prog aktywacji (Threshold)</span>
-              <span class="text-xs font-mono text-amber-300">{{
-                webRtcStore.audioSpeechThreshold.toFixed(3)
-              }}</span>
-            </div>
-            <input
-              v-model.number="webRtcStore.audioSpeechThreshold"
-              class="pro-slider ducking w-full"
-              type="range"
-              min="0"
-              max="0.1"
-              step="0.001"
-            />
-          </div>
-
-          <div class="space-y-2">
-            <div class="flex items-center justify-between">
-              <span class="text-xs text-gray-300">Atak (Attack smoothing)</span>
-              <span class="text-xs font-mono text-amber-300"
-                >{{ webRtcStore.audioGainSmoothing.toFixed(2) }} s</span
-              >
-            </div>
-            <input
-              v-model.number="webRtcStore.audioGainSmoothing"
-              class="pro-slider ducking w-full"
-              type="range"
-              min="0.01"
-              max="0.5"
-              step="0.01"
-            />
-          </div>
-
-          <div class="space-y-2">
-            <div class="flex items-center justify-between">
-              <span class="text-xs text-gray-300">Podtrzymanie (Hold Frames)</span>
-              <span class="text-xs font-mono text-amber-300"
-                >{{ webRtcStore.audioHoldFrames }} klatek</span
-              >
-            </div>
-            <input
-              v-model.number="webRtcStore.audioHoldFrames"
-              class="pro-slider ducking w-full"
-              type="range"
-              min="0"
-              max="30"
-              step="1"
-            />
-          </div>
-        </div>
-      </div>
-    </article>
+    <AdvancedDuckingL />
   </section>
 </template>
 
@@ -425,11 +225,6 @@ watch(micStudioModeEnabled, (enabled) => {
   box-shadow: 0 0 10px rgba(232, 121, 249, 0.45);
 }
 
-.pro-slider.ducking::-webkit-slider-thumb {
-  background: #f59e0b;
-  box-shadow: 0 0 10px rgba(245, 158, 11, 0.45);
-}
-
 .pro-slider::-moz-range-thumb {
   width: 16px;
   height: 16px;
@@ -444,9 +239,5 @@ watch(micStudioModeEnabled, (enabled) => {
   border-radius: 999px;
   background: linear-gradient(90deg, #1f2937 0%, #374151 100%);
   border: 1px solid #3b3b3b;
-}
-
-.pro-slider.ducking::-moz-range-thumb {
-  background: #f59e0b;
 }
 </style>
