@@ -40,7 +40,7 @@ export const P2PMessageSchema = z.discriminatedUnion('type', [
 
   // SCROLL_MOUSE
   z.object({
-    type: z.literal('SCROLL_MOUSE'),
+    type: z.literal('MOUSE_SCROLL'),
     payload: z.object({
       deltaY: z.number()
     })

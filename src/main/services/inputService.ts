@@ -82,10 +82,14 @@ class InputController {
 
   async scrollMouse(deltaY: number): Promise<void> {
     const bridge = await this.ensure()
-    if (bridge.scrollMouse) {
-      bridge.scrollMouse(deltaY)
-      bridge.flush()
+
+    if (!bridge.scrollMouse) {
+      console.warn('scrollMouse not supported')
+      return
     }
+
+    bridge.scrollMouse(deltaY)
+    bridge.flush()
   }
 
   async key(domCode: string, action: string): Promise<void> {
@@ -289,8 +293,10 @@ export const inputService = {
 
     ipcMain.handle('input:scroll-mouse', async (_e, deltaY: number) => {
       if (isLocked()) return
-      // Logowanie do debugowania
-      console.log('[inputService] SCROLL_MOUSE odebrany, deltaY:', deltaY)
+
+      console.log('[inputService] scroll:', deltaY)
+
+      await this.controller.scrollMouse(deltaY)
     })
   }
 }

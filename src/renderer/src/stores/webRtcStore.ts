@@ -113,7 +113,7 @@ export const useWebRtcStore = defineStore('webrtc', () => {
           msg.type === 'HID_PERMISSION_UPDATE' ||
           msg.type === 'MOUSE_ACTION' ||
           msg.type === 'KEYBOARD_EVENT' ||
-          msg.type === 'SCROLL_MOUSE'
+          msg.type === 'MOUSE_SCROLL'
         ) {
           hid.handleIncomingMessage(msg)
         }
