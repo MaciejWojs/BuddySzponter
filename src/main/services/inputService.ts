@@ -1,129 +1,239 @@
-import { ipcMain, screen, BrowserWindow } from 'electron'
+import { ipcMain, screen, BrowserWindow, app } from 'electron'
 import { InputBridge } from '@maciejwojs/input-bridge'
 import { broadcastLockoutToWidget } from '../hostWidget'
 
-let bridge: InputBridge | null = null
-let isOptimizationEnabled = false
-let handlersRegistered = false
+/* ================= LOCKOUT ================= */
 
-let hostLockoutUntil = 0
-let lastInjectedX = -1
-let lastInjectedY = -1
-let lastInjectedAt = 0 // Czas ostatniej iniekcji
-let hostTrackerInterval: ReturnType<typeof setInterval> | null = null
+class LockoutManager {
+  private lockoutUntil = 0
 
-let isCurrentlyLockedOut = false
-let mainWindowRef: BrowserWindow | null = null
+  isLockedOut(): boolean {
+    return Date.now() < this.lockoutUntil
+  }
 
-// Konfiguracja
-const GRACE_PERIOD_MS = 200 // Ignoruj ruchy systemowe przez 200ms po iniekcji
-const LOCKOUT_DURATION_MS = 3000 // Blokada na 3 sekundy po wykryciu ruchu hosta
-const MOVEMENT_THRESHOLD = 0 // Czułość (piksele)
+  trigger(duration: number): void {
+    this.lockoutUntil = Date.now() + duration
+  }
 
-const ensureBridgeReady = async (): Promise<InputBridge> => {
-  if (bridge) return bridge
-  const nextBridge = new InputBridge({ autoFlush: false })
-  await nextBridge.init()
-  isOptimizationEnabled = nextBridge.toggleOptimization()
-  nextBridge.optimizeMouseMovesAbsolute(2)
-  bridge = nextBridge
-  return nextBridge
+  getUntil(): number {
+    return this.lockoutUntil
+  }
 }
 
-const startHostTracker = (): void => {
-  if (hostTrackerInterval) return
+/* ================= INPUT CONTROLLER ================= */
 
-  hostTrackerInterval = setInterval(() => {
-    const point = screen.getCursorScreenPoint()
-    const now = Date.now()
+class InputController {
+  private bridge: InputBridge | null = null
+  private isOptimizationEnabled = false
 
-    // 1. Jeśli jesteśmy w okresie "Grace Period" po iniekcji gościa,
-    // aktualizujemy tylko pozycję bazową i nic nie sprawdzamy.
-    if (now - lastInjectedAt < GRACE_PERIOD_MS) {
-      lastInjectedX = point.x
-      lastInjectedY = point.y
-      return
+  async init(): Promise<void> {
+    if (this.bridge) return
+
+    const bridge = new InputBridge({ autoFlush: false })
+    await bridge.init()
+
+    this.isOptimizationEnabled = bridge.toggleOptimization()
+    bridge.optimizeMouseMovesAbsolute(2)
+
+    this.bridge = bridge
+  }
+
+  private async ensure(): Promise<InputBridge> {
+    if (!this.bridge) await this.init()
+    return this.bridge!
+  }
+
+  async move(x: number, y: number): Promise<void> {
+    const bridge = await this.ensure()
+    bridge.moveMouseAbsolute(x, y)
+    bridge.flush()
+  }
+
+  async click(button: number): Promise<void> {
+    const bridge = await this.ensure()
+    bridge.mouseClick(button, true)
+    bridge.mouseClick(button, false)
+    bridge.flush()
+  }
+
+  async doubleClick(button: number): Promise<void> {
+    const bridge = await this.ensure()
+    for (let i = 0; i < 2; i++) {
+      bridge.mouseClick(button, true)
+      bridge.mouseClick(button, false)
     }
+    bridge.flush()
+  }
 
-    if (lastInjectedX < 0 || lastInjectedY < 0) {
-      lastInjectedX = point.x
-      lastInjectedY = point.y
-      return
-    }
+  async key(domCode: string, action: string): Promise<void> {
+    const bridge = await this.ensure()
+    bridge.keyPressDOM(domCode, action === 'down')
+    bridge.flush()
+  }
 
-    const deltaX = Math.abs(point.x - lastInjectedX)
-    const deltaY = Math.abs(point.y - lastInjectedY)
+  toggleOptimization(): boolean {
+    if (!this.bridge) return false
+    this.isOptimizationEnabled = this.bridge.toggleOptimization()
+    return this.isOptimizationEnabled
+  }
 
-    // 2. Wykrywanie ruchu fizycznego Hosta
-    if (deltaX > MOVEMENT_THRESHOLD || deltaY > MOVEMENT_THRESHOLD) {
-      hostLockoutUntil = now + LOCKOUT_DURATION_MS
-      lastInjectedX = point.x
-      lastInjectedY = point.y
-
-      if (!isCurrentlyLockedOut) {
-        isCurrentlyLockedOut = true
-        const payload = { active: true, until: hostLockoutUntil }
-        mainWindowRef?.webContents.send('input:host-lockout', payload)
-        broadcastLockoutToWidget(payload)
-        console.log('[InputService] Host moved mouse - Lockout engaged')
-      }
-    }
-    // 3. Zdejmowanie blokady po czasie bezczynności
-    else if (isCurrentlyLockedOut && now >= hostLockoutUntil) {
-      isCurrentlyLockedOut = false
-      const payload = { active: false, until: 0 }
-      mainWindowRef?.webContents.send('input:host-lockout', payload)
-      broadcastLockoutToWidget(payload)
-      console.log('[InputService] Lockout released')
-    }
-  }, 50)
+  getOptimizationStatus(): boolean {
+    return this.isOptimizationEnabled
+  }
 }
 
-export const inputService = {
-  async init(mainWindow: BrowserWindow) {
-    mainWindowRef = mainWindow
-    await ensureBridgeReady()
-    startHostTracker()
-    this.registerHandlers()
-  },
+/* ================= HOST TRACKER ================= */
 
-  registerHandlers() {
-    if (handlersRegistered) return
-    handlersRegistered = true
+class HostActivityTracker {
+  private interval: NodeJS.Timeout | null = null
 
-    ipcMain.handle('input:move-absolute', async (_event, x: number, y: number) => {
-      if (!Number.isFinite(x) || !Number.isFinite(y)) return
+  private lastX = -1
+  private lastY = -1
+  private lastInjectedAt = 0
 
+  constructor(
+    private lockout: LockoutManager,
+    private emit: (payload: { active: boolean; until: number }) => void
+  ) {}
+
+  start(): void {
+    if (this.interval) return
+
+    this.interval = setInterval(() => {
+      const point = screen.getCursorScreenPoint()
       const now = Date.now()
 
-      // Jeśli host poruszył myszką niedawno, ignoruj ruchy gościa
-      if (now < hostLockoutUntil) return
+      if (now - this.lastInjectedAt < 200) {
+        this.lastX = point.x
+        this.lastY = point.y
+        return
+      }
 
-      const targetX = Math.round(x)
-      const targetY = Math.round(y)
+      if (this.lastX < 0) {
+        this.lastX = point.x
+        this.lastY = point.y
+        return
+      }
 
-      const readyBridge = await ensureBridgeReady()
+      const dx = Math.abs(point.x - this.lastX)
+      const dy = Math.abs(point.y - this.lastY)
 
-      // Wykonaj ruch
-      readyBridge.moveMouseAbsolute(targetX, targetY)
-      readyBridge.flush()
+      if (dx > 2 || dy > 2) {
+        this.lockout.trigger(3000)
 
-      // AKTUALIZACJA TRACKERA
-      // Informujemy tracker, że ten ruch pochodzi od nas
-      lastInjectedX = targetX
-      lastInjectedY = targetY
-      lastInjectedAt = now
+        this.lastX = point.x
+        this.lastY = point.y
+
+        this.emit({
+          active: true,
+          until: this.lockout.getUntil()
+        })
+      } else if (!this.lockout.isLockedOut()) {
+        this.emit({
+          active: false,
+          until: 0
+        })
+      }
+    }, 50)
+  }
+
+  stop(): void {
+    if (this.interval) {
+      clearInterval(this.interval)
+      this.interval = null
+    }
+  }
+
+  updateInjection(x: number, y: number): void {
+    this.lastX = x
+    this.lastY = y
+    this.lastInjectedAt = Date.now()
+  }
+}
+
+/* ================= INPUT SERVICE ================= */
+
+export const inputService = {
+  controller: new InputController(),
+  lockout: new LockoutManager(),
+  tracker: null as HostActivityTracker | null,
+  mainWindow: null as BrowserWindow | null,
+  handlersRegistered: false,
+
+  async init(mainWindow: BrowserWindow): Promise<void> {
+    this.mainWindow = mainWindow
+    await this.controller.init()
+
+    const emit = (payload: { active: boolean; until: number }): void => {
+      this.mainWindow?.webContents.send('input:host-lockout', payload)
+      broadcastLockoutToWidget(payload)
+    }
+
+    this.tracker = new HostActivityTracker(this.lockout, emit)
+    this.tracker.start()
+
+    this.registerHandlers()
+
+    app.on('before-quit', () => {
+      this.tracker?.stop()
+    })
+  },
+
+  registerHandlers(): void {
+    if (this.handlersRegistered) return
+    this.handlersRegistered = true
+
+    const isLocked = (): boolean => this.lockout.isLockedOut()
+
+    ipcMain.handle('input:move-absolute', async (_e, x: number, y: number) => {
+      if (!Number.isFinite(x) || !Number.isFinite(y) || isLocked()) return
+
+      const tx = Math.round(x)
+      const ty = Math.round(y)
+
+      await this.controller.move(tx, ty)
+      this.tracker?.updateInjection(tx, ty)
     })
 
-    // ... reszta handlerów bez zmian
-    ipcMain.handle('input:toggle-optimization', async () => {
-      const readyBridge = await ensureBridgeReady()
-      isOptimizationEnabled = readyBridge.toggleOptimization()
-      return isOptimizationEnabled
+    ipcMain.handle(
+      'input:mouse-action',
+      async (_e, button: string, action: string, x: number, y: number) => {
+        if (isLocked()) return
+
+        const map: Record<string, number> = {
+          left: 1,
+          right: 2,
+          middle: 3
+        }
+
+        if (!map[button]) return
+
+        const tx = Math.round(x)
+        const ty = Math.round(y)
+
+        await this.controller.move(tx, ty)
+
+        if (action === 'click') {
+          await this.controller.click(map[button])
+        } else if (action === 'double') {
+          await this.controller.doubleClick(map[button])
+        }
+
+        this.tracker?.updateInjection(tx, ty)
+      }
+    )
+
+    ipcMain.handle('input:keyboard-event', async (_e, domCode: string, action: string) => {
+      if (isLocked()) return
+      await this.controller.key(domCode, action)
+    })
+
+    ipcMain.handle('input:toggle-optimization', () => {
+      return this.controller.toggleOptimization()
     })
 
     ipcMain.handle('input:get-optimization-status', () => {
-      return isOptimizationEnabled
+      return this.controller.getOptimizationStatus()
     })
   }
 }
