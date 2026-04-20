@@ -184,6 +184,7 @@ export function useHidChannel(): HidChannelApi {
   // SENDING MOUSE SCROLL
   const sendMouseScroll = (deltaY: number): void => {
     if (localRole.value !== 'guest' || !isControlGranted.value) return
+    console.log('[HidChannel] sendMouseScroll wysyła przez WebRTC:', deltaY)
     webRtcService.sendData(
       'hid-control',
       JSON.stringify({
@@ -240,6 +241,7 @@ export function useHidChannel(): HidChannelApi {
 
       case 'SCROLL_MOUSE':
         if (localRole.value !== 'host' || !isControlGranted.value) return
+        console.log('[HidChannel] Otrzymano SCROLL_MOUSE przez WebRTC:', msg.payload.deltaY)
         void window.api.input.scrollMouse?.(msg.payload.deltaY)
         break
     }

@@ -149,10 +149,7 @@ const handleMouseUp = (event: MouseEvent): void => {
 
 const handleWheel = (event: WheelEvent): void => {
   if (!webRtcStore.isGuestControlAllowed || !videoContainer.value) return
-  console.log('[BuGuestVideo] scroll!', event.deltaY)
   event.preventDefault()
-  // WheelEvent.deltaY: dodatnie = w dół, ujemne = w górę
-  // Można przekazać Math.sign(event.deltaY) lub cały deltaY
   webRtcStore.sendMouseScroll(event.deltaY)
 }
 
