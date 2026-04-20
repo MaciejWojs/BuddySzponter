@@ -50,6 +50,11 @@ const mapStreamToDebug = (
 
 const localTrackDiagnostics = computed(() => mapStreamToDebug(webRtcStore.localStream))
 const remoteTrackDiagnostics = computed(() => mapStreamToDebug(webRtcStore.remoteStream))
+const captureModeLabel = computed(() => {
+  if (window.screenCapture) return 'screenCapture / sharedTexture (z fallback raw buffer)'
+  if (window.capture) return 'capture / raw buffer'
+  return 'brak mechanizmu przechwytywania'
+})
 
 onMounted(() => {
   sessionStore.refreshMicrophoneDevices().catch(() => {})
@@ -175,6 +180,10 @@ onUnmounted(() => {
           >
             ■ Zatrzymaj
           </button>
+        </div>
+
+        <div class="text-[11px] text-gray-400 mb-4">
+          Tryb przechwytywania: {{ captureModeLabel }}
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
@@ -345,7 +354,10 @@ onUnmounted(() => {
           </div>
 
           <div class="px-4 py-3 rounded-lg border border-[#444] bg-black/40">
-            <label class="block text-xs text-gray-300 font-medium mb-2" for="guest-microphone-select">
+            <label
+              class="block text-xs text-gray-300 font-medium mb-2"
+              for="guest-microphone-select"
+            >
               Wybierz mikrofon
             </label>
             <div class="flex gap-2 items-center">

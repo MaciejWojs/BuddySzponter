@@ -164,7 +164,42 @@ const api = {
   }
 }
 
-let currentOnFrame: ((frame: VideoFrame) => void) | null = null
+const frameConsumers = new Set<(frame: VideoFrame) => void>()
+
+const addFrameConsumer = (callback: (frame: VideoFrame) => void): (() => void) => {
+  frameConsumers.add(callback)
+  return () => {
+    frameConsumers.delete(callback)
+    if (frameConsumers.size === 0) {
+      ipcRenderer.postMessage('capture:stop-stream', null)
+    }
+  }
+}
+
+const dispatchFrame = (frame: VideoFrame): void => {
+  const consumers = Array.from(frameConsumers)
+  if (consumers.length === 0) {
+    frame.close()
+    return
+  }
+
+  const [firstConsumer, ...otherConsumers] = consumers
+  try {
+    firstConsumer(frame)
+  } catch (e) {
+    console.error('[Preload] Error delivering frame to consumer:', e)
+  }
+
+  for (const consumer of otherConsumers) {
+    const clonedFrame = frame.clone()
+    try {
+      consumer(clonedFrame)
+    } catch (e) {
+      console.error('[Preload] Error delivering cloned frame to consumer:', e)
+      clonedFrame.close()
+    }
+  }
+}
 
 const registerSharedTextureReceiver = (): void => {
   const receiverApi = sharedTexture as unknown as {
@@ -179,11 +214,9 @@ const registerSharedTextureReceiver = (): void => {
 try {
   sharedTexture.setSharedTextureReceiver(async (data) => {
     try {
-      if (currentOnFrame) {
-        const frame = data.importedSharedTexture.getVideoFrame()
-        if (frame) {
-          currentOnFrame(frame)
-        }
+      const frame = data.importedSharedTexture.getVideoFrame()
+      if (frame) {
+        dispatchFrame(frame)
       }
     } catch (e) {
       console.error('[Preload] Odbiór klatki sharedTexture:', e)
@@ -195,6 +228,46 @@ try {
 } catch (e) {
   console.error('[Preload] Failed to set shared texture receiver:', e)
 }
+
+interface RawFramePayload {
+  buffer: ArrayBuffer | Uint8Array
+  width: number
+  height: number
+  stride: number
+  format: number
+}
+
+ipcRenderer.on('capture:raw-frame', async (_, rawFrame: RawFramePayload) => {
+  if (!rawFrame) {
+    return
+  }
+
+  try {
+    let pixelData: Uint8ClampedArray
+
+    if (rawFrame.buffer instanceof ArrayBuffer) {
+      pixelData = new Uint8ClampedArray(rawFrame.buffer)
+    } else {
+      pixelData = new Uint8ClampedArray(
+        rawFrame.buffer.buffer as ArrayBuffer,
+        rawFrame.buffer.byteOffset,
+        rawFrame.buffer.byteLength
+      )
+    }
+
+    const imageData = new ImageData(
+      pixelData as unknown as ImageDataArray,
+      rawFrame.width,
+      rawFrame.height
+    )
+    const bitmap = await createImageBitmap(imageData)
+    const frame = new VideoFrame(bitmap, { timestamp: performance.now() * 1000 })
+
+    dispatchFrame(frame)
+  } catch (e) {
+    console.error('[Preload] Odbiór surowej klatki:', e)
+  }
+})
 
 // Use `contextBridge` APIs to expose Electron APIs to
 // renderer only if context isolation is enabled, otherwise
@@ -211,13 +284,10 @@ if (process.contextIsolated) {
       stop: () => ipcRenderer.invoke('capture:stop'),
       getFps: () => ipcRenderer.invoke('capture:getFps'),
       subscribeStream: (onFrame: (frame: VideoFrame) => void) => {
-        currentOnFrame = onFrame
+        const cleanupSubscription = addFrameConsumer(onFrame)
 
         const cleanup = (): void => {
-          if (currentOnFrame) {
-            currentOnFrame = null
-            ipcRenderer.postMessage('capture:stop-stream', null)
-          }
+          cleanupSubscription()
         }
         window.addEventListener('beforeunload', cleanup, { once: true })
 
@@ -244,13 +314,14 @@ if (process.contextIsolated) {
         registerSharedTextureReceiver()
       },
       onFrameReceived: (callback: (frame: VideoFrame) => void) => {
-        currentOnFrame = callback
+        const cleanupSubscription = addFrameConsumer(callback)
 
         return () => {
-          if (currentOnFrame === callback) {
-            currentOnFrame = null
-          }
+          cleanupSubscription()
         }
+      },
+      shouldUseCpu: async (): Promise<boolean> => {
+        return ipcRenderer.invoke('capture:should-use-cpu')
       }
     })
   } catch (error) {

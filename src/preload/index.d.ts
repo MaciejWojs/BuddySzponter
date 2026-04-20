@@ -135,6 +135,7 @@ declare global {
       stopStream: () => void
       registerReceiver: () => void
       onFrameReceived: (callback: (frameData: VideoFrame) => void) => () => void
+      shouldUseCpu: () => Promise<boolean>
     }
     recorder: {
       saveFile: (buffer: ArrayBuffer) => Promise<void>

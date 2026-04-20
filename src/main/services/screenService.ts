@@ -1,27 +1,22 @@
+// import fs from 'node:fs'
 import { desktopCapturer, ipcMain, sharedTexture, WebFrameMain } from 'electron'
-import { IScreenCapture, ScreenCapture, SharedTextureHandle } from '@maciejwojs/screen-capture'
-
-// interface SharedTextureHandle {
-//   ntHandle?: Buffer
-//   nativePixmap?: any
-//   ioSurface?: Buffer
-// }
-
-interface SharedTextureImportTextureInfo {
-  pixelFormat: 'bgra' | 'rgba' | 'rgbaf16' | 'nv12'
-  codedSize: { width: number; height: number }
-  handle: SharedTextureHandle
-}
+import { IScreenCapture, ScreenCapture } from '@maciejwojs/screen-capture'
 
 export class ScreenService {
   private capturer: IScreenCapture | null = null
   private captureInterval: NodeJS.Timeout | null = null
   private activeFrames: { frame: WebFrameMain; wc: Electron.WebContents }[] = []
   private isProcessingFrame = false
-  private readonly captureFps = 144
+  private readonly captureFps = 60
+  private isHandleLogged = false
+  private useCpuPath: boolean
+  private lastSharedTextureInfoSignature: string | null = null
+  private lastSharedTextureWarning: 'noInfo' | 'noHandle' | null = null
 
   private constructor() {
     console.log('[ScreenService] Initializing service...')
+
+    this.useCpuPath = false
   }
 
   private static instance: ScreenService
@@ -64,6 +59,10 @@ export class ScreenService {
 
     ipcMain.handle('capture:stop', () => {
       this.stopCapture()
+    })
+
+    ipcMain.handle('capture:should-use-cpu', () => {
+      return this.useCpuPath
     })
 
     ipcMain.on('capture:request-stream', (event) => {
@@ -123,31 +122,53 @@ export class ScreenService {
     })
     if (!this.capturer || this.activeFrames.length === 0) return
 
-    let info: SharedTextureImportTextureInfo | null = null
+    let info: Electron.SharedTextureImportTextureInfo | null = null
 
     if (typeof this.capturer.getSharedTextureInfo === 'function') {
-      info = this.capturer.getSharedTextureInfo() as unknown as SharedTextureImportTextureInfo
-    } else if (typeof this.capturer.getSharedHandle === 'function') {
-      const legacy = this.capturer.getSharedHandle()
-      if (legacy && legacy.handle) {
-        let buffer: Buffer
-        if (Buffer.isBuffer(legacy.handle)) {
-          buffer = legacy.handle
-        } else if (typeof legacy.handle === 'bigint' || typeof legacy.handle === 'number') {
-          buffer = Buffer.allocUnsafe(8)
-          buffer.writeBigUInt64LE(
-            typeof legacy.handle === 'bigint' ? legacy.handle : BigInt(legacy.handle),
-            0
-          )
-        } else {
-          return
-        }
+      info = this.capturer.getSharedTextureInfo() as Electron.SharedTextureImportTextureInfo | null
 
-        info = {
-          pixelFormat: 'bgra',
-          codedSize: { width: legacy.width, height: legacy.height },
-          handle: { ntHandle: buffer }
+      const currentSignature = info
+        ? `${info.pixelFormat}-${info.codedSize.width}x${info.codedSize.height}-${Object.keys(info.handle ?? {}).join(',')}`
+        : 'no-info'
+
+      if (currentSignature !== this.lastSharedTextureInfoSignature) {
+        this.lastSharedTextureInfoSignature = currentSignature
+        this.isHandleLogged = false
+        this.lastSharedTextureWarning = null
+      }
+
+      if (!info) {
+        this.useCpuPath = true
+        if (this.lastSharedTextureWarning !== 'noInfo') {
+          console.warn('[Capture] Nie można uzyskać sharedTexture info, przełączanie na CPU path')
+          this.lastSharedTextureWarning = 'noInfo'
         }
+        this.processFrameViaCpu()
+        return
+      } else {
+        this.useCpuPath = false
+      }
+
+      if (!info.handle) {
+        if (this.lastSharedTextureWarning !== 'noHandle') {
+          console.warn('[Capture] Otrzymano info o sharedTexture, ale brak handle:', {
+            pixelFormat: info.pixelFormat,
+            codedSize: info.codedSize
+          })
+          this.lastSharedTextureWarning = 'noHandle'
+        }
+        return
+      }
+
+      if (!this.isHandleLogged) {
+        console.log('[Capture] Otrzymano info o sharedTexture:', {
+          pixelFormat: info.pixelFormat,
+          codedSize: info.codedSize,
+          handleKeys: Object.keys(info.handle)
+        })
+
+        console.log('[Capture] Szczegóły handle:', info.handle.nativePixmap, info.handle.ntHandle)
+        this.isHandleLogged = true
       }
     }
 
@@ -155,7 +176,11 @@ export class ScreenService {
 
     try {
       this.isProcessingFrame = true
-      const importedTexture = sharedTexture.importSharedTexture({ textureInfo: info })
+      type SharedTextureSendArgs = Parameters<typeof sharedTexture.sendSharedTexture>[0]
+      type ImportedSharedTexture = SharedTextureSendArgs['importedSharedTexture']
+      const importedTexture = sharedTexture.importSharedTexture({
+        textureInfo: info
+      }) as ImportedSharedTexture
 
       const sends = this.activeFrames.map(({ frame }) => {
         try {
@@ -191,6 +216,45 @@ export class ScreenService {
       console.error('[Capture] Główny błąd importSharedTexture:', e)
       this.isProcessingFrame = false
     }
+  }
+
+  private processFrameViaCpu(): void {
+    const capturer = this.capturer
+    const buffer = capturer?.getPixelData?.()
+    if (!buffer) {
+      return
+    }
+
+    const width = typeof capturer?.getWidth === 'function' ? capturer.getWidth() : 0
+    const height = typeof capturer?.getHeight === 'function' ? capturer.getHeight() : 0
+    const stride = typeof capturer?.getStride === 'function' ? capturer.getStride() : width * 4
+    const format = typeof capturer?.getPixelFormat === 'function' ? capturer.getPixelFormat() : 12
+
+    if (width === 0 || height === 0) {
+      return
+    }
+
+    this.isProcessingFrame = true
+
+    const framePayload = {
+      width,
+      height,
+      stride,
+      format,
+      buffer
+    }
+
+    this.activeFrames.forEach(({ wc }) => {
+      if (!wc.isDestroyed()) {
+        try {
+          wc.send('capture:raw-frame', framePayload)
+        } catch (e) {
+          console.warn('[Capture] Nie udało się wysłać surowej klatki:', e)
+        }
+      }
+    })
+
+    this.isProcessingFrame = false
   }
 }
 
