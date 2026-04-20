@@ -18,7 +18,7 @@ export class ScreenService {
   private captureInterval: NodeJS.Timeout | null = null
   private activeFrames: { frame: WebFrameMain; wc: Electron.WebContents }[] = []
   private isProcessingFrame = false
-  private readonly captureFps = 144
+  private readonly captureFps = 60
 
   private constructor() {
     console.log('[ScreenService] Initializing service...')
