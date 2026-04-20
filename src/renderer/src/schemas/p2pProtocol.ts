@@ -19,6 +19,25 @@ export const P2PMessageSchema = z.discriminatedUnion('type', [
   }),
 
   z.object({
+    type: z.literal('MOUSE_ACTION'),
+    payload: z.object({
+      button: z.enum(['left', 'right', 'middle']),
+      action: z.enum(['click', 'double', 'down', 'up']),
+      x: z.number().min(0),
+      y: z.number().min(0)
+    })
+  }),
+
+  // NOWE: Klawiatura
+  z.object({
+    type: z.literal('KEYBOARD_EVENT'),
+    payload: z.object({
+      keyCode: z.string(),
+      action: z.enum(['down', 'up'])
+    })
+  }),
+
+  z.object({
     type: z.literal('HID_HANDSHAKE'),
     payload: z.object({
       screenWidth: z.number().min(1),

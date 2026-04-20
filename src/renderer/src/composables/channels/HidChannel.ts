@@ -28,6 +28,13 @@ export interface HidChannelApi {
 
   // --- guest ---
   sendMouseFromVideo: (percentX: number, percentY: number) => void
+  sendMouseAction: (
+    button: 'left' | 'right' | 'middle',
+    action: 'click' | 'double' | 'down' | 'up',
+    percentX: number,
+    percentY: number
+  ) => void
+  sendKeyboardEvent: (keyCode: string, action: 'down' | 'up') => void
   resetState: () => void
 
   // --- router ---
@@ -55,7 +62,7 @@ const resetState = (): void => {
 }
 
 export function useHidChannel(): HidChannelApi {
-  // host share functions
+  // --- HOST SHARE FUNCTIONS ---
 
   const setLocalRole = (role: 'host' | 'guest'): void => {
     localRole.value = role
@@ -90,17 +97,16 @@ export function useHidChannel(): HidChannelApi {
     )
   }
 
-  // host - Control logic
+  // --- GUEST SEND LOGIC ---
 
   const sendMouseFromVideo = (percentX: number, percentY: number): void => {
-    if (localRole.value !== 'guest') return
-    if (!isControlGranted.value) return
+    if (localRole.value !== 'guest' || !isControlGranted.value) return
 
     const now = Date.now()
     if (now - lastSentAt < SEND_INTERVAL_MS) return
 
-    const absoluteX = Math.round(percentX * remoteScreenSize.value.width)
-    const absoluteY = Math.round(percentY * remoteScreenSize.value.height)
+    const absoluteX = Math.round((percentX / 100) * remoteScreenSize.value.width)
+    const absoluteY = Math.round((percentY / 100) * remoteScreenSize.value.height)
 
     if (absoluteX === lastSentX && absoluteY === lastSentY) return
 
@@ -117,6 +123,40 @@ export function useHidChannel(): HidChannelApi {
     lastSentAt = now
   }
 
+  // SENDING MOUSE ACTIONS WITH COORDINATES
+  const sendMouseAction = (
+    button: 'left' | 'right' | 'middle',
+    action: 'click' | 'double' | 'down' | 'up',
+    percentX: number,
+    percentY: number
+  ): void => {
+    if (localRole.value !== 'guest' || !isControlGranted.value) return
+
+    const absoluteX = Math.round((percentX / 100) * remoteScreenSize.value.width)
+    const absoluteY = Math.round((percentY / 100) * remoteScreenSize.value.height)
+
+    webRtcService.sendData(
+      'hid-control',
+      JSON.stringify({
+        type: 'MOUSE_ACTION',
+        payload: { button, action, x: absoluteX, y: absoluteY }
+      })
+    )
+  }
+
+  // SENDING KEYBOARD EVENTS
+  const sendKeyboardEvent = (keyCode: string, action: 'down' | 'up'): void => {
+    if (localRole.value !== 'guest' || !isControlGranted.value) return
+
+    webRtcService.sendData(
+      'hid-control',
+      JSON.stringify({
+        type: 'KEYBOARD_EVENT',
+        payload: { keyCode, action }
+      })
+    )
+  }
+
   // ==========================================
   // MAIN MESSAGE ROUTER
   // ==========================================
@@ -128,8 +168,6 @@ export function useHidChannel(): HidChannelApi {
           width: msg.payload.screenWidth,
           height: msg.payload.screenHeight
         }
-
-        // Host is the source of truth for permissions and ignores peer attempts to override.
         if (localRole.value !== 'host') {
           isControlGranted.value = msg.payload.isControlGranted
         }
@@ -142,12 +180,24 @@ export function useHidChannel(): HidChannelApi {
         break
 
       case 'MOUSE_MOVE':
-        if (localRole.value !== 'host') return
-        if (!isControlGranted.value) return
-
+        if (localRole.value !== 'host' || !isControlGranted.value) return
         remoteMouse.value = { x: msg.payload.x, y: msg.payload.y }
-
         void window.api.input.moveAbsolute(msg.payload.x, msg.payload.y)
+        break
+
+      case 'MOUSE_ACTION':
+        if (localRole.value !== 'host' || !isControlGranted.value) return
+        void window.api.input.mouseAction(
+          msg.payload.button,
+          msg.payload.action,
+          msg.payload.x,
+          msg.payload.y
+        )
+        break
+
+      case 'KEYBOARD_EVENT':
+        if (localRole.value !== 'host' || !isControlGranted.value) return
+        void window.api.input.keyboardEvent(msg.payload.keyCode, msg.payload.action)
         break
     }
   }
@@ -162,6 +212,8 @@ export function useHidChannel(): HidChannelApi {
     revokeControl,
     sendHandshake,
     sendMouseFromVideo,
+    sendMouseAction,
+    sendKeyboardEvent,
     resetState,
     handleIncomingMessage
   }
