@@ -7,7 +7,7 @@ import { microphoneService } from '@renderer/services/micService'
 import SelectMicrophoneL from './smart/SelectMicrophoneL.vue'
 import MicrophoneVolumeL from './smart/MicrophoneVolumeL.vue'
 import VUMeterL from './smart/VUMeterL.vue'
-import InputThresholdL from './smart/InputThresholdL.vue'
+import MicrophoneEffectsL from './smart/MicrophoneEffectsL.vue'
 
 interface DuckingPreset {
   id: 'balanced' | 'voice-focus' | 'aggressive' | 'stream'
@@ -168,11 +168,6 @@ const toggleGuestSystemMute = (): void => {
   webRtcStore.remoteSystemVolume = isGuestSystemMuted.value ? 0 : 1
 }
 
-const selectVoicePreset = (presetId: VoicePresetOption['id']): void => {
-  activeVoicePreset.value = presetId
-  microphoneService.setVoicePreset(presetId)
-}
-
 onMounted(() => {
   micMonitoringEnabled.value = microphoneService.getLocalMonitoringEnabled()
   micInputThresholdDb.value = clampDb(linearToDb(microphoneService.getInputThreshold()), -60, 0)
@@ -253,94 +248,16 @@ watch(micStudioModeEnabled, (enabled) => {
               :limiter-threshold-db="limiterThresholdDb"
             />
 
-            <div class="rounded-md border border-[#3a3a3a] bg-[#111] p-3">
-              <p class="text-xs text-gray-300 mb-3">Efekty mikrofonu</p>
-
-              <div class="flex flex-wrap items-center gap-2 mb-3">
-                <button
-                  type="button"
-                  class="px-3 py-1.5 rounded border text-[11px] transition-colors"
-                  :class="
-                    micLimiterEnabled
-                      ? 'border-amber-500 bg-amber-500/15 text-amber-300'
-                      : 'border-[#4a4a4a] text-gray-300 hover:border-amber-500/60'
-                  "
-                  @click="micLimiterEnabled = !micLimiterEnabled"
-                >
-                  Limiter {{ micLimiterEnabled ? 'ON' : 'OFF' }}
-                </button>
-
-                <button
-                  type="button"
-                  class="px-3 py-1.5 rounded border text-[11px] transition-colors"
-                  :class="
-                    micBassBoostEnabled
-                      ? 'border-indigo-500 bg-indigo-500/15 text-indigo-300'
-                      : 'border-[#4a4a4a] text-gray-300 hover:border-indigo-500/60'
-                  "
-                  @click="micBassBoostEnabled = !micBassBoostEnabled"
-                >
-                  Radiowy Bas {{ micBassBoostEnabled ? 'ON' : 'OFF' }}
-                </button>
-
-                <button
-                  type="button"
-                  class="px-3 py-1.5 rounded border text-[11px] transition-colors relative group"
-                  :class="
-                    micStudioModeEnabled
-                      ? 'border-fuchsia-500 bg-fuchsia-500/15 text-fuchsia-300'
-                      : 'border-[#4a4a4a] text-gray-300 hover:border-fuchsia-500/60'
-                  "
-                  @click="micStudioModeEnabled = !micStudioModeEnabled"
-                >
-                  Tryb Studio {{ micStudioModeEnabled ? 'ON' : 'OFF' }}
-                  <div
-                    class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block w-48 p-2 bg-black border border-gray-700 text-gray-300 text-[10px] rounded shadow-lg z-10 whitespace-normal text-center"
-                  >
-                    Wylacza obrobke przegladarki dla maksymalnej jakosci. Uzywaj tylko w
-                    sluchawkach!
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  class="px-3 py-1.5 rounded border text-[11px] transition-colors"
-                  :class="
-                    micMonitoringEnabled
-                      ? 'border-emerald-500 bg-emerald-500/15 text-emerald-300'
-                      : 'border-[#4a4a4a] text-gray-300 hover:border-emerald-500/60'
-                  "
-                  @click="micMonitoringEnabled = !micMonitoringEnabled"
-                >
-                  Odsłuch {{ micMonitoringEnabled ? 'ON' : 'OFF' }}
-                </button>
-              </div>
-
-              <div class="mt-3 border border-[#2f2f2f] rounded-md bg-[#0f0f0f] p-3">
-                <p class="text-xs text-gray-300 mb-2">Presety Głosowe</p>
-                <div class="flex flex-wrap gap-2">
-                  <button
-                    v-for="preset in voicePresets"
-                    :key="preset.id"
-                    type="button"
-                    class="px-3 py-1.5 rounded-full border text-[11px] transition-colors"
-                    :class="
-                      activeVoicePreset === preset.id
-                        ? 'bg-blue-600 border-blue-400 text-white'
-                        : 'bg-[#111] border-[#3a3a3a] text-gray-400 hover:border-gray-500'
-                    "
-                    @click="selectVoicePreset(preset.id)"
-                  >
-                    {{ preset.label }}
-                  </button>
-                </div>
-              </div>
-
-              <InputThresholdL
-                v-model="micInputThresholdDb"
-                :limiter-threshold-db="limiterThresholdDb"
-              />
-            </div>
+            <MicrophoneEffectsL
+              v-model:mic-limiter-enabled="micLimiterEnabled"
+              v-model:mic-bass-boost-enabled="micBassBoostEnabled"
+              v-model:mic-studio-mode-enabled="micStudioModeEnabled"
+              v-model:mic-monitoring-enabled="micMonitoringEnabled"
+              v-model:active-voice-preset="activeVoicePreset"
+              v-model:mic-input-threshold-db="micInputThresholdDb"
+              :voice-presets="voicePresets"
+              :limiter-threshold-db="limiterThresholdDb"
+            />
           </div>
         </div>
 
