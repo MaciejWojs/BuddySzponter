@@ -92,9 +92,9 @@ class InputController {
     bridge.flush()
   }
 
-  async key(domCode: string, action: string): Promise<void> {
+  async key(domCode: string, action: 'd' | 'u'): Promise<void> {
     const bridge = await this.ensure()
-    bridge.keyPressDOM(domCode, action === 'down')
+    bridge.keyPressDOM(domCode, action === 'd')
     bridge.flush()
   }
 
@@ -248,7 +248,7 @@ export const inputService = {
 
     ipcMain.handle(
       'input:mouse-action',
-      async (_e, btn: string, act: string, x: number, y: number) => {
+      async (_e, btn: 'l' | 'm' | 'r', act: 'c' | 'dc' | 'd' | 'u', x: number, y: number) => {
         if (isLocked()) return
 
         const map: Record<string, number> = {
@@ -278,7 +278,7 @@ export const inputService = {
       }
     )
 
-    ipcMain.handle('input:keyboard-event', async (_e, domCode: string, action: string) => {
+    ipcMain.handle('input:keyboard-event', async (_e, domCode: string, action: 'd' | 'u') => {
       if (isLocked()) return
       await this.controller.key(domCode, action)
     })
