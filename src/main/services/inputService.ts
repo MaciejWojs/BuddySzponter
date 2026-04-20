@@ -207,11 +207,11 @@ export const inputService = {
 
         const map: Record<string, number> = {
           left: 0,
-          right: 1,
-          middle: 2
+          middle: 1,
+          right: 2
         }
 
-        if (!map[button]) return
+        if (typeof map[button] !== 'number') return
 
         const tx = Math.round(x)
         const ty = Math.round(y)
