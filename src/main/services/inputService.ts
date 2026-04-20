@@ -26,6 +26,9 @@ class InputController {
   private bridge: InputBridge | null = null
   private isOptimizationEnabled = false
 
+  private flushInterval: NodeJS.Timeout | null = null
+  private needsFlush = false
+
   async init(): Promise<void> {
     if (this.bridge) return
 
@@ -33,9 +36,23 @@ class InputController {
     await bridge.init()
 
     this.isOptimizationEnabled = bridge.toggleOptimization()
-    // bridge.optimizeMouseMovesAbsolute(2)
-
     this.bridge = bridge
+
+    if (!this.flushInterval) {
+      this.flushInterval = setInterval(() => {
+        if (this.needsFlush && this.bridge) {
+          this.bridge.flush()
+          this.needsFlush = false
+        }
+      }, 50)
+    }
+  }
+
+  stop(): void {
+    if (this.flushInterval) {
+      clearInterval(this.flushInterval)
+      this.flushInterval = null
+    }
   }
 
   private async ensure(): Promise<InputBridge> {
@@ -45,7 +62,6 @@ class InputController {
 
   async move(targetX: number, targetY: number): Promise<void> {
     const bridge = await this.ensure()
-
     const currentPos = screen.getCursorScreenPoint()
 
     const dx = targetX - currentPos.x
@@ -53,7 +69,8 @@ class InputController {
 
     if (dx !== 0 || dy !== 0) {
       bridge.moveMouseRelative(dx, dy)
-      bridge.flush()
+
+      this.needsFlush = true
     }
   }
 
@@ -62,6 +79,7 @@ class InputController {
     bridge.mouseClick(button, true)
     bridge.mouseClick(button, false)
     bridge.flush()
+    this.needsFlush = false
   }
 
   async doubleClick(button: number): Promise<void> {
@@ -71,18 +89,21 @@ class InputController {
       bridge.mouseClick(button, false)
     }
     bridge.flush()
+    this.needsFlush = false
   }
 
   async mouseDown(button: number): Promise<void> {
     const bridge = await this.ensure()
     bridge.mouseClick(button, true)
     bridge.flush()
+    this.needsFlush = false
   }
 
   async mouseUp(button: number): Promise<void> {
     const bridge = await this.ensure()
     bridge.mouseClick(button, false)
     bridge.flush()
+    this.needsFlush = false
   }
 
   async scrollMouse(deltaY: number): Promise<void> {
@@ -94,13 +115,15 @@ class InputController {
     }
 
     bridge.scrollMouse(deltaY)
-    bridge.flush()
+
+    this.needsFlush = true
   }
 
   async key(domCode: string, action: 'd' | 'u'): Promise<void> {
     const bridge = await this.ensure()
     bridge.keyPressDOM(domCode, action === 'd')
     bridge.flush()
+    this.needsFlush = false
   }
 
   toggleOptimization(): boolean {
@@ -213,6 +236,7 @@ export const inputService = {
 
     app.on('before-quit', () => {
       this.tracker?.stop()
+      this.controller.stop()
     })
   },
 
@@ -227,7 +251,7 @@ export const inputService = {
 
       const logicalWidth = display.size.width
       const logicalHeight = display.size.height
-      const scaleFactor = display.scaleFactor // Np. 1.0 (100%), 1.25 (125%), 1.5 (150%)
+      const scaleFactor = display.scaleFactor
 
       const physicalWidth = Math.round(logicalWidth * scaleFactor)
       const physicalHeight = Math.round(logicalHeight * scaleFactor)
@@ -256,12 +280,7 @@ export const inputService = {
       async (_e, btn: 'l' | 'm' | 'r', act: 'c' | 'dc' | 'd' | 'u', x: number, y: number) => {
         if (isLocked()) return
 
-        const map: Record<string, number> = {
-          l: 0,
-          m: 2,
-          r: 1
-        }
-
+        const map: Record<string, number> = { l: 0, m: 2, r: 1 }
         if (typeof map[btn] !== 'number') return
 
         const tx = Math.round(x)
@@ -269,15 +288,10 @@ export const inputService = {
 
         await this.controller.move(tx, ty)
 
-        if (act === 'c') {
-          await this.controller.click(map[btn])
-        } else if (act === 'dc') {
-          await this.controller.doubleClick(map[btn])
-        } else if (act === 'd') {
-          await this.controller.mouseDown(map[btn])
-        } else if (act === 'u') {
-          await this.controller.mouseUp(map[btn])
-        }
+        if (act === 'c') await this.controller.click(map[btn])
+        else if (act === 'dc') await this.controller.doubleClick(map[btn])
+        else if (act === 'd') await this.controller.mouseDown(map[btn])
+        else if (act === 'u') await this.controller.mouseUp(map[btn])
 
         this.tracker?.updateInjection(tx, ty)
       }
@@ -298,9 +312,6 @@ export const inputService = {
 
     ipcMain.handle('input:scroll-mouse', async (_e, deltaY: number) => {
       if (isLocked()) return
-
-      console.log('[inputService] scroll:', deltaY)
-
       await this.controller.scrollMouse(deltaY)
     })
   }
