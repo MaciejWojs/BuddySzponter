@@ -1,6 +1,5 @@
 // Serwis odpowiedzialny za obsługę logowania, rejestracji, wylogowania i zarządzania tokenami JWT.
 import { ipcMain } from 'electron'
-import { LoginInput, RegisterInput } from '../schemas/authSchemas'
 import { register } from '../handlers/auth/register'
 import { login } from '../handlers/auth/login'
 import { secureStore } from '../store/secureStore'
@@ -11,6 +10,7 @@ import { jwtDecode } from 'jwt-decode'
 import { refresh } from '../handlers/auth/refresh'
 import { UserResponseSchema } from '../../shared/schemas/user'
 import { coreService } from './CoreService'
+import { RegisterRequest, LoginRequest } from '../schemas/authSchemas'
 
 // Odpowiedź zwracana, gdy wersja aplikacji jest nieobsługiwana.
 const updateBlockedResponse = {
@@ -136,13 +136,13 @@ export class AuthService {
   // --- AUTHENTICATION METHODS ---
 
   public registerHandler(): void {
-    ipcMain.handle('auth:register', async (_event, data: RegisterInput) => {
+    ipcMain.handle('auth:register', async (_event, data: RegisterRequest) => {
       if (await coreService.isUpdateRequired()) {
         return updateBlockedResponse
       }
       return await register(data)
     })
-    ipcMain.handle('auth:login', async (_event, data: LoginInput) => {
+    ipcMain.handle('auth:login', async (_event, data: LoginRequest) => {
       if (await coreService.isUpdateRequired()) {
         return updateBlockedResponse
       }

@@ -1,6 +1,7 @@
 // Serwis singleton obsługujący operacje użytkownika (np. upload avatara, pobieranie profilu).
 import { ipcMain } from 'electron'
 import { coreService } from './CoreService'
+import { uploadAvatar, uploadAvatarByBuffer } from '../handlers/user/avatar'
 
 // Odpowiedź zwracana, gdy wersja aplikacji jest nieobsługiwana.
 const updateBlockedResponse = {
@@ -25,28 +26,20 @@ export class UserService {
 
   // Rejestruje handlery IPC dla operacji użytkownika (avatar, pobieranie profilu).
   public registerHandler(): void {
-    ipcMain.handle('user:uploadAvatar', async (_event, userID: string | null) => {
+    ipcMain.handle('user:uploadAvatar', async () => {
       if (await coreService.isUpdateRequired()) {
         return updateBlockedResponse
       }
-      const { uploadAvatar } = await import('../handlers/users/avatar')
-      return await uploadAvatar(userID)
+      return await uploadAvatar()
     })
 
     ipcMain.handle(
       'user:uploadAvatarByBuffer',
-      async (
-        _event,
-        buffer: ArrayBuffer,
-        fileName: string,
-        mimeType: string,
-        userId: string | null
-      ) => {
+      async (_event, buffer: ArrayBuffer, fileName: string, mimeType: string) => {
         if (await coreService.isUpdateRequired()) {
           return updateBlockedResponse
         }
-        const { uploadAvatarByBuffer } = await import('../handlers/users/avatar')
-        return await uploadAvatarByBuffer(buffer, fileName, mimeType, userId)
+        return await uploadAvatarByBuffer(buffer, fileName, mimeType)
       }
     )
 

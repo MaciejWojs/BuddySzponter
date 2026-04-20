@@ -7,12 +7,14 @@ import { secureStore } from '../../store/secureStore'
 import { decryptData } from '../../utils/api/crypt'
 import { execute } from '../../utils/execute'
 import { localStore } from '../../store/localStore'
+import { buildRoute } from '../../utils/api/path'
 
 export async function getAvailableLanguages(): Promise<GetAvailableLanguagesResponse> {
   try {
     const version = app.getVersion()
-    const url = `${import.meta.env.VITE_API_BASE_URL}${API_ROUTES.CORE.LANGUAGES}/${version}`
+    const url = buildRoute(API_ROUTES.CORE.LANGUAGES) + `/${version}`
 
+    console.log('url', url)
     const requestHeaders: Record<string, string> = {
       accept: 'application/json'
     }

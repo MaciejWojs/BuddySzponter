@@ -13,5 +13,9 @@ export const APP_ERRORS = {
   SYSTEM: {
     UNKNOWN: { success: false as const, message: 'Unknown system error occurred' },
     NETWORK: { success: false as const, message: 'Network connection failed' }
+  },
+  CONNECTION: {
+    FAILED: { success: false as const, message: 'Failed to establish connection' },
+    INVALID_RESPONSE: { success: false as const, message: 'Invalid response from server' }
   }
 } as const

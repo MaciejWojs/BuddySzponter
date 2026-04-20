@@ -1,14 +1,15 @@
-import { RegisterInput } from '../../schemas/authSchemas'
 import { errorResponseSchema, registerPayloadSchema } from '../../schemas/apiResultSchema'
 import { API_ROUTES } from '../../apiRoutes'
 import { secureStore } from '../../store/secureStore'
 import { encryptData, decryptData } from '../../utils/api/crypt'
 import { execute } from '../../utils/execute'
 import { RegisterRendererResponse } from '../../../shared/schemas/ipc'
+import { buildRoute } from '../../utils/api/path'
+import { RegisterRequest } from '../../schemas/authSchemas'
 
-export async function register(data: RegisterInput): Promise<RegisterRendererResponse> {
+export async function register(data: RegisterRequest): Promise<RegisterRendererResponse> {
   try {
-    const url = `${import.meta.env.VITE_API_BASE_URL}${API_ROUTES.AUTH.REGISTER}`
+    const url = buildRoute(API_ROUTES.AUTH.REGISTER)
     const isEncryptionEnabled = import.meta.env.VITE_ENCRYPT_DATA === 'true'
 
     const requestHeaders: Record<string, string> = {

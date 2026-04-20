@@ -2,8 +2,16 @@
 // import { computed } from 'vue'
 import { useSettingsStore } from '@renderer/stores/settingsStore'
 import { useUserStore } from './stores/userStore'
+import { useSocketStore } from '@renderer/stores/socketStore'
+import { useAudioMixer } from './composables/audio/useAudioMixer'
 
 const toaster = { position: 'top-left', duration: 3000, dismissible: true, max: 3, expand: false }
+
+const settingsStore = useSettingsStore()
+settingsStore.initSettings()
+
+const socketStore = useSocketStore()
+socketStore.init()
 
 const store = useSettingsStore()
 store.initSettings()
@@ -11,13 +19,7 @@ store.initSettings()
 const userStore = useUserStore()
 void userStore.initSession()
 
-// const isUpdateRequired = computed(() => store.isUpdateRequired)
-// const versionStatus = computed(() => store.versionStatus)
-// const isSessionReady = computed(() => userStore.initialized && !userStore.isInitializing)
-
-// async function retryVersionCheck(): Promise<void> {
-//   await store.checkVersionStatus()
-// }
+useAudioMixer()
 </script>
 <template>
   <UApp :toaster="toaster">
