@@ -2,6 +2,17 @@ import { ipcMain, screen, BrowserWindow, app } from 'electron'
 import { InputBridge } from '@maciejwojs/input-bridge'
 import { broadcastLockoutToWidget } from '../hostWidget'
 
+/* ================= TYPES & INTERFACES ================= */
+
+type InputType = 'move' | 'click' | 'key'
+
+interface QueuedInput {
+  type: InputType
+  priority: number
+  payload: any /// TODO: make this more specific per type
+  timestamp: number
+}
+
 /* ================= LOCKOUT ================= */
 
 class LockoutManager {
@@ -26,8 +37,14 @@ class InputController {
   private bridge: InputBridge | null = null
   private isOptimizationEnabled = false
 
-  private flushInterval: NodeJS.Timeout | null = null
-  private needsFlush = false
+  private queue: QueuedInput[] = []
+  private frameLoop: NodeJS.Timeout | null = null
+
+  private virtualX = 0
+  private virtualY = 0
+
+  private targetScroll = 0
+  private currentScroll = 0
 
   async init(): Promise<void> {
     if (this.bridge) return
@@ -38,92 +55,141 @@ class InputController {
     this.isOptimizationEnabled = bridge.toggleOptimization()
     this.bridge = bridge
 
-    if (!this.flushInterval) {
-      this.flushInterval = setInterval(() => {
-        if (this.needsFlush && this.bridge) {
-          this.bridge.flush()
-          this.needsFlush = false
+    const startPos = screen.getCursorScreenPoint()
+    this.virtualX = startPos.x
+    this.virtualY = startPos.y
+
+    this.startFrameLoop()
+  }
+
+  private startFrameLoop(): void {
+    this.frameLoop = setInterval(() => {
+      this.processFrame()
+    }, 10)
+  }
+
+  private processFrame(): void {
+    if (!this.bridge) return
+
+    let needsFlush = false
+
+    if (this.queue.length > 0) {
+      this.queue.sort((a, b) => a.priority - b.priority || a.timestamp - b.timestamp)
+
+      const lastMove = [...this.queue].reverse().find((i) => i.type === 'move')
+      const filteredQueue = this.queue.filter((i) => i.type !== 'move' || i === lastMove)
+
+      for (const item of filteredQueue) {
+        if (item.type === 'move') {
+          const { x, y } = item.payload
+          const dx = x - this.virtualX
+          const dy = y - this.virtualY
+
+          if (dx !== 0 || dy !== 0) {
+            this.bridge.moveMouseRelative(dx, dy)
+            this.virtualX = x
+            this.virtualY = y
+            needsFlush = true
+          }
+        } else if (item.type === 'click') {
+          this.bridge.mouseClick(item.payload.btn, item.payload.down)
+          needsFlush = true
+        } else if (item.type === 'key') {
+          this.bridge.keyPressDOM(item.payload.code, item.payload.down)
+          needsFlush = true
         }
-      }, 50)
+      }
+
+      this.queue = []
+    }
+
+    const scrollDiff = this.targetScroll - this.currentScroll
+    if (Math.abs(scrollDiff) > 0.1) {
+      const step = scrollDiff * 0.3
+      this.currentScroll += step
+
+      const roundedStep = Math.round(step)
+      if (roundedStep !== 0) {
+        this.bridge.scrollMouse?.(roundedStep)
+        needsFlush = true
+      }
+    } else {
+      this.currentScroll = this.targetScroll
+    }
+
+    if (needsFlush) {
+      this.bridge.flush()
     }
   }
 
   stop(): void {
-    if (this.flushInterval) {
-      clearInterval(this.flushInterval)
-      this.flushInterval = null
+    if (this.frameLoop) {
+      clearInterval(this.frameLoop)
+      this.frameLoop = null
     }
   }
 
-  private async ensure(): Promise<InputBridge> {
-    if (!this.bridge) await this.init()
-    return this.bridge!
-  }
+  // --- API  ---
 
   async move(targetX: number, targetY: number): Promise<void> {
-    const bridge = await this.ensure()
-    const currentPos = screen.getCursorScreenPoint()
-
-    const dx = targetX - currentPos.x
-    const dy = targetY - currentPos.y
-
-    if (dx !== 0 || dy !== 0) {
-      bridge.moveMouseRelative(dx, dy)
-
-      this.needsFlush = true
-    }
+    this.queue.push({
+      type: 'move',
+      priority: 1,
+      payload: { x: targetX, y: targetY },
+      timestamp: Date.now()
+    })
   }
 
   async click(button: number): Promise<void> {
-    const bridge = await this.ensure()
-    bridge.mouseClick(button, true)
-    bridge.mouseClick(button, false)
-    bridge.flush()
-    this.needsFlush = false
+    const now = Date.now()
+    this.queue.push({
+      type: 'click',
+      priority: 0,
+      payload: { btn: button, down: true },
+      timestamp: now
+    })
+    this.queue.push({
+      type: 'click',
+      priority: 0,
+      payload: { btn: button, down: false },
+      timestamp: now + 1
+    })
   }
 
   async doubleClick(button: number): Promise<void> {
-    const bridge = await this.ensure()
-    for (let i = 0; i < 2; i++) {
-      bridge.mouseClick(button, true)
-      bridge.mouseClick(button, false)
-    }
-    bridge.flush()
-    this.needsFlush = false
+    await this.click(button)
+    await this.click(button)
   }
 
   async mouseDown(button: number): Promise<void> {
-    const bridge = await this.ensure()
-    bridge.mouseClick(button, true)
-    bridge.flush()
-    this.needsFlush = false
+    this.queue.push({
+      type: 'click',
+      priority: 0,
+      payload: { btn: button, down: true },
+      timestamp: Date.now()
+    })
   }
 
   async mouseUp(button: number): Promise<void> {
-    const bridge = await this.ensure()
-    bridge.mouseClick(button, false)
-    bridge.flush()
-    this.needsFlush = false
+    this.queue.push({
+      type: 'click',
+      priority: 0,
+      payload: { btn: button, down: false },
+      timestamp: Date.now()
+    })
   }
 
   async scrollMouse(deltaY: number): Promise<void> {
-    const bridge = await this.ensure()
-
-    if (!bridge.scrollMouse) {
-      console.warn('scrollMouse not supported')
-      return
-    }
-
-    bridge.scrollMouse(deltaY)
-
-    this.needsFlush = true
+    this.targetScroll += deltaY
   }
 
   async key(domCode: string, action: 'd' | 'u'): Promise<void> {
-    const bridge = await this.ensure()
-    bridge.keyPressDOM(domCode, action === 'd')
-    bridge.flush()
-    this.needsFlush = false
+    this.queue.push({
+      type: 'key',
+      priority: 0,
+      payload: { code: domCode, down: action === 'd' },
+      timestamp: Date.now()
+    })
   }
 
   toggleOptimization(): boolean {
