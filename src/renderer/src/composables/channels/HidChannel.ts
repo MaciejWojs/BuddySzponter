@@ -80,10 +80,24 @@ export function useHidChannel(): HidChannelApi {
     broadcastPermission()
   }
 
-  const sendHandshake = (): void => {
+  const sendHandshake = async (): Promise<void> => {
+    let screenWidth = window.screen.width
+    let screenHeight = window.screen.height
+    // Jeśli jesteśmy hostem, pobierz natywną rozdzielczość przez IPC
+    if (localRole.value === 'host' && window.api?.input?.getHostScreenSize) {
+      try {
+        const size = await window.api.input.getHostScreenSize()
+        if (size && size.width && size.height) {
+          screenWidth = size.width
+          screenHeight = size.height
+        }
+      } catch (e) {
+        console.warn('[HID] Nie udało się pobrać rozdzielczości hosta przez IPC', e)
+      }
+    }
     const payload = {
-      screenWidth: window.screen.width,
-      screenHeight: window.screen.height,
+      screenWidth,
+      screenHeight,
       isControlGranted: isControlGranted.value
     }
     console.log('[HID] Wysyłam HID_HANDSHAKE:', payload)
@@ -92,7 +106,9 @@ export function useHidChannel(): HidChannelApi {
 
   // Host wysyła handshake automatycznie po połączeniu
   if (localRole.value === 'host') {
-    setTimeout(() => sendHandshake(), 500)
+    setTimeout(() => {
+      sendHandshake()
+    }, 500)
   }
 
   const broadcastPermission = (): void => {

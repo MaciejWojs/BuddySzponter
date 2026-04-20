@@ -185,6 +185,11 @@ export const inputService = {
 
     const isLocked = (): boolean => this.lockout.isLockedOut()
 
+    ipcMain.handle('input:get-host-screen-size', async () => {
+      const { width, height } = screen.getPrimaryDisplay().size
+      return { width, height }
+    })
+
     ipcMain.handle('input:move-absolute', async (_e, x: number, y: number) => {
       if (!Number.isFinite(x) || !Number.isFinite(y) || isLocked()) return
 

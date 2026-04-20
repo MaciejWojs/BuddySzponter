@@ -135,6 +135,7 @@ declare global {
         moveAbsolute: (x: number, y: number) => Promise<void>
         mouseAction: (button: string, action: string, x: number, y: number) => Promise<void>
         keyboardEvent: (keyCode: string, action: string) => Promise<void>
+        getHostScreenSize: () => Promise<{ width: number; height: number }>
       }
       events: {
         onToggleMic: (callback: () => void) => void

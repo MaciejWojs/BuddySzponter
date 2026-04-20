@@ -242,10 +242,7 @@ export const useWebRtcStore = defineStore('webrtc', () => {
     isGuestControlAllowed,
     sendChatMessage: chat.sendChatMessage,
     sendMousePosition: (x: number, y: number): void =>
-      hid.sendMouseFromVideo(
-        Math.min(Math.max(x, 0), 100) / 100,
-        Math.min(Math.max(y, 0), 100) / 100
-      ),
+      hid.sendMouseFromVideo(Math.min(Math.max(x, 0), 100), Math.min(Math.max(y, 0), 100)),
     sendMouseAction: (
       button: 'left' | 'right' | 'middle',
       action: 'click' | 'double',

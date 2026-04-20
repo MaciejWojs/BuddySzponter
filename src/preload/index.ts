@@ -173,7 +173,9 @@ const api = {
       ipcRenderer.invoke('input:mouse-action', button, action, x, y),
 
     keyboardEvent: (keyCode: string, action: string): Promise<void> =>
-      ipcRenderer.invoke('input:keyboard-event', keyCode, action)
+      ipcRenderer.invoke('input:keyboard-event', keyCode, action),
+    getHostScreenSize: (): Promise<{ width: number; height: number }> =>
+      ipcRenderer.invoke('input:get-host-screen-size')
   },
 
   events: {
