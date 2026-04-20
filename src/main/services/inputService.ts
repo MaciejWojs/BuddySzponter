@@ -91,6 +91,8 @@ class HostActivityTracker {
   private lastY = -1
   private lastInjectedAt = 0
 
+  private isCurrentlyLockedOut = false
+
   constructor(
     private lockout: LockoutManager,
     private emit: (payload: { active: boolean; until: number }) => void
@@ -120,15 +122,18 @@ class HostActivityTracker {
 
       if (dx > 2 || dy > 2) {
         this.lockout.trigger(3000)
-
         this.lastX = point.x
         this.lastY = point.y
 
-        this.emit({
-          active: true,
-          until: this.lockout.getUntil()
-        })
-      } else if (!this.lockout.isLockedOut()) {
+        if (!this.isCurrentlyLockedOut) {
+          this.isCurrentlyLockedOut = true
+          this.emit({
+            active: true,
+            until: this.lockout.getUntil()
+          })
+        }
+      } else if (this.isCurrentlyLockedOut && !this.lockout.isLockedOut()) {
+        this.isCurrentlyLockedOut = false
         this.emit({
           active: false,
           until: 0
@@ -186,8 +191,22 @@ export const inputService = {
     const isLocked = (): boolean => this.lockout.isLockedOut()
 
     ipcMain.handle('input:get-host-screen-size', async () => {
-      const { width, height } = screen.getPrimaryDisplay().size
-      return { width, height }
+      const display = screen.getPrimaryDisplay()
+
+      const logicalWidth = display.size.width
+      const logicalHeight = display.size.height
+      const scaleFactor = display.scaleFactor // Np. 1.0 (100%), 1.25 (125%), 1.5 (150%)
+
+      const physicalWidth = Math.round(logicalWidth * scaleFactor)
+      const physicalHeight = Math.round(logicalHeight * scaleFactor)
+
+      return {
+        width: physicalWidth,
+        height: physicalHeight,
+        logicalWidth,
+        logicalHeight,
+        scaleFactor
+      }
     })
 
     ipcMain.handle('input:move-absolute', async (_e, x: number, y: number) => {
@@ -207,8 +226,8 @@ export const inputService = {
 
         const map: Record<string, number> = {
           left: 0,
-          middle: 1,
-          right: 2
+          middle: 2,
+          right: 1
         }
 
         if (typeof map[button] !== 'number') return

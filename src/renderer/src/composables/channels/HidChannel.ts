@@ -81,9 +81,8 @@ export function useHidChannel(): HidChannelApi {
   }
 
   const sendHandshake = async (): Promise<void> => {
-    let screenWidth = window.screen.width
-    let screenHeight = window.screen.height
-    // Jeśli jesteśmy hostem, pobierz natywną rozdzielczość przez IPC
+    let screenWidth = 1920
+    let screenHeight = 1080
     if (localRole.value === 'host' && window.api?.input?.getHostScreenSize) {
       try {
         const size = await window.api.input.getHostScreenSize()
