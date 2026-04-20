@@ -27,7 +27,13 @@ const webRtcStore = useWebRtcStore()
 const sessionStore = useSessionStore()
 const { selectedMicrophoneDeviceId } = storeToRefs(sessionStore)
 
-const isMyMicMuted = ref(false)
+// Trwały stan mutowania mikrofonu w sessionStore
+const isMyMicMuted = computed({
+  get: () => sessionStore.microphoneMuted,
+  set: (val: boolean) => {
+    sessionStore.microphoneMuted = val
+  }
+})
 const isMySystemMuted = ref(false)
 const isGuestSystemMuted = ref(false)
 const isAdvancedOpen = ref(false)
@@ -199,25 +205,25 @@ const handleSelectedMicrophoneChange = async (): Promise<void> => {
 const toggleMyMicMute = (): void => {
   isMyMicMuted.value = !isMyMicMuted.value
   sessionStore.toggleMicrophone(isMyMicMuted.value)
+  // Ustaw ścieżkę audio w aktualnym strumieniu
+  if (webRtcStore.localStream) {
+    const micTrack =
+      webRtcStore.localStream.getAudioTracks().find((track) => track.contentHint === 'speech') ??
+      webRtcStore.localStream.getAudioTracks()[0] ??
+      null
+    if (micTrack) micTrack.enabled = !isMyMicMuted.value
+  }
 }
 
 const syncMicMuteStateFromStream = (stream: MediaStream | null): void => {
-  if (!stream) {
-    isMyMicMuted.value = false
-    return
-  }
-
+  if (!stream) return
   const micTrack =
     stream.getAudioTracks().find((track) => track.contentHint === 'speech') ??
     stream.getAudioTracks()[0] ??
     null
-
-  if (!micTrack) {
-    isMyMicMuted.value = false
-    return
+  if (micTrack) {
+    micTrack.enabled = !isMyMicMuted.value
   }
-
-  isMyMicMuted.value = !micTrack.enabled
 }
 
 const toggleMySystemMute = (): void => {
@@ -259,6 +265,20 @@ watch(
   () => webRtcStore.localStream,
   (stream) => {
     syncMicMuteStateFromStream(stream)
+  }
+)
+
+// Synchronizuj mute po zmianie flagi w store
+watch(
+  () => isMyMicMuted.value,
+  (muted) => {
+    if (webRtcStore.localStream) {
+      const micTrack =
+        webRtcStore.localStream.getAudioTracks().find((track) => track.contentHint === 'speech') ??
+        webRtcStore.localStream.getAudioTracks()[0] ??
+        null
+      if (micTrack) micTrack.enabled = !muted
+    }
   }
 )
 

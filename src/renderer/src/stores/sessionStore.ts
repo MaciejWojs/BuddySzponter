@@ -19,6 +19,8 @@ export const useSessionStore = defineStore('session', () => {
   const includeSystemAudio = ref(true)
   const includeMicrophone = ref(true)
 
+  const microphoneMuted = ref(false)
+
   // Local Volume State (Moved from WebRTC store as it relates to local device capture)
   const localSystemAudioVolume = ref<number>(1)
   const localMicrophoneVolume = ref<number>(1)
@@ -39,11 +41,12 @@ export const useSessionStore = defineStore('session', () => {
   // --- FUNKCJE TOGGLE DLA UI ---
 
   const toggleMicrophone = (isMuted: boolean): void => {
-    includeMicrophone.value = !isMuted // To automatycznie odpali 'watch' i zaktualizuje WebRTC
+    microphoneMuted.value = isMuted
+    includeMicrophone.value = !isMuted
   }
 
   const toggleSystemAudio = (isMuted: boolean): void => {
-    includeSystemAudio.value = !isMuted // To automatycznie odpali 'watch' i zaktualizuje WebRTC
+    includeSystemAudio.value = !isMuted
   }
 
   const toggleScreenVideo = (isHidden: boolean): void => {
@@ -344,8 +347,17 @@ export const useSessionStore = defineStore('session', () => {
     }
   )
 
+  // Synchronizuj mute mikrofonu z UI
+  watch(microphoneMuted, (muted) => {
+    if (muted) {
+      includeMicrophone.value = false
+    }
+    // Jeśli odmutowany, nie wymuszaj włączenia mikrofonu, pozwól UI sterować
+  })
+
   // Syncing UI toggles to track enabled states
   watch(includeMicrophone, (isEnabled): void => {
+    if (!isEnabled) microphoneMuted.value = true
     webRtcStore.toggleTrackByHint('audio', 'speech', isEnabled)
     if (!isEnabled || connectionStore.isHost || !socketStore.isAcknowledged) return
     if (!hasLocalAudioTrack('speech')) void startMicrophoneCaptureForGuest()
@@ -363,6 +375,8 @@ export const useSessionStore = defineStore('session', () => {
     localSystemAudioVolume,
     localMicrophoneVolume,
     includeScreenVideo, // (opcjonalnie)
+
+    microphoneMuted,
 
     toggleMicrophone,
     toggleSystemAudio,

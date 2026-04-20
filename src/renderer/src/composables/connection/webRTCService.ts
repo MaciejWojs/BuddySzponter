@@ -128,9 +128,9 @@ export class WebRTCService {
 
       if (this.onRemoteStreamReceived) {
         this.onRemoteStreamReceived(new MediaStream(this.remoteStream.getTracks()))
-        if (!this.recorder) {
-          this.startRecording()
-        }
+        // if (!this.recorder) {
+        //   this.startRecording()
+        // }
       }
     }
 
@@ -402,7 +402,7 @@ export class WebRTCService {
     const currentPeerConnection = this.peerConnection
 
     this.isIntentionallyClosing = true
-    this.stopRecording()
+    // this.stopRecording()
     this.recordingStream?.getTracks().forEach((t) => t.stop())
     this.recordingStream = null
     this.recordedChunks = []

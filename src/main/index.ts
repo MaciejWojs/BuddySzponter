@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain, session, desktopCapturer, dialog } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, session, desktopCapturer } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
@@ -13,7 +13,6 @@ import { userService } from './services/UserService'
 import { connectionService } from './services/ConnectionService'
 import { screenService } from './services/screenService'
 import { wsService } from './services/ws/WsService'
-import fs from 'fs'
 
 // --- ODBLOKOWANE: Importy hostWidget ---
 import { closeHostWidget, createHostWidget, registerHostWidgetHandlers } from './hostWidget'
@@ -180,11 +179,11 @@ if (!gotTheLock) {
       quitApp()
     })
 
-    ipcMain.handle('save-file', async (_, buffer: ArrayBuffer) => {
-      const { filePath } = await dialog.showSaveDialog({ defaultPath: 'recording.webm' })
-      if (!filePath) return
-      fs.writeFileSync(filePath, Buffer.from(buffer))
-    })
+    // ipcMain.handle('save-file', async (_, buffer: ArrayBuffer) => {
+    //   const { filePath } = await dialog.showSaveDialog({ defaultPath: 'recording.webm' })
+    //   if (!filePath) return
+    //   fs.writeFileSync(filePath, Buffer.from(buffer))
+    // })
 
     session.defaultSession.setDisplayMediaRequestHandler(
       (_request, callback) => {
