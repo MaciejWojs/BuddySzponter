@@ -13,8 +13,52 @@ export const P2PMessageSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('MOUSE_MOVE'),
     payload: z.object({
-      x: z.number().min(0).max(100),
-      y: z.number().min(0).max(100)
+      x: z.number().min(0),
+      y: z.number().min(0)
+    })
+  }),
+
+  z.object({
+    type: z.literal('MOUSE_ACTION'),
+    payload: z.object({
+      button: z.enum(['l', 'r', 'm']),
+      action: z.enum(['c', 'dc', 'd', 'u']),
+      x: z.number().min(0),
+      y: z.number().min(0)
+    })
+  }),
+
+  // NOWE: Klawiatura
+
+  z.object({
+    type: z.literal('KEYBOARD_EVENT'),
+    payload: z.object({
+      keyCode: z.string(),
+      action: z.enum(['down', 'up'])
+    })
+  }),
+
+  // SCROLL_MOUSE
+  z.object({
+    type: z.literal('MOUSE_SCROLL'),
+    payload: z.object({
+      deltaY: z.number()
+    })
+  }),
+
+  z.object({
+    type: z.literal('HID_HANDSHAKE'),
+    payload: z.object({
+      screenWidth: z.number().min(1),
+      screenHeight: z.number().min(1),
+      isControlGranted: z.boolean()
+    })
+  }),
+
+  z.object({
+    type: z.literal('HID_PERMISSION_UPDATE'),
+    payload: z.object({
+      isControlGranted: z.boolean()
     })
   }),
 

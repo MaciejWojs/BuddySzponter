@@ -80,12 +80,10 @@ const api = {
   connection: {
     create: (data: CreateConnectionRequestSchema): Promise<CreateConnectionResponse> =>
       ipcRenderer.invoke('connection:create', data),
-
     join: (data: JoinConnectionRequestSchema): Promise<JoinConnectionResponse> =>
       ipcRenderer.invoke('connection:join', data)
   },
   ws: {
-    // 1. AKCJE (Wysyłanie z Vue do Main)
     connect: (token: string): Promise<WsConnectResponse> =>
       ipcRenderer.invoke('ws:connect', { connectionToken: token }),
 
@@ -109,8 +107,6 @@ const api = {
     webrtcReady: (data: WsWebRTCReady): Promise<WsActionResponse> =>
       ipcRenderer.invoke('ws:webrtc-ready', data),
 
-    // 2. LISTENERY (Odbieranie przez 4 magistrale)
-
     connection: (callbacks: WsConnectionListeners) => {
       ipcRenderer.on('ws:connection', (_, { type, data }) => {
         if (type === 'connected') callbacks.onConnected(data)
@@ -120,7 +116,6 @@ const api = {
       })
     },
 
-    // 2. Kategoria: Dostęp
     access: (callbacks: {
       onRequest: (d: WsRequestAccess) => void
       onAccepted: (d: WsConnectionAccepted) => void
@@ -135,14 +130,12 @@ const api = {
       })
     },
 
-    // 3. Kategoria: Handshake
     handshake: (callbacks: { onAcknowledged: (d: WsAcknowledged) => void }) => {
       ipcRenderer.on('ws:handshake', (_, { type, data }) => {
         if (type === 'acknowledged') callbacks.onAcknowledged(data)
       })
     },
 
-    // 4. Kategoria: WebRTC
     webrtc: (callbacks: {
       onOffer: (d: WsWebRTCOffer) => void
       onAnswer: (d: WsWebRTCAnswer) => void
@@ -160,6 +153,46 @@ const api = {
     removeAllListeners: () => {
       const categories: WsCategory[] = ['ws:connection', 'ws:access', 'ws:handshake', 'ws:webrtc']
       categories.forEach((ch) => ipcRenderer.removeAllListeners(ch))
+    }
+  },
+  app: {
+    showApp: (): Promise<void> => ipcRenderer.invoke('show-main-window'),
+    hideToTray: (): Promise<void> => ipcRenderer.invoke('hide-to-tray'),
+    quitApp: (): Promise<void> => ipcRenderer.invoke('quit-app'),
+    showHostWidget: (): Promise<void> => ipcRenderer.invoke('show-host-widget'),
+    hideHostWidget: (): Promise<void> => ipcRenderer.invoke('hide-host-widget'),
+
+    setHostTrayMode: (active: boolean): Promise<void> =>
+      ipcRenderer.invoke('set-host-tray-mode', active)
+  },
+  input: {
+    moveAbsolute: (x: number, y: number): Promise<void> =>
+      ipcRenderer.invoke('input:move-absolute', x, y),
+
+    mouseAction: (button: string, action: string, x: number, y: number): Promise<void> =>
+      ipcRenderer.invoke('input:mouse-action', button, action, x, y),
+
+    keyboardEvent: (keyCode: string, action: string): Promise<void> =>
+      ipcRenderer.invoke('input:keyboard-event', keyCode, action),
+    scrollMouse: (deltaY: number): Promise<void> =>
+      ipcRenderer.invoke('input:scroll-mouse', deltaY),
+    getHostScreenSize: (): Promise<{ width: number; height: number }> =>
+      ipcRenderer.invoke('input:get-host-screen-size')
+  },
+
+  events: {
+    onToggleMic: (callback: () => void) => {
+      ipcRenderer.on('tray-toggle-mic', callback)
+    },
+    onStopSession: (callback: () => void) => {
+      ipcRenderer.on('tray-stop-session', callback)
+      ipcRenderer.on('host-session-ended', callback)
+    },
+
+    removeAllListeners: () => {
+      ipcRenderer.removeAllListeners('tray-toggle-mic')
+      ipcRenderer.removeAllListeners('tray-stop-session')
+      ipcRenderer.removeAllListeners('host-session-ended')
     }
   }
 }

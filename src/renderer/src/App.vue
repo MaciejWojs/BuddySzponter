@@ -3,6 +3,8 @@
 import { useSettingsStore } from '@renderer/stores/settingsStore'
 import { useUserStore } from './stores/userStore'
 import { useSocketStore } from '@renderer/stores/socketStore'
+import { useAudioMixer } from './composables/audio/useAudioMixer'
+import WidgetControlListener from '@renderer/components/p2p/WidgetControlListener.vue'
 
 const toaster = { position: 'top-left', duration: 3000, dismissible: true, max: 3, expand: false }
 
@@ -17,10 +19,14 @@ store.initSettings()
 
 const userStore = useUserStore()
 void userStore.initSession()
+
+useAudioMixer()
 </script>
 <template>
   <UApp :toaster="toaster">
-    <router-view />
+    <WidgetControlListener>
+      <router-view />
+    </WidgetControlListener>
   </UApp>
 </template>
 

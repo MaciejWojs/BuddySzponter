@@ -12,8 +12,9 @@ import { buildRoute } from '../../utils/api/path'
 export async function getAvailableLanguages(): Promise<GetAvailableLanguagesResponse> {
   try {
     const version = app.getVersion()
-    const url = buildRoute(API_ROUTES.CORE.LANGUAGES, { version: version })
+    const url = buildRoute(API_ROUTES.CORE.LANGUAGES) + `/${version}`
 
+    console.log('url', url)
     const requestHeaders: Record<string, string> = {
       accept: 'application/json'
     }

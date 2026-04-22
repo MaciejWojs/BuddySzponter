@@ -1,21 +1,25 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted } from 'vue'
+import { computed, onUnmounted } from 'vue'
 import { useConnectionStore } from '@renderer/stores/connectionStore'
 import { useSocketStore } from '@renderer/stores/socketStore'
 import { useWebRtcStore } from '@renderer/stores/webRtcStore'
-import { SessionStore } from '@renderer/stores/sessionStore' // Używamy poprawnej nazwy composable z Pinii
+import { useSessionStore } from '@renderer/stores/sessionStore' // Używamy poprawnej nazwy composable z Pinii
 
-import RemoteAudioPlayer from '../p2p/RemoteAudioPlayer.vue'
 import VideoPlayer from '../p2p/VideoPlayer.vue'
+import BuHostMouseRealtimeControl from './BuHostMouseRealtimeControl.vue'
 
 const connectionStore = useConnectionStore()
 const socketStore = useSocketStore()
 const webRtcStore = useWebRtcStore()
-const sessionStore = SessionStore()
+const sessionStore = useSessionStore()
 
 // FIX: Dodane : void do każdej z tych funkcji dla ESLint
 const handleManualConnect = (): void => void socketStore.connect('awaryjny-token-z-palca')
 const handleManualDisconnect = (): void => void socketStore.disconnect()
+const handleMoveMouseToOrigin = (): void => {
+  if (webRtcStore.rtcStatus !== 'connected') return
+  webRtcStore.sendMousePosition(0, 0)
+}
 const placeholderAction = (name: string): void => alert(`Funkcja "${name}" jest w przygotowaniu!`)
 
 // Mapowanie do diagnostyki
@@ -50,15 +54,6 @@ const mapStreamToDebug = (
 
 const localTrackDiagnostics = computed(() => mapStreamToDebug(webRtcStore.localStream))
 const remoteTrackDiagnostics = computed(() => mapStreamToDebug(webRtcStore.remoteStream))
-const captureModeLabel = computed(() => {
-  if (window.screenCapture) return 'screenCapture / sharedTexture (z fallback raw buffer)'
-  if (window.capture) return 'capture / raw buffer'
-  return 'brak mechanizmu przechwytywania'
-})
-
-onMounted(() => {
-  sessionStore.refreshMicrophoneDevices().catch(() => {})
-})
 
 onUnmounted(() => {
   sessionStore.stopCapture().catch(() => {})
@@ -182,127 +177,6 @@ onUnmounted(() => {
           </button>
         </div>
 
-        <div class="text-[11px] text-gray-400 mb-4">
-          Tryb przechwytywania: {{ captureModeLabel }}
-        </div>
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-          <div
-            class="flex items-center justify-between px-4 py-3 rounded-lg border border-[#444] bg-black/40"
-          >
-            <span class="text-xs font-medium text-gray-200">Audio systemowe</span>
-            <button
-              type="button"
-              class="relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
-              :class="sessionStore.includeSystemAudio ? 'bg-emerald-500' : 'bg-[#444]'"
-              @click="sessionStore.includeSystemAudio = !sessionStore.includeSystemAudio"
-            >
-              <span
-                class="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
-                :class="sessionStore.includeSystemAudio ? 'translate-x-5' : 'translate-x-0'"
-              ></span>
-            </button>
-          </div>
-          <div
-            class="flex items-center justify-between px-4 py-3 rounded-lg border border-[#444] bg-black/40"
-          >
-            <span class="text-xs font-medium text-gray-200">Mikrofon</span>
-            <button
-              type="button"
-              class="relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
-              :class="sessionStore.includeMicrophone ? 'bg-blue-500' : 'bg-[#444]'"
-              @click="sessionStore.includeMicrophone = !sessionStore.includeMicrophone"
-            >
-              <span
-                class="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
-                :class="sessionStore.includeMicrophone ? 'translate-x-5' : 'translate-x-0'"
-              ></span>
-            </button>
-          </div>
-
-          <div class="px-4 py-3 rounded-lg border border-[#444] bg-black/40">
-            <label class="block text-xs text-gray-300 font-medium mb-2" for="microphone-select">
-              Wybierz mikrofon
-            </label>
-            <div class="flex gap-2 items-center">
-              <select
-                id="microphone-select"
-                v-model="sessionStore.microphoneDeviceId"
-                class="w-full rounded bg-[#111] border border-[#444] text-sm text-gray-200 px-3 py-2 focus:outline-none focus:border-blue-500"
-              >
-                <option
-                  v-for="device in sessionStore.availableMicrophoneDevices"
-                  :key="device.deviceId"
-                  :value="device.deviceId"
-                >
-                  {{ device.label }}
-                </option>
-              </select>
-              <button
-                type="button"
-                class="px-3 py-2 bg-[#222] border border-[#444] text-xs text-gray-300 rounded hover:bg-[#333]"
-                @click="sessionStore.refreshMicrophoneDevices()"
-              >
-                Odśwież
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-          <div class="px-4 py-3 rounded-lg border border-[#444] bg-black/40 flex flex-col gap-3">
-            <div class="flex justify-between items-center text-xs text-gray-300 font-medium">
-              <span>Głośność systemu (Nasza)</span>
-              <span class="font-mono text-emerald-400"
-                >{{ Math.round(webRtcStore.localSystemAudioVolume * 100) }}%</span
-              >
-            </div>
-            <input
-              v-model.number="webRtcStore.localSystemAudioVolume"
-              type="range"
-              min="0"
-              max="2"
-              step="0.01"
-              class="custom-slider emerald-slider"
-            />
-          </div>
-          <div class="px-4 py-3 rounded-lg border border-[#444] bg-black/40 flex flex-col gap-3">
-            <div class="flex justify-between items-center text-xs text-gray-300 font-medium">
-              <span>Głośność mikrofonu (Nasza)</span>
-              <span class="font-mono text-blue-400"
-                >{{ Math.round(webRtcStore.localMicrophoneVolume * 100) }}%</span
-              >
-            </div>
-            <input
-              v-model.number="webRtcStore.localMicrophoneVolume"
-              type="range"
-              min="0"
-              max="2"
-              step="0.01"
-              class="custom-slider blue-slider"
-            />
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 gap-3 mb-4">
-          <div class="px-4 py-3 rounded-lg border border-[#444] bg-black/40 flex flex-col gap-3">
-            <div class="flex justify-between items-center text-xs text-gray-300 font-medium">
-              <span>Odsłuch Gościa (Jego mikrofon)</span>
-              <span class="font-mono text-cyan-400"
-                >{{ Math.round(webRtcStore.remoteMicVolume * 100) }}%</span
-              >
-            </div>
-            <input
-              v-model.number="webRtcStore.remoteMicVolume"
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
-              class="custom-slider cyan-slider"
-            />
-          </div>
-        </div>
-
         <VideoPlayer
           v-if="sessionStore.isCapturing"
           :stream="webRtcStore.localStream"
@@ -332,107 +206,6 @@ onUnmounted(() => {
             <p class="text-xs text-blue-400 font-bold animate-pulse">
               Oczekiwanie na akceptację przez Hosta...
             </p>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 gap-3 mb-5">
-          <div
-            class="flex items-center justify-between px-4 py-3 rounded-lg border border-[#444] bg-black/40"
-          >
-            <span class="text-xs font-medium text-gray-200">Twój mikrofon</span>
-            <button
-              type="button"
-              class="relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none"
-              :class="sessionStore.includeMicrophone ? 'bg-blue-500' : 'bg-[#444]'"
-              @click="sessionStore.includeMicrophone = !sessionStore.includeMicrophone"
-            >
-              <span
-                class="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
-                :class="sessionStore.includeMicrophone ? 'translate-x-5' : 'translate-x-0'"
-              ></span>
-            </button>
-          </div>
-
-          <div class="px-4 py-3 rounded-lg border border-[#444] bg-black/40">
-            <label
-              class="block text-xs text-gray-300 font-medium mb-2"
-              for="guest-microphone-select"
-            >
-              Wybierz mikrofon
-            </label>
-            <div class="flex gap-2 items-center">
-              <select
-                id="guest-microphone-select"
-                v-model="sessionStore.microphoneDeviceId"
-                class="w-full rounded bg-[#111] border border-[#444] text-sm text-gray-200 px-3 py-2 focus:outline-none focus:border-blue-500"
-              >
-                <option
-                  v-for="device in sessionStore.availableMicrophoneDevices"
-                  :key="device.deviceId"
-                  :value="device.deviceId"
-                >
-                  {{ device.label }}
-                </option>
-              </select>
-              <button
-                type="button"
-                class="px-3 py-2 bg-[#222] border border-[#444] text-xs text-gray-300 rounded hover:bg-[#333]"
-                @click="sessionStore.refreshMicrophoneDevices()"
-              >
-                Odśwież
-              </button>
-            </div>
-          </div>
-
-          <div class="px-4 py-3 rounded-lg border border-[#444] bg-black/40 flex flex-col gap-3">
-            <div class="flex justify-between items-center text-xs text-gray-300 font-medium">
-              <span>Głośność mikrofonu (Nasza)</span>
-              <span class="font-mono text-blue-400"
-                >{{ Math.round(webRtcStore.localMicrophoneVolume * 100) }}%</span
-              >
-            </div>
-            <input
-              v-model.number="webRtcStore.localMicrophoneVolume"
-              type="range"
-              min="0"
-              max="2"
-              step="0.01"
-              class="custom-slider blue-slider"
-            />
-          </div>
-
-          <div class="px-4 py-3 rounded-lg border border-[#444] bg-black/40 flex flex-col gap-3">
-            <div class="flex justify-between items-center text-xs text-gray-300 font-medium">
-              <span>Odsłuch partnera (Jego mikrofon)</span>
-              <span class="font-mono text-cyan-400"
-                >{{ Math.round(webRtcStore.remoteMicVolume * 100) }}%</span
-              >
-            </div>
-            <input
-              v-model.number="webRtcStore.remoteMicVolume"
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
-              class="custom-slider cyan-slider"
-            />
-          </div>
-
-          <div class="px-4 py-3 rounded-lg border border-[#444] bg-black/40 flex flex-col gap-3">
-            <div class="flex justify-between items-center text-xs text-gray-300 font-medium">
-              <span>Odsłuch partnera (Jego system)</span>
-              <span class="font-mono text-emerald-400"
-                >{{ Math.round(webRtcStore.remoteSystemVolume * 100) }}%</span
-              >
-            </div>
-            <input
-              v-model.number="webRtcStore.remoteSystemVolume"
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
-              class="custom-slider emerald-slider"
-            />
           </div>
         </div>
 
@@ -517,6 +290,13 @@ onUnmounted(() => {
         </button>
         <button
           v-if="webRtcStore.rtcStatus === 'connected'"
+          class="px-4 py-2 bg-transparent border border-[#444] hover:border-cyan-500 hover:text-cyan-400 text-gray-400 text-xs font-semibold rounded transition-colors"
+          @click="handleMoveMouseToOrigin()"
+        >
+          Wyślij MOUSE_MOVE 0,0
+        </button>
+        <button
+          v-if="webRtcStore.rtcStatus === 'connected'"
           class="px-4 py-2 bg-transparent border border-[#444] hover:border-rose-500 hover:text-rose-400 text-gray-400 text-xs font-semibold rounded transition-colors"
           @click="webRtcStore.disconnect()"
         >
@@ -525,7 +305,7 @@ onUnmounted(() => {
       </div>
     </footer>
 
-    <RemoteAudioPlayer />
+    <BuHostMouseRealtimeControl />
   </div>
 </template>
 

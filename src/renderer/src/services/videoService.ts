@@ -11,7 +11,7 @@ interface WindowWithCapture extends Window {
   capture: {
     start: () => Promise<void>
     stop: () => Promise<void>
-    getFps(): Promise<number | null>
+    getFps: () => Promise<number>
     subscribeStream: (onFrame: (frame: VideoFrame) => void) => () => void
   }
 }
@@ -107,15 +107,7 @@ class VideoService {
     await win.capture.start()
     this.stopNativeCapture = win.capture.subscribeStream((frame: VideoFrame) => {
       if (this.isCapturing && this.trackWriter) {
-        const clonedFrame = frame.clone()
-        this.trackWriter.write(clonedFrame).catch((error) => {
-          console.error('[VideoService] Błąd zapisu klatki do generatora:', error)
-          try {
-            clonedFrame.close()
-          } catch (closeError) {
-            console.warn('[VideoService] Błąd przy zamykaniu sklonowanej ramki:', closeError)
-          }
-        })
+        this.trackWriter.write(frame.clone()).catch(() => {})
       }
       frame.close()
     })

@@ -15,14 +15,16 @@
           <BuRegisterForm @log-result="logResult" />
           <BuLoginForm @log-result="logResult" />
           <BuSessionActions @log-result="logResult" @user-logged-out="clearUser" />
-          <BuUserProfile :user="currentUser" @fetch-user="fetchCurrentUser" />
-          <BuAvatarUpload @log-result="logResult" />
+          <!-- <BuUserProfile :user="currentUser" @fetch-user="fetchCurrentUser" /> -->
+          <!-- <BuAvatarUpload @log-result="logResult" /> -->
           <BuConnectionTest @log-result="logResult" />
           <BuJoinConnectionTest @log-result="logResult" />
-          <BuSystemInfo @log-result="logResult" />
+          <!-- <BuSystemInfo @log-result="logResult" /> -->
           <BuSocketTest @log-result="logResult" />
-          <BuDataChannelTest @log-result="logResult" />
-          <BuScreenCaptureTest />
+          <AudioDashboard @log-result="logResult" />
+          <!-- <BuDataChannelTest @log-result="logResult" /> -->
+          <!-- <BuScreenCaptureTest /> -->
+          <!-- <BuAudioParametersTestPanel /> -->
         </div>
 
         <div class="flex-1 flex flex-col gap-5 min-w-[350px] min-h-0">
@@ -64,26 +66,17 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
-// Schemat Typescript dla Użytkownika
-import type { UserResponseSchema } from '@shared/schemas/user'
-
 // Importy Komponentów
 import BuLanguageSelector from '../simpleComponents/BuLanguageSelector.vue'
 import BuRegisterForm from './BuRegisterForm.vue'
 import BuLoginForm from './BuLoginForm.vue'
 import BuSessionActions from './BuSessionActions.vue'
-import BuUserProfile from './BuUserProfile.vue'
-import BuAvatarUpload from './BuAvatarUpload.vue'
 import BuConnectionTest from './BuConnectionTest.vue'
 import BuJoinConnectionTest from './BuJoinConnectionTest.vue'
-import BuSystemInfo from './BuSystemInfo.vue'
 import BuSocketTest from './BuSocketTest.vue'
-import BuDataChannelTest from './BuDataChannelTest.vue'
-import BuScreenCaptureTest from './BuScreenCaptureTest.vue'
 // Stan Aplikacji
 const outputLog = ref<string>('')
 const wsLog = ref<string>('')
-const currentUser = ref<UserResponseSchema | null>(null)
 
 /**
  * Pomocnicza funkcja do formatowania wpisu w logach
@@ -113,25 +106,7 @@ const logResult = (actionName: string, response: unknown, source?: 'api' | 'sock
 
 // Czyszczenie usera
 const clearUser = (): void => {
-  currentUser.value = null
-}
-
-// Pobieranie profilu
-const fetchCurrentUser = async (): Promise<void> => {
-  logResult('GET_CURRENT_USER', 'Pobieranie danych użytkownika...', 'api')
-  try {
-    const res = await window.api.users.getCurrentUser()
-    logResult('GET_CURRENT_USER_SUCCESS', res, 'api')
-
-    if (res.success && res.data) {
-      currentUser.value = res.data
-    } else {
-      currentUser.value = null
-    }
-  } catch (e) {
-    logResult('GET_CURRENT_USER_ERROR', e, 'api')
-    currentUser.value = null
-  }
+  // Hook pod @user-logged-out zostawiony celowo, aktualnie bez stanu profilu.
 }
 </script>
 
