@@ -11,6 +11,7 @@ import { videoService } from '@renderer/services/videoService'
 import { microphoneService } from '@renderer/services/audio/out/micService'
 import { deviceService } from '@renderer/services/hardware/DeviceService'
 import { webRtcService } from '@renderer/composables/connection/webRTCService' // <-- DO NAGRYWANIA
+import { useHidChannel } from '@renderer/composables/channels/HidChannel'
 
 export const useSessionStore = defineStore('session', () => {
   const connectionStore = useConnectionStore()
@@ -18,6 +19,7 @@ export const useSessionStore = defineStore('session', () => {
   const webRtcStore = useWebRtcStore()
   const signalingStore = useSignalingStore()
   const logStore = useLogStore()
+  const hidChannel = useHidChannel()
 
   const includeScreenVideo = ref(true)
 
@@ -369,7 +371,10 @@ export const useSessionStore = defineStore('session', () => {
   watch(
     () => connectionStore.isHost,
     (isHost): void => {
-      webRtcStore.setLocalPublishProfile(isHost ? 'host' : 'guest')
+      const role = isHost ? 'host' : 'guest'
+
+      webRtcStore.setLocalPublishProfile(role)
+      hidChannel.setLocalRole(role)
     },
     { immediate: true }
   )

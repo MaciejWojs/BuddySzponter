@@ -167,7 +167,6 @@ const handleHostLockout = (_, data: { active: boolean; until: number }): void =>
 }
 
 onMounted(() => {
-  hidChannel.setLocalRole('host')
   window.electron.ipcRenderer.on('input:host-lockout', handleHostLockout)
 })
 
