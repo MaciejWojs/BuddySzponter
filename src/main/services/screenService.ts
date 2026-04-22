@@ -83,7 +83,7 @@ export class ScreenService {
 
   private startCapture(): void {
     if (!this.capturer) {
-      this.capturer = new ScreenCapture()
+      this.capturer = new ScreenCapture({ disableLogging: true })
     }
     this.capturer.start()
 
