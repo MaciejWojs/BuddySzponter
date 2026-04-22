@@ -61,7 +61,6 @@ function createWindow(): void {
       autoplayPolicy: 'no-user-gesture-required',
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,
-      autoplayPolicy: 'no-user-gesture-required',
       backgroundThrottling: false
     }
   })
@@ -112,6 +111,7 @@ if (!gotTheLock) {
     app.commandLine.appendSwitch('disable-background-timer-throttling')
     app.commandLine.appendSwitch('disable-backgrounding-occluded-windows')
     app.commandLine.appendSwitch('disable-backgrounding-occluded-windows')
+    app.commandLine.appendSwitch('enable-transparent-visuals')
 
     app.on('browser-window-created', (_, window) => {
       optimizer.watchWindowShortcuts(window)
@@ -157,12 +157,12 @@ if (!gotTheLock) {
     // --- IPC MAIN HANDLERY DLA WIDGETU ---
     ipcMain.handle('show-host-widget', () => {
       createHostWidget()
-      hideWindowSafely(mainWindow) // Bezpieczne chowanie okna
+      hideWindowSafely(mainWindow)
     })
 
     ipcMain.handle('hide-host-widget', () => {
       closeHostWidget()
-      showWindowSafely(mainWindow) // Przywracanie okna
+      showWindowSafely(mainWindow)
     })
 
     ipcMain.handle('hide-to-tray', () => {

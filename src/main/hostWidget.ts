@@ -5,9 +5,7 @@ import { is } from '@electron-toolkit/utils'
 
 let hostWidgetWindow: BrowserWindow | null = null
 
-// Zmieniono nazwę na createHostWidget, aby pasowała do importu w index.ts
 export function createHostWidget(): void {
-  // Jeśli widget już istnieje, po prostu go pokazujemy i przerywamy tworzenie nowego
   if (hostWidgetWindow && !hostWidgetWindow.isDestroyed()) {
     hostWidgetWindow.showInactive()
     return
@@ -24,7 +22,7 @@ export function createHostWidget(): void {
     height: WIDGET_HEIGHT,
     x: Math.round(width / 2 - WIDGET_WIDTH / 2),
     y: 20,
-    show: false, // Pokażemy po załadowaniu w 'ready-to-show'
+    show: false,
     frame: false,
     transparent: true,
     alwaysOnTop: true,
@@ -33,6 +31,11 @@ export function createHostWidget(): void {
     minimizable: false,
     maximizable: false,
     hasShadow: true,
+
+    backgroundColor: '#00000000',
+
+    type: process.platform === 'linux' ? 'toolbar' : undefined,
+
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,
@@ -44,10 +47,7 @@ export function createHostWidget(): void {
     hostWidgetWindow.setAlwaysOnTop(true, 'floating')
   }
 
-  // Czekamy aż widget się wyrenderuje, żeby nie było mignięcia
   hostWidgetWindow.on('ready-to-show', () => {
-    // Używamy showInactive, żeby widget nie kradł focusu z aplikacji,
-    // w której użytkownik akurat pracuje
     hostWidgetWindow?.showInactive()
   })
 
@@ -66,13 +66,11 @@ export function showHostWidget(): void {
 
 export function closeHostWidget(): void {
   if (hostWidgetWindow && !hostWidgetWindow.isDestroyed()) {
-    // UKRYWAMY ZAMIAST NISZCZYĆ (zgodnie z założeniem)
     hostWidgetWindow.hide()
   }
 }
 
 export function registerHostWidgetHandlers(mainWindow: BrowserWindow | null): void {
-  // Obsługa starego sygnału .send()
   ipcMain.on('widget-close-session', () => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('host-session-ended')
@@ -80,18 +78,12 @@ export function registerHostWidgetHandlers(mainWindow: BrowserWindow | null): vo
     closeHostWidget()
   })
 
-  // ==========================================
-  // NOWE: Obsługa sygnałów .invoke() z pliku Vue
-  // Przekazujemy zdarzenia z widgetu prosto do głównego okna aplikacji
-  // ==========================================
-
   ipcMain.handle('widget:toggle-mute', (_event, payload: { muted: boolean }) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('widget:toggle-mute', payload)
     }
   })
 
-  // Dodany handler do przekazania kontroli
   ipcMain.handle('widget:toggle-control', (_event, payload: { granted: boolean }) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('widget:toggle-control', payload)
