@@ -16,7 +16,7 @@ class MicrophoneService {
   private bassBoostDb = 0
   private inputThreshold = 0.008
   private gateHoldTimeSeconds = 0.5
-  private gateAttackTime = 0.015
+  private gateAttackTime = 0.014
   private gateReleaseTime = 1.0
   private autoGainControlEnabled = true
   private noiseSuppressionEnabled = true
