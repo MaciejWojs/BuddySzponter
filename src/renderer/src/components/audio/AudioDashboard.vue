@@ -3,7 +3,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useWebRtcStore } from '@renderer/stores/webRtcStore'
 import { useSessionStore } from '@renderer/stores/sessionStore'
-import { microphoneService } from '@renderer/services/audio/out/micService'
+import { microphoneService } from '@renderer/services/audio/in/micService'
 import VUMeter from './VUMeter.vue'
 
 interface DuckingPreset {

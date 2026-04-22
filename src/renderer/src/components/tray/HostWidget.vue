@@ -126,7 +126,6 @@ const hidChannel = useHidChannel()
 
 const videoContainer = ref<HTMLElement | null>(null)
 
-// ✅ Bezpośrednie odczytywanie stanu z kanału
 const isControlActive = computed(() => hidChannel.isControlGranted.value)
 
 // --- LOCKOUT ---

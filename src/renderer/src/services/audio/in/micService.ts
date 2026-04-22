@@ -68,16 +68,6 @@ class MicrophoneService {
     this.syncMonitoringOutput()
   }
 
-  public async getAvailableMicrophones(): Promise<AudioInputDeviceOption[]> {
-    const devices = await navigator.mediaDevices.enumerateDevices()
-    return devices
-      .filter((device) => device.kind === 'audioinput' && !!device.deviceId)
-      .map((device, index) => ({
-        deviceId: device.deviceId,
-        label: device.label || `Mikrofon ${index + 1}`
-      }))
-  }
-
   public async start(deviceId?: string, volume = 1): Promise<MediaStreamTrack | null> {
     try {
       const audioConstraints = this.studioModeEnabled
