@@ -13,7 +13,6 @@ interface CustomRTCStreamStats {
   kind: string
   codecId?: string
 }
-// -----------------------------------
 
 export type DataChannelLabel = 'chat-channel' | 'hid-control' | 'system-events' | 'metrics'
 export type ConnectionMetrics = {
@@ -117,14 +116,11 @@ export class WebRTCService {
 
       if (capabilities?.codecs && this.videoTransceiver?.setCodecPreferences) {
         const codecs = capabilities.codecs
-
         const videoCodecs = codecs.filter((c) => c.mimeType.startsWith('video/'))
-
         const h264 = videoCodecs.filter((c) => c.mimeType.toLowerCase() === 'video/h264')
         const nonH264 = videoCodecs.filter((c) => c.mimeType.toLowerCase() !== 'video/h264')
 
         const ordered = [...nonH264, ...h264]
-
         this.videoTransceiver.setCodecPreferences(ordered)
       }
     }
@@ -148,9 +144,6 @@ export class WebRTCService {
 
       if (this.onRemoteStreamReceived) {
         this.onRemoteStreamReceived(new MediaStream(this.remoteStream.getTracks()))
-        // if (!this.recorder) {
-        //   this.startRecording()
-        // }
       }
     }
 
@@ -358,7 +351,6 @@ export class WebRTCService {
     return this.remoteTrackRoleByTrackId.get(trackId) ?? null
   }
 
-  // --- BRAKUJĄCE METODY PRZYWRÓCONE ---
   public sendData(channelLabel: DataChannelLabel, message: string): void {
     let channel: RTCDataChannel | null = null
     if (channelLabel === 'chat-channel') channel = this.chatChannel
@@ -425,7 +417,6 @@ export class WebRTCService {
         mimeType: 'video/webm; codecs=vp8,opus'
       })
     } catch {
-      // fallback (np. Safari / słabsze wsparcie)
       this.recorder = new MediaRecorder(this.recordingStream)
     }
 
@@ -450,11 +441,63 @@ export class WebRTCService {
     this.recorder = null
   }
 
+  public async setVideoQualityLimits(
+    maxBitrateKbps?: number,
+    maxFps?: number,
+    scaleResolutionDownBy: number = 1
+  ): Promise<boolean> {
+    if (!this.peerConnection) {
+      console.warn('[WebRTC] Brak aktywnego połączenia P2P by zmienić jakość.')
+      return false
+    }
+
+    const senders = this.peerConnection.getSenders()
+    const videoSender = senders.find((s) => s.track?.kind === 'video')
+
+    if (!videoSender) {
+      console.warn('[WebRTC] Nie znaleziono nadajnika wideo do zoptymalizowania.')
+      return false
+    }
+
+    try {
+      const params = videoSender.getParameters()
+
+      if (!params.encodings || params.encodings.length === 0) {
+        params.encodings = [{}]
+      }
+
+      const encoding = params.encodings[0]
+
+      if (maxBitrateKbps) {
+        encoding.maxBitrate = maxBitrateKbps * 1000
+      } else {
+        delete encoding.maxBitrate
+      }
+
+      if (maxFps) {
+        encoding.maxFramerate = maxFps
+      } else {
+        delete encoding.maxFramerate
+      }
+
+      encoding.scaleResolutionDownBy = Math.max(1, scaleResolutionDownBy)
+
+      await videoSender.setParameters(params)
+
+      console.log(
+        `[WebRTC] Zaktualizowano limity wideo: Bitrate=${maxBitrateKbps || 'AUTO'}Kbps, FPS=${maxFps || 'AUTO'}, Skala=1/${scaleResolutionDownBy}`
+      )
+      return true
+    } catch (error) {
+      console.error('[WebRTC] Błąd podczas zmiany limitów wideo:', error)
+      return false
+    }
+  }
+
   public cleanup(): void {
     const currentPeerConnection = this.peerConnection
 
     this.isIntentionallyClosing = true
-    // this.stopRecording()
     this.recordingStream?.getTracks().forEach((t) => t.stop())
     this.recordingStream = null
     this.recordedChunks = []

@@ -28,7 +28,7 @@ export const useSessionStore = defineStore('session', () => {
   const captureStore = useCaptureStore()
 
   // ==========================================
-  // ORCHESTRATION (Zarządzanie Zdarzeniami)
+  // ORCHESTRATION
   // ==========================================
 
   watch(
@@ -77,7 +77,6 @@ export const useSessionStore = defineStore('session', () => {
     }
   )
 
-  // 4. Integracja stanu wideo/audio ze WebRTC
   const hasLocalAudioTrack = (hint: 'speech' | 'music'): boolean => {
     return !!webRtcStore.localStream?.getAudioTracks().some((t) => t.contentHint === hint)
   }
@@ -107,24 +106,20 @@ export const useSessionStore = defineStore('session', () => {
   void deviceStore.refreshMicrophones()
 
   return {
-    // Stan rozpakowany przez storeToRefs (reaktywność)
     ...storeToRefs(audioStore),
     ...storeToRefs(deviceStore),
     ...storeToRefs(captureStore),
 
-    // Metody wyciągnięte ze storów
     toggleMicrophone: audioStore.toggleMicrophone,
     toggleSystemAudio: audioStore.toggleSystemAudio,
     toggleScreenVideo: captureStore.toggleScreenVideo,
     refreshMicrophones: deviceStore.refreshMicrophones,
     applySelectedMicrophone: captureStore.applySelectedMicrophone,
 
-    // Aliasy dla zachowania starego API
     startCapture: captureStore.startHostCapture,
     stopCapture: captureStore.stopCapture,
     handleRespond,
 
-    // Nagrywanie
     isRecording: computed(() => recordingService.isRecording),
     startRecording: () => recordingService.startRecording(webRtcStore.remoteStream),
     stopRecording: () => recordingService.stopRecording()

@@ -1,3 +1,4 @@
+// renderer/src/stores/captureStore.ts
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useWebRtcStore } from './webRtcStore'
@@ -9,6 +10,10 @@ import { videoService } from '@renderer/services/video/videoService'
 import { microphoneService } from '@renderer/services/audio/in/micService'
 import { screenCaptureService } from '@renderer/services/video/ScreenCaptureService'
 import { recordingService } from '@renderer/services/video/RecordingService'
+import { webRtcService } from '@renderer/composables/connection/webRTCService' // POTRZEBNE DO LIMITÓW
+
+// Typy profili jakości
+export type VideoQualityPreset = 'low' | 'medium' | 'high' | 'ultra'
 
 export const useCaptureStore = defineStore('capture', () => {
   const webRtcStore = useWebRtcStore()
@@ -21,6 +26,25 @@ export const useCaptureStore = defineStore('capture', () => {
   const isCapturing = computed((): boolean => currentCaptureMode.value !== null)
   const sharedTextureCaptureFps = 120
 
+  const activeVideoQuality = ref<VideoQualityPreset>('high')
+  const applyQualityPreset = async (preset: VideoQualityPreset): Promise<void> => {
+    activeVideoQuality.value = preset
+    switch (preset) {
+      case 'low':
+        await webRtcService.setVideoQualityLimits(1500, 30, 2)
+        break
+      case 'medium':
+        await webRtcService.setVideoQualityLimits(3500, 60, 1)
+        break
+      case 'high':
+        await webRtcService.setVideoQualityLimits(8000, 60, 1)
+        break
+      case 'ultra':
+        await webRtcService.setVideoQualityLimits(15000, 120, 1)
+        break
+    }
+  }
+
   const toggleScreenVideo = (isHidden: boolean): void => {
     includeScreenVideo.value = !isHidden
     webRtcStore.toggleTrackByHint('video', '', !isHidden)
@@ -31,6 +55,8 @@ export const useCaptureStore = defineStore('capture', () => {
       webRtcStore.localStream = stream
     } else {
       await webRtcStore.publishLocalStream(stream)
+      // Opcjonalnie: Zastosuj od razu domyślny preset po publikacji
+      void applyQualityPreset(activeVideoQuality.value)
     }
   }
 
@@ -80,7 +106,6 @@ export const useCaptureStore = defineStore('capture', () => {
       return
     }
 
-    // Fallback natywny
     try {
       const micTrack = await prepareExternalMicTrack()
       const stream = await videoService.start({
@@ -171,10 +196,12 @@ export const useCaptureStore = defineStore('capture', () => {
   return {
     includeScreenVideo,
     isCapturing,
+    activeVideoQuality,
     toggleScreenVideo,
     startHostCapture,
     startGuestCapture,
     stopCapture,
-    applySelectedMicrophone
+    applySelectedMicrophone,
+    applyQualityPreset
   }
 })

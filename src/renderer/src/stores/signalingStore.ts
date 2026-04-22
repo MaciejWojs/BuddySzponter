@@ -9,8 +9,6 @@ export const useSignalingStore = defineStore('signaling', () => {
   const socketStore = useSocketStore()
   const webRtcStore = useWebRtcStore()
 
-  // --- INICJALIZACJA POŁĄCZENIA ---
-
   const startConnectionAsHost = async (): Promise<void> => {
     webRtcStore.setLocalPublishProfile('host')
     webRtcService.cleanup()
@@ -30,8 +28,6 @@ export const useSignalingStore = defineStore('signaling', () => {
       webRtcStore.forceDisconnect()
     }
   }
-
-  // --- OBSŁUGA SYGNAŁÓW Z WEBSOCKETA ---
 
   const handleOffer = async (data: WsWebRTCOffer): Promise<void> => {
     webRtcStore.setLocalPublishProfile('guest')
@@ -69,7 +65,6 @@ export const useSignalingStore = defineStore('signaling', () => {
     }
   }
 
-  // Nasłuchiwanie na nowe kandydaty z naszego WebRTC i wysyłanie ich do gniazda
   webRtcService.onIceCandidateGenerated = async (candidate): Promise<void> => {
     await socketStore.wsService.sendIceCandidate({ candidate: JSON.stringify(candidate) })
   }
