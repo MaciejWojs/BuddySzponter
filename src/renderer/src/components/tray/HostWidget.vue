@@ -8,7 +8,7 @@
       ref="videoContainer"
       class="relative w-[76px] h-[44px] bg-black rounded-lg overflow-hidden border border-white/10 shrink-0 flex items-center justify-center"
       style="-webkit-app-region: no-drag"
-      :class="hidChannel.isControlGranted ? 'cursor-crosshair' : 'cursor-default'"
+      :class="isControlActive ? 'cursor-crosshair' : 'cursor-default'"
       title="Zdalny Ekran Hosta"
       @mousemove="handleMouseMove"
     >
@@ -16,7 +16,6 @@
         class="absolute inset-0 w-full h-full object-contain pointer-events-none"
         :stream="webRtcStore.remoteStream"
       />
-
       <div
         v-if="webRtcStore.rtcStatus !== 'connected'"
         class="absolute inset-0 flex items-center justify-center bg-black/80"
@@ -29,15 +28,15 @@
       <button
         class="tool-btn w-8 h-8 rounded-lg flex items-center justify-center border transition-all"
         :class="
-          isControlGranted
+          isControlActive
             ? 'control-active bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
             : 'control-inactive bg-rose-500/10 border-rose-500/30 text-rose-400'
         "
         type="button"
-        :title="isControlGranted ? 'Zabierz kontrolę' : 'Oddaj kontrolę'"
+        :title="isControlActive ? 'Zabierz kontrolę' : 'Oddaj kontrolę'"
         @click="toggleControl"
       >
-        <svg v-if="!isControlGranted" viewBox="0 0 24 24" class="w-4 h-4">
+        <svg v-if="!isControlActive" viewBox="0 0 24 24" class="w-4 h-4">
           <path
             fill="currentColor"
             d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"
@@ -99,11 +98,9 @@
           />
         </svg>
       </div>
-
-      <span class="absolute -bottom-4 text-[9px] font-mono font-bold text-orange-400">
-        {{ remainingTime.toFixed(1) }}s
-      </span>
-
+      <span class="absolute -bottom-4 text-[9px] font-mono font-bold text-orange-400"
+        >{{ remainingTime.toFixed(1) }}s</span
+      >
       <div
         class="absolute -bottom-[12px] left-0 w-[280px] h-[2px] bg-white/5 rounded-full overflow-hidden"
       >
@@ -129,15 +126,10 @@ const hidChannel = useHidChannel()
 
 const videoContainer = ref<HTMLElement | null>(null)
 
-const isControlGranted = computed({
-  get: () => hidChannel.isControlGranted.value,
-  set: (val) => {
-    if (val) hidChannel.grantControl()
-    else hidChannel.revokeControl()
-  }
-})
+// ✅ Bezpośrednie odczytywanie stanu z kanału
+const isControlActive = computed(() => hidChannel.isControlGranted.value)
 
-// --- LOCKOUT (Bez zmian) ---
+// --- LOCKOUT ---
 const LOCKOUT_DURATION_MS = 3000
 const isGuestLockedOut = ref(false)
 const lockoutUntil = ref(0)
@@ -171,11 +163,11 @@ const handleHostLockout = (_, data: { active: boolean; until: number }): void =>
       if (currentTime.value >= lockoutUntil.value) stopTimer()
     }, 50)
   }
-
   if (!data.active) stopTimer()
 }
 
 onMounted(() => {
+  hidChannel.setLocalRole('host')
   window.electron.ipcRenderer.on('input:host-lockout', handleHostLockout)
 })
 
@@ -186,16 +178,20 @@ onUnmounted(() => {
 
 // --- ACTIONS ---
 const toggleControl = async (): Promise<void> => {
-  const newValue = !isControlGranted.value
+  const nextValue = !isControlActive.value
 
   try {
     await window.electron.ipcRenderer.invoke('widget:toggle-control', {
-      granted: newValue
+      granted: nextValue
     })
 
-    isControlGranted.value = newValue
+    if (nextValue) {
+      hidChannel.grantControl()
+    } else {
+      hidChannel.revokeControl()
+    }
   } catch (e) {
-    console.error('Błąd przełączania kontroli:', e)
+    console.error('[Widget] Błąd IPC podczas przełączania kontroli:', e)
   }
 }
 
@@ -208,7 +204,7 @@ const toggleMicAudio = (): void => {
 }
 
 const handleMouseMove = (event: MouseEvent): void => {
-  if (!hidChannel.isControlGranted.value || !videoContainer.value) return
+  if (!isControlActive.value || !videoContainer.value) return
 
   const rect = videoContainer.value.getBoundingClientRect()
   const x = ((event.clientX - rect.left) / rect.width) * 100
@@ -217,3 +213,9 @@ const handleMouseMove = (event: MouseEvent): void => {
   hidChannel.sendMouseFromVideo(Math.max(0, Math.min(100, x)), Math.max(0, Math.min(100, y)))
 }
 </script>
+
+<style scoped>
+button:active {
+  transform: scale(0.95);
+}
+</style>
