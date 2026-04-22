@@ -8,6 +8,7 @@ import {
 } from '@renderer/composables/connection/webRTCService'
 import { useConnectionMetrics } from '@renderer/composables/connection/useConnectionMetrics'
 import { messageRouter } from '@renderer/composables/webrtc/MessageRouter'
+import { useHidChannel } from '@renderer/composables/channels/HidChannel'
 
 export const useWebRtcStore = defineStore('webrtc', () => {
   // --- STAN POŁĄCZENIA ---
@@ -15,6 +16,8 @@ export const useWebRtcStore = defineStore('webrtc', () => {
   const localStream = shallowRef<MediaStream | null>(null)
   const remoteStream = shallowRef<MediaStream | null>(null)
   const localPublishProfile = ref<'host' | 'guest'>('host')
+
+  const hid = useHidChannel()
 
   const connectionMetrics = useConnectionMetrics(rtcStatus)
 
@@ -33,6 +36,11 @@ export const useWebRtcStore = defineStore('webrtc', () => {
   webRtcService.onDataChannelOpened = (): void => {
     rtcStatus.value = 'connected'
     connectionMetrics.start()
+
+    if (localPublishProfile.value === 'host') {
+      console.log('[WebRtcStore] Połączenie otwarte, wysyłam HID Handshake...')
+      hid.sendHandshake()
+    }
   }
 
   // --- ACTIONS ---
@@ -47,6 +55,15 @@ export const useWebRtcStore = defineStore('webrtc', () => {
     localPublishProfile.value = profile
     if (rtcStatus.value !== 'disconnected' && localStream.value) {
       webRtcService.publishLocalStream(localStream.value, getCurrentTrackPolicy())
+    }
+
+    if (rtcStatus.value === 'connected') {
+      if (localStream.value) {
+        webRtcService.publishLocalStream(localStream.value, getCurrentTrackPolicy())
+      }
+      if (profile === 'host') {
+        hid.sendHandshake()
+      }
     }
   }
 

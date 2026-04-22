@@ -304,8 +304,6 @@ onUnmounted(() => {
         </button>
       </div>
     </footer>
-
-    <BuHostMouseRealtimeControl />
   </div>
 </template>
 

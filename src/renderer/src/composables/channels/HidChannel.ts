@@ -53,7 +53,6 @@ const resetState = (): void => {
 }
 
 export function useHidChannel(): HidChannelApi {
-  // --- AUTONOMICZNY NASŁUCH ---
   messageRouter.subscribe('hid-control', (msg: P2PMessage) => {
     switch (msg.type) {
       case 'HID_HANDSHAKE':

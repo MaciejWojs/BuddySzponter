@@ -129,10 +129,15 @@ const hidChannel = useHidChannel()
 
 const videoContainer = ref<HTMLElement | null>(null)
 
-// --- CONTROL ---
-const isControlGranted = ref(false)
+const isControlGranted = computed({
+  get: () => hidChannel.isControlGranted.value,
+  set: (val) => {
+    if (val) hidChannel.grantControl()
+    else hidChannel.revokeControl()
+  }
+})
 
-// --- LOCKOUT ---
+// --- LOCKOUT (Bez zmian) ---
 const LOCKOUT_DURATION_MS = 3000
 const isGuestLockedOut = ref(false)
 const lockoutUntil = ref(0)
@@ -179,17 +184,18 @@ onUnmounted(() => {
   window.electron.ipcRenderer.removeListener('input:host-lockout', handleHostLockout)
 })
 
+// --- ACTIONS ---
 const toggleControl = async (): Promise<void> => {
   const newValue = !isControlGranted.value
-  isControlGranted.value = newValue
 
   try {
     await window.electron.ipcRenderer.invoke('widget:toggle-control', {
       granted: newValue
     })
+
+    isControlGranted.value = newValue
   } catch (e) {
-    isControlGranted.value = !newValue
-    console.error('IPC error:', e)
+    console.error('Błąd przełączania kontroli:', e)
   }
 }
 
@@ -211,9 +217,3 @@ const handleMouseMove = (event: MouseEvent): void => {
   hidChannel.sendMouseFromVideo(Math.max(0, Math.min(100, x)), Math.max(0, Math.min(100, y)))
 }
 </script>
-
-<style scoped>
-button:active {
-  transform: scale(0.95);
-}
-</style>
