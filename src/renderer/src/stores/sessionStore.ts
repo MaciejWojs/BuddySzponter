@@ -37,6 +37,8 @@ export const useSessionStore = defineStore('session', () => {
 
   let stopFrameSubscription: (() => void) | null = null
   let hiddenCanvas: HTMLCanvasElement | null = null
+  let sharedTextureGeneratorWriter: WritableStreamDefaultWriter<VideoFrame> | null = null
+  let sharedTextureGeneratorTrack: MediaStreamTrack | null = null
 
   // --- FUNKCJE TOGGLE DLA UI ---
 
@@ -84,47 +86,48 @@ export const useSessionStore = defineStore('session', () => {
 
   const startSharedTextureCapture = async (): Promise<void> => {
     try {
-      window.screenCapture.registerReceiver()
+      const useCpuCapture =
+        typeof window.screenCapture.shouldUseCpu === 'function'
+          ? await window.screenCapture.shouldUseCpu()
+          : false
 
-      if (!hiddenCanvas) {
-        hiddenCanvas = document.createElement('canvas')
-        hiddenCanvas.width = 1920
-        hiddenCanvas.height = 1080
+      if (!useCpuCapture && typeof window.screenCapture.registerReceiver === 'function') {
+        window.screenCapture.registerReceiver()
+      }
+      const win = window as unknown as {
+        MediaStreamTrackGenerator?: new (init: { kind: 'video' }) => MediaStreamTrack & {
+          writable: WritableStream<VideoFrame>
+          contentHint: string
+        }
       }
 
-      const ctx = hiddenCanvas.getContext('2d', { alpha: false })
-      if (!ctx) {
-        logStore.addLog('ERROR', 'Brak kontekstu 2D dla wirtualnego canvasa.', 'api')
+      if (!win.MediaStreamTrackGenerator) {
+        logStore.addLog('ERROR', 'Brak MediaStreamTrackGenerator w bieżącym środowisku.', 'api')
         return
       }
 
-      ctx.fillStyle = 'black'
-      ctx.fillRect(0, 0, hiddenCanvas.width, hiddenCanvas.height)
+      const generator = new win.MediaStreamTrackGenerator({ kind: 'video' })
+      generator.contentHint = 'detail'
+      sharedTextureGeneratorWriter = generator.writable.getWriter()
 
       stopFrameSubscription?.()
       stopFrameSubscription = window.screenCapture.onFrameReceived((frameData) => {
         try {
-          if (hiddenCanvas) {
-            ctx.drawImage(frameData, 0, 0, hiddenCanvas.width, hiddenCanvas.height)
-          }
+          sharedTextureGeneratorWriter?.write(frameData.clone()).catch((writeError) => {
+            console.error('[SessionStore] Błąd zapisu klatki do generatora:', writeError)
+          })
         } catch (e) {
-          logStore.addLog('ERROR', `Błąd renderowania klatki: ${e}`, 'api')
+          logStore.addLog('ERROR', `Błąd zapisu klatki do generatora: ${e}`, 'api')
         } finally {
           if (frameData && typeof frameData.close === 'function') frameData.close()
         }
       })
 
-      const canvasStream = hiddenCanvas.captureStream(sharedTextureCaptureFps)
-      const canvasVideoTrack = canvasStream.getVideoTracks()[0]
-
-      if (!canvasVideoTrack) {
-        logStore.addLog('ERROR', 'Brak video tracka z canvas captureStream.', 'api')
-        return
-      }
+      sharedTextureGeneratorTrack = generator
 
       const micTrack = await prepareExternalMicTrack()
 
-      sharedTextureStream.value = await videoService.startWithExternalVideoTrack(canvasVideoTrack, {
+      sharedTextureStream.value = await videoService.startWithExternalVideoTrack(generator, {
         includeSystemAudio: includeSystemAudio.value,
         externalMicTrack: micTrack ?? undefined,
         systemAudioVolume: localSystemAudioVolume.value
@@ -213,6 +216,15 @@ export const useSessionStore = defineStore('session', () => {
     if (sharedTextureStream.value) {
       sharedTextureStream.value.getTracks().forEach((t) => t.stop())
       sharedTextureStream.value = null
+    }
+    if (sharedTextureGeneratorWriter) {
+      sharedTextureGeneratorWriter.close().catch(() => {})
+      sharedTextureGeneratorWriter = null
+    }
+
+    if (sharedTextureGeneratorTrack) {
+      sharedTextureGeneratorTrack.stop()
+      sharedTextureGeneratorTrack = null
     }
 
     currentCaptureMode.value = null
