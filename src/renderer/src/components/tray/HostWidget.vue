@@ -4,12 +4,11 @@
     :class="{ 'border-red-500 border-2': isGuestLockedOut }"
     style="-webkit-app-region: drag"
   >
-    <!-- VIDEO -->
     <div
       ref="videoContainer"
       class="relative w-[76px] h-[44px] bg-black rounded-lg overflow-hidden border border-white/10 shrink-0 flex items-center justify-center"
       style="-webkit-app-region: no-drag"
-      :class="webRtcStore.isGuestControlAllowed ? 'cursor-crosshair' : 'cursor-default'"
+      :class="hidChannel.isControlGranted ? 'cursor-crosshair' : 'cursor-default'"
       title="Zdalny Ekran Hosta"
       @mousemove="handleMouseMove"
     >
@@ -26,9 +25,7 @@
       </div>
     </div>
 
-    <!-- CONTROLS -->
     <div class="flex items-center gap-2" style="-webkit-app-region: no-drag">
-      <!-- CONTROL -->
       <button
         class="tool-btn w-8 h-8 rounded-lg flex items-center justify-center border transition-all"
         :class="
@@ -54,16 +51,15 @@
         </svg>
       </button>
 
-      <!-- SYSTEM AUDIO -->
       <button
         class="w-8 h-8 rounded-lg flex items-center justify-center transition-all border"
         :class="
-          webRtcStore.remoteSystemVolume > 0
+          sessionStore.remoteSystemVolume > 0
             ? 'bg-blue-500/10 border-blue-500/30 text-blue-400 hover:bg-blue-500/20'
             : 'bg-white/5 border-white/10 text-gray-500 hover:bg-white/10'
         "
         :title="
-          webRtcStore.remoteSystemVolume > 0 ? 'Wycisz system Hosta' : 'Włącz dźwięk systemu Hosta'
+          sessionStore.remoteSystemVolume > 0 ? 'Wycisz system Hosta' : 'Włącz dźwięk systemu Hosta'
         "
         @click="toggleSystemAudio"
       >
@@ -75,15 +71,14 @@
         </svg>
       </button>
 
-      <!-- MIC -->
       <button
         class="w-8 h-8 rounded-lg flex items-center justify-center transition-all border"
         :class="
-          webRtcStore.remoteMicVolume > 0
+          sessionStore.remoteMicVolume > 0
             ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20'
             : 'bg-white/5 border-white/10 text-gray-500 hover:bg-white/10'
         "
-        :title="webRtcStore.remoteMicVolume > 0 ? 'Wycisz mikrofon Hosta' : 'Włącz mikrofon Hosta'"
+        :title="sessionStore.remoteMicVolume > 0 ? 'Wycisz mikrofon Hosta' : 'Włącz mikrofon Hosta'"
         @click="toggleMicAudio"
       >
         <svg viewBox="0 0 24 24" class="w-4 h-4">
@@ -95,7 +90,6 @@
       </button>
     </div>
 
-    <!-- LOCKOUT -->
     <div v-if="isGuestLockedOut" class="relative flex flex-col items-center">
       <div class="text-orange-400 animate-pulse">
         <svg viewBox="0 0 24 24" class="w-5 h-5">
@@ -125,9 +119,14 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useWebRtcStore } from '@renderer/stores/webRtcStore'
+import { useSessionStore } from '@renderer/stores/sessionStore'
+import { useHidChannel } from '@renderer/composables/channels/HidChannel'
 import VideoPlayer from '../p2p/VideoPlayer.vue'
 
 const webRtcStore = useWebRtcStore()
+const sessionStore = useSessionStore()
+const hidChannel = useHidChannel()
+
 const videoContainer = ref<HTMLElement | null>(null)
 
 // --- CONTROL ---
@@ -180,7 +179,6 @@ onUnmounted(() => {
   window.electron.ipcRenderer.removeListener('input:host-lockout', handleHostLockout)
 })
 
-// --- ACTIONS ---
 const toggleControl = async (): Promise<void> => {
   const newValue = !isControlGranted.value
   isControlGranted.value = newValue
@@ -196,21 +194,21 @@ const toggleControl = async (): Promise<void> => {
 }
 
 const toggleSystemAudio = (): void => {
-  webRtcStore.remoteSystemVolume = webRtcStore.remoteSystemVolume > 0 ? 0 : 1
+  sessionStore.remoteSystemVolume = sessionStore.remoteSystemVolume > 0 ? 0 : 1
 }
 
 const toggleMicAudio = (): void => {
-  webRtcStore.remoteMicVolume = webRtcStore.remoteMicVolume > 0 ? 0 : 1
+  sessionStore.remoteMicVolume = sessionStore.remoteMicVolume > 0 ? 0 : 1
 }
 
 const handleMouseMove = (event: MouseEvent): void => {
-  if (!webRtcStore.isGuestControlAllowed || !videoContainer.value) return
+  if (!hidChannel.isControlGranted.value || !videoContainer.value) return
 
   const rect = videoContainer.value.getBoundingClientRect()
   const x = ((event.clientX - rect.left) / rect.width) * 100
   const y = ((event.clientY - rect.top) / rect.height) * 100
 
-  webRtcStore.sendMousePosition(Math.max(0, Math.min(100, x)), Math.max(0, Math.min(100, y)))
+  hidChannel.sendMouseFromVideo(Math.max(0, Math.min(100, x)), Math.max(0, Math.min(100, y)))
 }
 </script>
 

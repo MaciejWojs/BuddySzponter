@@ -10,25 +10,24 @@
           v-if="webRtcStore.rtcStatus === 'connected'"
           class="px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 border"
           :class="
-            webRtcStore.isGuestControlAllowed
+            hidChannel.isControlGranted
               ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
               : 'bg-rose-500/10 text-rose-400 border-rose-500/30'
           "
         >
-          <span v-if="webRtcStore.isGuestControlAllowed">✅ Kontrola Aktywna</span>
+          <span v-if="hidChannel.isControlGranted">✅ Kontrola Aktywna</span>
           <span v-else>🔒 Tylko podgląd</span>
         </div>
       </div>
     </header>
 
-    <!-- VIDEO -->
     <div
       ref="videoContainer"
       class="bg-black border border-[#444] overflow-hidden aspect-video relative w-full"
       tabindex="0"
       :class="{
-        'cursor-crosshair': webRtcStore.isGuestControlAllowed,
-        'cursor-not-allowed': !webRtcStore.isGuestControlAllowed
+        'cursor-crosshair': hidChannel.isControlGranted,
+        'cursor-not-allowed': !hidChannel.isControlGranted
       }"
       @mouseenter="focusContainer"
       @mousemove="handleMouseMove"
@@ -56,9 +55,11 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useWebRtcStore } from '@renderer/stores/webRtcStore'
+import { useHidChannel } from '@renderer/composables/channels/HidChannel'
 import VideoPlayer from '../p2p/VideoPlayer.vue'
 
 const webRtcStore = useWebRtcStore()
+const hidChannel = useHidChannel()
 
 const videoContainer = ref<HTMLElement | null>(null)
 const isMouseDown = ref(false)
@@ -91,31 +92,31 @@ const getButton = (event: MouseEvent): 'l' | 'r' | 'm' => {
 /* ================= MOUSE ================= */
 
 const handleMouseMove = (event: MouseEvent): void => {
-  if (!webRtcStore.isGuestControlAllowed || !videoContainer.value) return
+  if (!hidChannel.isControlGranted.value || !videoContainer.value) return
 
   const { x, y } = getPercentCoords(event)
-  webRtcStore.sendMousePosition(x, y)
+  hidChannel.sendMouseFromVideo(x, y)
 }
 
 const handleMouseDown = (event: MouseEvent): void => {
-  if (!webRtcStore.isGuestControlAllowed) return
+  if (!hidChannel.isControlGranted.value) return
 
   isMouseDown.value = true
   currentButton.value = getButton(event)
 
   const { x, y } = getPercentCoords(event)
 
-  webRtcStore.sendMouseAction(currentButton.value, 'd', x, y)
+  hidChannel.sendMouseAction(currentButton.value, 'd', x, y)
 }
 
 const handleMouseUp = (event: MouseEvent): void => {
-  if (!webRtcStore.isGuestControlAllowed || !isMouseDown.value) return
+  if (!hidChannel.isControlGranted.value || !isMouseDown.value) return
 
   isMouseDown.value = false
 
   const { x, y } = getPercentCoords(event)
 
-  webRtcStore.sendMouseAction(currentButton.value, 'u', x, y)
+  hidChannel.sendMouseAction(currentButton.value, 'u', x, y)
 }
 
 /* ================= SCROLL FIX (MOUSE + TOUCHPAD) ================= */
@@ -139,25 +140,24 @@ const normalizeScroll = (deltaY: number): number => {
 }
 
 const handleWheel = (event: WheelEvent): void => {
-  if (!webRtcStore.isGuestControlAllowed) return
+  if (!hidChannel.isControlGranted.value) return
 
   event.preventDefault()
 
   const scroll = normalizeScroll(event.deltaY)
-
-  webRtcStore.sendMouseScroll(scroll)
+  hidChannel.sendMouseScroll(scroll)
 }
 
 /* ================= KEYBOARD ================= */
 
 const handleKeyDown = (e: KeyboardEvent): void => {
-  if (!webRtcStore.isGuestControlAllowed) return
-  webRtcStore.sendKeyboardEvent(e.code, 'd')
+  if (!hidChannel.isControlGranted.value) return
+  hidChannel.sendKeyboardEvent(e.code, 'd')
 }
 
 const handleKeyUp = (e: KeyboardEvent): void => {
-  if (!webRtcStore.isGuestControlAllowed) return
-  webRtcStore.sendKeyboardEvent(e.code, 'u')
+  if (!hidChannel.isControlGranted.value) return
+  hidChannel.sendKeyboardEvent(e.code, 'u')
 }
 
 /* ================= LIFECYCLE ================= */

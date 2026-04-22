@@ -6,19 +6,19 @@ import { useWebRtcStore } from '@renderer/stores/webRtcStore'
 import { useSessionStore } from '@renderer/stores/sessionStore' // Używamy poprawnej nazwy composable z Pinii
 
 import VideoPlayer from '../p2p/VideoPlayer.vue'
-import BuHostMouseRealtimeControl from './BuHostMouseRealtimeControl.vue'
+import { useHidChannel } from '@renderer/composables/channels/HidChannel'
 
 const connectionStore = useConnectionStore()
 const socketStore = useSocketStore()
 const webRtcStore = useWebRtcStore()
 const sessionStore = useSessionStore()
+const hidChannel = useHidChannel()
 
-// FIX: Dodane : void do każdej z tych funkcji dla ESLint
 const handleManualConnect = (): void => void socketStore.connect('awaryjny-token-z-palca')
 const handleManualDisconnect = (): void => void socketStore.disconnect()
 const handleMoveMouseToOrigin = (): void => {
   if (webRtcStore.rtcStatus !== 'connected') return
-  webRtcStore.sendMousePosition(0, 0)
+  hidChannel.sendMouseFromVideo(0, 0)
 }
 const placeholderAction = (name: string): void => alert(`Funkcja "${name}" jest w przygotowaniu!`)
 

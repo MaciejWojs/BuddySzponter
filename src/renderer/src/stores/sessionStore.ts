@@ -4,32 +4,82 @@ import { ref, computed, shallowRef, watch } from 'vue'
 import { useConnectionStore } from './connectionStore'
 import { useSocketStore } from './socketStore'
 import { useWebRtcStore } from './webRtcStore'
+import { useSignalingStore } from './signalingStore' // <-- DODANE
 import { useLogStore } from './devStores/logStore'
+
 import { videoService } from '@renderer/services/videoService'
-import { microphoneService } from '@renderer/services/micService'
+import { microphoneService } from '@renderer/services/audio/out/micService'
+import { deviceService } from '@renderer/services/hardware/DeviceService'
+import { webRtcService } from '@renderer/composables/connection/webRTCService' // <-- DO NAGRYWANIA
 
 export const useSessionStore = defineStore('session', () => {
   const connectionStore = useConnectionStore()
   const socketStore = useSocketStore()
   const webRtcStore = useWebRtcStore()
+  const signalingStore = useSignalingStore()
   const logStore = useLogStore()
+
   const includeScreenVideo = ref(true)
 
-  // Local Capture State
+  // ==========================================
+  // STAN LOKALNY (AV)
+  // ==========================================
   const includeSystemAudio = ref(true)
   const includeMicrophone = ref(true)
-
   const microphoneMuted = ref(false)
 
-  // Local Volume State (Moved from WebRTC store as it relates to local device capture)
   const localSystemAudioVolume = ref<number>(1)
   const localMicrophoneVolume = ref<number>(1)
 
-  // Device Management
+  // ==========================================
+  // STAN ZDALNY & AUDIO MIXER (Przeniesione z webRtcStore)
+  // ==========================================
+  const remoteMicVolume = ref<number>(1)
+  const remoteSystemVolume = ref<number>(1)
+
+  const audioDuckingLevel = ref<number>(0.3)
+  const audioSpeechThreshold = ref<number>(0.02)
+  const audioGainSmoothing = ref<number>(0.08)
+  const audioHoldFrames = ref<number>(8)
+
+  // ==========================================
+  // URZĄDZENIA
+  // ==========================================
   const availableMicrophones = ref<Array<{ deviceId: string; label: string }>>([])
   const selectedMicrophoneDeviceId = ref<string>('')
 
-  // Capture Orchestration
+  // ==========================================
+  // NAGRYWANIE (Przeniesione z webRtcStore)
+  // ==========================================
+  const isRecording = ref<boolean>(false)
+
+  const startRecording = (): void => {
+    if (!webRtcStore.remoteStream) {
+      logStore.addLog('WARN', 'Brak strumienia zdalnego do nagrywania', 'api')
+      return
+    }
+    webRtcService.startRecording()
+    isRecording.value = true
+  }
+
+  const stopRecording = (): void => {
+    webRtcService.stopRecording()
+    isRecording.value = false
+  }
+
+  webRtcService.onRecordingReady = async (blob) => {
+    try {
+      const buffer = await blob.arrayBuffer()
+      await window.recorder.saveFile(buffer)
+      logStore.addLog('INFO', 'Nagranie zapisane pomyślnie.', 'api')
+    } catch {
+      logStore.addLog('ERROR', 'Błąd zapisu nagrania.', 'api')
+    }
+  }
+
+  // ==========================================
+  // CAPTURE ORCHESTRATION
+  // ==========================================
   const sharedTextureStream = shallowRef<MediaStream | null>(null)
   const currentCaptureMode = ref<'host-shared' | 'host-native' | 'guest-mic' | null>(null)
   const isCapturing = computed((): boolean => currentCaptureMode.value !== null)
@@ -41,7 +91,6 @@ export const useSessionStore = defineStore('session', () => {
   let sharedTextureGeneratorTrack: MediaStreamTrack | null = null
 
   // --- FUNKCJE TOGGLE DLA UI ---
-
   const toggleMicrophone = (isMuted: boolean): void => {
     microphoneMuted.value = isMuted
     includeMicrophone.value = !isMuted
@@ -53,7 +102,6 @@ export const useSessionStore = defineStore('session', () => {
 
   const toggleScreenVideo = (isHidden: boolean): void => {
     includeScreenVideo.value = !isHidden
-    // Dla wideo wywołujemy uniwersalną funkcję z WebRtcStore (nie ma contentHint, więc dajemy puste '')
     webRtcStore.toggleTrackByHint('video', '', !isHidden)
   }
 
@@ -208,6 +256,8 @@ export const useSessionStore = defineStore('session', () => {
     if (!isCapturing.value) return
     logStore.addLog('NATIVE_CAPTURE', 'Zatrzymano wideo/audio.', 'api')
 
+    if (isRecording.value) stopRecording() // Zabezpieczenie przed wiszącym nagrywaniem
+
     stopFrameSubscription?.()
     stopFrameSubscription = null
 
@@ -231,7 +281,6 @@ export const useSessionStore = defineStore('session', () => {
     microphoneService.stop()
     await videoService.stop()
 
-    // IMPORTANT: Clear the stream in WebRtcStore when capture stops
     if (webRtcStore.localStream) {
       webRtcStore.localStream.getTracks().forEach((t) => t.stop())
       webRtcStore.localStream = null
@@ -255,7 +304,8 @@ export const useSessionStore = defineStore('session', () => {
 
   const refreshMicrophones = async (): Promise<void> => {
     try {
-      const microphones = await microphoneService.getAvailableMicrophones()
+      // Pobieramy z nowego, dedykowanego serwisu sprzętowego!
+      const microphones = await deviceService.getAvailableMicrophones()
       availableMicrophones.value = microphones
 
       const hasSelected = microphones.some(
@@ -354,20 +404,18 @@ export const useSessionStore = defineStore('session', () => {
         webRtcStore.rtcStatus === 'disconnected' &&
         webRtcStore.localStream
       ) {
-        await webRtcStore.startConnectionAsHost()
+        // Wywołanie z NOWEGO signaling store!
+        await signalingStore.startConnectionAsHost()
       }
     }
   )
 
-  // Synchronizuj mute mikrofonu z UI
   watch(microphoneMuted, (muted) => {
     if (muted) {
       includeMicrophone.value = false
     }
-    // Jeśli odmutowany, nie wymuszaj włączenia mikrofonu, pozwól UI sterować
   })
 
-  // Syncing UI toggles to track enabled states
   watch(includeMicrophone, (isEnabled): void => {
     if (!isEnabled) microphoneMuted.value = true
     webRtcStore.toggleTrackByHint('audio', 'speech', isEnabled)
@@ -386,9 +434,21 @@ export const useSessionStore = defineStore('session', () => {
     includeMicrophone,
     localSystemAudioVolume,
     localMicrophoneVolume,
-    includeScreenVideo, // (opcjonalnie)
-
+    includeScreenVideo,
     microphoneMuted,
+
+    // AV State
+    remoteMicVolume,
+    remoteSystemVolume,
+    audioDuckingLevel,
+    audioSpeechThreshold,
+    audioGainSmoothing,
+    audioHoldFrames,
+
+    // Recording
+    isRecording,
+    startRecording,
+    stopRecording,
 
     toggleMicrophone,
     toggleSystemAudio,
