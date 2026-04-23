@@ -79,9 +79,8 @@ class VideoService {
     this.isCapturing = true
     this.activeStream = new MediaStream()
 
-    const clonedVideoTrack = externalVideoTrack.clone()
-    clonedVideoTrack.contentHint = 'detail'
-    this.activeStream.addTrack(clonedVideoTrack)
+    externalVideoTrack.contentHint = 'detail'
+    this.activeStream.addTrack(externalVideoTrack)
 
     const wantsSystemAudio = options.includeSystemAudio ?? true
     if (wantsSystemAudio) {
