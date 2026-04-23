@@ -106,6 +106,9 @@ export class ScreenService {
   private startCapture(): void {
     if (!this.capturer) {
       this.capturer = new ScreenCapture({ logLevel: 'debug' })
+      if (process.platform === 'win32') {
+        this.capturer.forceBackend('dxgi')
+      }
     }
     this.capturer.start()
 
