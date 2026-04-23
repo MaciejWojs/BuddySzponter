@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import gsap from 'gsap'
 import buddySzponterLogo from '@images/szpontlogo.png'
 import BuLanguageSelector from '@renderer/components/simpleComponents/BuLanguageSelector.vue'
 import NavBar from '@renderer/components/UI/NavBar.vue'
@@ -40,6 +41,12 @@ const displayName = ref('')
 const displayNameDraft = ref('')
 const isEditingDisplayName = ref(false)
 const activeTopNav = ref('settings')
+type SettingsCardKey = 'info' | 'image' | 'audio' | 'video' | 'controls' | 'general'
+const selectedCard = ref<SettingsCardKey | null>(null)
+const isCardAnimating = ref(false)
+const cardBackdropRef = ref<HTMLElement | null>(null)
+const cardRefs: Partial<Record<SettingsCardKey, HTMLElement>> = {}
+const cardOriginRects = new Map<SettingsCardKey, DOMRect>()
 
 const topNavItems: NavBarItem[] = [
   {
@@ -95,10 +102,131 @@ function saveDisplayName(): void {
   isEditingDisplayName.value = false
 }
 
+function setCardRef(key: SettingsCardKey, element: unknown): void {
+  if (!(element instanceof HTMLElement)) {
+    delete cardRefs[key]
+    return
+  }
+
+  cardRefs[key] = element
+}
+
+function isCardOpen(key: SettingsCardKey): boolean {
+  return selectedCard.value === key
+}
+
+async function openCard(key: SettingsCardKey): Promise<void> {
+  if (selectedCard.value === key || isCardAnimating.value) return
+
+  const cardElement = cardRefs[key]
+  if (!cardElement) return
+
+  isCardAnimating.value = true
+  const firstRect = cardElement.getBoundingClientRect()
+  cardOriginRects.set(key, firstRect)
+  selectedCard.value = key
+  await nextTick()
+
+  const lastRect = cardElement.getBoundingClientRect()
+  const deltaX = firstRect.left - lastRect.left
+  const deltaY = firstRect.top - lastRect.top
+  const scaleX = firstRect.width / lastRect.width
+  const scaleY = firstRect.height / lastRect.height
+
+  gsap.killTweensOf(cardElement)
+  gsap.fromTo(
+    cardElement,
+    {
+      x: deltaX,
+      y: deltaY,
+      scaleX,
+      scaleY,
+      transformOrigin: 'top left'
+    },
+    {
+      duration: 0.42,
+      ease: 'power3.out',
+      x: 0,
+      y: 0,
+      scaleX: 1,
+      scaleY: 1,
+      onComplete: () => {
+        isCardAnimating.value = false
+      }
+    }
+  )
+
+  if (cardBackdropRef.value) {
+    gsap.killTweensOf(cardBackdropRef.value)
+    gsap.fromTo(
+      cardBackdropRef.value,
+      { opacity: 0 },
+      { opacity: 1, duration: 0.25, ease: 'power2.out' }
+    )
+  }
+}
+
+function closeActiveCard(): void {
+  if (!selectedCard.value || isCardAnimating.value) return
+
+  const cardKey = selectedCard.value
+  const cardElement = cardRefs[cardKey]
+  const targetRect = cardOriginRects.get(cardKey)
+  if (!cardElement || !targetRect) {
+    selectedCard.value = null
+    cardOriginRects.delete(cardKey)
+    return
+  }
+
+  isCardAnimating.value = true
+  const currentRect = cardElement.getBoundingClientRect()
+
+  const deltaX = targetRect.left - currentRect.left
+  const deltaY = targetRect.top - currentRect.top
+  const scaleX = targetRect.width / currentRect.width
+  const scaleY = targetRect.height / currentRect.height
+
+  gsap.killTweensOf(cardElement)
+  gsap.to(cardElement, {
+    duration: 0.36,
+    ease: 'power3.inOut',
+    x: deltaX,
+    y: deltaY,
+    scaleX,
+    scaleY,
+    transformOrigin: 'top left',
+    onComplete: () => {
+      selectedCard.value = null
+      cardOriginRects.delete(cardKey)
+      isCardAnimating.value = false
+      gsap.set(cardElement, { clearProps: 'transform,transformOrigin' })
+    }
+  })
+
+  if (cardBackdropRef.value) {
+    gsap.killTweensOf(cardBackdropRef.value)
+    gsap.to(cardBackdropRef.value, {
+      opacity: 0,
+      duration: 0.2,
+      ease: 'power2.in'
+    })
+  }
+}
+
+function handleEscapeKey(event: KeyboardEvent): void {
+  if (event.key !== 'Escape') return
+  closeActiveCard()
+}
+
 onMounted(() => {
   displayName.value = defaultDisplayName.value
   displayNameDraft.value = displayName.value
   void refreshVersionsData()
+  window.addEventListener('keydown', handleEscapeKey)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handleEscapeKey)
 })
 
 watch(
@@ -128,20 +256,44 @@ watch(activeTopNav, (nextTab) => {
 <template>
   <section
     class="settings-view"
-    :class="{ 'settings-view--embedded': props.embedded }"
+    :class="{
+      'settings-view--embedded': props.embedded,
+      'settings-view--card-open': Boolean(selectedCard)
+    }"
     aria-label="Ustawienia aplikacji"
   >
     <div class="settings-watermark" aria-hidden="true">
       <img :src="buddySzponterLogo" alt="" />
     </div>
 
+    <div
+      v-if="selectedCard"
+      ref="cardBackdropRef"
+      class="settings-card-backdrop"
+      aria-hidden="true"
+      @click="closeActiveCard"
+    />
+
     <header v-if="!props.embedded" class="settings-topbar">
       <NavBar v-model="activeTopNav" :items="topNavItems" />
     </header>
 
     <div class="settings-grid">
-      <article class="settings-card">
+      <article
+        :ref="(el) => setCardRef('info', el)"
+        class="settings-card"
+        :class="{ 'settings-card--active': isCardOpen('info') }"
+        @click="openCard('info')"
+      >
         <h3>Informacje</h3>
+        <button
+          v-if="isCardOpen('info')"
+          class="settings-card-close"
+          aria-label="Zamknij kartę"
+          @click.stop="closeActiveCard"
+        >
+          ×
+        </button>
         <div class="settings-row settings-row-display-name">
           <span>Twoja wyświetlana nazwa</span>
           <div class="settings-display-name-controls">
@@ -171,8 +323,21 @@ watch(activeTopNav, (nextTab) => {
         </div>
       </article>
 
-      <article class="settings-card">
+      <article
+        :ref="(el) => setCardRef('image', el)"
+        class="settings-card"
+        :class="{ 'settings-card--active': isCardOpen('image') }"
+        @click="openCard('image')"
+      >
         <h3>Obraz</h3>
+        <button
+          v-if="isCardOpen('image')"
+          class="settings-card-close"
+          aria-label="Zamknij kartę"
+          @click.stop="closeActiveCard"
+        >
+          ×
+        </button>
         <div class="settings-row">
           <span>Skalowanie obrazu</span>
           <button>Pełny ekran</button>
@@ -191,13 +356,39 @@ watch(activeTopNav, (nextTab) => {
         </div>
       </article>
 
-      <article class="settings-card settings-card--audio">
+      <article
+        :ref="(el) => setCardRef('audio', el)"
+        class="settings-card settings-card--audio"
+        :class="{ 'settings-card--active': isCardOpen('audio') }"
+        @click="openCard('audio')"
+      >
         <h3>Audio</h3>
+        <button
+          v-if="isCardOpen('audio')"
+          class="settings-card-close"
+          aria-label="Zamknij kartę"
+          @click.stop="closeActiveCard"
+        >
+          ×
+        </button>
         <AudioSettingsCard class="settings-audio-content" />
       </article>
 
-      <article class="settings-card">
+      <article
+        :ref="(el) => setCardRef('video', el)"
+        class="settings-card"
+        :class="{ 'settings-card--active': isCardOpen('video') }"
+        @click="openCard('video')"
+      >
         <h3>Video</h3>
+        <button
+          v-if="isCardOpen('video')"
+          class="settings-card-close"
+          aria-label="Zamknij kartę"
+          @click.stop="closeActiveCard"
+        >
+          ×
+        </button>
         <div class="settings-row">
           <span>Jakość nagrywania</span>
           <button>Wysoka (fullHD, 60 FPS)</button>
@@ -223,8 +414,21 @@ watch(activeTopNav, (nextTab) => {
         </div>
       </article>
 
-      <article class="settings-card">
+      <article
+        :ref="(el) => setCardRef('controls', el)"
+        class="settings-card"
+        :class="{ 'settings-card--active': isCardOpen('controls') }"
+        @click="openCard('controls')"
+      >
         <h3>Sterowanie</h3>
+        <button
+          v-if="isCardOpen('controls')"
+          class="settings-card-close"
+          aria-label="Zamknij kartę"
+          @click.stop="closeActiveCard"
+        >
+          ×
+        </button>
         <div class="settings-row">
           <span>Synchronizacja schowka</span>
           <button>Synchronizacja schowka</button>
@@ -242,8 +446,21 @@ watch(activeTopNav, (nextTab) => {
         </div>
       </article>
 
-      <article class="settings-card">
+      <article
+        :ref="(el) => setCardRef('general', el)"
+        class="settings-card"
+        :class="{ 'settings-card--active': isCardOpen('general') }"
+        @click="openCard('general')"
+      >
         <h3>Ogólne</h3>
+        <button
+          v-if="isCardOpen('general')"
+          class="settings-card-close"
+          aria-label="Zamknij kartę"
+          @click.stop="closeActiveCard"
+        >
+          ×
+        </button>
         <div class="settings-row settings-row-language">
           <span>Język</span>
           <div class="settings-inline-controls">
@@ -350,6 +567,16 @@ watch(activeTopNav, (nextTab) => {
   z-index: 0;
 }
 
+.settings-card-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 35;
+  background:
+    radial-gradient(circle at 30% 20%, rgba(175, 98, 255, 0.12), transparent 48%),
+    rgba(4, 1, 16, 0.72);
+  backdrop-filter: blur(4px);
+}
+
 .settings-watermark img {
   width: 100%;
   height: 100%;
@@ -367,14 +594,78 @@ watch(activeTopNav, (nextTab) => {
 }
 
 .settings-card {
+  position: relative;
   color: var(--color-text);
   background: color-mix(in srgb, var(--settings-bg-soft) 88%, transparent 12%);
   border: 1px solid color-mix(in srgb, var(--settings-border) 54%, transparent 46%);
   border-radius: 14px;
   padding: 14px;
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
   box-shadow:
     0 0 0 1px color-mix(in srgb, var(--settings-border) 18%, transparent 82%),
     0 14px 32px rgba(0, 0, 0, 0.36);
+}
+
+.settings-card:hover {
+  border-color: color-mix(in srgb, var(--settings-border) 80%, transparent 20%);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--settings-border) 36%, transparent 64%),
+    0 18px 36px rgba(0, 0, 0, 0.44);
+}
+
+.settings-view--card-open .settings-grid {
+  pointer-events: none;
+}
+
+.settings-view--card-open .settings-card--active {
+  pointer-events: auto;
+}
+
+.settings-card--active {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  width: min(760px, calc(100vw - 30px));
+  max-height: calc(100vh - 54px);
+  overflow-y: auto;
+  z-index: 45;
+  cursor: default;
+  padding: 20px 18px 16px;
+  border-color: color-mix(in srgb, var(--settings-border) 92%, #fff 8%);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--settings-border) 52%, transparent 48%),
+    0 26px 48px rgba(0, 0, 0, 0.58),
+    0 0 36px color-mix(in srgb, var(--settings-glow) 46%, transparent 54%);
+}
+
+.settings-card--active .settings-audio-content {
+  max-height: calc(100vh - 230px);
+}
+
+.settings-card-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+  width: 30px;
+  height: 30px;
+  border: 1px solid color-mix(in srgb, var(--settings-border) 62%, transparent 38%);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-component) 88%, #000 12%);
+  color: var(--color-text);
+  font-size: 18px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.settings-card-close:hover {
+  border-color: color-mix(in srgb, var(--settings-border) 85%, #fff 15%);
 }
 
 .settings-card--audio {
