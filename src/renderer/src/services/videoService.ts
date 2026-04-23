@@ -31,8 +31,6 @@ class VideoService {
   // Elementy do przechwytywania wideo z C++
   private trackWriter: WritableStreamDefaultWriter<VideoFrame> | null = null
   private stopNativeCapture: (() => void) | null = null
-  private readonly targetVideoFps = 60
-  private lastVideoFrameTime = 0
 
   // Elementy do sterowania dźwiękiem (Web Audio API)
   private audioContext: AudioContext | null = null
@@ -109,26 +107,16 @@ class VideoService {
     await win.capture.start()
     this.stopNativeCapture = win.capture.subscribeStream((frame: VideoFrame) => {
       try {
-        if (!this.isCapturing || !this.trackWriter) {
-          return
-        }
+        if (this.isCapturing && this.trackWriter) {
+          const shouldDropFrame =
+            this.trackWriter.desiredSize !== null && this.trackWriter.desiredSize <= 0
 
-        const now = performance.now()
-        const frameIntervalMs = 1000 / this.targetVideoFps
-        const shouldSkipBecauseTooFast = now - this.lastVideoFrameTime < frameIntervalMs
-        if (shouldSkipBecauseTooFast) {
-          return
-        }
-
-        const shouldDropFrame =
-          this.trackWriter.desiredSize !== null && this.trackWriter.desiredSize <= 0
-
-        if (!shouldDropFrame) {
-          this.lastVideoFrameTime = now
-          const cloned = frame.clone()
-          this.trackWriter.write(cloned).catch(() => {
-            cloned.close()
-          })
+          if (!shouldDropFrame) {
+            const cloned = frame.clone()
+            this.trackWriter.write(cloned).catch(() => {
+              cloned.close()
+            })
+          }
         }
       } catch (error) {
         console.error('Błąd zapisu klatki native capture:', error)
