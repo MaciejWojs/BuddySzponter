@@ -273,7 +273,7 @@ export class ScreenService {
 
   private processFrameViaCpu(): void {
     const capturer = this.capturer
-    const buffer = capturer?.getPixelData?.()
+    const buffer = capturer?.getPixelData?.('rgba')
     if (!buffer) {
       return
     }
@@ -289,12 +289,30 @@ export class ScreenService {
 
     this.isProcessingFrame = true
 
+    const srcBuffer =
+      buffer instanceof ArrayBuffer
+        ? new Uint8Array(buffer)
+        : new Uint8Array(buffer.buffer as ArrayBuffer, buffer.byteOffset, buffer.byteLength)
+
+    const pixelData =
+      stride === width * 4
+        ? new Uint8ClampedArray(srcBuffer.buffer, srcBuffer.byteOffset, width * height * 4)
+        : (() => {
+            const result = new Uint8ClampedArray(width * height * 4)
+            for (let row = 0; row < height; row++) {
+              const srcRowOffset = row * stride
+              const dstRowOffset = row * width * 4
+              result.set(srcBuffer.subarray(srcRowOffset, srcRowOffset + width * 4), dstRowOffset)
+            }
+            return result
+          })()
+
     const framePayload = {
       width,
       height,
       stride,
       format,
-      buffer
+      buffer: pixelData
     }
 
     this.activeFrames = this.activeFrames.filter(({ frame, wc }) => {
