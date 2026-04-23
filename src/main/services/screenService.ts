@@ -157,6 +157,7 @@ export class ScreenService {
         this.lastSharedTextureInfoSignature = currentSignature
         this.isHandleLogged = false
         this.lastSharedTextureWarning = null
+        this.useCpuPath = false
       }
 
       if (!info) {
@@ -167,8 +168,6 @@ export class ScreenService {
         }
         this.processFrameViaCpu()
         return
-      } else {
-        this.useCpuPath = false
       }
 
       if (!info.handle) {
@@ -180,6 +179,11 @@ export class ScreenService {
           this.lastSharedTextureWarning = 'noHandle'
         }
         this.useCpuPath = true
+        this.processFrameViaCpu()
+        return
+      }
+
+      if (this.useCpuPath) {
         this.processFrameViaCpu()
         return
       }
@@ -248,7 +252,7 @@ export class ScreenService {
 
         if (timeoutDetected || disposedFrameDetected) {
           console.warn('[Capture] Shared texture transfer failed, przełączam na ścieżkę CPU.')
-          // this.useCpuPath = true
+          this.useCpuPath = true
           this.processFrameViaCpu()
         }
 
