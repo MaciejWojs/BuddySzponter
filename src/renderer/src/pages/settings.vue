@@ -520,6 +520,7 @@ watch(activeTopNav, (nextTab) => {
   width: min(1240px, 100%);
   margin: 26px auto 0;
   position: relative;
+  isolation: isolate;
   padding: 10px 12px 30px;
 }
 
@@ -570,10 +571,10 @@ watch(activeTopNav, (nextTab) => {
 .settings-card-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 35;
+  z-index: 90;
   background:
     radial-gradient(circle at 28% 18%, rgba(175, 98, 255, 0.1), transparent 52%),
-    rgba(4, 1, 16, 0.56);
+    rgba(4, 1, 16, 0.62);
 }
 
 .settings-watermark img {
@@ -619,6 +620,10 @@ watch(activeTopNav, (nextTab) => {
   pointer-events: none;
 }
 
+.settings-view--card-open .settings-card:not(.settings-card--active) {
+  opacity: 0.28;
+}
+
 .settings-view--card-open .settings-card--active {
   pointer-events: auto;
 }
@@ -632,9 +637,10 @@ watch(activeTopNav, (nextTab) => {
   height: fit-content;
   max-height: calc(100vh - 54px);
   overflow-y: auto;
-  z-index: 45;
+  z-index: 110;
   cursor: default;
   padding: 20px 18px 16px;
+  background: color-mix(in srgb, var(--settings-bg-soft) 95%, #05010f 5%);
   border-color: color-mix(in srgb, var(--settings-border) 92%, #fff 8%);
   box-shadow:
     0 0 0 1px color-mix(in srgb, var(--settings-border) 52%, transparent 48%),
