@@ -36,6 +36,7 @@ class LockoutManager {
 class InputController {
   private bridge: InputBridge | null = null
   private isOptimizationEnabled = false
+  private initPromise: Promise<void> | null = null
 
   private queue: QueuedInput[] = []
   private frameLoop: NodeJS.Timeout | null = null
@@ -45,15 +46,50 @@ class InputController {
 
   async init(): Promise<void> {
     if (this.bridge) return
+    if (this.initPromise) return this.initPromise
 
-    const bridge = new InputBridge({ autoFlush: false })
-    await bridge.init()
+    this.initPromise = (async () => {
+      const bridge = new InputBridge({ autoFlush: false })
 
-    // this.isOptimizationEnabled = bridge.toggleOptimization()
-    bridge.optimizeMouseMovesAbsolute(2)
-    this.bridge = bridge
+      bridge.setLogger((msg: string) => {
+        console.log('[inputService][InputBridge][native]', msg)
+      })
 
-    this.startFrameLoop()
+      try {
+        console.log('[inputService] Initializing InputBridge...')
+        console.log('[inputService] Session diagnostics:', {
+          platform: process.platform,
+          sessionType: process.env.XDG_SESSION_TYPE ?? 'unknown',
+          waylandDisplay: process.env.WAYLAND_DISPLAY ?? 'unset',
+          display: process.env.DISPLAY ?? 'unset',
+          xdgCurrentDesktop: process.env.XDG_CURRENT_DESKTOP ?? 'unknown'
+        })
+
+        await Promise.race([
+          bridge.init(),
+          new Promise<never>((_, reject) => {
+            setTimeout(() => {
+              reject(new Error('InputBridge init timeout after 15s (portal response not received)'))
+            }, 15000)
+          })
+        ])
+        console.log('[inputService] InputBridge initialized successfully')
+      } catch (error) {
+        console.error('[inputService] InputBridge init failed:', error)
+        throw error
+      }
+
+      // this.isOptimizationEnabled = bridge.toggleOptimization()
+      bridge.optimizeMouseMovesAbsolute(2)
+      this.bridge = bridge
+      this.startFrameLoop()
+    })()
+
+    try {
+      await this.initPromise
+    } finally {
+      this.initPromise = null
+    }
   }
 
   private startFrameLoop(): void {
@@ -275,7 +311,14 @@ export const inputService = {
 
   async init(mainWindow: BrowserWindow): Promise<void> {
     this.mainWindow = mainWindow
-    await this.controller.init()
+    try {
+      await this.controller.init()
+    } catch (error) {
+      console.error('[inputService] Failed to initialize input controller:', error)
+      throw new Error(
+        `[inputService] Initialization failed: ${error instanceof Error ? error.message : String(error)}`
+      )
+    }
 
     const emit = (payload: { active: boolean; until: number }): void => {
       const wc = this.mainWindow?.webContents

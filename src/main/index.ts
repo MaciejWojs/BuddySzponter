@@ -23,6 +23,14 @@ import { inputService } from './services/inputService'
 let mainWindow: BrowserWindow | null = null
 let isQuitting = false
 
+process.on('unhandledRejection', (reason) => {
+  console.error('[main] Unhandled promise rejection:', reason)
+})
+
+process.on('uncaughtException', (error) => {
+  console.error('[main] Uncaught exception:', error)
+})
+
 export function quitApp(): void {
   isQuitting = true
   app.quit()
@@ -48,6 +56,50 @@ function showWindowSafely(win: BrowserWindow | null): void {
     win.show()
     win.focus()
   }
+}
+
+function waitForWindowReady(win: BrowserWindow): Promise<void> {
+  if (win.isDestroyed()) {
+    return Promise.reject(new Error('Main window is destroyed before ready-to-show'))
+  }
+
+  if (!win.webContents.isLoadingMainFrame()) {
+    return Promise.resolve()
+  }
+
+  return new Promise((resolve, reject) => {
+    const cleanup = (): void => {
+      win.removeListener('closed', onClosed)
+      win.removeListener('ready-to-show', onReady)
+      win.webContents.removeListener('did-fail-load', onFailLoad)
+      win.webContents.removeListener('render-process-gone', onRenderGone)
+    }
+
+    const onReady = (): void => {
+      cleanup()
+      resolve()
+    }
+
+    const onClosed = (): void => {
+      cleanup()
+      reject(new Error('Main window closed before it became ready'))
+    }
+
+    const onFailLoad = (_event: Electron.Event, code: number, description: string): void => {
+      cleanup()
+      reject(new Error(`Main window failed to load: ${description} (${code})`))
+    }
+
+    const onRenderGone = (_event: Electron.Event, details: Electron.RenderProcessGoneDetails): void => {
+      cleanup()
+      reject(new Error(`Renderer process gone before ready: ${details.reason}`))
+    }
+
+    win.once('ready-to-show', onReady)
+    win.once('closed', onClosed)
+    win.webContents.once('did-fail-load', onFailLoad)
+    win.webContents.once('render-process-gone', onRenderGone)
+  })
 }
 
 function createWindow(): void {
@@ -148,10 +200,11 @@ if (!gotTheLock) {
     try {
       if (mainWindow) {
         registerHostWidgetHandlers(mainWindow)
-        inputService.init(mainWindow)
+        await waitForWindowReady(mainWindow)
+        await inputService.init(mainWindow)
       }
     } catch (error) {
-      console.error('Error registering host widget handlers:', error)
+      console.error('[main] Input service startup failed (host widget handlers may be registered):', error)
     }
 
     // --- IPC MAIN HANDLERY DLA WIDGETU ---
