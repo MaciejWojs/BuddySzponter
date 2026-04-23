@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import gsap from 'gsap'
 import buddySzponterLogo from '@images/szpontlogo.png'
 import BuLanguageSelector from '@renderer/components/simpleComponents/BuLanguageSelector.vue'
 import NavBar from '@renderer/components/UI/NavBar.vue'
@@ -42,6 +43,7 @@ const isEditingDisplayName = ref(false)
 const activeTopNav = ref('settings')
 type SettingsCardKey = 'info' | 'image' | 'audio' | 'video' | 'controls' | 'general'
 const selectedCard = ref<SettingsCardKey | null>(null)
+const isCardTransitioning = ref(false)
 
 const topNavItems: NavBarItem[] = [
   {
@@ -102,17 +104,77 @@ function isCardOpen(key: SettingsCardKey): boolean {
 }
 
 function handleCardClick(key: SettingsCardKey): void {
-  if (selectedCard.value) return
+  if (selectedCard.value || isCardTransitioning.value) return
   openCard(key)
 }
 
-function openCard(key: SettingsCardKey): void {
+async function openCard(key: SettingsCardKey): Promise<void> {
   if (selectedCard.value === key) return
+  isCardTransitioning.value = true
   selectedCard.value = key
+  await nextTick()
+
+  const activeCard = document.querySelector<HTMLElement>(
+    `.settings-card--active[data-card-key="${key}"]`
+  )
+
+  if (!activeCard) {
+    isCardTransitioning.value = false
+    return
+  }
+
+  gsap.killTweensOf(activeCard)
+  gsap.fromTo(
+    activeCard,
+    { opacity: 0, scale: 0.94, y: 18, transformOrigin: 'center center' },
+    {
+      opacity: 1,
+      scale: 1,
+      y: 0,
+      duration: 0.24,
+      ease: 'power2.out',
+      onComplete: () => {
+        isCardTransitioning.value = false
+      },
+      onInterrupt: () => {
+        isCardTransitioning.value = false
+      }
+    }
+  )
 }
 
 function closeActiveCard(): void {
-  selectedCard.value = null
+  if (!selectedCard.value || isCardTransitioning.value) return
+
+  const cardKey = selectedCard.value
+  const activeCard = document.querySelector<HTMLElement>(
+    `.settings-card--active[data-card-key="${cardKey}"]`
+  )
+
+  if (!activeCard) {
+    selectedCard.value = null
+    return
+  }
+
+  isCardTransitioning.value = true
+  gsap.killTweensOf(activeCard)
+  gsap.to(activeCard, {
+    opacity: 0,
+    scale: 0.96,
+    y: 12,
+    duration: 0.2,
+    ease: 'power2.in',
+    onComplete: () => {
+      selectedCard.value = null
+      isCardTransitioning.value = false
+      gsap.set(activeCard, { clearProps: 'transform,opacity' })
+    },
+    onInterrupt: () => {
+      selectedCard.value = null
+      isCardTransitioning.value = false
+      gsap.set(activeCard, { clearProps: 'transform,opacity' })
+    }
+  })
 }
 
 onMounted(() => {
@@ -158,14 +220,16 @@ watch(activeTopNav, (nextTab) => {
       <img :src="buddySzponterLogo" alt="" />
     </div>
 
-    <div v-if="selectedCard" class="settings-card-backdrop" aria-hidden="true" />
-
     <header v-if="!props.embedded" class="settings-topbar">
       <NavBar v-model="activeTopNav" :items="topNavItems" />
     </header>
 
     <div class="settings-grid">
-      <article class="settings-card" :class="{ 'settings-card--active': isCardOpen('info') }">
+      <article
+        class="settings-card"
+        data-card-key="info"
+        :class="{ 'settings-card--active': isCardOpen('info') }"
+      >
         <h3
           class="settings-card-trigger"
           role="button"
@@ -213,7 +277,11 @@ watch(activeTopNav, (nextTab) => {
         </div>
       </article>
 
-      <article class="settings-card" :class="{ 'settings-card--active': isCardOpen('image') }">
+      <article
+        class="settings-card"
+        data-card-key="image"
+        :class="{ 'settings-card--active': isCardOpen('image') }"
+      >
         <h3
           class="settings-card-trigger"
           role="button"
@@ -252,6 +320,7 @@ watch(activeTopNav, (nextTab) => {
 
       <article
         class="settings-card settings-card--audio"
+        data-card-key="audio"
         :class="{ 'settings-card--active': isCardOpen('audio') }"
       >
         <h3
@@ -275,7 +344,11 @@ watch(activeTopNav, (nextTab) => {
         <AudioSettingsCard class="settings-audio-content" />
       </article>
 
-      <article class="settings-card" :class="{ 'settings-card--active': isCardOpen('video') }">
+      <article
+        class="settings-card"
+        data-card-key="video"
+        :class="{ 'settings-card--active': isCardOpen('video') }"
+      >
         <h3
           class="settings-card-trigger"
           role="button"
@@ -319,7 +392,11 @@ watch(activeTopNav, (nextTab) => {
         </div>
       </article>
 
-      <article class="settings-card" :class="{ 'settings-card--active': isCardOpen('controls') }">
+      <article
+        class="settings-card"
+        data-card-key="controls"
+        :class="{ 'settings-card--active': isCardOpen('controls') }"
+      >
         <h3
           class="settings-card-trigger"
           role="button"
@@ -355,7 +432,11 @@ watch(activeTopNav, (nextTab) => {
         </div>
       </article>
 
-      <article class="settings-card" :class="{ 'settings-card--active': isCardOpen('general') }">
+      <article
+        class="settings-card"
+        data-card-key="general"
+        :class="{ 'settings-card--active': isCardOpen('general') }"
+      >
         <h3
           class="settings-card-trigger"
           role="button"
@@ -479,13 +560,6 @@ watch(activeTopNav, (nextTab) => {
   pointer-events: none;
   opacity: 0.07;
   z-index: 0;
-}
-
-.settings-card-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 90;
-  background: transparent;
 }
 
 .settings-watermark img {
