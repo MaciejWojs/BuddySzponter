@@ -6,6 +6,7 @@ export class ScreenService {
   private capturer: IScreenCapture | null = null
   private captureInterval: NodeJS.Timeout | null = null
   private activeFrames: { frame: WebFrameMain; wc: Electron.WebContents }[] = []
+  private trackedWebContents = new Set<Electron.WebContents>()
   private isProcessingFrame = false
   private readonly captureFps = 60
   private isHandleLogged = false
@@ -68,8 +69,23 @@ export class ScreenService {
     ipcMain.on('capture:request-stream', (event) => {
       const frame = event.senderFrame
       const wc = event.sender
-      if (frame && !this.activeFrames.some((f) => f.frame === frame)) {
+      if (!frame || !wc) return
+
+      if (!this.activeFrames.some((f) => f.frame === frame)) {
         this.activeFrames.push({ frame, wc })
+      }
+
+      if (!this.trackedWebContents.has(wc)) {
+        this.trackedWebContents.add(wc)
+        wc.once('destroyed', () => {
+          this.activeFrames = this.activeFrames.filter((f) => f.wc !== wc)
+          this.trackedWebContents.delete(wc)
+        })
+        wc.once('render-process-gone', (_event, details) => {
+          console.error('[Capture] Renderer process gone:', details.reason, details.exitCode)
+          this.activeFrames = this.activeFrames.filter((f) => f.wc !== wc)
+          this.trackedWebContents.delete(wc)
+        })
       }
     })
 
@@ -110,15 +126,17 @@ export class ScreenService {
     this.isProcessingFrame = false
   }
 
-  private processFrame(): void {
+  private async processFrame(): Promise<void> {
     if (this.isProcessingFrame) return
 
     this.activeFrames = this.activeFrames.filter(({ frame, wc }) => {
-      const wcValid = wc && !wc.isDestroyed()
-      const frameValid = frame && typeof frame.isDestroyed === 'function' && !frame.isDestroyed()
+      const wcDestroyedOrCrashed =
+        wc.isDestroyed() || (typeof wc.isCrashed === 'function' && wc.isCrashed())
+      const frameDestroyed = typeof frame.isDestroyed === 'function' && frame.isDestroyed()
+      const frameValid = frame && !frameDestroyed
       // Usuwamy ramkę z listy jeśli webContents załadował już nową ramkę główną
       // (co oznacza, że stara, ta z którą zaczynaliśmy, właśnie traci kontekst po reload/navigate)
-      return wcValid && frameValid && frame === wc.mainFrame
+      return !wcDestroyedOrCrashed && frameValid && frame === wc.mainFrame
     })
     if (!this.capturer || this.activeFrames.length === 0) return
 
@@ -182,36 +200,42 @@ export class ScreenService {
         textureInfo: info
       }) as ImportedSharedTexture
 
-      const sends = this.activeFrames.map(({ frame }) => {
+      const sendPromises = this.activeFrames.map(async ({ frame }) => {
         try {
-          return sharedTexture.sendSharedTexture({
+          await sharedTexture.sendSharedTexture({
             frame,
             importedSharedTexture: importedTexture
           })
         } catch (e: unknown) {
-          console.warn('[Capture] Ignored frame (disposed?):', e)
+          console.warn('[Capture] Frame error, removing', e)
           this.activeFrames = this.activeFrames.filter((f) => f.frame !== frame)
-          return Promise.reject(e)
+          throw e
         }
       })
 
-      void Promise.allSettled(sends)
-        .then((results) => {
-          const allFailed = results.every((r) => r.status === 'rejected')
+      const results = await Promise.allSettled(sendPromises)
+      const allFailed = results.every((r) => r.status === 'rejected')
 
-          if (allFailed) {
-            const firstError = results.find((r) => r.status === 'rejected')
-            console.error('[Capture] Błąd wysyłania sharedTexture do ramki:', firstError)
-          }
-        })
-        .finally(() => {
-          try {
-            importedTexture.release()
-          } catch (e) {
-            console.error('[Capture] Błąd przy release() importedTexture w głównym wątku:', e)
-          }
-          this.isProcessingFrame = false
-        })
+      if (allFailed) {
+        const firstError = results.find((r): r is PromiseRejectedResult => r.status === 'rejected')
+        const errorInfo = firstError?.reason
+        const timeoutDetected =
+          errorInfo instanceof Error && /transfer shared texture timed out/i.test(errorInfo.message)
+
+        if (timeoutDetected) {
+          console.warn('[Capture] Shared texture transfer timed out, przełączam na ścieżkę CPU.')
+          this.useCpuPath = true
+        }
+
+        console.error('[Capture] Błąd wysyłania sharedTexture do ramki:', firstError)
+      }
+
+      try {
+        importedTexture.release()
+      } catch (e) {
+        console.error('[Capture] Błąd przy release() importedTexture w głównym wątku:', e)
+      }
+      this.isProcessingFrame = false
     } catch (e) {
       console.error('[Capture] Główny błąd importSharedTexture:', e)
       this.isProcessingFrame = false
@@ -244,13 +268,18 @@ export class ScreenService {
       buffer
     }
 
+    this.activeFrames = this.activeFrames.filter(({ frame, wc }) => {
+      const wcDestroyedOrCrashed =
+        wc.isDestroyed() || (typeof wc.isCrashed === 'function' && wc.isCrashed())
+      const frameDestroyed = typeof frame.isDestroyed === 'function' && frame.isDestroyed()
+      return !wcDestroyedOrCrashed && !frameDestroyed
+    })
+
     this.activeFrames.forEach(({ wc }) => {
-      if (!wc.isDestroyed()) {
-        try {
-          wc.send('capture:raw-frame', framePayload)
-        } catch (e) {
-          console.warn('[Capture] Nie udało się wysłać surowej klatki:', e)
-        }
+      try {
+        wc.send('capture:raw-frame', framePayload)
+      } catch (e) {
+        console.warn('[Capture] Nie udało się wysłać surowej klatki:', e)
       }
     })
 
