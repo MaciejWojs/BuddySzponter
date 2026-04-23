@@ -13,7 +13,7 @@ import UserIcon from '@renderer/components/simpleComponents/UserIcon.vue'
 import UserNoLogin from '@renderer/components/simpleComponents/UserNoLogin.vue'
 import { useUserStore } from '@renderer/stores/userStore'
 import { storeToRefs } from 'pinia'
-import buddySzponterLogo from '@images/buddyszponterLogo.png'
+import buddySzponterLogo from '@images/szpontlogo.png'
 
 const userStore = useUserStore()
 const { isAuthenticated } = storeToRefs(userStore)

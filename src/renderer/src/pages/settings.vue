@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import buddySzponterLogo from '@images/buddyszponterLogo.png'
+import buddySzponterLogo from '@images/szpontlogo.png'
 import BuLanguageSelector from '@renderer/components/simpleComponents/BuLanguageSelector.vue'
 import NavBar from '@renderer/components/UI/NavBar.vue'
 import type { NavBarItem } from '@renderer/components/UI/NavBar.vue'

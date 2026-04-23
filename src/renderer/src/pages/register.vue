@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
 import RegisterForm from '../components/forms/RegisterForm.vue'
-import buddySzponterLogo from '@images/buddyszponterLogo.png'
+import buddySzponterLogo from '@images/szpontlogo.png'
 
 const router = useRouter()
 
