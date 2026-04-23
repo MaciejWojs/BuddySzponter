@@ -71,6 +71,9 @@ export class ScreenService {
       const wc = event.sender
       if (!frame || !wc) return
 
+      const frameDestroyed = typeof frame.isDestroyed === 'function' && frame.isDestroyed()
+      if (frameDestroyed) return
+
       if (!this.activeFrames.some((f) => f.frame === frame)) {
         this.activeFrames.push({ frame, wc })
       }
@@ -126,18 +129,19 @@ export class ScreenService {
     this.isProcessingFrame = false
   }
 
-  private async processFrame(): Promise<void> {
-    if (this.isProcessingFrame) return
-
+  private removeInactiveFrames(): void {
     this.activeFrames = this.activeFrames.filter(({ frame, wc }) => {
       const wcDestroyedOrCrashed =
         wc.isDestroyed() || (typeof wc.isCrashed === 'function' && wc.isCrashed())
       const frameDestroyed = typeof frame.isDestroyed === 'function' && frame.isDestroyed()
-      const frameValid = frame && !frameDestroyed
-      // Usuwamy ramkę z listy jeśli webContents załadował już nową ramkę główną
-      // (co oznacza, że stara, ta z którą zaczynaliśmy, właśnie traci kontekst po reload/navigate)
-      return !wcDestroyedOrCrashed && frameValid && frame === wc.mainFrame
+      return !wcDestroyedOrCrashed && !frameDestroyed && frame === wc.mainFrame
     })
+  }
+
+  private async processFrame(): Promise<void> {
+    if (this.isProcessingFrame) return
+
+    this.removeInactiveFrames()
     if (!this.capturer || this.activeFrames.length === 0) return
 
     let info: Electron.SharedTextureImportTextureInfo | null = null
@@ -175,6 +179,8 @@ export class ScreenService {
           })
           this.lastSharedTextureWarning = 'noHandle'
         }
+        this.useCpuPath = true
+        this.processFrameViaCpu()
         return
       }
 
@@ -200,8 +206,23 @@ export class ScreenService {
         textureInfo: info
       }) as ImportedSharedTexture
 
+      this.removeInactiveFrames()
+      if (this.activeFrames.length === 0) {
+        try {
+          importedTexture.release()
+        } catch (e) {
+          console.error('[Capture] Błąd przy release() importedTexture w głównym wątku:', e)
+        }
+        this.isProcessingFrame = false
+        return
+      }
+
       const sendPromises = this.activeFrames.map(async ({ frame }) => {
         try {
+          if (typeof frame.isDestroyed === 'function' && frame.isDestroyed()) {
+            throw new Error('render frame is destroyed')
+          }
+
           await sharedTexture.sendSharedTexture({
             frame,
             importedSharedTexture: importedTexture
@@ -221,10 +242,14 @@ export class ScreenService {
         const errorInfo = firstError?.reason
         const timeoutDetected =
           errorInfo instanceof Error && /transfer shared texture timed out/i.test(errorInfo.message)
+        const disposedFrameDetected =
+          errorInfo instanceof Error &&
+          /render frame was disposed before WebFrameMain could be accessed/i.test(errorInfo.message)
 
-        if (timeoutDetected) {
-          console.warn('[Capture] Shared texture transfer timed out, przełączam na ścieżkę CPU.')
-          this.useCpuPath = true
+        if (timeoutDetected || disposedFrameDetected) {
+          console.warn('[Capture] Shared texture transfer failed, przełączam na ścieżkę CPU.')
+          // this.useCpuPath = true
+          this.processFrameViaCpu()
         }
 
         console.error('[Capture] Błąd wysyłania sharedTexture do ramki:', firstError)
