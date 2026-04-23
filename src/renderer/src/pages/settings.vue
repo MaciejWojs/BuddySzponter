@@ -115,6 +115,11 @@ function isCardOpen(key: SettingsCardKey): boolean {
   return selectedCard.value === key
 }
 
+function handleCardClick(key: SettingsCardKey): void {
+  if (selectedCard.value) return
+  void openCard(key)
+}
+
 async function openCard(key: SettingsCardKey): Promise<void> {
   if (selectedCard.value === key || isCardAnimating.value) return
 
@@ -283,7 +288,7 @@ watch(activeTopNav, (nextTab) => {
         :ref="(el) => setCardRef('info', el)"
         class="settings-card"
         :class="{ 'settings-card--active': isCardOpen('info') }"
-        @click="openCard('info')"
+        @click="handleCardClick('info')"
       >
         <h3>Informacje</h3>
         <button
@@ -327,7 +332,7 @@ watch(activeTopNav, (nextTab) => {
         :ref="(el) => setCardRef('image', el)"
         class="settings-card"
         :class="{ 'settings-card--active': isCardOpen('image') }"
-        @click="openCard('image')"
+        @click="handleCardClick('image')"
       >
         <h3>Obraz</h3>
         <button
@@ -360,7 +365,7 @@ watch(activeTopNav, (nextTab) => {
         :ref="(el) => setCardRef('audio', el)"
         class="settings-card settings-card--audio"
         :class="{ 'settings-card--active': isCardOpen('audio') }"
-        @click="openCard('audio')"
+        @click="handleCardClick('audio')"
       >
         <h3>Audio</h3>
         <button
@@ -378,7 +383,7 @@ watch(activeTopNav, (nextTab) => {
         :ref="(el) => setCardRef('video', el)"
         class="settings-card"
         :class="{ 'settings-card--active': isCardOpen('video') }"
-        @click="openCard('video')"
+        @click="handleCardClick('video')"
       >
         <h3>Video</h3>
         <button
@@ -418,7 +423,7 @@ watch(activeTopNav, (nextTab) => {
         :ref="(el) => setCardRef('controls', el)"
         class="settings-card"
         :class="{ 'settings-card--active': isCardOpen('controls') }"
-        @click="openCard('controls')"
+        @click="handleCardClick('controls')"
       >
         <h3>Sterowanie</h3>
         <button
@@ -450,7 +455,7 @@ watch(activeTopNav, (nextTab) => {
         :ref="(el) => setCardRef('general', el)"
         class="settings-card"
         :class="{ 'settings-card--active': isCardOpen('general') }"
-        @click="openCard('general')"
+        @click="handleCardClick('general')"
       >
         <h3>Ogólne</h3>
         <button
@@ -572,9 +577,7 @@ watch(activeTopNav, (nextTab) => {
   position: fixed;
   inset: 0;
   z-index: 90;
-  background:
-    radial-gradient(circle at 28% 18%, rgba(175, 98, 255, 0.08), transparent 52%),
-    rgba(4, 1, 16, 0.46);
+  background: rgba(4, 1, 16, 0.2);
 }
 
 .settings-watermark img {
@@ -617,7 +620,8 @@ watch(activeTopNav, (nextTab) => {
 }
 
 .settings-view--card-open .settings-card:not(.settings-card--active) {
-  opacity: 0.28;
+  opacity: 0;
+  visibility: hidden;
   pointer-events: none;
 }
 
@@ -638,12 +642,17 @@ watch(activeTopNav, (nextTab) => {
   z-index: 110;
   cursor: default;
   padding: 20px 18px 16px;
-  background: linear-gradient(180deg, #140326 0%, #0a0119 100%);
+  background: #10031e;
   border-color: color-mix(in srgb, var(--settings-border) 92%, #fff 8%);
   box-shadow:
     0 0 0 1px color-mix(in srgb, var(--settings-border) 52%, transparent 48%),
     0 26px 48px rgba(0, 0, 0, 0.58),
     0 0 36px color-mix(in srgb, var(--settings-glow) 46%, transparent 54%);
+}
+
+.settings-card--active,
+.settings-card--active * {
+  pointer-events: auto;
 }
 
 .settings-card--active .settings-row span {
