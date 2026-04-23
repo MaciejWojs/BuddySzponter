@@ -9,15 +9,18 @@ export class ScreenService {
   private trackedWebContents = new Set<Electron.WebContents>()
   private isProcessingFrame = false
   private readonly captureFps = 60
+  private readonly sharedTextureRetryDelayMs = 5000
   private isHandleLogged = false
   private useCpuPath: boolean
   private lastSharedTextureInfoSignature: string | null = null
   private lastSharedTextureWarning: 'noInfo' | 'noHandle' | null = null
+  private lastSharedTextureFailureTime: number | null = null
 
   private constructor() {
     console.log('[ScreenService] Initializing service...')
 
     this.useCpuPath = false
+    this.lastSharedTextureFailureTime = null
   }
 
   private static instance: ScreenService
@@ -144,6 +147,15 @@ export class ScreenService {
     this.removeInactiveFrames()
     if (!this.capturer || this.activeFrames.length === 0) return
 
+    if (
+      this.useCpuPath &&
+      this.lastSharedTextureFailureTime !== null &&
+      Date.now() - this.lastSharedTextureFailureTime < this.sharedTextureRetryDelayMs
+    ) {
+      this.processFrameViaCpu()
+      return
+    }
+
     let info: Electron.SharedTextureImportTextureInfo | null = null
 
     if (typeof this.capturer.getSharedTextureInfo === 'function') {
@@ -157,11 +169,11 @@ export class ScreenService {
         this.lastSharedTextureInfoSignature = currentSignature
         this.isHandleLogged = false
         this.lastSharedTextureWarning = null
-        this.useCpuPath = false
       }
 
       if (!info) {
         this.useCpuPath = true
+        this.lastSharedTextureFailureTime = Date.now()
         if (this.lastSharedTextureWarning !== 'noInfo') {
           console.warn('[Capture] Nie można uzyskać sharedTexture info, przełączanie na CPU path')
           this.lastSharedTextureWarning = 'noInfo'
@@ -171,6 +183,8 @@ export class ScreenService {
       }
 
       if (!info.handle) {
+        this.useCpuPath = true
+        this.lastSharedTextureFailureTime = Date.now()
         if (this.lastSharedTextureWarning !== 'noHandle') {
           console.warn('[Capture] Otrzymano info o sharedTexture, ale brak handle:', {
             pixelFormat: info.pixelFormat,
@@ -178,7 +192,6 @@ export class ScreenService {
           })
           this.lastSharedTextureWarning = 'noHandle'
         }
-        this.useCpuPath = true
         this.processFrameViaCpu()
         return
       }
@@ -253,10 +266,15 @@ export class ScreenService {
         if (timeoutDetected || disposedFrameDetected) {
           console.warn('[Capture] Shared texture transfer failed, przełączam na ścieżkę CPU.')
           this.useCpuPath = true
+          this.lastSharedTextureFailureTime = Date.now()
           this.processFrameViaCpu()
+        } else {
+          this.lastSharedTextureFailureTime = null
         }
 
         console.error('[Capture] Błąd wysyłania sharedTexture do ramki:', firstError)
+      } else {
+        this.lastSharedTextureFailureTime = null
       }
 
       try {
