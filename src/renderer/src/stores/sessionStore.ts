@@ -113,8 +113,24 @@ export const useSessionStore = defineStore('session', () => {
       stopFrameSubscription?.()
       stopFrameSubscription = window.screenCapture.onFrameReceived((frameData) => {
         try {
-          sharedTextureGeneratorWriter?.write(frameData.clone()).catch((writeError) => {
+          if (!sharedTextureGeneratorWriter) {
+            return
+          }
+
+          const shouldDropFrame =
+            sharedTextureGeneratorWriter.desiredSize !== null &&
+            sharedTextureGeneratorWriter.desiredSize <= 0
+
+          if (shouldDropFrame) {
+            return
+          }
+
+          const clonedFrame = frameData.clone()
+          sharedTextureGeneratorWriter.write(clonedFrame).catch((writeError) => {
             console.error('[SessionStore] Błąd zapisu klatki do generatora:', writeError)
+            if (clonedFrame && typeof clonedFrame.close === 'function') {
+              clonedFrame.close()
+            }
           })
         } catch (e) {
           logStore.addLog('ERROR', `Błąd zapisu klatki do generatora: ${e}`, 'api')

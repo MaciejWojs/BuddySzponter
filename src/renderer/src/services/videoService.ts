@@ -106,10 +106,23 @@ class VideoService {
 
     await win.capture.start()
     this.stopNativeCapture = win.capture.subscribeStream((frame: VideoFrame) => {
-      if (this.isCapturing && this.trackWriter) {
-        this.trackWriter.write(frame.clone()).catch(() => {})
+      try {
+        if (this.isCapturing && this.trackWriter) {
+          const shouldDropFrame =
+            this.trackWriter.desiredSize !== null && this.trackWriter.desiredSize <= 0
+
+          if (!shouldDropFrame) {
+            const cloned = frame.clone()
+            this.trackWriter.write(cloned).catch(() => {
+              cloned.close()
+            })
+          }
+        }
+      } catch (error) {
+        console.error('Błąd zapisu klatki native capture:', error)
+      } finally {
+        frame.close()
       }
-      frame.close()
     })
   }
 
