@@ -157,6 +157,9 @@ async function openCard(key: SettingsCardKey): Promise<void> {
       scaleY: 1,
       onComplete: () => {
         isCardAnimating.value = false
+      },
+      onInterrupt: () => {
+        isCardAnimating.value = false
       }
     }
   )
@@ -172,7 +175,7 @@ async function openCard(key: SettingsCardKey): Promise<void> {
 }
 
 function closeActiveCard(): void {
-  if (!selectedCard.value || isCardAnimating.value) return
+  if (!selectedCard.value) return
 
   const cardKey = selectedCard.value
   const cardElement = cardRefs[cardKey]
@@ -184,6 +187,11 @@ function closeActiveCard(): void {
   }
 
   isCardAnimating.value = true
+  gsap.killTweensOf(cardElement)
+  if (cardBackdropRef.value) {
+    gsap.killTweensOf(cardBackdropRef.value)
+  }
+
   const currentRect = cardElement.getBoundingClientRect()
 
   const deltaX = targetRect.left - currentRect.left
@@ -191,7 +199,6 @@ function closeActiveCard(): void {
   const scaleX = targetRect.width / currentRect.width
   const scaleY = targetRect.height / currentRect.height
 
-  gsap.killTweensOf(cardElement)
   gsap.to(cardElement, {
     duration: 0.36,
     ease: 'power3.inOut',
@@ -205,11 +212,16 @@ function closeActiveCard(): void {
       cardOriginRects.delete(cardKey)
       isCardAnimating.value = false
       gsap.set(cardElement, { clearProps: 'transform,transformOrigin' })
+    },
+    onInterrupt: () => {
+      selectedCard.value = null
+      cardOriginRects.delete(cardKey)
+      isCardAnimating.value = false
+      gsap.set(cardElement, { clearProps: 'transform,transformOrigin' })
     }
   })
 
   if (cardBackdropRef.value) {
-    gsap.killTweensOf(cardBackdropRef.value)
     gsap.to(cardBackdropRef.value, {
       opacity: 0,
       duration: 0.2,
@@ -703,7 +715,7 @@ watch(activeTopNav, (nextTab) => {
   position: absolute;
   top: 10px;
   right: 10px;
-  z-index: 2;
+  z-index: 130;
   width: 30px;
   height: 30px;
   border: 1px solid color-mix(in srgb, var(--settings-border) 62%, transparent 38%);
