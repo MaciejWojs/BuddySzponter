@@ -88,12 +88,12 @@ export const useSessionStore = defineStore('session', () => {
 
   const startSharedTextureCapture = async (): Promise<void> => {
     try {
-      const useCpuCapture =
-        typeof window.screenCapture.shouldUseCpu === 'function'
-          ? await window.screenCapture.shouldUseCpu()
-          : false
+      // const useCpuCapture =
+      //   typeof window.screenCapture.shouldUseCpu === 'function'
+      //     ? await window.screenCapture.shouldUseCpu()
+      //     : false
 
-      if (!useCpuCapture && typeof window.screenCapture.registerReceiver === 'function') {
+      if (typeof window.screenCapture.registerReceiver === 'function') {
         window.screenCapture.registerReceiver()
       }
       const win = window as unknown as {
