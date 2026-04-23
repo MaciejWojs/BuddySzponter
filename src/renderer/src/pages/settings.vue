@@ -573,8 +573,8 @@ watch(activeTopNav, (nextTab) => {
   inset: 0;
   z-index: 90;
   background:
-    radial-gradient(circle at 28% 18%, rgba(175, 98, 255, 0.1), transparent 52%),
-    rgba(4, 1, 16, 0.62);
+    radial-gradient(circle at 28% 18%, rgba(175, 98, 255, 0.08), transparent 52%),
+    rgba(4, 1, 16, 0.46);
 }
 
 .settings-watermark img {
@@ -616,16 +616,14 @@ watch(activeTopNav, (nextTab) => {
     0 18px 36px rgba(0, 0, 0, 0.44);
 }
 
-.settings-view--card-open .settings-grid {
-  pointer-events: none;
-}
-
 .settings-view--card-open .settings-card:not(.settings-card--active) {
   opacity: 0.28;
+  pointer-events: none;
 }
 
 .settings-view--card-open .settings-card--active {
   pointer-events: auto;
+  opacity: 1;
 }
 
 .settings-card--active {
@@ -640,12 +638,23 @@ watch(activeTopNav, (nextTab) => {
   z-index: 110;
   cursor: default;
   padding: 20px 18px 16px;
-  background: color-mix(in srgb, var(--settings-bg-soft) 95%, #05010f 5%);
+  background: linear-gradient(180deg, #140326 0%, #0a0119 100%);
   border-color: color-mix(in srgb, var(--settings-border) 92%, #fff 8%);
   box-shadow:
     0 0 0 1px color-mix(in srgb, var(--settings-border) 52%, transparent 48%),
     0 26px 48px rgba(0, 0, 0, 0.58),
     0 0 36px color-mix(in srgb, var(--settings-glow) 46%, transparent 54%);
+}
+
+.settings-card--active .settings-row span {
+  opacity: 1;
+  color: color-mix(in srgb, var(--color-text) 88%, #ffffff 12%);
+}
+
+.settings-card--active .settings-row input,
+.settings-card--active .settings-row button,
+.settings-card--active .settings-inline-controls input {
+  background: color-mix(in srgb, #17082c 82%, #05010f 18%);
 }
 
 .settings-card--active .settings-audio-content {
