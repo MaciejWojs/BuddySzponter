@@ -218,20 +218,10 @@ function closeActiveCard(): void {
   }
 }
 
-function handleEscapeKey(event: KeyboardEvent): void {
-  if (event.key !== 'Escape') return
-  closeActiveCard()
-}
-
 onMounted(() => {
   displayName.value = defaultDisplayName.value
   displayNameDraft.value = displayName.value
   void refreshVersionsData()
-  window.addEventListener('keydown', handleEscapeKey)
-})
-
-onBeforeUnmount(() => {
-  window.removeEventListener('keydown', handleEscapeKey)
 })
 
 watch(
@@ -276,7 +266,6 @@ watch(activeTopNav, (nextTab) => {
       ref="cardBackdropRef"
       class="settings-card-backdrop"
       aria-hidden="true"
-      @click="closeActiveCard"
     />
 
     <header v-if="!props.embedded" class="settings-topbar">
