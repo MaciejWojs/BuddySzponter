@@ -33,7 +33,10 @@ export const useSessionStore = defineStore('session', () => {
   const sharedTextureStream = shallowRef<MediaStream | null>(null)
   const currentCaptureMode = ref<'host-shared' | 'host-native' | 'guest-mic' | null>(null)
   const isCapturing = computed((): boolean => currentCaptureMode.value !== null)
-  const sharedTextureCaptureFps = 120
+  const sharedTextureCaptureFps = 60
+  const sharedTextureTargetFps = sharedTextureCaptureFps
+  const sharedTextureFrameIntervalMs = 1000 / sharedTextureTargetFps
+  let lastSharedTextureFrameTime = 0
 
   let stopFrameSubscription: (() => void) | null = null
   let hiddenCanvas: HTMLCanvasElement | null = null
@@ -117,6 +120,13 @@ export const useSessionStore = defineStore('session', () => {
             return
           }
 
+          const now = performance.now()
+          const shouldSkipBecauseTooFast =
+            now - lastSharedTextureFrameTime < sharedTextureFrameIntervalMs
+          if (shouldSkipBecauseTooFast) {
+            return
+          }
+
           const shouldDropFrame =
             sharedTextureGeneratorWriter.desiredSize !== null &&
             sharedTextureGeneratorWriter.desiredSize <= 0
@@ -125,6 +135,7 @@ export const useSessionStore = defineStore('session', () => {
             return
           }
 
+          lastSharedTextureFrameTime = now
           const clonedFrame = frameData.clone()
           sharedTextureGeneratorWriter.write(clonedFrame).catch((writeError) => {
             console.error('[SessionStore] Błąd zapisu klatki do generatora:', writeError)
