@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import gsap from 'gsap'
 import buddySzponterLogo from '@images/szpontlogo.png'
 import BuLanguageSelector from '@renderer/components/simpleComponents/BuLanguageSelector.vue'
 import NavBar from '@renderer/components/UI/NavBar.vue'
@@ -43,10 +42,6 @@ const isEditingDisplayName = ref(false)
 const activeTopNav = ref('settings')
 type SettingsCardKey = 'info' | 'image' | 'audio' | 'video' | 'controls' | 'general'
 const selectedCard = ref<SettingsCardKey | null>(null)
-const isCardAnimating = ref(false)
-const cardBackdropRef = ref<HTMLElement | null>(null)
-const cardRefs: Partial<Record<SettingsCardKey, HTMLElement>> = {}
-const cardOriginRects = new Map<SettingsCardKey, DOMRect>()
 
 const topNavItems: NavBarItem[] = [
   {
@@ -102,132 +97,22 @@ function saveDisplayName(): void {
   isEditingDisplayName.value = false
 }
 
-function setCardRef(key: SettingsCardKey, element: unknown): void {
-  if (!(element instanceof HTMLElement)) {
-    delete cardRefs[key]
-    return
-  }
-
-  cardRefs[key] = element
-}
-
 function isCardOpen(key: SettingsCardKey): boolean {
   return selectedCard.value === key
 }
 
 function handleCardClick(key: SettingsCardKey): void {
   if (selectedCard.value) return
-  void openCard(key)
+  openCard(key)
 }
 
-async function openCard(key: SettingsCardKey): Promise<void> {
-  if (selectedCard.value === key || isCardAnimating.value) return
-
-  const cardElement = cardRefs[key]
-  if (!cardElement) return
-
-  isCardAnimating.value = true
-  const firstRect = cardElement.getBoundingClientRect()
-  cardOriginRects.set(key, firstRect)
+function openCard(key: SettingsCardKey): void {
+  if (selectedCard.value === key) return
   selectedCard.value = key
-  await nextTick()
-
-  const lastRect = cardElement.getBoundingClientRect()
-  const deltaX = firstRect.left - lastRect.left
-  const deltaY = firstRect.top - lastRect.top
-  const scaleX = firstRect.width / lastRect.width
-  const scaleY = firstRect.height / lastRect.height
-
-  gsap.killTweensOf(cardElement)
-  gsap.fromTo(
-    cardElement,
-    {
-      x: deltaX,
-      y: deltaY,
-      scaleX,
-      scaleY,
-      transformOrigin: 'top left'
-    },
-    {
-      duration: 0.42,
-      ease: 'power3.out',
-      x: 0,
-      y: 0,
-      scaleX: 1,
-      scaleY: 1,
-      onComplete: () => {
-        isCardAnimating.value = false
-      },
-      onInterrupt: () => {
-        isCardAnimating.value = false
-      }
-    }
-  )
-
-  if (cardBackdropRef.value) {
-    gsap.killTweensOf(cardBackdropRef.value)
-    gsap.fromTo(
-      cardBackdropRef.value,
-      { opacity: 0 },
-      { opacity: 1, duration: 0.25, ease: 'power2.out' }
-    )
-  }
 }
 
 function closeActiveCard(): void {
-  if (!selectedCard.value) return
-
-  const cardKey = selectedCard.value
-  const cardElement = cardRefs[cardKey]
-  const targetRect = cardOriginRects.get(cardKey)
-  if (!cardElement || !targetRect) {
-    selectedCard.value = null
-    cardOriginRects.delete(cardKey)
-    return
-  }
-
-  isCardAnimating.value = true
-  gsap.killTweensOf(cardElement)
-  if (cardBackdropRef.value) {
-    gsap.killTweensOf(cardBackdropRef.value)
-  }
-
-  const currentRect = cardElement.getBoundingClientRect()
-
-  const deltaX = targetRect.left - currentRect.left
-  const deltaY = targetRect.top - currentRect.top
-  const scaleX = targetRect.width / currentRect.width
-  const scaleY = targetRect.height / currentRect.height
-
-  gsap.to(cardElement, {
-    duration: 0.36,
-    ease: 'power3.inOut',
-    x: deltaX,
-    y: deltaY,
-    scaleX,
-    scaleY,
-    transformOrigin: 'top left',
-    onComplete: () => {
-      selectedCard.value = null
-      cardOriginRects.delete(cardKey)
-      isCardAnimating.value = false
-      gsap.set(cardElement, { clearProps: 'transform,transformOrigin' })
-    },
-    onInterrupt: () => {
-      selectedCard.value = null
-      cardOriginRects.delete(cardKey)
-      isCardAnimating.value = false
-      gsap.set(cardElement, { clearProps: 'transform,transformOrigin' })
-    }
-  })
-
-  if (cardBackdropRef.value) {
-    gsap.to(cardBackdropRef.value, {
-      opacity: 0,
-      duration: 0.2,
-      ease: 'power2.in'
-    })
-  }
+  selectedCard.value = null
 }
 
 onMounted(() => {
@@ -273,23 +158,14 @@ watch(activeTopNav, (nextTab) => {
       <img :src="buddySzponterLogo" alt="" />
     </div>
 
-    <div
-      v-if="selectedCard"
-      ref="cardBackdropRef"
-      class="settings-card-backdrop"
-      aria-hidden="true"
-    />
+    <div v-if="selectedCard" class="settings-card-backdrop" aria-hidden="true" />
 
     <header v-if="!props.embedded" class="settings-topbar">
       <NavBar v-model="activeTopNav" :items="topNavItems" />
     </header>
 
     <div class="settings-grid">
-      <article
-        :ref="(el) => setCardRef('info', el)"
-        class="settings-card"
-        :class="{ 'settings-card--active': isCardOpen('info') }"
-      >
+      <article class="settings-card" :class="{ 'settings-card--active': isCardOpen('info') }">
         <h3
           class="settings-card-trigger"
           role="button"
@@ -337,11 +213,7 @@ watch(activeTopNav, (nextTab) => {
         </div>
       </article>
 
-      <article
-        :ref="(el) => setCardRef('image', el)"
-        class="settings-card"
-        :class="{ 'settings-card--active': isCardOpen('image') }"
-      >
+      <article class="settings-card" :class="{ 'settings-card--active': isCardOpen('image') }">
         <h3
           class="settings-card-trigger"
           role="button"
@@ -379,7 +251,6 @@ watch(activeTopNav, (nextTab) => {
       </article>
 
       <article
-        :ref="(el) => setCardRef('audio', el)"
         class="settings-card settings-card--audio"
         :class="{ 'settings-card--active': isCardOpen('audio') }"
       >
@@ -404,11 +275,7 @@ watch(activeTopNav, (nextTab) => {
         <AudioSettingsCard class="settings-audio-content" />
       </article>
 
-      <article
-        :ref="(el) => setCardRef('video', el)"
-        class="settings-card"
-        :class="{ 'settings-card--active': isCardOpen('video') }"
-      >
+      <article class="settings-card" :class="{ 'settings-card--active': isCardOpen('video') }">
         <h3
           class="settings-card-trigger"
           role="button"
@@ -452,11 +319,7 @@ watch(activeTopNav, (nextTab) => {
         </div>
       </article>
 
-      <article
-        :ref="(el) => setCardRef('controls', el)"
-        class="settings-card"
-        :class="{ 'settings-card--active': isCardOpen('controls') }"
-      >
+      <article class="settings-card" :class="{ 'settings-card--active': isCardOpen('controls') }">
         <h3
           class="settings-card-trigger"
           role="button"
@@ -492,11 +355,7 @@ watch(activeTopNav, (nextTab) => {
         </div>
       </article>
 
-      <article
-        :ref="(el) => setCardRef('general', el)"
-        class="settings-card"
-        :class="{ 'settings-card--active': isCardOpen('general') }"
-      >
+      <article class="settings-card" :class="{ 'settings-card--active': isCardOpen('general') }">
         <h3
           class="settings-card-trigger"
           role="button"
