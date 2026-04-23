@@ -278,7 +278,17 @@ export const inputService = {
     await this.controller.init()
 
     const emit = (payload: { active: boolean; until: number }): void => {
-      this.mainWindow?.webContents.send('input:host-lockout', payload)
+      const wc = this.mainWindow?.webContents
+      if (!this.mainWindow || this.mainWindow.isDestroyed() || !wc || wc.isDestroyed()) {
+        return
+      }
+
+      try {
+        wc.send('input:host-lockout', payload)
+      } catch (error) {
+        console.warn('[inputService] Ignored send to disposed webContents:', error)
+      }
+
       broadcastLockoutToWidget(payload)
     }
 
