@@ -288,9 +288,17 @@ watch(activeTopNav, (nextTab) => {
         :ref="(el) => setCardRef('info', el)"
         class="settings-card"
         :class="{ 'settings-card--active': isCardOpen('info') }"
-        @click="handleCardClick('info')"
       >
-        <h3>Informacje</h3>
+        <h3
+          class="settings-card-trigger"
+          role="button"
+          tabindex="0"
+          @click.stop="handleCardClick('info')"
+          @keydown.enter.stop.prevent="handleCardClick('info')"
+          @keydown.space.stop.prevent="handleCardClick('info')"
+        >
+          Informacje
+        </h3>
         <button
           v-if="isCardOpen('info')"
           class="settings-card-close"
@@ -332,9 +340,17 @@ watch(activeTopNav, (nextTab) => {
         :ref="(el) => setCardRef('image', el)"
         class="settings-card"
         :class="{ 'settings-card--active': isCardOpen('image') }"
-        @click="handleCardClick('image')"
       >
-        <h3>Obraz</h3>
+        <h3
+          class="settings-card-trigger"
+          role="button"
+          tabindex="0"
+          @click.stop="handleCardClick('image')"
+          @keydown.enter.stop.prevent="handleCardClick('image')"
+          @keydown.space.stop.prevent="handleCardClick('image')"
+        >
+          Obraz
+        </h3>
         <button
           v-if="isCardOpen('image')"
           class="settings-card-close"
@@ -365,9 +381,17 @@ watch(activeTopNav, (nextTab) => {
         :ref="(el) => setCardRef('audio', el)"
         class="settings-card settings-card--audio"
         :class="{ 'settings-card--active': isCardOpen('audio') }"
-        @click="handleCardClick('audio')"
       >
-        <h3>Audio</h3>
+        <h3
+          class="settings-card-trigger"
+          role="button"
+          tabindex="0"
+          @click.stop="handleCardClick('audio')"
+          @keydown.enter.stop.prevent="handleCardClick('audio')"
+          @keydown.space.stop.prevent="handleCardClick('audio')"
+        >
+          Audio
+        </h3>
         <button
           v-if="isCardOpen('audio')"
           class="settings-card-close"
@@ -383,9 +407,17 @@ watch(activeTopNav, (nextTab) => {
         :ref="(el) => setCardRef('video', el)"
         class="settings-card"
         :class="{ 'settings-card--active': isCardOpen('video') }"
-        @click="handleCardClick('video')"
       >
-        <h3>Video</h3>
+        <h3
+          class="settings-card-trigger"
+          role="button"
+          tabindex="0"
+          @click.stop="handleCardClick('video')"
+          @keydown.enter.stop.prevent="handleCardClick('video')"
+          @keydown.space.stop.prevent="handleCardClick('video')"
+        >
+          Video
+        </h3>
         <button
           v-if="isCardOpen('video')"
           class="settings-card-close"
@@ -423,9 +455,17 @@ watch(activeTopNav, (nextTab) => {
         :ref="(el) => setCardRef('controls', el)"
         class="settings-card"
         :class="{ 'settings-card--active': isCardOpen('controls') }"
-        @click="handleCardClick('controls')"
       >
-        <h3>Sterowanie</h3>
+        <h3
+          class="settings-card-trigger"
+          role="button"
+          tabindex="0"
+          @click.stop="handleCardClick('controls')"
+          @keydown.enter.stop.prevent="handleCardClick('controls')"
+          @keydown.space.stop.prevent="handleCardClick('controls')"
+        >
+          Sterowanie
+        </h3>
         <button
           v-if="isCardOpen('controls')"
           class="settings-card-close"
@@ -455,9 +495,17 @@ watch(activeTopNav, (nextTab) => {
         :ref="(el) => setCardRef('general', el)"
         class="settings-card"
         :class="{ 'settings-card--active': isCardOpen('general') }"
-        @click="handleCardClick('general')"
       >
-        <h3>Ogólne</h3>
+        <h3
+          class="settings-card-trigger"
+          role="button"
+          tabindex="0"
+          @click.stop="handleCardClick('general')"
+          @keydown.enter.stop.prevent="handleCardClick('general')"
+          @keydown.space.stop.prevent="handleCardClick('general')"
+        >
+          Ogólne
+        </h3>
         <button
           v-if="isCardOpen('general')"
           class="settings-card-close"
@@ -577,7 +625,7 @@ watch(activeTopNav, (nextTab) => {
   position: fixed;
   inset: 0;
   z-index: 90;
-  background: rgba(4, 1, 16, 0.2);
+  background: transparent;
 }
 
 .settings-watermark img {
@@ -603,7 +651,7 @@ watch(activeTopNav, (nextTab) => {
   border: 1px solid color-mix(in srgb, var(--settings-border) 54%, transparent 46%);
   border-radius: 14px;
   padding: 14px;
-  cursor: pointer;
+  cursor: default;
   transition:
     border-color 0.2s ease,
     box-shadow 0.2s ease;
@@ -617,6 +665,10 @@ watch(activeTopNav, (nextTab) => {
   box-shadow:
     0 0 0 1px color-mix(in srgb, var(--settings-border) 36%, transparent 64%),
     0 18px 36px rgba(0, 0, 0, 0.44);
+}
+
+.settings-card-trigger {
+  cursor: pointer;
 }
 
 .settings-view--card-open .settings-card:not(.settings-card--active) {
@@ -642,28 +694,16 @@ watch(activeTopNav, (nextTab) => {
   z-index: 110;
   cursor: default;
   padding: 20px 18px 16px;
-  background: #10031e;
-  border-color: color-mix(in srgb, var(--settings-border) 92%, #fff 8%);
+  background: color-mix(in srgb, var(--settings-bg-soft) 88%, transparent 12%);
+  border-color: color-mix(in srgb, var(--settings-border) 54%, transparent 46%);
   box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--settings-border) 52%, transparent 48%),
-    0 26px 48px rgba(0, 0, 0, 0.58),
-    0 0 36px color-mix(in srgb, var(--settings-glow) 46%, transparent 54%);
+    0 0 0 1px color-mix(in srgb, var(--settings-border) 18%, transparent 82%),
+    0 22px 42px rgba(0, 0, 0, 0.52);
 }
 
 .settings-card--active,
 .settings-card--active * {
   pointer-events: auto;
-}
-
-.settings-card--active .settings-row span {
-  opacity: 1;
-  color: color-mix(in srgb, var(--color-text) 88%, #ffffff 12%);
-}
-
-.settings-card--active .settings-row input,
-.settings-card--active .settings-row button,
-.settings-card--active .settings-inline-controls input {
-  background: color-mix(in srgb, #17082c 82%, #05010f 18%);
 }
 
 .settings-card--active .settings-audio-content {
