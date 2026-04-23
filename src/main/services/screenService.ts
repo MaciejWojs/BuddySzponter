@@ -15,6 +15,8 @@ export class ScreenService {
   private lastSharedTextureInfoSignature: string | null = null
   private lastSharedTextureWarning: 'noInfo' | 'noHandle' | null = null
   private lastSharedTextureFailureTime: number | null = null
+  private forcedWindowsBackend: 'dxgi' | 'gdi' = 'dxgi'
+  private isRestartingCapture = false
 
   private constructor() {
     console.log('[ScreenService] Initializing service...')
@@ -106,8 +108,8 @@ export class ScreenService {
   private startCapture(): void {
     if (!this.capturer) {
       this.capturer = new ScreenCapture({ logLevel: 'debug' })
-      if (process.platform === 'win32') {
-        this.capturer.forceBackend('dxgi')
+      if (process.platform === 'win32' && typeof this.capturer.forceBackend === 'function') {
+        this.capturer.forceBackend(this.forcedWindowsBackend)
       }
     }
     this.capturer.start()
@@ -119,7 +121,7 @@ export class ScreenService {
     }
   }
 
-  private stopCapture(): void {
+  private stopCapture(preserveActiveFrames = false): void {
     if (this.captureInterval) {
       clearInterval(this.captureInterval)
       this.captureInterval = null
@@ -130,9 +132,23 @@ export class ScreenService {
       this.capturer = null
     }
 
-    // Notify frames and close them
-    this.activeFrames = []
+    if (!preserveActiveFrames) {
+      this.activeFrames = []
+    }
     this.isProcessingFrame = false
+  }
+
+  private restartCaptureWithBackend(backend: 'dxgi' | 'gdi'): void {
+    if (this.isRestartingCapture || this.forcedWindowsBackend === backend) return
+
+    console.warn(`[ScreenService] Restarting capture with backend: ${backend}`)
+    this.isRestartingCapture = true
+    this.forcedWindowsBackend = backend
+
+    this.stopCapture(true)
+    this.startCapture()
+
+    this.isRestartingCapture = false
   }
 
   private removeInactiveFrames(): void {
@@ -271,6 +287,17 @@ export class ScreenService {
           this.useCpuPath = true
           this.lastSharedTextureFailureTime = Date.now()
           this.processFrameViaCpu()
+
+          const backend =
+            this.capturer && typeof this.capturer.getBackend === 'function'
+              ? this.capturer.getBackend()
+              : null
+
+          if (backend === 'winrt') {
+            this.restartCaptureWithBackend('dxgi')
+          } else if (backend === 'dxgi') {
+            this.restartCaptureWithBackend('gdi')
+          }
         } else {
           this.lastSharedTextureFailureTime = null
         }
