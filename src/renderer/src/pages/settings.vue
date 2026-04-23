@@ -572,9 +572,8 @@ watch(activeTopNav, (nextTab) => {
   inset: 0;
   z-index: 35;
   background:
-    radial-gradient(circle at 30% 20%, rgba(175, 98, 255, 0.12), transparent 48%),
-    rgba(4, 1, 16, 0.72);
-  backdrop-filter: blur(4px);
+    radial-gradient(circle at 28% 18%, rgba(175, 98, 255, 0.1), transparent 52%),
+    rgba(4, 1, 16, 0.56);
 }
 
 .settings-watermark img {
@@ -626,9 +625,11 @@ watch(activeTopNav, (nextTab) => {
 
 .settings-card--active {
   position: fixed;
-  top: 50%;
-  left: 50%;
+  inset: 0;
+  margin: auto;
   width: min(760px, calc(100vw - 30px));
+  max-width: min(760px, calc(100vw - 30px));
+  height: fit-content;
   max-height: calc(100vh - 54px);
   overflow-y: auto;
   z-index: 45;
