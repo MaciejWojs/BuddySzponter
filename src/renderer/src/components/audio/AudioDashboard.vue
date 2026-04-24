@@ -27,7 +27,6 @@ const webRtcStore = useWebRtcStore()
 const sessionStore = useSessionStore()
 const { selectedMicrophoneDeviceId } = storeToRefs(sessionStore)
 
-// Trwały stan mutowania mikrofonu w sessionStore
 const isMyMicMuted = computed({
   get: () => sessionStore.microphoneMuted,
   set: (val: boolean) => {

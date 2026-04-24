@@ -15,7 +15,7 @@ import { screenService } from './services/screenService'
 import { wsService } from './services/ws/WsService'
 
 // --- ODBLOKOWANE: Importy hostWidget ---
-import { closeHostWidget, createHostWidget, registerHostWidgetHandlers } from './hostWidget'
+import { closeHostWidget, createHostWidget } from './hostWidget'
 import { inputService } from './services/inputService'
 // import trayIconDefault from '../../resources/tray/default.png?asset'
 // import { trayService } from './services/trayService'
@@ -147,7 +147,6 @@ if (!gotTheLock) {
     // --- BEZPIECZNA REJESTRACJA WIDGETU ---
     try {
       if (mainWindow) {
-        registerHostWidgetHandlers(mainWindow)
         inputService.init(mainWindow)
       }
     } catch (error) {

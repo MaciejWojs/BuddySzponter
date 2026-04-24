@@ -8,36 +8,27 @@ import { useAudioMixer } from './services/audio/out/useAudioMixer'
 import WidgetControlListener from '@renderer/components/p2p/WidgetControlListener.vue'
 import { useWebRtcStore } from './stores/webRtcStore'
 import { useConnectionStore } from './stores/connectionStore'
+import { useWidgetBridge } from '@renderer/composables/useWidgetSync'
 
 const toaster = { position: 'top-left', duration: 3000, dismissible: true, max: 3, expand: false }
 
 const router = useRouter()
 const webRtcStore = useWebRtcStore()
 const connectionStore = useConnectionStore()
-
-// Inicjalizacja głównych modułów (Usunięto duplikat settingsStore)
 const settingsStore = useSettingsStore()
-settingsStore.initSettings()
-
 const socketStore = useSocketStore()
-socketStore.init()
-
 const userStore = useUserStore()
-void userStore.initSession()
 
-// Uruchomienie miksera audio w tle
+settingsStore.initSettings()
+socketStore.init()
+userStore.initSession()
 useAudioMixer()
+useWidgetBridge()
 
-// ==========================================
-// STATUSY (POPRAWIONA KOLEJNOŚĆ!)
-// ==========================================
 const isRtcConnected = computed(() => webRtcStore.rtcStatus === 'connected')
 const isHostConnected = computed(() => connectionStore.isHost && isRtcConnected.value)
 const isGuestConnected = computed(() => !connectionStore.isHost && isRtcConnected.value)
 
-// ==========================================
-// LOGIKA WIDOKU HOSTA (Widget)
-// ==========================================
 const syncWindowMode = async (hostActive: boolean): Promise<void> => {
   try {
     if (hostActive) {
