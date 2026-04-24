@@ -1,8 +1,5 @@
 // src/renderer/services/video/ScreenCaptureService.ts
 import { videoService } from '@renderer/services/video/videoService'
-import { useLogStore } from '@renderer/stores/devStores/logStore'
-
-const logStore = useLogStore()
 
 export class ScreenCaptureService {
   private stopFrameSubscription: (() => void) | null = null
@@ -32,7 +29,6 @@ export class ScreenCaptureService {
       }
 
       if (!win.MediaStreamTrackGenerator) {
-        logStore.addLog('ERROR', 'Brak MediaStreamTrackGenerator w bieżącym środowisku.', 'api')
         return null
       }
 
@@ -47,7 +43,7 @@ export class ScreenCaptureService {
             console.error('[SessionStore] Błąd zapisu klatki do generatora:', writeError)
           })
         } catch (e) {
-          logStore.addLog('ERROR', `Błąd zapisu klatki do generatora: ${e}`, 'api')
+          console.error('[SessionStore] Błąd zapisu klatki do generatora:', e)
         } finally {
           if (frameData && typeof frameData.close === 'function') frameData.close()
         }
@@ -65,7 +61,7 @@ export class ScreenCaptureService {
       window.screenCapture.requestStream()
       return this.sharedTextureStream
     } catch (e) {
-      logStore.addLog('ERROR', `Błąd sharedTexture: ${e}`, 'api')
+      console.error('[SessionStore] Błąd sharedTexture:', e)
       return null
     }
   }
