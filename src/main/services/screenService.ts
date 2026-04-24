@@ -83,7 +83,7 @@ export class ScreenService {
 
   private async startCapture(): Promise<void> {
     if (!this.capturer) {
-      this.capturer = new ScreenCapture()
+      this.capturer = new ScreenCapture({ disableLogging: true })
     }
     this.capturer.start()
 

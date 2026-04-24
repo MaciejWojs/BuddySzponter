@@ -1,14 +1,14 @@
 import { onMounted, onUnmounted, watch } from 'vue'
 import { useSessionStore } from '@renderer/stores/sessionStore'
-import { useWebRtcStore } from '@renderer/stores/webRtcStore'
 import { useHidChannel } from '@renderer/composables/channels/HidChannel'
+import { useSocketStore } from '@renderer/stores/socketStore'
 
 export function useWidgetBridge(): void {
   let widgetChannel: BroadcastChannel | null = null
 
   onMounted(() => {
     const sessionStore = useSessionStore()
-    const webSocketStore = useWebRtcStore()
+    const socketStore = useSocketStore()
     const hidChannel = useHidChannel()
 
     widgetChannel = new BroadcastChannel('widget-sync-channel')
@@ -50,7 +50,7 @@ export function useWidgetBridge(): void {
           }
           break
         case 'END_SESSION':
-          await webSocketStore.disconnect()
+          await socketStore.disconnect()
           window.api?.app?.hideHostWidget().catch(() => {})
           break
       }

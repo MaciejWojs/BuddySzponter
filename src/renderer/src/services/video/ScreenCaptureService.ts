@@ -3,7 +3,6 @@ import { videoService } from '@renderer/services/video/videoService'
 
 export class ScreenCaptureService {
   private stopFrameSubscription: (() => void) | null = null
-  private hiddenCanvas: HTMLCanvasElement | null = null
   private sharedTextureStream: MediaStream | null = null
 
   public async startSharedTextureCapture(
@@ -70,17 +69,13 @@ export class ScreenCaptureService {
     this.stopFrameSubscription?.()
     this.stopFrameSubscription = null
 
-    if (window.screenCapture) window.screenCapture.stopStream()
+    if (window.screenCapture && typeof window.screenCapture.stopStream === 'function') {
+      window.screenCapture.stopStream()
+    }
 
     if (this.sharedTextureStream) {
       this.sharedTextureStream.getTracks().forEach((t) => t.stop())
       this.sharedTextureStream = null
-    }
-
-    if (this.hiddenCanvas) {
-      this.hiddenCanvas.width = 0
-      this.hiddenCanvas.height = 0
-      this.hiddenCanvas = null
     }
   }
 }
