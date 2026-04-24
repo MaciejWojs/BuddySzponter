@@ -73,6 +73,7 @@ export const useWebRtcStore = defineStore('webrtc', () => {
     webRtcService.cleanup()
     remoteStream.value = null
     localPublishProfile.value = 'host'
+    window.screenCapture.stopStream()
   }
 
   const disconnect = async (): Promise<void> => {
