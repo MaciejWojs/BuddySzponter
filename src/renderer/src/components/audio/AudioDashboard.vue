@@ -3,7 +3,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useWebRtcStore } from '@renderer/stores/webRtcStore'
 import { useSessionStore } from '@renderer/stores/sessionStore'
-import { microphoneService } from '@renderer/services/micService'
+import { microphoneService } from '@renderer/services/audio/in/micService'
 import VUMeter from './VUMeter.vue'
 
 interface DuckingPreset {
@@ -27,13 +27,13 @@ const webRtcStore = useWebRtcStore()
 const sessionStore = useSessionStore()
 const { selectedMicrophoneDeviceId } = storeToRefs(sessionStore)
 
-// Trwały stan mutowania mikrofonu w sessionStore
 const isMyMicMuted = computed({
   get: () => sessionStore.microphoneMuted,
   set: (val: boolean) => {
     sessionStore.microphoneMuted = val
   }
 })
+
 const isMySystemMuted = ref(false)
 const isGuestSystemMuted = ref(false)
 const isAdvancedOpen = ref(false)
@@ -81,15 +81,12 @@ const duckingPresets: DuckingPreset[] = [
   }
 ]
 
+/* ================= MAPOWANIE SUWAKÓW (SINE) ================= */
+
 const clampUnit = (value: number): number => Math.max(0, Math.min(1, value))
-
-const easeInOutSine = (value: number): number => {
-  return 0.5 - Math.cos(Math.PI * clampUnit(value)) / 2
-}
-
-const inverseEaseInOutSine = (value: number): number => {
-  return Math.acos(1 - 2 * clampUnit(value)) / Math.PI
-}
+const easeInOutSine = (value: number): number => 0.5 - Math.cos(Math.PI * clampUnit(value)) / 2
+const inverseEaseInOutSine = (value: number): number =>
+  Math.acos(1 - 2 * clampUnit(value)) / Math.PI
 
 const mapValueToSinePercent = (value: number, min: number, max: number): number => {
   if (max <= min) return 0
@@ -101,6 +98,8 @@ const mapSinePercentToValue = (percent: number, min: number, max: number): numbe
   if (max <= min) return min
   return min + easeInOutSine(percent / 100) * (max - min)
 }
+
+/* ================= COMPUTED PROPERTIES ================= */
 
 const myMicPercent = computed<number>(() => Math.round(sessionStore.localMicrophoneVolume * 100))
 
@@ -118,17 +117,19 @@ const mySystemPercent = computed<number>({
   }
 })
 
+// Przeniesione do sessionStore
 const guestMicPercent = computed<number>({
-  get: () => Math.round(webRtcStore.remoteMicVolume * 100),
+  get: () => Math.round(sessionStore.remoteMicVolume * 100),
   set: (value) => {
-    webRtcStore.remoteMicVolume = Math.max(0, Math.min(1, value / 100))
+    sessionStore.remoteMicVolume = Math.max(0, Math.min(1, value / 100))
   }
 })
 
+// Przeniesione do sessionStore
 const guestSystemPercent = computed<number>({
-  get: () => Math.round(webRtcStore.remoteSystemVolume * 100),
+  get: () => Math.round(sessionStore.remoteSystemVolume * 100),
   set: (value) => {
-    webRtcStore.remoteSystemVolume = Math.max(0, Math.min(1, value / 100))
+    sessionStore.remoteSystemVolume = Math.max(0, Math.min(1, value / 100))
   }
 })
 
@@ -142,18 +143,15 @@ const micInputThresholdSliderPercent = computed<number>({
   }
 })
 
+/* ================= DB HELPERS ================= */
+
 const clampDb = (value: number, min = -60, max = 0): number => {
   if (!Number.isFinite(value)) return min
   return Math.max(min, Math.min(max, value))
 }
 
-const linearToDb = (linear: number): number => {
-  return clampDb(20 * Math.log10(Math.max(1e-8, linear)))
-}
-
-const dbToLinear = (db: number): number => {
-  return Math.max(0, Math.min(1, Math.pow(10, clampDb(db) / 20)))
-}
+const linearToDb = (linear: number): number => clampDb(20 * Math.log10(Math.max(1e-8, linear)))
+const dbToLinear = (db: number): number => Math.max(0, Math.min(1, Math.pow(10, clampDb(db) / 20)))
 
 const clampMicThresholdToContext = (): void => {
   micInputThresholdDb.value = clampDb(micInputThresholdDb.value, -60, limiterThresholdDb.value)
@@ -164,14 +162,16 @@ const syncGateThresholdToService = (): void => {
   microphoneService.setInputThreshold(threshold)
 }
 
+/* ================= DUCKING PRESETS ================= */
+
 const isNear = (a: number, b: number, epsilon = 0.0005): boolean => Math.abs(a - b) <= epsilon
 
 const isPresetActive = (preset: DuckingPreset): boolean => {
   return (
-    isNear(webRtcStore.audioDuckingLevel, preset.values.level) &&
-    isNear(webRtcStore.audioSpeechThreshold, preset.values.threshold) &&
-    isNear(webRtcStore.audioGainSmoothing, preset.values.smoothing) &&
-    webRtcStore.audioHoldFrames === preset.values.holdFrames
+    isNear(sessionStore.audioDuckingLevel, preset.values.level) &&
+    isNear(sessionStore.audioSpeechThreshold, preset.values.threshold) &&
+    isNear(sessionStore.audioGainSmoothing, preset.values.smoothing) &&
+    sessionStore.audioHoldFrames === preset.values.holdFrames
   )
 }
 
@@ -180,16 +180,17 @@ const activeDuckingPreset = computed<DuckingPreset | null>(() => {
 })
 
 const applyDuckingPreset = (preset: DuckingPreset): void => {
-  webRtcStore.audioDuckingLevel = preset.values.level
-  webRtcStore.audioSpeechThreshold = preset.values.threshold
-  webRtcStore.audioGainSmoothing = preset.values.smoothing
-  webRtcStore.audioHoldFrames = preset.values.holdFrames
+  sessionStore.audioDuckingLevel = preset.values.level
+  sessionStore.audioSpeechThreshold = preset.values.threshold
+  sessionStore.audioGainSmoothing = preset.values.smoothing
+  sessionStore.audioHoldFrames = preset.values.holdFrames
 }
 
 const resetDuckingToDefault = (): void => {
-  const defaultPreset = duckingPresets[0]
-  applyDuckingPreset(defaultPreset)
+  applyDuckingPreset(duckingPresets[0])
 }
+
+/* ================= ACTIONS ================= */
 
 const handleDeviceChange = (): void => {
   void sessionStore.refreshMicrophones()
@@ -205,7 +206,6 @@ const handleSelectedMicrophoneChange = async (): Promise<void> => {
 const toggleMyMicMute = (): void => {
   isMyMicMuted.value = !isMyMicMuted.value
   sessionStore.toggleMicrophone(isMyMicMuted.value)
-  // Ustaw ścieżkę audio w aktualnym strumieniu
   if (webRtcStore.localStream) {
     const micTrack =
       webRtcStore.localStream.getAudioTracks().find((track) => track.contentHint === 'speech') ??
@@ -233,13 +233,15 @@ const toggleMySystemMute = (): void => {
 
 const toggleGuestSystemMute = (): void => {
   isGuestSystemMuted.value = !isGuestSystemMuted.value
-  webRtcStore.remoteSystemVolume = isGuestSystemMuted.value ? 0 : 1
+  sessionStore.remoteSystemVolume = isGuestSystemMuted.value ? 0 : 1
 }
 
 const selectVoicePreset = (presetId: VoicePresetOption['id']): void => {
   activeVoicePreset.value = presetId
   microphoneService.setVoicePreset(presetId)
 }
+
+/* ================= LIFECYCLE & WATCHERS ================= */
 
 onMounted(() => {
   micMonitoringEnabled.value = microphoneService.getLocalMonitoringEnabled()
@@ -263,12 +265,9 @@ onUnmounted(() => {
 
 watch(
   () => webRtcStore.localStream,
-  (stream) => {
-    syncMicMuteStateFromStream(stream)
-  }
+  (stream) => syncMicMuteStateFromStream(stream)
 )
 
-// Synchronizuj mute po zmianie flagi w store
 watch(
   () => isMyMicMuted.value,
   (muted) => {
@@ -288,28 +287,16 @@ watch(micLimiterEnabled, (enabled) => {
   syncGateThresholdToService()
 })
 
-watch(micMonitoringEnabled, (enabled) => {
-  microphoneService.setLocalMonitoringEnabled(enabled)
-})
-
-watch(limiterThresholdDb, () => {
-  clampMicThresholdToContext()
-})
-
+watch(micMonitoringEnabled, (enabled) => microphoneService.setLocalMonitoringEnabled(enabled))
+watch(limiterThresholdDb, () => clampMicThresholdToContext())
 watch(micInputThresholdDb, (thresholdDb) => {
   const nextThreshold = isAutoGate.value ? 0 : dbToLinear(thresholdDb)
   microphoneService.setInputThreshold(nextThreshold)
 })
-
-watch(micBassBoostEnabled, (enabled) => {
-  microphoneService.setBassBoost(enabled ? 3 : 0)
-})
-
+watch(micBassBoostEnabled, (enabled) => microphoneService.setBassBoost(enabled ? 3 : 0))
 watch(micStudioModeEnabled, (enabled) => {
   microphoneService.setStudioModeEnabled(enabled)
-  if (sessionStore.isCapturing) {
-    void sessionStore.applySelectedMicrophone()
-  }
+  if (sessionStore.isCapturing) void sessionStore.applySelectedMicrophone()
 })
 </script>
 
@@ -667,11 +654,11 @@ watch(micStudioModeEnabled, (enabled) => {
             <div class="flex items-center justify-between">
               <span class="text-xs text-gray-300">Sila wyciszenia (Ducking Level)</span>
               <span class="text-xs font-mono text-amber-300">{{
-                webRtcStore.audioDuckingLevel.toFixed(2)
+                sessionStore.audioDuckingLevel.toFixed(2)
               }}</span>
             </div>
             <input
-              v-model.number="webRtcStore.audioDuckingLevel"
+              v-model.number="sessionStore.audioDuckingLevel"
               class="pro-slider ducking w-full"
               type="range"
               min="0"
@@ -684,11 +671,11 @@ watch(micStudioModeEnabled, (enabled) => {
             <div class="flex items-center justify-between">
               <span class="text-xs text-gray-300">Prog aktywacji (Threshold)</span>
               <span class="text-xs font-mono text-amber-300">{{
-                webRtcStore.audioSpeechThreshold.toFixed(3)
+                sessionStore.audioSpeechThreshold.toFixed(3)
               }}</span>
             </div>
             <input
-              v-model.number="webRtcStore.audioSpeechThreshold"
+              v-model.number="sessionStore.audioSpeechThreshold"
               class="pro-slider ducking w-full"
               type="range"
               min="0"
@@ -701,11 +688,11 @@ watch(micStudioModeEnabled, (enabled) => {
             <div class="flex items-center justify-between">
               <span class="text-xs text-gray-300">Atak (Attack smoothing)</span>
               <span class="text-xs font-mono text-amber-300"
-                >{{ webRtcStore.audioGainSmoothing.toFixed(2) }} s</span
+                >{{ sessionStore.audioGainSmoothing.toFixed(2) }} s</span
               >
             </div>
             <input
-              v-model.number="webRtcStore.audioGainSmoothing"
+              v-model.number="sessionStore.audioGainSmoothing"
               class="pro-slider ducking w-full"
               type="range"
               min="0.01"
@@ -718,11 +705,11 @@ watch(micStudioModeEnabled, (enabled) => {
             <div class="flex items-center justify-between">
               <span class="text-xs text-gray-300">Podtrzymanie (Hold Frames)</span>
               <span class="text-xs font-mono text-amber-300"
-                >{{ webRtcStore.audioHoldFrames }} klatek</span
+                >{{ sessionStore.audioHoldFrames }} klatek</span
               >
             </div>
             <input
-              v-model.number="webRtcStore.audioHoldFrames"
+              v-model.number="sessionStore.audioHoldFrames"
               class="pro-slider ducking w-full"
               type="range"
               min="0"

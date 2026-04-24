@@ -7,6 +7,7 @@ import { useConnectionStore } from './connectionStore'
 import { wsService } from '@renderer/composables/connection/webSocketService'
 import { WsRequestAccess } from '@shared/schemas/ws'
 import { WsActionResponse, WsConnectResponse } from '@shared/schemas/ipc'
+import { useSignalingStore } from './signalingStore'
 
 export const useSocketStore = defineStore('socket', () => {
   const RECONNECT_MAX_ATTEMPTS = 4
@@ -48,6 +49,7 @@ export const useSocketStore = defineStore('socket', () => {
   const init = (): void => {
     const rtcStore = useWebRtcStore()
     const connectionStore = useConnectionStore()
+    const signalingStore = useSignalingStore()
 
     wsService.setupConnection({
       onConnected: () => {
@@ -106,15 +108,15 @@ export const useSocketStore = defineStore('socket', () => {
         isAcknowledged.value = true
         incomingRequest.value = null
         if (connectionStore.isHost && rtcStore.localStream) {
-          rtcStore.startConnectionAsHost()
+          signalingStore.startConnectionAsHost()
         }
       }
     })
 
     wsService.setupWebRtc({
-      onOffer: (data) => rtcStore.handleOffer(data),
-      onAnswer: (data) => rtcStore.handleAnswer(data),
-      onIceCandidate: (data) => rtcStore.handleCandidate(data),
+      onOffer: (data) => signalingStore.handleOffer(data),
+      onAnswer: (data) => signalingStore.handleAnswer(data),
+      onIceCandidate: (data) => signalingStore.handleCandidate(data),
       onReady: () => console.log('[SocketStore] P2P Ready!')
     })
   }

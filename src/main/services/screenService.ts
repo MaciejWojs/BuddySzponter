@@ -81,11 +81,13 @@ export class ScreenService {
     })
   }
 
-  private startCapture(): void {
+  private async startCapture(): Promise<void> {
     if (!this.capturer) {
-      this.capturer = new ScreenCapture()
+      this.capturer = new ScreenCapture({ disableLogging: true })
     }
     this.capturer.start()
+
+    await new Promise((resolve) => setTimeout(resolve, 1000))
 
     if (!this.captureInterval) {
       this.captureInterval = setInterval(() => {
@@ -138,6 +140,7 @@ export class ScreenService {
       }
 
       if (!info) {
+        // return;
         this.useCpuPath = true
         if (this.lastSharedTextureWarning !== 'noInfo') {
           console.warn('[Capture] Nie można uzyskać sharedTexture info, przełączanie na CPU path')

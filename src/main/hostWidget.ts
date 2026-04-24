@@ -1,5 +1,5 @@
 // src/main/hostWidget.ts
-import { BrowserWindow, screen, ipcMain } from 'electron'
+import { BrowserWindow, screen } from 'electron'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
 
@@ -14,7 +14,7 @@ export function createHostWidget(): void {
   const primaryDisplay = screen.getPrimaryDisplay()
   const { width } = primaryDisplay.workAreaSize
 
-  const WIDGET_WIDTH = 300
+  const WIDGET_WIDTH = 500
   const WIDGET_HEIGHT = 60
 
   hostWidgetWindow = new BrowserWindow({
@@ -52,9 +52,11 @@ export function createHostWidget(): void {
   })
 
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-    hostWidgetWindow.loadURL(`${process.env['ELECTRON_RENDERER_URL']}#/host-widget`)
+    hostWidgetWindow.loadURL(`${process.env['ELECTRON_RENDERER_URL']}#/session/host-widget`)
   } else {
-    hostWidgetWindow.loadFile(join(__dirname, '../renderer/index.html'), { hash: 'host-widget' })
+    hostWidgetWindow.loadFile(join(__dirname, '../renderer/index.html'), {
+      hash: '/session/host-widget'
+    })
   }
 }
 
@@ -68,40 +70,6 @@ export function closeHostWidget(): void {
   if (hostWidgetWindow && !hostWidgetWindow.isDestroyed()) {
     hostWidgetWindow.hide()
   }
-}
-
-export function registerHostWidgetHandlers(mainWindow: BrowserWindow | null): void {
-  ipcMain.on('widget-close-session', () => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('host-session-ended')
-    }
-    closeHostWidget()
-  })
-
-  ipcMain.handle('widget:toggle-mute', (_event, payload: { muted: boolean }) => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('widget:toggle-mute', payload)
-    }
-  })
-
-  ipcMain.handle('widget:toggle-control', (_event, payload: { granted: boolean }) => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('widget:toggle-control', payload)
-    }
-  })
-
-  ipcMain.handle('widget:toggle-chat', () => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('widget:toggle-chat')
-    }
-  })
-
-  ipcMain.handle('widget:end-session', () => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('widget:end-session')
-    }
-    closeHostWidget()
-  })
 }
 
 export function broadcastLockoutToWidget(payload: { active: boolean; until: number }): void {

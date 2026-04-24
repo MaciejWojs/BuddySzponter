@@ -1,134 +1,32 @@
 // renderer/src/stores/webRtcStore.ts
 import { defineStore } from 'pinia'
-import { ref, shallowRef, computed } from 'vue'
-import { useSocketStore } from './socketStore'
+import { ref, shallowRef } from 'vue'
 import {
   guestTrackPolicy,
   hostTrackPolicy,
   webRtcService
 } from '@renderer/composables/connection/webRTCService'
 import { useConnectionMetrics } from '@renderer/composables/connection/useConnectionMetrics'
-import { WsWebRTCOffer, WsWebRTCAnswer, WsWebRTCIceCandidate } from '@shared/schemas/ws'
-import { ChatChannel } from '@renderer/composables/channels/ChatChannel'
+import { messageRouter } from '@renderer/composables/webrtc/MessageRouter'
 import { useHidChannel } from '@renderer/composables/channels/HidChannel'
-import { SystemEventsChannel } from '@renderer/composables/channels/SystemEventsChannel'
 
 export const useWebRtcStore = defineStore('webrtc', () => {
-  const getSocketStore = (): ReturnType<typeof useSocketStore> => useSocketStore()
-
+  // --- STAN POŁĄCZENIA ---
   const rtcStatus = ref<'disconnected' | 'connecting' | 'connected'>('disconnected')
   const localStream = shallowRef<MediaStream | null>(null)
   const remoteStream = shallowRef<MediaStream | null>(null)
   const localPublishProfile = ref<'host' | 'guest'>('host')
 
-  // Recording state
-  const isRecording = ref<boolean>(false)
-
-  // Remote Volume Controls
-  const remoteMicVolume = ref<number>(1)
-  const remoteSystemVolume = ref<number>(1)
-
-  // Audio Mixer Engine Settings
-  const audioDuckingLevel = ref<number>(0.3)
-  const audioSpeechThreshold = ref<number>(0.02)
-  const audioGainSmoothing = ref<number>(0.08)
-  const audioHoldFrames = ref<number>(8)
+  const hid = useHidChannel()
 
   const connectionMetrics = useConnectionMetrics(rtcStatus)
-  const chat = ChatChannel()
-  const hid = useHidChannel()
-  const system = SystemEventsChannel((): void => forceDisconnect())
 
-  // HID Control State (Computed directly from the channel)
-  const isGuestControlAllowed = computed(() => hid.isControlGranted.value)
-
-  const getCurrentTrackPolicy = (): typeof hostTrackPolicy => {
+  const getCurrentTrackPolicy = (): typeof guestTrackPolicy | typeof hostTrackPolicy => {
     return localPublishProfile.value === 'guest' ? guestTrackPolicy : hostTrackPolicy
   }
 
-  // --- CONNECTION HANDLING ---
-
-  const startConnectionAsHost = async (): Promise<void> => {
-    localPublishProfile.value = 'host'
-    hid.setLocalRole('host')
-    webRtcService.cleanup()
-    webRtcService.initialize(true)
-    if (localStream.value)
-      webRtcService.publishLocalStream(localStream.value, getCurrentTrackPolicy())
-
-    rtcStatus.value = 'connecting'
-    const offer = await webRtcService.createOffer()
-    await getSocketStore().wsService.sendOffer({ sdp: JSON.stringify(offer) })
-  }
-
-  const handleOffer = async (data: WsWebRTCOffer): Promise<void> => {
-    hid.setLocalRole('guest')
-    webRtcService.cleanup()
-    webRtcService.initialize(false)
-    rtcStatus.value = 'connecting'
-
-    const offer = JSON.parse(data.sdp)
-    const answer = await webRtcService.handleOfferAndCreateAnswer(
-      offer,
-      localStream.value,
-      getCurrentTrackPolicy()
-    )
-    await getSocketStore().wsService.sendAnswer({ sdp: JSON.stringify(answer) })
-  }
-
-  const handleAnswer = async (data: WsWebRTCAnswer): Promise<void> => {
-    await webRtcService.handleAnswer(JSON.parse(data.sdp))
-  }
-
-  const handleCandidate = async (data: WsWebRTCIceCandidate): Promise<void> => {
-    await webRtcService.addIceCandidate(JSON.parse(data.candidate))
-  }
-
-  const publishLocalStream = async (stream: MediaStream): Promise<void> => {
-    localStream.value = stream
-    if (rtcStatus.value === 'disconnected') return
-
-    webRtcService.publishLocalStream(stream, getCurrentTrackPolicy())
-  }
-
-  // --- LISTENERS ---
-
-  webRtcService.onIceCandidateGenerated = async (candidate): Promise<void> => {
-    await getSocketStore().wsService.sendIceCandidate({ candidate: JSON.stringify(candidate) })
-  }
-
   webRtcService.onMessageReceived = (data: string, channelLabel: string): void => {
-    try {
-      const msg = JSON.parse(data)
-
-      if (channelLabel === 'chat-channel' && msg.type === 'CHAT') {
-        chat.handleIncomingMessage(msg.payload)
-      }
-
-      if (channelLabel === 'hid-control') {
-        // Przepuszczaj wszystkie istotne typy do HID Channel
-        if (
-          msg.type === 'HID_HANDSHAKE' ||
-          msg.type === 'MOUSE_MOVE' ||
-          msg.type === 'HID_PERMISSION_UPDATE' ||
-          msg.type === 'MOUSE_ACTION' ||
-          msg.type === 'KEYBOARD_EVENT' ||
-          msg.type === 'MOUSE_SCROLL'
-        ) {
-          hid.handleIncomingMessage(msg)
-        }
-      }
-
-      if (channelLabel === 'system-events') {
-        system.handleIncomingMessage(msg)
-      }
-
-      if (channelLabel === 'metrics' && msg.type === 'METRICS') {
-        connectionMetrics.applyRemoteMetrics(msg.payload)
-      }
-    } catch (e) {
-      console.error('[WebRtcStore] Error:', e)
-    }
+    messageRouter.route(channelLabel, data)
   }
 
   webRtcService.onRemoteStreamReceived = (stream): void => {
@@ -138,51 +36,51 @@ export const useWebRtcStore = defineStore('webrtc', () => {
   webRtcService.onDataChannelOpened = (): void => {
     rtcStatus.value = 'connected'
     connectionMetrics.start()
-    // Host po otwarciu kanału danych wysyła handshake z rozmiarem ekranu
+
     if (localPublishProfile.value === 'host') {
+      console.log('[WebRtcStore] Połączenie otwarte, wysyłam HID Handshake...')
       hid.sendHandshake()
     }
   }
 
-  // --- UTILS ---
+  // --- ACTIONS ---
+
+  const publishLocalStream = async (stream: MediaStream): Promise<void> => {
+    localStream.value = stream
+    if (rtcStatus.value === 'disconnected') return
+    webRtcService.publishLocalStream(stream, getCurrentTrackPolicy())
+  }
+
+  const setLocalPublishProfile = (profile: 'host' | 'guest'): void => {
+    localPublishProfile.value = profile
+    if (rtcStatus.value !== 'disconnected' && localStream.value) {
+      webRtcService.publishLocalStream(localStream.value, getCurrentTrackPolicy())
+    }
+
+    if (rtcStatus.value === 'connected') {
+      if (localStream.value) {
+        webRtcService.publishLocalStream(localStream.value, getCurrentTrackPolicy())
+      }
+      if (profile === 'host') {
+        hid.sendHandshake()
+      }
+    }
+  }
 
   const forceDisconnect = (): void => {
     connectionMetrics.stop()
     rtcStatus.value = 'disconnected'
     webRtcService.cleanup()
-    hid.resetState()
     remoteStream.value = null
     localPublishProfile.value = 'host'
-
-    if (isRecording.value) {
-      webRtcService.stopRecording()
-      isRecording.value = false
-    }
   }
 
   const disconnect = async (): Promise<void> => {
     if (rtcStatus.value === 'disconnected') return
-    system.sendDisconnectEvent()
+
+    webRtcService.sendData('system-events', JSON.stringify({ type: 'DISCONNECT', payload: {} }))
+
     forceDisconnect()
-  }
-
-  const setLocalPublishProfile = (profile: 'host' | 'guest'): void => {
-    localPublishProfile.value = profile
-    hid.setLocalRole(profile)
-    if (rtcStatus.value !== 'disconnected' && localStream.value) {
-      webRtcService.publishLocalStream(localStream.value, getCurrentTrackPolicy())
-    }
-  }
-
-  const getRemoteTrackRole = (trackId: string): string | null =>
-    webRtcService.getRemoteTrackRole(trackId)
-
-  const setLocalPreviewFps = (fps: number | null): void => {
-    connectionMetrics.setLocalPreviewFps(fps)
-  }
-
-  const setLocalPreviewQuality = (quality: 'low' | 'medium' | 'high' | null): void => {
-    connectionMetrics.setLocalPreviewQuality(quality)
   }
 
   const toggleTrackByHint = (
@@ -195,38 +93,17 @@ export const useWebRtcStore = defineStore('webrtc', () => {
       kind === 'audio' ? localStream.value.getAudioTracks() : localStream.value.getVideoTracks()
     const targetTrack = tracks.find((t) => t.contentHint === contentHint)
 
-    if (!targetTrack && kind === 'audio') {
+    if (targetTrack) {
+      targetTrack.enabled = isEnabled
+    } else if (kind === 'audio') {
       if (contentHint === 'speech') {
-        const track = tracks.find((t) => t.getSettings().channelCount === 1) || tracks[0]
-        if (track) track.enabled = isEnabled
+        const t = tracks.find((t) => t.getSettings().channelCount === 1) || tracks[0]
+        if (t) t.enabled = isEnabled
       } else if (contentHint === 'music') {
-        const track = tracks.find((t) => t.getSettings().channelCount === 2) || tracks[1]
-        if (track) track.enabled = isEnabled
+        const t = tracks.find((t) => t.getSettings().channelCount === 2) || tracks[1]
+        if (t) t.enabled = isEnabled
       }
-      return
     }
-
-    if (targetTrack) targetTrack.enabled = isEnabled
-  }
-
-  const startRecording = (): void => {
-    if (!remoteStream.value) {
-      console.warn('[WebRtcStore] brak remoteStream')
-      return
-    }
-
-    webRtcService.startRecording()
-    isRecording.value = true
-  }
-
-  const stopRecording = (): void => {
-    webRtcService.stopRecording()
-    isRecording.value = false
-  }
-
-  webRtcService.onRecordingReady = async (blob) => {
-    const buffer = await blob.arrayBuffer()
-    await window.recorder.saveFile(buffer)
   }
 
   return {
@@ -234,50 +111,19 @@ export const useWebRtcStore = defineStore('webrtc', () => {
     localStream,
     remoteStream,
     localPublishProfile,
-    remoteMicVolume,
-    remoteSystemVolume,
-    chatMessages: chat.chatMessages,
-    remoteMouse: hid.remoteMouse,
     localMetrics: connectionMetrics.localMetrics,
     remoteMetrics: connectionMetrics.remoteMetrics,
-    isGuestControlAllowed,
-    sendChatMessage: chat.sendChatMessage,
-    sendMousePosition: (x: number, y: number): void => {
-      hid.sendMouseFromVideo(x, y)
-    },
 
-    sendMouseAction: (
-      button: 'l' | 'r' | 'm',
-      action: 'c' | 'dc' | 'd' | 'u',
-      x: number,
-      y: number
-    ): void => {
-      hid.sendMouseAction(button, action, x, y)
-    },
-    sendKeyboardEvent: hid.sendKeyboardEvent,
-    sendMouseScroll: (deltaY: number): void => {
-      if (typeof hid.sendMouseScroll === 'function') {
-        hid.sendMouseScroll(deltaY)
-      }
-    },
-    sendVideoCommand: system.sendVideoCommand,
-    toggleTrackByHint,
-    setLocalPublishProfile,
-    getRemoteTrackRole,
-    setLocalPreviewFps,
-    setLocalPreviewQuality,
-    handleOffer,
-    handleAnswer,
-    handleCandidate,
-    startConnectionAsHost,
-    disconnect,
-    forceDisconnect,
+    // Eksport metod
+    getCurrentTrackPolicy,
     publishLocalStream,
-    startRecording,
-    stopRecording,
-    audioDuckingLevel,
-    audioSpeechThreshold,
-    audioGainSmoothing,
-    audioHoldFrames
+    setLocalPublishProfile,
+    forceDisconnect,
+    disconnect,
+    toggleTrackByHint,
+
+    setLocalPreviewFps: connectionMetrics.setLocalPreviewFps,
+    setLocalPreviewQuality: connectionMetrics.setLocalPreviewQuality,
+    getRemoteTrackRole: (id: string) => webRtcService.getRemoteTrackRole(id)
   }
 })
