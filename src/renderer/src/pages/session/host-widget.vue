@@ -118,7 +118,6 @@ import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useWebRtcStore } from '@renderer/stores/webRtcStore'
 import { useSessionStore } from '@renderer/stores/sessionStore'
 import { useHidChannel } from '@renderer/composables/channels/HidChannel'
-import VideoPlayer from '../p2p/VideoPlayer.vue'
 
 const webRtcStore = useWebRtcStore()
 const sessionStore = useSessionStore()
@@ -215,5 +214,16 @@ const handleMouseMove = (event: MouseEvent): void => {
 <style scoped>
 button:active {
   transform: scale(0.95);
+}
+
+:global(html),
+:global(body),
+:global(#app) {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  overflow: hidden;
 }
 </style>

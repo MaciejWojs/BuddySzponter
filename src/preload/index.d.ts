@@ -130,6 +130,8 @@ declare global {
         showHostWidget: () => Promise<void>
         hideHostWidget: () => Promise<void>
         setHostTrayMode: (active: boolean) => Promise<void>
+        resizeToVideoRatio: (width: number, height: number) => Promise<void>
+        resetAspectRatio: () => Promise<void>
       }
       input: {
         moveAbsolute: (x: number, y: number) => Promise<void>

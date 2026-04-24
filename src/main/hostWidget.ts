@@ -52,9 +52,11 @@ export function createHostWidget(): void {
   })
 
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-    hostWidgetWindow.loadURL(`${process.env['ELECTRON_RENDERER_URL']}#/host-widget`)
+    hostWidgetWindow.loadURL(`${process.env['ELECTRON_RENDERER_URL']}#/session/host-widget`)
   } else {
-    hostWidgetWindow.loadFile(join(__dirname, '../renderer/index.html'), { hash: 'host-widget' })
+    hostWidgetWindow.loadFile(join(__dirname, '../renderer/index.html'), {
+      hash: '/session/host-widget'
+    })
   }
 }
 

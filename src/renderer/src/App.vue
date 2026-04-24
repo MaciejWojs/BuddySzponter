@@ -1,27 +1,88 @@
 <script setup lang="ts">
-// import { computed } from 'vue'
+import { computed, onUnmounted, watch } from 'vue' // <-- DODANO IMPORTY
+import { useRouter } from 'vue-router' // <-- DODANO IMPORT
 import { useSettingsStore } from '@renderer/stores/settingsStore'
 import { useUserStore } from './stores/userStore'
 import { useSocketStore } from '@renderer/stores/socketStore'
 import { useAudioMixer } from './services/audio/out/useAudioMixer'
 import WidgetControlListener from '@renderer/components/p2p/WidgetControlListener.vue'
+import { useWebRtcStore } from './stores/webRtcStore'
+import { useConnectionStore } from './stores/connectionStore'
 
 const toaster = { position: 'top-left', duration: 3000, dismissible: true, max: 3, expand: false }
 
+const router = useRouter()
+const webRtcStore = useWebRtcStore()
+const connectionStore = useConnectionStore()
+
+// Inicjalizacja głównych modułów (Usunięto duplikat settingsStore)
 const settingsStore = useSettingsStore()
 settingsStore.initSettings()
 
 const socketStore = useSocketStore()
 socketStore.init()
 
-const store = useSettingsStore()
-store.initSettings()
-
 const userStore = useUserStore()
 void userStore.initSession()
 
+// Uruchomienie miksera audio w tle
 useAudioMixer()
+
+// ==========================================
+// STATUSY (POPRAWIONA KOLEJNOŚĆ!)
+// ==========================================
+const isRtcConnected = computed(() => webRtcStore.rtcStatus === 'connected')
+const isHostConnected = computed(() => connectionStore.isHost && isRtcConnected.value)
+const isGuestConnected = computed(() => !connectionStore.isHost && isRtcConnected.value)
+
+// ==========================================
+// LOGIKA WIDOKU HOSTA (Widget)
+// ==========================================
+const syncWindowMode = async (hostActive: boolean): Promise<void> => {
+  try {
+    if (hostActive) {
+      await window.api.app.showHostWidget()
+    } else {
+      await window.api.app.hideHostWidget()
+    }
+  } catch (error) {
+    console.warn('[SyncWindowMode] Nie udało się zsynchronizować widgetu:', error)
+  }
+}
+
+watch(
+  isHostConnected,
+  (hostActive) => {
+    void syncWindowMode(hostActive)
+  },
+  { immediate: true }
+)
+
+onUnmounted(() => {
+  window.api.app.hideHostWidget().catch(() => {})
+})
+
+const previousRoute = ref('/api-test')
+
+watch(
+  isGuestConnected,
+  (connected) => {
+    if (connected) {
+      if (!router.currentRoute.value.path.includes('/session/guest-view')) {
+        previousRoute.value = router.currentRoute.value.fullPath
+      }
+
+      router.push('/session/guest-view')
+    } else {
+      if (router.currentRoute.value.path.includes('/session/guest-view')) {
+        router.push(previousRoute.value)
+      }
+    }
+  },
+  { immediate: true }
+)
 </script>
+
 <template>
   <UApp :toaster="toaster">
     <WidgetControlListener>

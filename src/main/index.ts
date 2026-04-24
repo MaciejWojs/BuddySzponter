@@ -181,6 +181,34 @@ if (!gotTheLock) {
       quitApp()
     })
 
+    ipcMain.handle('app:resize-to-video-ratio', (event, width, height) => {
+      const win = BrowserWindow.fromWebContents(event.sender)
+      if (!win) return
+
+      const ratio = width / height
+
+      win.setAspectRatio(ratio)
+
+      const currentBounds = win.getBounds()
+      const targetHeight = Math.round(currentBounds.width / ratio)
+
+      win.setBounds(
+        {
+          x: currentBounds.x,
+          y: currentBounds.y,
+          width: currentBounds.width,
+          height: targetHeight
+        },
+        true
+      )
+    })
+
+    ipcMain.handle('app:reset-aspect-ratio', (event) => {
+      const win = BrowserWindow.fromWebContents(event.sender)
+      if (!win) return
+      win.setAspectRatio(0)
+    })
+
     // ipcMain.handle('save-file', async (_, buffer: ArrayBuffer) => {
     //   const { filePath } = await dialog.showSaveDialog({ defaultPath: 'recording.webm' })
     //   if (!filePath) return

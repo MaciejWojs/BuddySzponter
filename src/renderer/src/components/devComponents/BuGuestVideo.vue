@@ -2,28 +2,9 @@
   <div
     class="bg-[#1e1e1e] border border-[#333] rounded-xl p-5 shadow-2xl relative flex flex-col gap-4"
   >
-    <header class="flex justify-between items-center">
-      <h2 class="text-xl font-bold m-0 text-white flex items-center gap-2">Zdalny Ekran Hosta</h2>
-
-      <div class="flex items-center gap-3">
-        <div
-          v-if="webRtcStore.rtcStatus === 'connected'"
-          class="px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 border"
-          :class="
-            hidChannel.isControlGranted
-              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-              : 'bg-rose-500/10 text-rose-400 border-rose-500/30'
-          "
-        >
-          <span v-if="hidChannel.isControlGranted">✅ Kontrola Aktywna</span>
-          <span v-else>🔒 Tylko podgląd</span>
-        </div>
-      </div>
-    </header>
-
     <div
       ref="videoContainer"
-      class="bg-black border border-[#444] overflow-hidden aspect-video relative w-full"
+      class="bg-black border border-[#444] overflow-hidden aspect-video relative w-full focus:outline-none"
       tabindex="0"
       :class="{
         'cursor-crosshair': hidChannel.isControlGranted,
@@ -47,6 +28,7 @@
             ? 'Czekam na obraz od hosta...'
             : 'Połącz się, aby zobaczyć ekran.'
         "
+        @loadedmetadata="handleMetadataLoaded"
       />
     </div>
   </div>
@@ -58,6 +40,10 @@ import { useWebRtcStore } from '@renderer/stores/webRtcStore'
 import { useHidChannel } from '@renderer/composables/channels/HidChannel'
 import VideoPlayer from '../p2p/VideoPlayer.vue'
 
+const emit = defineEmits<{
+  (e: 'video-ready', width: number, height: number): void
+}>()
+
 const webRtcStore = useWebRtcStore()
 const hidChannel = useHidChannel()
 
@@ -67,6 +53,13 @@ const currentButton = ref<'l' | 'r' | 'm'>('l')
 
 const focusContainer = (): void => {
   videoContainer.value?.focus()
+}
+
+const handleMetadataLoaded = (event: Event): void => {
+  const target = event.target as HTMLVideoElement
+  if (target && target.videoWidth && target.videoHeight) {
+    emit('video-ready', target.videoWidth, target.videoHeight)
+  }
 }
 
 /* ================= HELPERS ================= */
@@ -126,12 +119,10 @@ const normalizeScroll = (deltaY: number): number => {
 
   let value = deltaY
 
-  // touchpad: miękki scroll
   if (isTrackpad) {
     value *= 0.6
   }
 
-  // myszka: często naturalnie odwrotny kierunek
   if (!isTrackpad) {
     value *= -1
   }
