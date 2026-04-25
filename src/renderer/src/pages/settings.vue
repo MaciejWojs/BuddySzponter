@@ -177,10 +177,36 @@ function closeActiveCard(): void {
   })
 }
 
+function handleDocumentPointerDown(event: MouseEvent): void {
+  if (!selectedCard.value) return
+
+  const activeCard = document.querySelector<HTMLElement>('.settings-card--active')
+  if (!activeCard) return
+
+  const target = event.target as Node | null
+  if (target && activeCard.contains(target)) return
+
+  closeActiveCard()
+}
+
+function handleDocumentKeydown(event: KeyboardEvent): void {
+  if (event.key !== 'Escape' || !selectedCard.value) return
+
+  event.preventDefault()
+  closeActiveCard()
+}
+
 onMounted(() => {
   displayName.value = defaultDisplayName.value
   displayNameDraft.value = displayName.value
   void refreshVersionsData()
+  document.addEventListener('mousedown', handleDocumentPointerDown)
+  document.addEventListener('keydown', handleDocumentKeydown)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('mousedown', handleDocumentPointerDown)
+  document.removeEventListener('keydown', handleDocumentKeydown)
 })
 
 watch(
