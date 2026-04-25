@@ -620,19 +620,35 @@ watch(activeTopNav, (nextTab) => {
   position: fixed;
   inset: 0;
   margin: auto;
-  width: min(760px, calc(100vw - 30px));
-  max-width: min(760px, calc(100vw - 30px));
+  width: min(804px, calc(100vw - 24px));
+  max-width: min(804px, calc(100vw - 24px));
   height: fit-content;
   max-height: calc(100vh - 54px);
   overflow-y: auto;
+  overflow-x: hidden;
   z-index: 110;
   cursor: default;
-  padding: 20px 18px 16px;
+  padding: 30px 22px 18px;
   background: color-mix(in srgb, var(--settings-bg-soft) 88%, transparent 12%);
   border-color: color-mix(in srgb, var(--settings-border) 54%, transparent 46%);
   box-shadow:
     0 0 0 1px color-mix(in srgb, var(--settings-border) 18%, transparent 82%),
     0 22px 42px rgba(0, 0, 0, 0.52);
+}
+
+.settings-card--active .settings-card-trigger {
+  margin-bottom: 16px;
+  padding-right: 58px;
+}
+
+.settings-card--active .settings-card-close {
+  top: 5px;
+  right: 6px;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  transform: none;
+  box-shadow: 0 0 12px color-mix(in srgb, var(--settings-glow) 44%, transparent 56%);
 }
 
 .settings-card--active,
@@ -649,18 +665,39 @@ watch(activeTopNav, (nextTab) => {
   top: 10px;
   right: 10px;
   z-index: 130;
-  width: 30px;
-  height: 30px;
+  width: 24px;
+  height: 24px;
   border: 1px solid color-mix(in srgb, var(--settings-border) 62%, transparent 38%);
-  border-radius: 8px;
+  border-radius: 7px;
   background: color-mix(in srgb, var(--color-component) 88%, #000 12%);
-  color: var(--color-text);
-  font-size: 18px;
+  color: transparent;
+  font-size: 15px;
   line-height: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  padding: 0;
   cursor: pointer;
+}
+
+.settings-card-close::before {
+  content: '';
+  position: absolute;
+  width: 11px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--color-text);
+  transform: rotate(45deg);
+}
+
+.settings-card-close::after {
+  content: '';
+  position: absolute;
+  width: 11px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--color-text);
+  transform: rotate(-45deg);
 }
 
 .settings-card-close:hover {
