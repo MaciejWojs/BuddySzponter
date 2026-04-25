@@ -1,26 +1,22 @@
-// import fs from 'node:fs'
+// screen-service.ts
 import { desktopCapturer, ipcMain, sharedTexture, WebFrameMain } from 'electron'
-import { IScreenCapture, ScreenCapture } from '@maciejwojs/screen-capture'
+import { IScreenCapture, ScreenCapture, FrameUpdate } from '@maciejwojs/screen-capture'
 
 export class ScreenService {
   private capturer: IScreenCapture | null = null
-  private captureInterval: NodeJS.Timeout | null = null
   private activeFrames: { frame: WebFrameMain; wc: Electron.WebContents }[] = []
   private isProcessingFrame = false
-  private readonly captureFps = 60
+  // Flagi pomocnicze do logów – zapobiegają spamowaniu konsoli
   private isHandleLogged = false
-  private useCpuPath: boolean
   private lastSharedTextureInfoSignature: string | null = null
   private lastSharedTextureWarning: 'noInfo' | 'noHandle' | null = null
+  private useCpuPath = false
 
   private constructor() {
     console.log('[ScreenService] Initializing service...')
-
-    this.useCpuPath = false
   }
 
   private static instance: ScreenService
-
   public static getInstance(): ScreenService {
     if (!ScreenService.instance) {
       ScreenService.instance = new ScreenService()
@@ -29,23 +25,31 @@ export class ScreenService {
   }
 
   public registerHandlers(): void {
+    console.log('[ScreenService] Registering IPC handlers...')
+
     ipcMain.handle('capture:getFps', async () => {
+      console.debug('[IPC] capture:getFps called')
       if (this.capturer && typeof this.capturer.getFps === 'function') {
         try {
-          return await this.capturer.getFps()
+          const fps = await this.capturer.getFps()
+          console.debug(`[IPC] capture:getFps returning ${fps}`)
+          return fps
         } catch (e) {
           console.error('[ScreenService] Error occurred while fetching FPS:', e)
           return null
         }
       }
+      console.debug('[IPC] capture:getFps - no capturer or method missing')
       return null
     })
+
     ipcMain.handle('desktop:get-sources', async () => {
+      console.debug('[IPC] desktop:get-sources called')
       const sources = await desktopCapturer.getSources({
         types: ['screen'],
         thumbnailSize: { width: 300, height: 200 }
       })
-
+      console.debug(`[IPC] desktop:get-sources returned ${sources.length} sources`)
       return sources.map((source) => ({
         id: source.id,
         name: source.name,
@@ -53,106 +57,136 @@ export class ScreenService {
       }))
     })
 
-    ipcMain.handle('capture:start', () => {
-      this.startCapture()
+    ipcMain.handle('capture:start', async () => {
+      console.log('[IPC] capture:start called')
+      await this.startCapture()
     })
 
     ipcMain.handle('capture:stop', () => {
+      console.log('[IPC] capture:stop called')
       this.stopCapture()
     })
 
     ipcMain.handle('capture:should-use-cpu', () => {
+      console.debug(`[IPC] capture:should-use-cpu returning ${this.useCpuPath}`)
       return this.useCpuPath
     })
 
     ipcMain.on('capture:request-stream', (event) => {
       const frame = event.senderFrame
       const wc = event.sender
+      console.debug(
+        `[IPC] capture:request-stream from frame ${frame?.routingId}, webContents ${wc?.id}`
+      )
       if (frame && !this.activeFrames.some((f) => f.frame === frame)) {
         this.activeFrames.push({ frame, wc })
+        console.debug(`[IPC] Added frame, now ${this.activeFrames.length} active frames`)
+      } else {
+        console.debug('[IPC] Frame already active or invalid')
       }
     })
 
     ipcMain.on('capture:stop-stream', (event) => {
       const frame = event.senderFrame
+      console.debug(`[IPC] capture:stop-stream from frame ${frame?.routingId}`)
       if (frame) {
+        const before = this.activeFrames.length
         this.activeFrames = this.activeFrames.filter((f) => f.frame !== frame)
+        console.debug(
+          `[IPC] Removed frame, active frames: ${before} -> ${this.activeFrames.length}`
+        )
       }
     })
   }
 
+  // ------------------------------------------------------------------
+  // Start / Stop z użyciem onFrame
+  // ------------------------------------------------------------------
   private async startCapture(): Promise<void> {
+    console.log('[ScreenService] Starting screen capture...')
     if (!this.capturer) {
-      this.capturer = new ScreenCapture({ disableLogging: true })
+      console.log('[ScreenService] Creating new ScreenCapture instance with logLevel debug')
+      this.capturer = new ScreenCapture({
+        // logLevel: 'debug',
+        disableLogging: true
+      })
     }
-    this.capturer.start()
 
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    // console.log('[ScreenService] Forcing backend to dxgi')
+    // this.capturer.forceBackend('gdi')
+    // this.capturer.forceBackend('dxgi')
 
-    if (!this.captureInterval) {
-      this.captureInterval = setInterval(() => {
-        this.processFrame()
-      }, 1000 / this.captureFps)
-    }
+    // Uruchamiamy przechwytywanie i od razu rejestrujemy callback
+    console.log('[ScreenService] Calling capturer.start()')
+    await this.capturer.start()
+    // await new Promise((resolve) => setTimeout(resolve, 1000))
+    console.log('[ScreenService] Registering onFrame callback')
+    this.capturer.onFrame(this.handleFrame)
+
+    console.log('[ScreenService] Capture started successfully')
   }
 
   private stopCapture(): void {
-    if (this.captureInterval) {
-      clearInterval(this.captureInterval)
-      this.captureInterval = null
-    }
-
+    console.log('[ScreenService] Stopping screen capture...')
     if (this.capturer) {
+      console.log('[ScreenService] Removing onFrame callback and stopping capturer')
+      this.capturer.offFrame()
       this.capturer.stop()
       this.capturer = null
     }
 
-    // Notify frames and close them
+    const framesCount = this.activeFrames.length
     this.activeFrames = []
     this.isProcessingFrame = false
+    console.log(`[ScreenService] Capture stopped, cleared ${framesCount} active frames`)
   }
 
-  private processFrame(): void {
-    if (this.isProcessingFrame) return
+  // ------------------------------------------------------------------
+  // Callback wywoływany dla każdej nowej klatki
+  // ------------------------------------------------------------------
+  private handleFrame = (frame: FrameUpdate): void => {
+    // Nie przetwarzamy, jeśli poprzednia klatka jeszcze się kończy
+    if (this.isProcessingFrame) {
+      console.debug('[Capture] Skipping frame - previous frame still processing')
+      return
+    }
 
+    const beforeFilter = this.activeFrames.length
+    // Oczyszczamy listę aktywnych ramek
     this.activeFrames = this.activeFrames.filter(({ frame, wc }) => {
       const wcValid = wc && !wc.isDestroyed()
       const frameValid = frame && typeof frame.isDestroyed === 'function' && !frame.isDestroyed()
-      // Usuwamy ramkę z listy jeśli webContents załadował już nową ramkę główną
-      // (co oznacza, że stara, ta z którą zaczynaliśmy, właśnie traci kontekst po reload/navigate)
-      return wcValid && frameValid && frame === wc.mainFrame
+      const isValid = wcValid && frameValid && frame === wc.mainFrame
+      if (!isValid) {
+        console.debug('[Capture] Removing invalid frame (webContents destroyed or frame changed)')
+      }
+      return isValid
     })
-    if (!this.capturer || this.activeFrames.length === 0) return
 
-    let info: Electron.SharedTextureImportTextureInfo | null = null
+    if (this.activeFrames.length !== beforeFilter) {
+      console.debug(
+        `[Capture] Filtered active frames: ${beforeFilter} -> ${this.activeFrames.length}`
+      )
+    }
 
-    if (typeof this.capturer.getSharedTextureInfo === 'function') {
-      info = this.capturer.getSharedTextureInfo() as Electron.SharedTextureImportTextureInfo | null
+    if (this.activeFrames.length === 0) {
+      console.debug('[Capture] No active frames, skipping frame processing')
+      return
+    }
 
-      const currentSignature = info
-        ? `${info.pixelFormat}-${info.codedSize.width}x${info.codedSize.height}-${Object.keys(info.handle ?? {}).join(',')}`
-        : 'no-info'
+    // --- Ścieżka GPU (shared texture) ---
+    if (frame.sharedTextureInfo) {
+      const info = frame.sharedTextureInfo
+      const currentSignature = `${info.pixelFormat}-${info.codedSize.width}x${info.codedSize.height}-${Object.keys(info.handle ?? {}).join(',')}`
 
       if (currentSignature !== this.lastSharedTextureInfoSignature) {
+        console.log(`[Capture] New shared texture signature: ${currentSignature}`)
         this.lastSharedTextureInfoSignature = currentSignature
-        this.isHandleLogged = false
         this.lastSharedTextureWarning = null
       }
 
-      if (!info) {
-        // return;
-        this.useCpuPath = true
-        if (this.lastSharedTextureWarning !== 'noInfo') {
-          console.warn('[Capture] Nie można uzyskać sharedTexture info, przełączanie na CPU path')
-          this.lastSharedTextureWarning = 'noInfo'
-        }
-        this.processFrameViaCpu()
-        return
-      } else {
-        this.useCpuPath = false
-      }
-
       if (!info.handle) {
+        this.useCpuPath = true
         if (this.lastSharedTextureWarning !== 'noHandle') {
           console.warn('[Capture] Otrzymano info o sharedTexture, ale brak handle:', {
             pixelFormat: info.pixelFormat,
@@ -160,80 +194,103 @@ export class ScreenService {
           })
           this.lastSharedTextureWarning = 'noHandle'
         }
+        this.sendCpuFrame(frame)
         return
       }
 
+      this.useCpuPath = false
       if (!this.isHandleLogged) {
         console.log('[Capture] Otrzymano info o sharedTexture:', {
           pixelFormat: info.pixelFormat,
           codedSize: info.codedSize,
           handleKeys: Object.keys(info.handle)
         })
-
-        console.log('[Capture] Szczegóły handle:', info.handle.nativePixmap, info.handle.ntHandle)
         this.isHandleLogged = true
       }
-    }
 
-    if (!info || !info.handle) return
-
-    try {
+      console.debug('[Capture] Importing shared texture and sending to frames...')
       this.isProcessingFrame = true
-      type SharedTextureSendArgs = Parameters<typeof sharedTexture.sendSharedTexture>[0]
-      type ImportedSharedTexture = SharedTextureSendArgs['importedSharedTexture']
-      const importedTexture = sharedTexture.importSharedTexture({
-        textureInfo: info
-      }) as ImportedSharedTexture
-
-      const sends = this.activeFrames.map(({ frame }) => {
-        try {
-          return sharedTexture.sendSharedTexture({
-            frame,
-            importedSharedTexture: importedTexture
-          })
-        } catch (e: unknown) {
-          console.warn('[Capture] Ignored frame (disposed?):', e)
-          this.activeFrames = this.activeFrames.filter((f) => f.frame !== frame)
-          return Promise.reject(e)
-        }
-      })
-
-      void Promise.allSettled(sends)
-        .then((results) => {
-          const allFailed = results.every((r) => r.status === 'rejected')
-
-          if (allFailed) {
-            const firstError = results.find((r) => r.status === 'rejected')
-            console.error('[Capture] Błąd wysyłania sharedTexture do ramki:', firstError)
-          }
+      try {
+        const importedTexture = sharedTexture.importSharedTexture({
+          textureInfo: info as Electron.SharedTextureImportTextureInfo
         })
-        .finally(() => {
+        console.debug('[Capture] Shared texture imported successfully')
+
+        const sends = this.activeFrames.map(({ frame }) => {
           try {
-            importedTexture.release()
-          } catch (e) {
-            console.error('[Capture] Błąd przy release() importedTexture w głównym wątku:', e)
+            return sharedTexture.sendSharedTexture({
+              frame,
+              importedSharedTexture: importedTexture
+            })
+          } catch (e: unknown) {
+            console.warn('[Capture] Ignored frame (disposed?):', e)
+            this.activeFrames = this.activeFrames.filter((f) => f.frame !== frame)
+            return Promise.reject(e)
           }
-          this.isProcessingFrame = false
         })
-    } catch (e) {
-      console.error('[Capture] Główny błąd importSharedTexture:', e)
-      this.isProcessingFrame = false
-    }
-  }
 
-  private processFrameViaCpu(): void {
-    const capturer = this.capturer
-    const buffer = capturer?.getPixelData?.()
-    if (!buffer) {
+        console.debug(`[Capture] Sending shared texture to ${sends.length} frames`)
+        void Promise.allSettled(sends)
+          .then((results) => {
+            const allFailed = results.every((r) => r.status === 'rejected')
+            if (allFailed) {
+              const firstError = results.find((r) => r.status === 'rejected')
+              console.error('[Capture] Błąd wysyłania sharedTexture do ramki:', firstError)
+            } else {
+              const succeeded = results.filter((r) => r.status === 'fulfilled').length
+              console.debug(
+                `[Capture] Shared texture sent: ${succeeded} succeeded, ${results.length - succeeded} failed`
+              )
+            }
+          })
+          .finally(() => {
+            try {
+              importedTexture.release()
+              console.debug('[Capture] Imported texture released')
+            } catch (e) {
+              console.error('[Capture] Błąd przy release() importedTexture:', e)
+            }
+            this.isProcessingFrame = false
+          })
+      } catch (e) {
+        console.error('[Capture] Główny błąd importSharedTexture:', e)
+        this.isProcessingFrame = false
+      }
+
       return
     }
 
-    const width = typeof capturer?.getWidth === 'function' ? capturer.getWidth() : 0
-    const height = typeof capturer?.getHeight === 'function' ? capturer.getHeight() : 0
-    const stride = typeof capturer?.getStride === 'function' ? capturer.getStride() : width * 4
-    const format = typeof capturer?.getPixelFormat === 'function' ? capturer.getPixelFormat() : 12
+    // --- Fallback na CPU (surowe bajty) ---
+    if (frame.pixelData) {
+      console.debug('[Capture] No shared texture info, using CPU path (pixelData)')
+      this.useCpuPath = true
+      this.sendCpuFrame(frame)
+    } else {
+      console.warn('[Capture] Frame has neither sharedTextureInfo nor pixelData')
+    }
+  }
 
-    if (width === 0 || height === 0) {
+  // ------------------------------------------------------------------
+  // Wysyłanie surowych pikseli (ścieżka CPU)
+  // ------------------------------------------------------------------
+  private sendCpuFrame(frame: FrameUpdate): void {
+    const buffer = frame.pixelData
+    const width = frame.width
+    const height = frame.height
+    const stride = frame.stride
+    const format = frame.pixelFormat
+
+    if (!buffer || width === 0 || height === 0) {
+      console.warn('[Capture] Invalid CPU frame data - skipping')
+      return
+    }
+
+    console.debug(
+      `[Capture] Sending CPU frame ${width}x${height}, stride=${stride}, buffer size=${buffer.byteLength}, format=${format}`
+    )
+
+    if (this.isProcessingFrame) {
+      console.debug('[Capture] CPU frame already processing, skipping duplicate send')
       return
     }
 
@@ -247,15 +304,23 @@ export class ScreenService {
       buffer
     }
 
+    let sentCount = 0
     this.activeFrames.forEach(({ wc }) => {
       if (!wc.isDestroyed()) {
         try {
           wc.send('capture:raw-frame', framePayload)
+          sentCount++
         } catch (e) {
           console.warn('[Capture] Nie udało się wysłać surowej klatki:', e)
         }
+      } else {
+        console.debug('[Capture] Skipping destroyed webContents')
       }
     })
+
+    console.debug(
+      `[Capture] CPU frame sent to ${sentCount} of ${this.activeFrames.length} active frames`
+    )
 
     this.isProcessingFrame = false
   }
