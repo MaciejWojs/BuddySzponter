@@ -146,6 +146,9 @@ async function openCard(key: SettingsCardKey): Promise<void> {
 function closeActiveCard(): void {
   if (!selectedCard.value || isCardTransitioning.value) return
 
+  const focusedElement = document.activeElement as HTMLElement | null
+  focusedElement?.blur()
+
   const cardKey = selectedCard.value
   const activeCard = document.querySelector<HTMLElement>(
     `.settings-card--active[data-card-key="${cardKey}"]`
