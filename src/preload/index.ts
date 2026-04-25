@@ -219,20 +219,15 @@ const dispatchFrame = (frame: VideoFrame): void => {
     return
   }
 
-  const [firstConsumer, ...otherConsumers] = consumers
-  try {
-    firstConsumer(frame)
-  } catch (e) {
-    console.error('[Preload] Error delivering frame to consumer:', e)
-  }
-
-  for (const consumer of otherConsumers) {
-    const clonedFrame = frame.clone()
+  // Iterujemy po konsumentach, klonując klatkę dla każdego poza ostatnim
+  for (let i = 0; i < consumers.length; i++) {
+    const isLast = i === consumers.length - 1
+    const frameToDeliver = isLast ? frame : frame.clone()
     try {
-      consumer(clonedFrame)
+      consumers[i]!(frameToDeliver)
     } catch (e) {
-      console.error('[Preload] Error delivering cloned frame to consumer:', e)
-      clonedFrame.close()
+      console.error('[Preload] Error delivering frame:', e)
+      frameToDeliver.close()
     }
   }
 }

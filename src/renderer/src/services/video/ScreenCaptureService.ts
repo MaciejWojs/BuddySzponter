@@ -62,13 +62,18 @@ export class ScreenCaptureService {
 
           lastFrameTime = now
 
-          this.writer?.write(frameData).catch((writeError) => {
-            console.error('[ScreenCaptureService] Błąd zapisu klatki:', writeError)
-            if (frameData && typeof frameData.close === 'function') frameData.close()
-          })
+          this.writer
+            ?.write(frameData)
+            .then(() => {
+              frameData.close()
+            })
+            .catch((writeError) => {
+              console.error('[ScreenCaptureService] Błąd zapisu klatki:', writeError)
+              frameData.close()
+            })
         } catch (e) {
           console.error('[ScreenCaptureService] Błąd w pętli renderowania:', e)
-          if (frameData && typeof frameData.close === 'function') frameData.close()
+          frameData.close()
         }
       })
 
