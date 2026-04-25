@@ -6,7 +6,6 @@ import {
   hostTrackPolicy,
   webRtcService
 } from '@renderer/composables/connection/webRTCService'
-import { useConnectionMetrics } from '@renderer/composables/connection/useConnectionMetrics'
 import { messageRouter } from '@renderer/composables/webrtc/MessageRouter'
 import { useHidChannel } from '@renderer/composables/channels/HidChannel'
 
@@ -18,8 +17,6 @@ export const useWebRtcStore = defineStore('webrtc', () => {
   const localPublishProfile = ref<'host' | 'guest'>('host')
 
   const hid = useHidChannel()
-
-  const connectionMetrics = useConnectionMetrics(rtcStatus)
 
   const getCurrentTrackPolicy = (): typeof guestTrackPolicy | typeof hostTrackPolicy => {
     return localPublishProfile.value === 'guest' ? guestTrackPolicy : hostTrackPolicy
@@ -35,7 +32,6 @@ export const useWebRtcStore = defineStore('webrtc', () => {
 
   webRtcService.onDataChannelOpened = (): void => {
     rtcStatus.value = 'connected'
-    connectionMetrics.start()
 
     if (localPublishProfile.value === 'host') {
       console.log('[WebRtcStore] Połączenie otwarte, wysyłam HID Handshake...')
@@ -68,7 +64,6 @@ export const useWebRtcStore = defineStore('webrtc', () => {
   }
 
   const forceDisconnect = (): void => {
-    connectionMetrics.stop()
     rtcStatus.value = 'disconnected'
     webRtcService.cleanup()
     remoteStream.value = null
@@ -111,8 +106,6 @@ export const useWebRtcStore = defineStore('webrtc', () => {
     localStream,
     remoteStream,
     localPublishProfile,
-    localMetrics: connectionMetrics.localMetrics,
-    remoteMetrics: connectionMetrics.remoteMetrics,
 
     // Eksport metod
     getCurrentTrackPolicy,
@@ -122,8 +115,6 @@ export const useWebRtcStore = defineStore('webrtc', () => {
     disconnect,
     toggleTrackByHint,
 
-    setLocalPreviewFps: connectionMetrics.setLocalPreviewFps,
-    setLocalPreviewQuality: connectionMetrics.setLocalPreviewQuality,
     getRemoteTrackRole: (id: string) => webRtcService.getRemoteTrackRole(id)
   }
 })

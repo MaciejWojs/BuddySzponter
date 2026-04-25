@@ -5,8 +5,11 @@ export class ScreenCaptureService {
   private stopFrameSubscription: (() => void) | null = null
   private sharedTextureStream: MediaStream | null = null
 
+  private writer: WritableStreamDefaultWriter<VideoFrame> | null = null
+  private track: MediaStreamTrack | null = null
+
   public async startSharedTextureCapture(
-    _captureFps: number,
+    captureFps: number,
     includeSystemAudio: boolean,
     systemAudioVolume: number,
     micTrack: MediaStreamTrack | null
@@ -20,6 +23,7 @@ export class ScreenCaptureService {
       if (!useCpuCapture && typeof window.screenCapture.registerReceiver === 'function') {
         window.screenCapture.registerReceiver()
       }
+
       const win = window as unknown as {
         MediaStreamTrackGenerator?: new (init: { kind: 'video' }) => MediaStreamTrack & {
           writable: WritableStream<VideoFrame>
@@ -28,22 +32,42 @@ export class ScreenCaptureService {
       }
 
       if (!win.MediaStreamTrackGenerator) {
+        console.error('[ScreenCaptureService] Brak wsparcia dla MediaStreamTrackGenerator.')
         return null
       }
 
       const generator = new win.MediaStreamTrackGenerator({ kind: 'video' })
       generator.contentHint = 'detail'
-      const sharedTextureGeneratorWriter = generator.writable.getWriter()
+
+      this.writer = generator.writable.getWriter()
+      this.track = generator
+
+      let lastFrameTime = 0
+      const frameInterval = 1000 / (captureFps || 60)
 
       this.stopFrameSubscription?.()
       this.stopFrameSubscription = window.screenCapture.onFrameReceived((frameData) => {
         try {
-          sharedTextureGeneratorWriter?.write(frameData.clone()).catch((writeError) => {
-            console.error('[SessionStore] Błąd zapisu klatki do generatora:', writeError)
+          const now = performance.now()
+
+          if (now - lastFrameTime < frameInterval) {
+            frameData.close()
+            return
+          }
+
+          if (this.writer?.desiredSize !== null && this.writer!.desiredSize <= 0) {
+            frameData.close()
+            return
+          }
+
+          lastFrameTime = now
+
+          this.writer?.write(frameData).catch((writeError) => {
+            console.error('[ScreenCaptureService] Błąd zapisu klatki:', writeError)
+            if (frameData && typeof frameData.close === 'function') frameData.close()
           })
         } catch (e) {
-          console.error('[SessionStore] Błąd zapisu klatki do generatora:', e)
-        } finally {
+          console.error('[ScreenCaptureService] Błąd w pętli renderowania:', e)
           if (frameData && typeof frameData.close === 'function') frameData.close()
         }
       })
@@ -60,7 +84,7 @@ export class ScreenCaptureService {
       window.screenCapture.requestStream()
       return this.sharedTextureStream
     } catch (e) {
-      console.error('[SessionStore] Błąd sharedTexture:', e)
+      console.error('[ScreenCaptureService] Błąd inicjalizacji capture:', e)
       return null
     }
   }
@@ -71,6 +95,16 @@ export class ScreenCaptureService {
 
     if (window.screenCapture && typeof window.screenCapture.stopStream === 'function') {
       window.screenCapture.stopStream()
+    }
+
+    if (this.writer) {
+      this.writer.close().catch(() => {})
+      this.writer = null
+    }
+
+    if (this.track) {
+      this.track.stop()
+      this.track = null
     }
 
     if (this.sharedTextureStream) {

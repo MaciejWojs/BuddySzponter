@@ -3,27 +3,19 @@ import { computed, onUnmounted } from 'vue'
 import { useConnectionStore } from '@renderer/stores/connectionStore'
 import { useSocketStore } from '@renderer/stores/socketStore'
 import { useWebRtcStore } from '@renderer/stores/webRtcStore'
-import { useSessionStore } from '@renderer/stores/sessionStore' // Używamy poprawnej nazwy composable z Pinii
+import { useSessionStore } from '@renderer/stores/sessionStore'
 
 import VideoPlayer from '../p2p/VideoPlayer.vue'
-import { useHidChannel } from '@renderer/composables/channels/HidChannel'
 
 const connectionStore = useConnectionStore()
 const socketStore = useSocketStore()
 const webRtcStore = useWebRtcStore()
 const sessionStore = useSessionStore()
-const hidChannel = useHidChannel()
 
 const handleManualConnect = (): void => void socketStore.connect('awaryjny-token-z-palca')
 const handleManualDisconnect = (): void => void socketStore.disconnect()
-const handleMoveMouseToOrigin = (): void => {
-  if (webRtcStore.rtcStatus !== 'connected') return
-  hidChannel.sendMouseFromVideo(0, 0)
-}
-const placeholderAction = (name: string): void => alert(`Funkcja "${name}" jest w przygotowaniu!`)
 
 // Mapowanie do diagnostyki
-// FIX: Dodany typ zwracany z funkcji
 const mapStreamToDebug = (
   stream: MediaStream | null
 ): Array<{
@@ -151,18 +143,55 @@ onUnmounted(() => {
           <h3 class="text-sm font-bold text-emerald-400 uppercase tracking-widest">
             Zarządzanie Ekranem (Host)
           </h3>
-          <div class="flex gap-2">
+
+          <div class="flex gap-1.5 bg-[#111] p-1 rounded-lg border border-[#444]">
             <button
-              class="px-3 py-1.5 bg-[#222] border border-[#444] hover:bg-[#333] hover:border-yellow-500 text-gray-300 hover:text-yellow-400 rounded text-xs font-bold transition-all"
-              @click="placeholderAction('Wstrzymaj Obraz')"
+              class="px-2.5 py-1 rounded text-[10px] font-bold uppercase tracking-wider transition-all"
+              :class="
+                sessionStore.activeVideoQuality === 'low'
+                  ? 'bg-rose-600 text-white shadow-md'
+                  : 'text-gray-400 hover:text-white hover:bg-[#333]'
+              "
+              title="1.5 Mbps / 30fps / Pół rozdzielczości"
+              @click="sessionStore.applyQualityPreset('low')"
             >
-              Wstrzymaj Obraz
+              Low
             </button>
             <button
-              class="px-3 py-1.5 bg-[#222] border border-[#444] hover:bg-[#333] hover:border-blue-500 text-gray-300 hover:text-blue-400 rounded text-xs font-bold transition-all"
-              @click="placeholderAction('Zmniejsz Jakość')"
+              class="px-2.5 py-1 rounded text-[10px] font-bold uppercase tracking-wider transition-all"
+              :class="
+                sessionStore.activeVideoQuality === 'medium'
+                  ? 'bg-amber-600 text-white shadow-md'
+                  : 'text-gray-400 hover:text-white hover:bg-[#333]'
+              "
+              title="3.5 Mbps / 60fps"
+              @click="sessionStore.applyQualityPreset('medium')"
             >
-              Zmniejsz Jakość
+              Med
+            </button>
+            <button
+              class="px-2.5 py-1 rounded text-[10px] font-bold uppercase tracking-wider transition-all"
+              :class="
+                sessionStore.activeVideoQuality === 'high'
+                  ? 'bg-blue-600 text-white shadow-md'
+                  : 'text-gray-400 hover:text-white hover:bg-[#333]'
+              "
+              title="8.0 Mbps / 60fps"
+              @click="sessionStore.applyQualityPreset('high')"
+            >
+              High
+            </button>
+            <button
+              class="px-2.5 py-1 rounded text-[10px] font-bold uppercase tracking-wider transition-all"
+              :class="
+                sessionStore.activeVideoQuality === 'ultra'
+                  ? 'bg-emerald-600 text-white shadow-md'
+                  : 'text-gray-400 hover:text-white hover:bg-[#333]'
+              "
+              title="15.0 Mbps / 120fps"
+              @click="sessionStore.applyQualityPreset('ultra')"
+            >
+              Ultra
             </button>
           </div>
         </div>
@@ -290,13 +319,6 @@ onUnmounted(() => {
         </button>
         <button
           v-if="webRtcStore.rtcStatus === 'connected'"
-          class="px-4 py-2 bg-transparent border border-[#444] hover:border-cyan-500 hover:text-cyan-400 text-gray-400 text-xs font-semibold rounded transition-colors"
-          @click="handleMoveMouseToOrigin()"
-        >
-          Wyślij MOUSE_MOVE 0,0
-        </button>
-        <button
-          v-if="webRtcStore.rtcStatus === 'connected'"
           class="px-4 py-2 bg-transparent border border-[#444] hover:border-rose-500 hover:text-rose-400 text-gray-400 text-xs font-semibold rounded transition-colors"
           @click="webRtcStore.disconnect()"
         >
@@ -316,63 +338,5 @@ onUnmounted(() => {
 .slide-down-leave-to {
   opacity: 0;
   transform: translateY(-20px) scale(0.95);
-}
-
-/* =========================================
-   WŁASNE SUWAKI (CUSTOM RANGE SLIDERS)
-   ========================================= */
-.custom-slider {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 100%;
-  height: 6px;
-  background: #333;
-  border-radius: 4px;
-  outline: none;
-  transition: background 0.3s;
-}
-.custom-slider::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  cursor: pointer;
-  transition: transform 0.15s ease-in-out;
-  box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
-}
-.custom-slider::-moz-range-thumb {
-  width: 16px;
-  height: 16px;
-  border: none;
-  border-radius: 50%;
-  cursor: pointer;
-  transition: transform 0.15s ease-in-out;
-  box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
-}
-.custom-slider:active::-webkit-slider-thumb {
-  transform: scale(1.3);
-}
-.custom-slider:active::-moz-range-thumb {
-  transform: scale(1.3);
-}
-
-.emerald-slider::-webkit-slider-thumb {
-  background: #10b981;
-}
-.emerald-slider::-moz-range-thumb {
-  background: #10b981;
-}
-.blue-slider::-webkit-slider-thumb {
-  background: #3b82f6;
-}
-.blue-slider::-moz-range-thumb {
-  background: #3b82f6;
-}
-.cyan-slider::-webkit-slider-thumb {
-  background: #06b6d4;
-}
-.cyan-slider::-moz-range-thumb {
-  background: #06b6d4;
 }
 </style>

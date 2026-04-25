@@ -113,25 +113,6 @@
           </button>
         </div>
       </div>
-
-      <div class="pt-4 border-t border-[#333]">
-        <h3 class="text-sm font-bold text-cyan-400 mb-3 m-0">📊 Metrics (metrics)</h3>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-          <div class="bg-black/40 border border-[#333] rounded p-3">
-            <p class="m-0 text-gray-400 mb-2">Lokalne</p>
-            <p class="m-0 text-white">FPS: {{ webRtcStore.localMetrics?.fps ?? '-' }}</p>
-            <p class="m-0 text-white">RTT: {{ webRtcStore.localMetrics?.rttMs ?? '-' }} ms</p>
-            <p class="m-0 text-white">CPU: {{ webRtcStore.localMetrics?.cpuLoadPct ?? '-' }}%</p>
-          </div>
-
-          <div class="bg-black/40 border border-[#333] rounded p-3">
-            <p class="m-0 text-gray-400 mb-2">Zdalne</p>
-            <p class="m-0 text-white">FPS: {{ webRtcStore.remoteMetrics?.fps ?? '-' }}</p>
-            <p class="m-0 text-white">RTT: {{ webRtcStore.remoteMetrics?.rttMs ?? '-' }} ms</p>
-            <p class="m-0 text-white">CPU: {{ webRtcStore.remoteMetrics?.cpuLoadPct ?? '-' }}%</p>
-          </div>
-        </div>
-      </div>
     </div>
   </div>
 </template>
