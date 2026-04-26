@@ -121,8 +121,7 @@ const stopMeter = (): void => {
 const tick = (): void => {
   const analyser = getEffectiveAnalyser()
   if (!analyser) {
-    const shouldRetry =
-      props.contextMode === 'auto-mic' && (props.enabled ?? true) && (props.isCapturing ?? false)
+    const shouldRetry = props.enabled ?? true
     if (!shouldRetry) {
       stopAnimationLoop()
     }
