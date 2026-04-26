@@ -287,30 +287,49 @@ export class ScreenService {
 
     this.isProcessingFrame = true
 
-    const framePayload = {
-      width,
-      height,
-      stride,
-      format,
-      buffer
-    }
+    // Wydzielamy czysty ArrayBuffer z Node.js Buffer / Uint8Array.
+    // slice() na ArrayBuffer tworzy kopię, co zapobiega problemom z współdzieleniem pamięci capturera,
+    // a następnie przenosimy (transfer) go do Renderera bez kopiowania przez mostek IPC (Zero-copy).
+    const arrayBuffer = buffer.buffer.slice(
+      buffer.byteOffset,
+      buffer.byteOffset + buffer.byteLength
+    )
 
-    let sentCount = 0
-    this.activeFrames.forEach(({ wc }) => {
+    let sent = 0
+
+    for (let i = 0; i < this.activeFrames.length; i++) {
+      const { wc } = this.activeFrames[i]
       if (!wc.isDestroyed()) {
         try {
-          wc.send('capture:raw-frame', framePayload)
-          sentCount++
+          // Obiekty Transferable mogą być przeniesione tylko raz.
+          // W przypadku wielu okien, klonujemy bufor dla wszystkich poza ostatnim,
+          // aby każde okno otrzymało własną instancję bufora bez blokowania pozostałych.
+          const isLast = i === this.activeFrames.length - 1
+          const bufferToTransfer = isLast ? arrayBuffer : arrayBuffer.slice(0)
+
+          const payload = {
+            width: frame.width,
+            height: frame.height,
+            stride: frame.stride,
+            format: frame.pixelFormat,
+            buffer: bufferToTransfer
+          }
+
+          // W procesie Main Electrona, metoda postMessage obsługuje transfer jedynie dla MessagePortMain.
+          // ArrayBuffer nie może być "transferowany" w ten sposób do Renderera (ograniczenie API Electrona).
+          // Dane zostaną przesłane automatycznie przy użyciu wydajnego algorytmu Structured Clone.
+          wc.postMessage('capture:raw-frame', payload)
+          sent++
         } catch (e) {
           console.warn('[Capture] Nie udało się wysłać surowej klatki:', e)
         }
       } else {
         console.debug('[Capture] Skipping destroyed webContents')
       }
-    })
+    }
 
     console.debug(
-      `[Capture] CPU frame sent to ${sentCount} of ${this.activeFrames.length} active frames`
+      `[Capture] CPU frame sent to ${sent} of ${this.activeFrames.length} active frames`
     )
 
     this.isProcessingFrame = false
