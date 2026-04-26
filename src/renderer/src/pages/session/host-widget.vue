@@ -83,31 +83,6 @@
       </button>
     </section>
 
-    <section v-if="isChatOpen" class="chat-panel" style="-webkit-app-region: no-drag">
-      <header class="chat-header">
-        <span>Rozmowa</span>
-        <button type="button" class="chat-close" @click="isChatOpen = false">Zamknij</button>
-      </header>
-
-      <div class="chat-messages">
-        <p v-if="chatMessages.length === 0" class="chat-empty">Brak wiadomości</p>
-        <p v-for="(msg, index) in chatMessages" :key="`${index}-${msg}`" class="chat-line">
-          {{ msg }}
-        </p>
-      </div>
-
-      <form class="chat-form" @submit.prevent="sendChatMessage">
-        <input
-          ref="chatInputRef"
-          v-model="chatInput"
-          type="text"
-          class="chat-input"
-          placeholder="Napisz wiadomość..."
-        />
-        <button type="submit" class="chat-send">Wyślij</button>
-      </form>
-    </section>
-
     <div v-if="isGuestLockedOut" class="lockout-progress">
       <div class="lockout-fill" :style="{ width: `${lockoutProgress}%` }" />
     </div>
@@ -115,8 +90,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
-import { useChatChannel } from '@renderer/composables/channels/ChatChannel'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 
 type WidgetCommand =
   | 'REQUEST_STATE'
@@ -132,11 +106,6 @@ const state = ref({
 })
 
 const isChatOpen = ref(false)
-const chatInput = ref('')
-const chatInputRef = ref<HTMLInputElement | null>(null)
-
-const chatChannel = useChatChannel()
-const chatMessages = computed(() => chatChannel.chatMessages.value)
 
 const LOCKOUT_DURATION_MS = 3000
 const isGuestLockedOut = ref(false)
@@ -176,19 +145,12 @@ const handleHostLockout = (_event, data: { active: boolean; until: number }): vo
   if (!data.active) stopTimer()
 }
 
-const toggleChat = (): void => {
-  isChatOpen.value = !isChatOpen.value
-  if (isChatOpen.value) {
-    void nextTick(() => chatInputRef.value?.focus())
+const toggleChat = async (): Promise<void> => {
+  try {
+    isChatOpen.value = await window.api.app.toggleHostWidgetChat()
+  } catch (error) {
+    console.error('Nie udało się przełączyć okna czatu widgetu:', error)
   }
-}
-
-const sendChatMessage = (): void => {
-  const text = chatInput.value.trim()
-  if (!text) return
-
-  chatChannel.sendChatMessage(text, 'Host')
-  chatInput.value = ''
 }
 
 const sendCommand = (actionType: WidgetCommand): void => {
@@ -359,90 +321,6 @@ onUnmounted(() => {
   background: rgba(255, 107, 107, 0.15);
 }
 
-.chat-panel {
-  position: absolute;
-  top: 66px;
-  right: 0;
-  width: 320px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  background: linear-gradient(180deg, rgba(30, 22, 50, 0.97), rgba(20, 13, 36, 0.97));
-  box-shadow: 0 18px 32px rgba(7, 5, 15, 0.5);
-  padding: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  animation: pop-in 0.18s ease-out;
-}
-
-.chat-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.chat-close {
-  border: none;
-  background: transparent;
-  color: #c8b8ee;
-  font-size: 11px;
-}
-
-.chat-messages {
-  height: 130px;
-  overflow-y: auto;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  padding: 8px;
-}
-
-.chat-empty {
-  font-size: 11px;
-  color: rgba(224, 214, 255, 0.6);
-}
-
-.chat-line {
-  margin: 0 0 4px;
-  font-size: 11px;
-  color: #ece5ff;
-  word-break: break-word;
-}
-
-.chat-form {
-  display: flex;
-  gap: 6px;
-}
-
-.chat-input {
-  flex: 1;
-  height: 32px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  background: rgba(255, 255, 255, 0.08);
-  color: #fff;
-  padding: 0 8px;
-  font-size: 12px;
-}
-
-.chat-input:focus {
-  outline: none;
-  border-color: rgba(124, 228, 255, 0.9);
-}
-
-.chat-send {
-  height: 32px;
-  border-radius: 8px;
-  border: 1px solid rgba(124, 228, 255, 0.65);
-  background: rgba(124, 228, 255, 0.18);
-  color: #dff8ff;
-  padding: 0 10px;
-  font-size: 12px;
-  font-weight: 600;
-}
-
 .lockout-progress {
   position: absolute;
   left: 10px;
@@ -459,16 +337,5 @@ onUnmounted(() => {
   border-radius: inherit;
   background: linear-gradient(90deg, #ffcf5c 0%, #ff7b4e 100%);
   transition: width 75ms linear;
-}
-
-@keyframes pop-in {
-  from {
-    opacity: 0;
-    transform: translateY(-6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
 </style>
