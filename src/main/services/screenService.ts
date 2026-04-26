@@ -145,12 +145,6 @@ export class ScreenService {
   // Callback wywoływany dla każdej nowej klatki
   // ------------------------------------------------------------------
   private handleFrame = (frame: FrameUpdate): void => {
-    // Nie przetwarzamy, jeśli poprzednia klatka jeszcze się kończy
-    if (this.isProcessingFrame) {
-      console.debug('[Capture] Skipping frame - previous frame still processing')
-      return
-    }
-
     const beforeFilter = this.activeFrames.length
     // Oczyszczamy listę aktywnych ramek
     this.activeFrames = this.activeFrames.filter(({ frame, wc }) => {
@@ -209,7 +203,6 @@ export class ScreenService {
       }
 
       console.debug('[Capture] Importing shared texture and sending to frames...')
-      this.isProcessingFrame = true
       try {
         const importedTexture = sharedTexture.importSharedTexture({
           textureInfo: info as Electron.SharedTextureImportTextureInfo
@@ -250,11 +243,9 @@ export class ScreenService {
             } catch (e) {
               console.error('[Capture] Błąd przy release() importedTexture:', e)
             }
-            this.isProcessingFrame = false
           })
       } catch (e) {
         console.error('[Capture] Główny błąd importSharedTexture:', e)
-        this.isProcessingFrame = false
       }
 
       return
