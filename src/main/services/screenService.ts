@@ -2,8 +2,17 @@
 import { desktopCapturer, ipcMain, sharedTexture, WebFrameMain } from 'electron'
 import { IScreenCapture, ScreenCapture } from '@maciejwojs/screen-capture'
 
+interface IScreenCaptureCompat extends IScreenCapture {
+  getFps?: () => number | Promise<number>
+  getPixelData?: () => Buffer | Uint8Array | null
+  getWidth?: () => number
+  getHeight?: () => number
+  getStride?: () => number
+  getPixelFormat?: () => number
+}
+
 export class ScreenService {
-  private capturer: IScreenCapture | null = null
+  private capturer: IScreenCaptureCompat | null = null
   private captureInterval: NodeJS.Timeout | null = null
   private activeFrames: { frame: WebFrameMain; wc: Electron.WebContents }[] = []
   private isProcessingFrame = false
@@ -83,7 +92,7 @@ export class ScreenService {
 
   private async startCapture(): Promise<void> {
     if (!this.capturer) {
-      this.capturer = new ScreenCapture({ disableLogging: true })
+      this.capturer = new ScreenCapture() as IScreenCaptureCompat
     }
     this.capturer.start()
 
