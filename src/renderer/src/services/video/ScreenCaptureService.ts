@@ -55,6 +55,11 @@ export class ScreenCaptureService {
             return
           }
 
+          if (!this.writer) {
+            frameData.close()
+            return
+          }
+
           if (this.writer?.desiredSize !== null && this.writer!.desiredSize <= 0) {
             frameData.close()
             return
