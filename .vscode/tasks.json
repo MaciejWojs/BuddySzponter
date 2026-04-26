@@ -89,7 +89,8 @@
       },
       "problemMatcher": ["$tsc"],
       "presentation": {
-        "reveal": "silent"
+        "reveal": "always",
+        "focus": true
       },
       "dependsOn": ["cleanup", "install dependencies"],
       "dependsOrder": "sequence",
