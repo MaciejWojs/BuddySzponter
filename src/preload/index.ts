@@ -219,15 +219,18 @@ const dispatchFrame = (frame: VideoFrame): void => {
     return
   }
 
-  // Iterujemy po konsumentach, klonując klatkę dla każdego poza ostatnim
-  for (let i = 0; i < consumers.length; i++) {
-    const isLast = i === consumers.length - 1
-    const frameToDeliver = isLast ? frame : frame.clone()
-    try {
-      consumers[i]!(frameToDeliver)
-    } catch (e) {
-      console.error('[Preload] Error delivering frame:', e)
-      frameToDeliver.close()
+  if (consumers.length === 1) {
+    consumers[0](frame)
+  } else {
+    for (let i = 0; i < consumers.length; i++) {
+      const isLast = i === consumers.length - 1
+      const frameToDeliver = isLast ? frame : frame.clone()
+      try {
+        consumers[i]!(frameToDeliver)
+      } catch (e) {
+        console.error('[Preload] Error delivering frame:', e)
+        frameToDeliver.close()
+      }
     }
   }
 }
@@ -286,13 +289,19 @@ ipcRenderer.on('capture:raw-frame', async (_, rawFrame: RawFramePayload) => {
       )
     }
 
-    const imageData = new ImageData(
-      pixelData as unknown as ImageDataArray,
-      rawFrame.width,
-      rawFrame.height
-    )
-    const bitmap = await createImageBitmap(imageData)
-    const frame = new VideoFrame(bitmap, { timestamp: performance.now() * 1000 })
+    // const imageData = new ImageData(
+    //   pixelData as unknown as ImageDataArray,
+    //   rawFrame.width,
+    //   rawFrame.height
+    // )
+    // const bitmap = await createImageBitmap(imageData)
+    // const frame = new VideoFrame(bitmap, { timestamp: performance.now() * 1000 })
+    const frame = new VideoFrame(pixelData, {
+      format: 'RGBA',
+      codedWidth: rawFrame.width,
+      codedHeight: rawFrame.height,
+      timestamp: performance.now() * 1000
+    })
 
     dispatchFrame(frame)
   } catch (e) {
