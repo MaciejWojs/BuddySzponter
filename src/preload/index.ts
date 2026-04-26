@@ -161,6 +161,7 @@ const api = {
     quitApp: (): Promise<void> => ipcRenderer.invoke('quit-app'),
     showHostWidget: (): Promise<void> => ipcRenderer.invoke('show-host-widget'),
     hideHostWidget: (): Promise<void> => ipcRenderer.invoke('hide-host-widget'),
+    toggleHostWidgetChat: (): Promise<boolean> => ipcRenderer.invoke('host-widget-chat:toggle'),
     resizeToVideoRatio: (width: number, height: number) =>
       ipcRenderer.invoke('app:resize-to-video-ratio', width, height),
     resetAspectRatio: () => ipcRenderer.invoke('app:reset-aspect-ratio'),
