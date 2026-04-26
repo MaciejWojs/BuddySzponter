@@ -247,16 +247,37 @@ const registerSharedTextureReceiver = (): void => {
 
 try {
   sharedTexture.setSharedTextureReceiver(async (data) => {
+    let released = false
+    const releaseTexture = (): void => {
+      if (!released) {
+        released = true
+        try {
+          data.importedSharedTexture.release()
+        } catch {
+          // ignorujemy błędy zwalniania tekstury
+        }
+      }
+    }
+
     try {
       const frame = data.importedSharedTexture.getVideoFrame()
       if (frame) {
+        const originalClose = frame.close.bind(frame)
+        frame.close = () => {
+          try {
+            originalClose()
+          } catch {
+            // ignorujemy błędy zamykania klatki
+          }
+          releaseTexture()
+        }
         dispatchFrame(frame)
+      } else {
+        releaseTexture()
       }
     } catch (e) {
       console.error('[Preload] Odbiór klatki sharedTexture:', e)
-    } finally {
-      // Must release the shared texture regardless
-      data.importedSharedTexture.release()
+      releaseTexture()
     }
   })
 } catch (e) {
