@@ -133,6 +133,32 @@
         "kind": "build",
         "isDefault": true
       }
+    },
+    {
+      "label": "full remove dependencies",
+      "type": "shell",
+      "detail": "Removes node_modules and lockfile",
+      "dependsOn": ["remove dependencies"],
+      "windows": {
+        "options": {
+          "shell": {
+            "executable": "powershell.exe"
+          }
+        },
+        "command": "Remove-Item -Recurse -Force bun.lock -ErrorAction SilentlyContinue; echo 'Removed node_modules and bun.lock'"
+      },
+      "linux": {
+        "command": "rm -rf bun.lock"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "silent",
+        "close": true
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
     }
   ]
 }
