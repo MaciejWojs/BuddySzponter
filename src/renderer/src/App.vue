@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, onUnmounted, watch } from 'vue' // <-- DODANO IMPORTY
-import { useRouter } from 'vue-router' // <-- DODANO IMPORT
+import { computed, onUnmounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { useSettingsStore } from '@renderer/stores/settingsStore'
 import { useUserStore } from './stores/userStore'
 import { useSocketStore } from '@renderer/stores/socketStore'
+import { useDeviceStore } from './stores/deviceStore'
 import { useAudioMixer } from './services/audio/out/useAudioMixer'
 import WidgetControlListener from '@renderer/components/p2p/WidgetControlListener.vue'
 import { useWebRtcStore } from './stores/webRtcStore'
@@ -18,10 +19,12 @@ const connectionStore = useConnectionStore()
 const settingsStore = useSettingsStore()
 const socketStore = useSocketStore()
 const userStore = useUserStore()
+const deviceStore = useDeviceStore()
 
 settingsStore.initSettings()
 socketStore.init()
 userStore.initSession()
+deviceStore.refreshMicrophones()
 useAudioMixer()
 useWidgetBridge()
 
