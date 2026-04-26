@@ -109,7 +109,7 @@ export class WebRTCService {
       this.videoTransceiver = this.peerConnection.addTransceiver('video', { direction: 'sendonly' })
       this.micTransceiver = this.peerConnection.addTransceiver('audio', { direction: 'sendrecv' })
       this.systemTransceiver = this.peerConnection.addTransceiver('audio', {
-        direction: 'sendrecv'
+        direction: 'sendonly'
       })
 
       const capabilities = RTCRtpReceiver.getCapabilities('video')
@@ -132,7 +132,28 @@ export class WebRTCService {
     this.peerConnection.ondatachannel = (e): void => this.setupChannel(e.channel)
 
     this.peerConnection.ontrack = (event): void => {
-      const hint = event.track.contentHint
+      let hint = event.track.contentHint
+
+      if (!hint || hint === '') {
+        if (this.isHost) {
+          if (event.transceiver === this.micTransceiver) hint = 'speech'
+        } else {
+          const audioTransceivers =
+            this.peerConnection
+              ?.getTransceivers()
+              .filter((t) => t.receiver.track.kind === 'audio') || []
+          if (event.transceiver === audioTransceivers[0]) hint = 'speech'
+          else if (event.transceiver === audioTransceivers[1]) hint = 'music'
+        }
+        if (hint && event.track.kind === 'audio') {
+          try {
+            event.track.contentHint = hint
+          } catch (e) {
+            console.warn('[WebRTCService] Nie można ustawić contentHint dla ścieżki:', e)
+          }
+        }
+      }
+
       const role: RemoteTrackRole =
         hint === 'speech' ? 'speech' : hint === 'music' ? 'music' : 'unknown'
 
@@ -318,6 +339,16 @@ export class WebRTCService {
     policy: LocalTrackPolicy
   ): Promise<RTCSessionDescriptionInit> {
     await this.peerConnection!.setRemoteDescription(new RTCSessionDescription(offer))
+
+    if (!this.isHost) {
+      const audioTransceivers = this.peerConnection!.getTransceivers().filter(
+        (t) => t.receiver.track.kind === 'audio'
+      )
+      if (audioTransceivers[0])
+        audioTransceivers[0].direction = policy.allowMicrophoneAudio ? 'sendrecv' : 'recvonly'
+      if (audioTransceivers[1])
+        audioTransceivers[1].direction = policy.allowSystemAudio ? 'sendrecv' : 'recvonly'
+    }
 
     if (localStream) this.publishLocalStream(localStream, policy)
 
