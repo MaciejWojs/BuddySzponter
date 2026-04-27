@@ -92,7 +92,7 @@
       </button>
     </section>
 
-    <div v-if="isGuestLockedOut" class="lockout-progress">
+    <div v-if="isGuestLockedOut && !isManualGuestLock" class="lockout-progress">
       <div class="lockout-fill" :style="{ width: `${lockoutProgress}%` }" />
     </div>
   </main>
