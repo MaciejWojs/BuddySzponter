@@ -11,6 +11,7 @@ export class ScreenService {
   private lastSharedTextureInfoSignature: string | null = null
   private lastSharedTextureWarning: 'noInfo' | 'noHandle' | null = null
   private useCpuPath = false
+  private cachedSharedTexture: ReturnType<typeof sharedTexture.importSharedTexture> | null = null
 
   private constructor() {
     console.log('[ScreenService] Initializing service...')
@@ -135,10 +136,26 @@ export class ScreenService {
       this.capturer = null
     }
 
+    this.releaseCachedSharedTexture()
+
     const framesCount = this.activeFrames.length
     this.activeFrames = []
     this.isProcessingFrame = false
     console.log(`[ScreenService] Capture stopped, cleared ${framesCount} active frames`)
+  }
+
+  private releaseCachedSharedTexture(): void {
+    if (!this.cachedSharedTexture) return
+
+    try {
+      this.cachedSharedTexture.release()
+      console.debug('[Capture] Released cached shared texture')
+    } catch (e) {
+      console.error('[Capture] Błąd przy release() cached shared texture:', e)
+    } finally {
+      this.cachedSharedTexture = null
+      this.lastSharedTextureInfoSignature = null
+    }
   }
 
   // ------------------------------------------------------------------
@@ -180,6 +197,7 @@ export class ScreenService {
       }
 
       if (!info.handle) {
+        this.releaseCachedSharedTexture()
         this.useCpuPath = true
         if (this.lastSharedTextureWarning !== 'noHandle') {
           console.warn('[Capture] Otrzymano info o sharedTexture, ale brak handle:', {
@@ -204,11 +222,25 @@ export class ScreenService {
 
       console.debug('[Capture] Importing shared texture and sending to frames...')
       try {
-        const importedTexture = sharedTexture.importSharedTexture({
-          textureInfo: info as Electron.SharedTextureImportTextureInfo
-        })
-        console.debug('[Capture] Shared texture imported successfully')
+        const isNewTexture =
+          currentSignature !== this.lastSharedTextureInfoSignature || !this.cachedSharedTexture
 
+        if (isNewTexture) {
+          this.releaseCachedSharedTexture()
+          this.cachedSharedTexture = sharedTexture.importSharedTexture({
+            textureInfo: info as Electron.SharedTextureImportTextureInfo
+          })
+          this.lastSharedTextureInfoSignature = currentSignature
+          console.debug('[Capture] Shared texture imported successfully')
+        }
+
+        if (!this.cachedSharedTexture) {
+          console.warn('[Capture] Brak zaimportowanej sharedTexture, przechodzę do CPU fallback')
+          this.sendCpuFrame(frame)
+          return
+        }
+
+        const importedTexture = this.cachedSharedTexture
         const sends = this.activeFrames.map(({ frame }) => {
           try {
             return sharedTexture.sendSharedTexture({
@@ -223,29 +255,21 @@ export class ScreenService {
         })
 
         console.debug(`[Capture] Sending shared texture to ${sends.length} frames`)
-        void Promise.allSettled(sends)
-          .then((results) => {
-            const allFailed = results.every((r) => r.status === 'rejected')
-            if (allFailed) {
-              const firstError = results.find((r) => r.status === 'rejected')
-              console.error('[Capture] Błąd wysyłania sharedTexture do ramki:', firstError)
-            } else {
-              const succeeded = results.filter((r) => r.status === 'fulfilled').length
-              console.debug(
-                `[Capture] Shared texture sent: ${succeeded} succeeded, ${results.length - succeeded} failed`
-              )
-            }
-          })
-          .finally(() => {
-            try {
-              importedTexture.release()
-              console.debug('[Capture] Imported texture released')
-            } catch (e) {
-              console.error('[Capture] Błąd przy release() importedTexture:', e)
-            }
-          })
+        void Promise.allSettled(sends).then((results) => {
+          const allFailed = results.every((r) => r.status === 'rejected')
+          if (allFailed) {
+            const firstError = results.find((r) => r.status === 'rejected')
+            console.error('[Capture] Błąd wysyłania sharedTexture do ramki:', firstError)
+          } else {
+            const succeeded = results.filter((r) => r.status === 'fulfilled').length
+            console.debug(
+              `[Capture] Shared texture sent: ${succeeded} succeeded, ${results.length - succeeded} failed`
+            )
+          }
+        })
       } catch (e) {
         console.error('[Capture] Główny błąd importSharedTexture:', e)
+        this.releaseCachedSharedTexture()
       }
 
       return
@@ -253,6 +277,7 @@ export class ScreenService {
 
     // --- Fallback na CPU (surowe bajty) ---
     if (frame.pixelData) {
+      this.releaseCachedSharedTexture()
       console.debug('[Capture] No shared texture info, using CPU path (pixelData)')
       this.useCpuPath = true
       this.sendCpuFrame(frame)
@@ -312,6 +337,7 @@ export class ScreenService {
             height: frame.height,
             stride: frame.stride,
             format: frame.pixelFormat,
+            timestamp: frame.timestamp,
             buffer: bufferToTransfer
           }
 

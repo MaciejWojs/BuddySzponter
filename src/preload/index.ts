@@ -304,8 +304,15 @@ try {
     }
 
     try {
-      const frame = data.importedSharedTexture.getVideoFrame()
+      let frame = data.importedSharedTexture.getVideoFrame()
       if (frame) {
+        if (typeof frame.timestamp !== 'number' || frame.timestamp === 0) {
+          const normalizedFrame = new VideoFrame(frame, {
+            timestamp: performance.now() * 1000
+          })
+          frame.close()
+          frame = normalizedFrame
+        }
         const wrappedFrame = wrapFrameWithRelease(frame, releaseTexture)
         dispatchFrame(wrappedFrame)
       } else {
@@ -326,6 +333,7 @@ interface RawFramePayload {
   height: number
   stride: number
   format: number
+  timestamp: number
 }
 
 ipcRenderer.on('capture:raw-frame', async (_, rawFrame: RawFramePayload) => {
@@ -357,7 +365,7 @@ ipcRenderer.on('capture:raw-frame', async (_, rawFrame: RawFramePayload) => {
       format: 'RGBA',
       codedWidth: rawFrame.width,
       codedHeight: rawFrame.height,
-      timestamp: performance.now() * 1000
+      timestamp: rawFrame.timestamp
     })
 
     dispatchFrame(frame)

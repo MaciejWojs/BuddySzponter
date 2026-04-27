@@ -455,6 +455,8 @@ export class WebRTCService {
     try {
       const params = videoSender.getParameters()
 
+      params.degradationPreference = 'maintain-resolution'
+
       if (!params.encodings || params.encodings.length === 0) {
         params.encodings = [{}]
       }
