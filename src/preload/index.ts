@@ -200,6 +200,46 @@ const api = {
   }
 }
 
+const sharedTextureReleaseSymbol = Symbol('sharedTextureRelease')
+
+type VideoFrameWithRelease = VideoFrame & {
+  [sharedTextureReleaseSymbol]?: () => void
+}
+
+const frameFinalizer = new FinalizationRegistry<() => void>((releaseTexture) => {
+  try {
+    releaseTexture()
+  } catch {
+    // ignore finalizer errors
+  }
+})
+
+const registerFrameFinalizer = (frame: VideoFrame, releaseTexture: () => void): void => {
+  frameFinalizer.register(frame, releaseTexture, frame)
+}
+
+const wrapFrameWithRelease = (frame: VideoFrame, releaseTexture: () => void): VideoFrame => {
+  let closed = false
+  const originalClose = frame.close.bind(frame)
+  const wrappedFrame = frame as VideoFrameWithRelease
+
+  wrappedFrame[sharedTextureReleaseSymbol] = releaseTexture
+  wrappedFrame.close = (): void => {
+    if (closed) return
+    closed = true
+    frameFinalizer.unregister(wrappedFrame)
+    try {
+      originalClose()
+    } catch {
+      // ignore close errors
+    }
+    releaseTexture()
+  }
+
+  registerFrameFinalizer(wrappedFrame, releaseTexture)
+  return wrappedFrame
+}
+
 const frameConsumers = new Set<(frame: VideoFrame) => void>()
 
 const addFrameConsumer = (callback: (frame: VideoFrame) => void): (() => void) => {
@@ -219,20 +259,22 @@ const dispatchFrame = (frame: VideoFrame): void => {
     return
   }
 
-  const [firstConsumer, ...otherConsumers] = consumers
-  try {
-    firstConsumer(frame)
-  } catch (e) {
-    console.error('[Preload] Error delivering frame to consumer:', e)
-  }
-
-  for (const consumer of otherConsumers) {
-    const clonedFrame = frame.clone()
-    try {
-      consumer(clonedFrame)
-    } catch (e) {
-      console.error('[Preload] Error delivering cloned frame to consumer:', e)
-      clonedFrame.close()
+  if (consumers.length === 1) {
+    consumers[0](frame)
+  } else {
+    for (let i = 0; i < consumers.length; i++) {
+      const isLast = i === consumers.length - 1
+      let frameToDeliver = isLast ? frame : frame.clone()
+      const releaseTexture = (frame as VideoFrameWithRelease)[sharedTextureReleaseSymbol]
+      if (releaseTexture) {
+        frameToDeliver = wrapFrameWithRelease(frameToDeliver, releaseTexture)
+      }
+      try {
+        consumers[i]!(frameToDeliver)
+      } catch (e) {
+        console.error('[Preload] Error delivering frame:', e)
+        frameToDeliver.close()
+      }
     }
   }
 }
@@ -249,16 +291,36 @@ const registerSharedTextureReceiver = (): void => {
 
 try {
   sharedTexture.setSharedTextureReceiver(async (data) => {
+    let released = false
+    const releaseTexture = (): void => {
+      if (!released) {
+        released = true
+        try {
+          data.importedSharedTexture.release()
+        } catch {
+          // ignorujemy błędy zwalniania tekstury
+        }
+      }
+    }
+
     try {
-      const frame = data.importedSharedTexture.getVideoFrame()
+      let frame = data.importedSharedTexture.getVideoFrame()
       if (frame) {
-        dispatchFrame(frame)
+        if (typeof frame.timestamp !== 'number' || frame.timestamp === 0) {
+          const normalizedFrame = new VideoFrame(frame, {
+            timestamp: performance.now() * 1000
+          })
+          frame.close()
+          frame = normalizedFrame
+        }
+        const wrappedFrame = wrapFrameWithRelease(frame, releaseTexture)
+        dispatchFrame(wrappedFrame)
+      } else {
+        releaseTexture()
       }
     } catch (e) {
       console.error('[Preload] Odbiór klatki sharedTexture:', e)
-    } finally {
-      // Must release the shared texture regardless
-      data.importedSharedTexture.release()
+      releaseTexture()
     }
   })
 } catch (e) {
@@ -271,6 +333,7 @@ interface RawFramePayload {
   height: number
   stride: number
   format: number
+  timestamp: number
 }
 
 ipcRenderer.on('capture:raw-frame', async (_, rawFrame: RawFramePayload) => {
@@ -291,13 +354,19 @@ ipcRenderer.on('capture:raw-frame', async (_, rawFrame: RawFramePayload) => {
       )
     }
 
-    const imageData = new ImageData(
-      pixelData as unknown as ImageDataArray,
-      rawFrame.width,
-      rawFrame.height
-    )
-    const bitmap = await createImageBitmap(imageData)
-    const frame = new VideoFrame(bitmap, { timestamp: performance.now() * 1000 })
+    // const imageData = new ImageData(
+    //   pixelData as unknown as ImageDataArray,
+    //   rawFrame.width,
+    //   rawFrame.height
+    // )
+    // const bitmap = await createImageBitmap(imageData)
+    // const frame = new VideoFrame(bitmap, { timestamp: performance.now() * 1000 })
+    const frame = new VideoFrame(pixelData, {
+      format: 'RGBA',
+      codedWidth: rawFrame.width,
+      codedHeight: rawFrame.height,
+      timestamp: rawFrame.timestamp
+    })
 
     dispatchFrame(frame)
   } catch (e) {

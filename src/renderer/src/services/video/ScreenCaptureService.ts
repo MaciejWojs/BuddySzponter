@@ -7,6 +7,11 @@ export class ScreenCaptureService {
 
   private writer: WritableStreamDefaultWriter<VideoFrame> | null = null
   private track: MediaStreamTrack | null = null
+  private pendingFrame: VideoFrame | null = null
+  private isWritingFrame = false
+  private backpressureRetryTimer: number | null = null
+  private lastFrameTime = 0
+  private frameInterval = 0
 
   public async startSharedTextureCapture(
     captureFps: number,
@@ -15,12 +20,7 @@ export class ScreenCaptureService {
     micTrack: MediaStreamTrack | null
   ): Promise<MediaStream | null> {
     try {
-      const useCpuCapture =
-        typeof window.screenCapture.shouldUseCpu === 'function'
-          ? await window.screenCapture.shouldUseCpu()
-          : false
-
-      if (!useCpuCapture && typeof window.screenCapture.registerReceiver === 'function') {
+      if (typeof window.screenCapture.registerReceiver === 'function') {
         window.screenCapture.registerReceiver()
       }
 
@@ -41,35 +41,12 @@ export class ScreenCaptureService {
 
       this.writer = generator.writable.getWriter()
       this.track = generator
-
-      let lastFrameTime = 0
-      const frameInterval = 1000 / (captureFps || 60)
+      this.lastFrameTime = 0
+      this.frameInterval = 1000 / Math.max(1, captureFps || 60)
 
       this.stopFrameSubscription?.()
       this.stopFrameSubscription = window.screenCapture.onFrameReceived((frameData) => {
-        try {
-          const now = performance.now()
-
-          if (now - lastFrameTime < frameInterval) {
-            frameData.close()
-            return
-          }
-
-          if (this.writer?.desiredSize !== null && this.writer!.desiredSize <= 0) {
-            frameData.close()
-            return
-          }
-
-          lastFrameTime = now
-
-          this.writer?.write(frameData).catch((writeError) => {
-            console.error('[ScreenCaptureService] Błąd zapisu klatki:', writeError)
-            if (frameData && typeof frameData.close === 'function') frameData.close()
-          })
-        } catch (e) {
-          console.error('[ScreenCaptureService] Błąd w pętli renderowania:', e)
-          if (frameData && typeof frameData.close === 'function') frameData.close()
-        }
+        this.handleIncomingFrame(frameData)
       })
 
       this.sharedTextureStream = await videoService.startWithExternalVideoTrack(generator, {
@@ -97,6 +74,22 @@ export class ScreenCaptureService {
       window.screenCapture.stopStream()
     }
 
+    if (this.backpressureRetryTimer !== null) {
+      clearTimeout(this.backpressureRetryTimer)
+      this.backpressureRetryTimer = null
+    }
+
+    if (this.pendingFrame) {
+      try {
+        this.pendingFrame.close()
+      } catch {
+        // ignore
+      }
+      this.pendingFrame = null
+    }
+
+    this.isWritingFrame = false
+
     if (this.writer) {
       this.writer.close().catch(() => {})
       this.writer = null
@@ -110,6 +103,92 @@ export class ScreenCaptureService {
     if (this.sharedTextureStream) {
       this.sharedTextureStream.getTracks().forEach((t) => t.stop())
       this.sharedTextureStream = null
+    }
+  }
+
+  private normalizeFrameTimestamp(frameData: VideoFrame): VideoFrame {
+    if (typeof frameData.timestamp === 'number' && frameData.timestamp > 0) {
+      return frameData
+    }
+
+    try {
+      const normalizedFrame = new VideoFrame(frameData, {
+        timestamp: performance.now() * 1000
+      })
+      frameData.close()
+      return normalizedFrame
+    } catch {
+      return frameData
+    }
+  }
+
+  private handleIncomingFrame(frameData: VideoFrame): void {
+    try {
+      if (!this.writer) {
+        frameData.close()
+        return
+      }
+
+      const now = performance.now()
+      if (now - this.lastFrameTime < this.frameInterval - 2) {
+        frameData.close()
+        return
+      }
+
+      this.lastFrameTime = now
+      frameData = this.normalizeFrameTimestamp(frameData)
+
+      if (this.pendingFrame) {
+        this.pendingFrame.close()
+      }
+      this.pendingFrame = frameData
+
+      if (!this.isWritingFrame) {
+        void this.flushPendingFrame()
+      }
+    } catch (e) {
+      console.error('[ScreenCaptureService] Błąd w pętli renderowania:', e)
+      try {
+        frameData.close()
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  private async flushPendingFrame(): Promise<void> {
+    if (!this.writer || this.isWritingFrame) return
+    if (!this.pendingFrame) return
+
+    const frameToWrite = this.pendingFrame
+    this.pendingFrame = null
+    this.isWritingFrame = true
+
+    try {
+      if (this.writer.desiredSize !== null && this.writer.desiredSize <= 0) {
+        this.pendingFrame = frameToWrite
+        if (this.backpressureRetryTimer === null) {
+          this.backpressureRetryTimer = window.setTimeout(() => {
+            this.backpressureRetryTimer = null
+            void this.flushPendingFrame()
+          }, 16)
+        }
+        return
+      }
+
+      await this.writer.write(frameToWrite)
+    } catch (writeError) {
+      console.error('[ScreenCaptureService] Błąd zapisu klatki:', writeError)
+    } finally {
+      try {
+        frameToWrite.close()
+      } catch {
+        // ignore
+      }
+      this.isWritingFrame = false
+      if (this.pendingFrame) {
+        void this.flushPendingFrame()
+      }
     }
   }
 }
