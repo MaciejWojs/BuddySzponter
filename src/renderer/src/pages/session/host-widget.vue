@@ -217,7 +217,7 @@ onUnmounted(() => {
 }
 
 .host-widget.is-lockout {
-  border-color: rgba(255, 173, 69, 0.9);
+  border-color: rgba(255, 255, 255, 0.92);
 }
 
 .status-wrap {
