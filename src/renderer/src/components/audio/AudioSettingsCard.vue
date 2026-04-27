@@ -18,16 +18,18 @@ interface VoicePresetOption {
 
 const webRtcStore = useWebRtcStore()
 const sessionStore = SessionStore()
-const { selectedMicrophoneDeviceId } = storeToRefs(sessionStore)
+const {
+  selectedMicrophoneDeviceId,
+  micLimiterEnabled,
+  micBassBoostEnabled,
+  micStudioModeEnabled,
+  micMonitoringEnabled,
+  micInputThresholdDb,
+  activeVoicePreset
+} = storeToRefs(sessionStore)
 
 const isMyMicMuted = ref(false)
-const micLimiterEnabled = ref(true)
-const micBassBoostEnabled = ref(false)
-const micStudioModeEnabled = ref(false)
-const micMonitoringEnabled = ref(false)
-const micInputThresholdDb = ref(-60)
 const isAutoGate = computed(() => micInputThresholdDb.value <= -60)
-const activeVoicePreset = ref<VoicePresetOption['id']>('none')
 
 const voicePresets: VoicePresetOption[] = [
   { id: 'none', label: 'Czysty' },

@@ -17,7 +17,8 @@ import {
   UploadAvatarResponse,
   CreateConnectionResponse,
   JoinConnectionResponse,
-  DesktopSource
+  DesktopSource,
+  AppAudioSettings
 } from '../shared/schemas/ipc'
 import {
   WsRequestAccess,
@@ -71,6 +72,12 @@ declare global {
         setLanguage: (lang: AppLanguage) => Promise<boolean>
         getTranslation: () => Promise<Translation>
         getHardwareId: () => Promise<string>
+        getMicrophoneDeviceId: () => Promise<string>
+        setMicrophoneDeviceId: (deviceId: string) => Promise<boolean>
+        getSpeakerDeviceId: () => Promise<string>
+        setSpeakerDeviceId: (deviceId: string) => Promise<boolean>
+        getAudioSettings: () => Promise<AppAudioSettings>
+        setAudioSettings: (settings: Partial<AppAudioSettings>) => Promise<boolean>
       }
       core: {
         getLocale: (lang: AppLanguage) => Promise<GetLocaleResponse>

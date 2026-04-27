@@ -19,16 +19,18 @@ interface VoicePresetOption {
 
 const webRtcStore = useWebRtcStore()
 const sessionStore = SessionStore()
-const { selectedMicrophoneDeviceId } = storeToRefs(sessionStore)
+const {
+  selectedMicrophoneDeviceId,
+  micLimiterEnabled,
+  micBassBoostEnabled,
+  micStudioModeEnabled,
+  micMonitoringEnabled,
+  micInputThresholdDb,
+  activeVoicePreset
+} = storeToRefs(sessionStore)
 
 const isMyMicMuted = ref(false)
-const micLimiterEnabled = ref(true)
-const micBassBoostEnabled = ref(false)
-const micStudioModeEnabled = ref(false)
-const micMonitoringEnabled = ref(false)
-const micInputThresholdDb = ref(-60)
 const isAutoGate = computed(() => micInputThresholdDb.value <= -60)
-const activeVoicePreset = ref<VoicePresetOption['id']>('none')
 
 const voicePresets: VoicePresetOption[] = [
   { id: 'none', label: 'Czysty' },
@@ -44,10 +46,6 @@ const limiterThresholdDb = computed<number>(() => (micLimiterEnabled.value ? -10
 const clampDb = (value: number, min = -60, max = 0): number => {
   if (!Number.isFinite(value)) return min
   return Math.max(min, Math.min(max, value))
-}
-
-const linearToDb = (linear: number): number => {
-  return clampDb(20 * Math.log10(Math.max(1e-8, linear)))
 }
 
 const dbToLinear = (db: number): number => {
@@ -72,8 +70,6 @@ const handleMicMuteStateChange = (isMuted: boolean): void => {
 }
 
 onMounted(() => {
-  micMonitoringEnabled.value = microphoneService.getLocalMonitoringEnabled()
-  micInputThresholdDb.value = clampDb(linearToDb(microphoneService.getInputThreshold()), -60, 0)
   clampMicThresholdToContext()
 
   microphoneService.setLimiter(micLimiterEnabled.value)

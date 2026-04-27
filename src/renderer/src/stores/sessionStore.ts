@@ -18,6 +18,12 @@ export const SessionStore = defineStore('session', () => {
   const includeMicrophone = ref(true)
   const availableMicrophones = ref<Array<{ deviceId: string; label: string }>>([])
   const selectedMicrophoneDeviceId = ref<string>('')
+  const micLimiterEnabled = ref(true)
+  const micBassBoostEnabled = ref(false)
+  const micStudioModeEnabled = ref(false)
+  const micMonitoringEnabled = ref(false)
+  const micInputThresholdDb = ref(-60)
+  const activeVoicePreset = ref<'none' | 'studio' | 'high' | 'robot' | 'demon' | 'radio'>('none')
 
   const sharedTextureStream = shallowRef<MediaStream | null>(null)
   const currentCaptureMode = ref<'host-shared' | 'host-native' | 'guest-mic' | null>(null)
@@ -342,6 +348,12 @@ export const SessionStore = defineStore('session', () => {
     includeMicrophone,
     availableMicrophones,
     selectedMicrophoneDeviceId,
+    micLimiterEnabled,
+    micBassBoostEnabled,
+    micStudioModeEnabled,
+    micMonitoringEnabled,
+    micInputThresholdDb,
+    activeVoicePreset,
     isCapturing,
     startCapture,
     stopCapture,

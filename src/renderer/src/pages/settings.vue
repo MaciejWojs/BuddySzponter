@@ -38,7 +38,9 @@ const currentVersion = ref('-')
 const isRefreshingVersions = ref(false)
 const displayName = ref('')
 const displayNameDraft = ref('')
+const guestDisplayName = ref('Pseudonim')
 const isEditingDisplayName = ref(false)
+const isViewSettingsHydrated = ref(false)
 const activeTopNav = ref('settings')
 
 const topNavItems: NavBarItem[] = [
@@ -56,7 +58,7 @@ const topNavItems: NavBarItem[] = [
   }
 ]
 
-const defaultDisplayName = computed(() => currentUser.value?.nickname || 'Pseudonim')
+const defaultDisplayName = computed(() => currentUser.value?.nickname || guestDisplayName.value)
 const isDisplayNameDirty = computed(
   () => displayNameDraft.value.trim() !== '' && displayNameDraft.value.trim() !== displayName.value
 )
@@ -91,11 +93,49 @@ function startDisplayNameEdit(): void {
 function saveDisplayName(): void {
   if (!isEditingDisplayName.value) return
   const nextValue = displayNameDraft.value.trim() || defaultDisplayName.value
+
+  if (!currentUser.value) {
+    guestDisplayName.value = nextValue
+  }
+
   displayName.value = nextValue
   isEditingDisplayName.value = false
 }
 
-onMounted(() => {
+const hydrateViewSettings = async (): Promise<void> => {
+  try {
+    const savedSettings = await window.api.settings.getAudioSettings()
+
+    guestDisplayName.value = savedSettings.guestDisplayName?.trim() || 'Pseudonim'
+    accelerationEnabled.value = savedSettings.accelerationEnabled ?? true
+    remoteCursorEnabled.value = savedSettings.remoteCursorEnabled ?? true
+    autoRecordEnabled.value = savedSettings.autoRecordEnabled ?? true
+    allowWindowsShortcuts.value = savedSettings.allowWindowsShortcuts ?? true
+  } catch (error) {
+    console.warn('[settings] Failed to hydrate view settings:', error)
+  } finally {
+    isViewSettingsHydrated.value = true
+  }
+}
+
+const persistViewSettings = async (): Promise<void> => {
+  if (!isViewSettingsHydrated.value) return
+
+  try {
+    await window.api.settings.setAudioSettings({
+      guestDisplayName: guestDisplayName.value.trim() || 'Pseudonim',
+      accelerationEnabled: accelerationEnabled.value,
+      remoteCursorEnabled: remoteCursorEnabled.value,
+      autoRecordEnabled: autoRecordEnabled.value,
+      allowWindowsShortcuts: allowWindowsShortcuts.value
+    })
+  } catch (error) {
+    console.warn('[settings] Failed to persist view settings:', error)
+  }
+}
+
+onMounted(async () => {
+  await hydrateViewSettings()
   displayName.value = defaultDisplayName.value
   displayNameDraft.value = displayName.value
   void refreshVersionsData()
@@ -110,6 +150,19 @@ watch(
     }
   },
   { immediate: true }
+)
+
+watch(
+  [
+    accelerationEnabled,
+    remoteCursorEnabled,
+    autoRecordEnabled,
+    allowWindowsShortcuts,
+    guestDisplayName
+  ],
+  () => {
+    void persistViewSettings()
+  }
 )
 
 watch(activeTopNav, (nextTab) => {

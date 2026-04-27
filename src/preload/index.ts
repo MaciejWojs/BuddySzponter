@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer, sharedTexture } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 import { AppLanguage, Translation } from '../shared/schemas/langSchemas'
 import {
+  AppAudioSettings,
   CreateConnectionResponse,
   GetAvailableLanguagesResponse,
   GetCurrentUserResponse,
@@ -49,7 +50,18 @@ const api = {
     setLanguage: (lang: AppLanguage): Promise<boolean> =>
       ipcRenderer.invoke('settings:setLanguage', lang),
     getTranslation: (): Promise<Translation> => ipcRenderer.invoke('settings:getTranslation'),
-    getHardwareId: (): Promise<string> => ipcRenderer.invoke('settings:getHardwareId')
+    getHardwareId: (): Promise<string> => ipcRenderer.invoke('settings:getHardwareId'),
+    getMicrophoneDeviceId: (): Promise<string> =>
+      ipcRenderer.invoke('settings:getMicrophoneDeviceId'),
+    setMicrophoneDeviceId: (deviceId: string): Promise<boolean> =>
+      ipcRenderer.invoke('settings:setMicrophoneDeviceId', deviceId),
+    getSpeakerDeviceId: (): Promise<string> => ipcRenderer.invoke('settings:getSpeakerDeviceId'),
+    setSpeakerDeviceId: (deviceId: string): Promise<boolean> =>
+      ipcRenderer.invoke('settings:setSpeakerDeviceId', deviceId),
+    getAudioSettings: (): Promise<AppAudioSettings> =>
+      ipcRenderer.invoke('settings:getAudioSettings'),
+    setAudioSettings: (settings: Partial<AppAudioSettings>): Promise<boolean> =>
+      ipcRenderer.invoke('settings:setAudioSettings', settings)
   },
   core: {
     getLocale: (lang: AppLanguage): Promise<GetLocaleResponse> =>
