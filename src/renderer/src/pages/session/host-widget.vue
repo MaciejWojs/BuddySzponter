@@ -86,7 +86,7 @@
         <svg viewBox="0 0 24 24" class="icon">
           <path
             fill="currentColor"
-            d="M13 3h-2v10h2V3Zm-1 19a9 9 0 0 1-6.36-15.36l1.42 1.42A7 7 0 1 0 17 8.06l1.41-1.42A9 9 0 0 1 12 22Z"
+            d="M1 10.5c0 0 1.34-1.34 2.5-2C4.66 7.84 7.34 7 12 7s7.34.84 8.5 1.5c1.16.66 2.5 2 2.5 2l-4 4-3-3V10H8v1.5l-3 3-4-4Z"
           />
         </svg>
       </button>
@@ -155,6 +155,7 @@ const handleHostLockout = (_event, data: { active: boolean; until: number }): vo
 const toggleChat = async (): Promise<void> => {
   try {
     isChatOpen.value = await window.api.app.toggleHostWidgetChat()
+    syncChannel?.postMessage({ type: 'CHAT_VISIBILITY', open: isChatOpen.value })
   } catch (error) {
     console.error('Nie udało się przełączyć okna czatu widgetu:', error)
   }
@@ -175,6 +176,10 @@ onMounted(() => {
   syncChannel.onmessage = (event) => {
     if (event.data.type === 'STATE_UPDATE') {
       state.value = { ...state.value, ...event.data.payload }
+    }
+
+    if (event.data.type === 'CHAT_VISIBILITY') {
+      isChatOpen.value = Boolean(event.data.open)
     }
   }
 

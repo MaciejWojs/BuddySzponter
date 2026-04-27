@@ -33,13 +33,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { useChatChannel } from '@renderer/composables/channels/ChatChannel'
 
 const chatChannel = useChatChannel()
 const chatMessages = computed(() => chatChannel.chatMessages.value)
 const chatInput = ref('')
 const chatInputRef = ref<HTMLInputElement | null>(null)
+let syncChannel: BroadcastChannel | null = null
 
 const sendChatMessage = (): void => {
   const text = chatInput.value.trim()
@@ -51,6 +52,7 @@ const sendChatMessage = (): void => {
 
 const closeChat = async (): Promise<void> => {
   try {
+    syncChannel?.postMessage({ type: 'CHAT_VISIBILITY', open: false })
     await window.api.app.toggleHostWidgetChat()
   } catch (error) {
     console.error('Nie udało się zamknąć okna czatu widgetu:', error)
@@ -58,7 +60,14 @@ const closeChat = async (): Promise<void> => {
 }
 
 onMounted(() => {
+  syncChannel = new BroadcastChannel('widget-sync-channel')
+  syncChannel.postMessage({ type: 'CHAT_VISIBILITY', open: true })
   void nextTick(() => chatInputRef.value?.focus())
+})
+
+onUnmounted(() => {
+  syncChannel?.postMessage({ type: 'CHAT_VISIBILITY', open: false })
+  syncChannel?.close()
 })
 </script>
 
