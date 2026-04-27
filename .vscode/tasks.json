@@ -111,6 +111,7 @@
       },
       "promptOnClose": false,
       "runOptions": {
+        "instanceLimit": 2,
         "instancePolicy": "terminateOldest"
       },
       "group": {
