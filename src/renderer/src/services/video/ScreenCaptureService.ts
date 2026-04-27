@@ -15,12 +15,7 @@ export class ScreenCaptureService {
     micTrack: MediaStreamTrack | null
   ): Promise<MediaStream | null> {
     try {
-      const useCpuCapture =
-        typeof window.screenCapture.shouldUseCpu === 'function'
-          ? await window.screenCapture.shouldUseCpu()
-          : false
-
-      if (!useCpuCapture && typeof window.screenCapture.registerReceiver === 'function') {
+      if (typeof window.screenCapture.registerReceiver === 'function') {
         window.screenCapture.registerReceiver()
       }
 
@@ -43,42 +38,38 @@ export class ScreenCaptureService {
       this.track = generator
 
       let lastFrameTime = 0
-      const frameInterval = 1000 / (captureFps || 60)
+      const frameInterval = 1000 / Math.max(1, captureFps || 60)
 
       this.stopFrameSubscription?.()
-      this.stopFrameSubscription = window.screenCapture.onFrameReceived((frameData) => {
+      this.stopFrameSubscription = window.screenCapture.onFrameReceived(async (frameData) => {
         try {
-          const now = performance.now()
-
-          if (now - lastFrameTime < frameInterval) {
-            frameData.close()
-            return
-          }
-
           if (!this.writer) {
             frameData.close()
             return
           }
 
-          if (this.writer?.desiredSize !== null && this.writer!.desiredSize <= 0) {
+          const now = performance.now()
+          if (now - lastFrameTime < frameInterval) {
+            frameData.close()
+            return
+          }
+
+          if (this.writer.desiredSize !== null && this.writer.desiredSize <= 0) {
             frameData.close()
             return
           }
 
           lastFrameTime = now
 
-          this.writer
-            ?.write(frameData)
-            .then(() => {
-              frameData.close()
-            })
-            .catch((writeError) => {
-              console.error('[ScreenCaptureService] Błąd zapisu klatki:', writeError)
-              frameData.close()
-            })
-        } catch (e) {
-          console.error('[ScreenCaptureService] Błąd w pętli renderowania:', e)
+          await this.writer.write(frameData)
           frameData.close()
+        } catch (writeError) {
+          console.error('[ScreenCaptureService] Błąd zapisu klatki:', writeError)
+          try {
+            frameData.close()
+          } catch {
+            // ignore
+          }
         }
       })
 
