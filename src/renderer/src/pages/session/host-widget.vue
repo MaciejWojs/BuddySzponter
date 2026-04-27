@@ -4,20 +4,6 @@
     :class="{ 'is-lockout': isAnyGuestLockout }"
     style="-webkit-app-region: drag"
   >
-    <div
-      v-if="isAnyGuestLockout"
-      class="lockout-chip"
-      aria-label="Blokada goscia aktywna"
-      :data-remaining="remainingTime.toFixed(1)"
-    >
-      <svg viewBox="0 0 24 24" class="lockout-chip-icon" aria-hidden="true">
-        <path
-          fill="currentColor"
-          d="M18 8h-1V6a5 5 0 1 0-10 0v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2Zm-9-2a3 3 0 0 1 6 0v2H9V6Zm3 11a2 2 0 1 1 0-4 2 2 0 0 1 0 4Z"
-        />
-      </svg>
-    </div>
-
     <section class="actions" style="-webkit-app-region: no-drag">
       <div class="action-group">
         <button
@@ -138,11 +124,6 @@ const currentTime = ref(Date.now())
 let timerInterval: ReturnType<typeof setInterval> | null = null
 let syncChannel: BroadcastChannel | null = null
 
-const remainingTime = computed(() => {
-  if (!isGuestLockedOut.value) return 0
-  return Math.max(0, (lockoutUntil.value - currentTime.value) / 1000)
-})
-
 const lockoutProgress = computed(() => {
   const current = lockoutUntil.value - currentTime.value
   return Math.min(100, Math.max(0, (current / LOCKOUT_DURATION_MS) * 100))
@@ -248,26 +229,6 @@ onUnmounted(() => {
 
 .host-widget.is-lockout {
   border-color: rgba(255, 255, 255, 0.92);
-}
-
-.lockout-chip {
-  position: absolute;
-  top: 5px;
-  left: 10px;
-  width: 20px;
-  height: 20px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.7);
-  background: rgba(255, 255, 255, 0.14);
-  color: #ffffff;
-  display: grid;
-  place-items: center;
-  pointer-events: none;
-}
-
-.lockout-chip-icon {
-  width: 10px;
-  height: 10px;
 }
 
 .actions {
