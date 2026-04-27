@@ -33,7 +33,8 @@ export function useAudioMixer(): {
       duckingLevel: getDuckingLevel(),
       speechThreshold: getSpeechThreshold(),
       smoothing: getGainSmoothing(),
-      holdFrames: Math.round(getHoldFrames())
+      holdFrames: Math.round(getHoldFrames()),
+      enableKeepAliveDummy: true
     })
   }
   sharedEngineConsumers += 1
@@ -48,11 +49,11 @@ export function useAudioMixer(): {
     }
   }
 
-  const setMicVolume = (v: number): void => {
-    engine.setMicVolume(v)
+  const setMicVolume = (v?: number): void => {
+    engine.setMicVolume(typeof v === 'number' ? v : 1)
   }
-  const setSystemVolume = (v: number): void => {
-    engine.setSystemVolume(v)
+  const setSystemVolume = (v?: number): void => {
+    engine.setSystemVolume(typeof v === 'number' ? v : 1)
   }
   const unlock = async (): Promise<void> => await ensureRunning()
 
