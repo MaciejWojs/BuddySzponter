@@ -48,10 +48,16 @@
         :title="state.micActive ? 'Wycisz mikrofon hosta' : 'Włącz mikrofon hosta'"
         @click="sendCommand('TOGGLE_MIC')"
       >
-        <svg viewBox="0 0 24 24" class="icon">
+        <svg v-if="state.micActive" viewBox="0 0 24 24" class="icon">
           <path
             fill="currentColor"
             d="M12 14a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v5a3 3 0 0 0 3 3Zm5-3a5 5 0 1 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2Z"
+          />
+        </svg>
+        <svg v-else viewBox="0 0 24 24" class="icon">
+          <path
+            fill="currentColor"
+            d="M19 11h-1.7a5.5 5.5 0 0 1-1.31 3.56l-1.43-1.43A3.5 3.5 0 0 0 15 11V6a3 3 0 0 0-5.14-2.12L8.43 2.45A5 5 0 0 1 17 6v5ZM3.27 2 2 3.27l7 7V11a3 3 0 0 0 4.85 2.35l1.48 1.48A4.97 4.97 0 0 1 13 15.9V21h-2v-5.1A7 7 0 0 1 5 11H3.3a8.7 8.7 0 0 0 7.7 6.85V21h2v-3.16a8.3 8.3 0 0 0 3.73-1.46L20.73 21 22 19.73 3.27 2Z"
           />
         </svg>
       </button>

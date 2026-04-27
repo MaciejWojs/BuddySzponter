@@ -18,7 +18,7 @@ export function useWidgetBridge(): void {
       widgetChannel.postMessage({
         type: 'STATE_UPDATE',
         payload: {
-          micActive: !sessionStore.microphoneMuted && sessionStore.localMicrophoneVolume > 0,
+          micActive: !sessionStore.microphoneMuted,
           sysActive: sessionStore.localSystemAudioVolume > 0,
           guestMicActive: sessionStore.remoteMicVolume > 0,
           controlGranted: hidChannel.isControlGranted.value
@@ -59,7 +59,6 @@ export function useWidgetBridge(): void {
     watch(
       [
         () => sessionStore.microphoneMuted,
-        () => sessionStore.localMicrophoneVolume,
         () => sessionStore.localSystemAudioVolume,
         () => sessionStore.remoteMicVolume,
         () => hidChannel.isControlGranted.value
