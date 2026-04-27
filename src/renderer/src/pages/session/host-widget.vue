@@ -1,19 +1,33 @@
 <template>
   <main
     class="host-widget"
-    :class="{ 'is-lockout': isGuestLockedOut }"
+    :class="{ 'is-lockout': isAnyGuestLockout }"
     style="-webkit-app-region: drag"
   >
-    <div v-if="isGuestLockedOut" class="lockout-chip">
-      Blokada gościa {{ remainingTime.toFixed(1) }}s
+    <div
+      v-if="isAnyGuestLockout"
+      class="lockout-chip"
+      aria-label="Blokada goscia aktywna"
+      :data-remaining="remainingTime.toFixed(1)"
+    >
+      <svg viewBox="0 0 24 24" class="lockout-chip-icon" aria-hidden="true">
+        <path
+          fill="currentColor"
+          d="M18 8h-1V6a5 5 0 1 0-10 0v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2Zm-9-2a3 3 0 0 1 6 0v2H9V6Zm3 11a2 2 0 1 1 0-4 2 2 0 0 1 0 4Z"
+        />
+      </svg>
     </div>
 
     <section class="actions" style="-webkit-app-region: no-drag">
       <div class="action-group">
         <button
           class="tool-btn"
-          :class="state.controlGranted ? 'is-control-on' : 'is-control-off'"
-          title="Status kontroli (podgląd)"
+          :class="[
+            state.controlGranted ? 'is-control-on' : 'is-control-off',
+            isManualGuestLock ? 'is-lock-toggle-on' : ''
+          ]"
+          :title="isManualGuestLock ? 'Blokada goscia aktywna' : 'Kliknij, aby zablokowac goscia'"
+          @click="toggleGuestLock"
         >
           <svg viewBox="0 0 24 24" class="icon">
             <path
@@ -115,6 +129,7 @@ const state = ref({
 })
 
 const isChatOpen = ref(false)
+const isManualGuestLock = ref(false)
 
 const LOCKOUT_DURATION_MS = 3000
 const isGuestLockedOut = ref(false)
@@ -132,6 +147,8 @@ const lockoutProgress = computed(() => {
   const current = lockoutUntil.value - currentTime.value
   return Math.min(100, Math.max(0, (current / LOCKOUT_DURATION_MS) * 100))
 })
+
+const isAnyGuestLockout = computed(() => isGuestLockedOut.value || isManualGuestLock.value)
 
 const stopTimer = (): void => {
   if (timerInterval) {
@@ -160,6 +177,11 @@ const toggleChat = async (): Promise<void> => {
   } catch (error) {
     console.error('Nie udało się przełączyć okna czatu widgetu:', error)
   }
+}
+
+const toggleGuestLock = (): void => {
+  isManualGuestLock.value = !isManualGuestLock.value
+  sendCommand('TOGGLE_CONTROL')
 }
 
 const sendCommand = (actionType: WidgetCommand): void => {
@@ -230,14 +252,22 @@ onUnmounted(() => {
 
 .lockout-chip {
   position: absolute;
-  top: 6px;
+  top: 5px;
   left: 10px;
-  font-size: 10px;
-  font-weight: 700;
-  line-height: 1;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.14);
   color: #ffffff;
-  text-shadow: 0 0 8px rgba(255, 255, 255, 0.35);
+  display: grid;
+  place-items: center;
   pointer-events: none;
+}
+
+.lockout-chip-icon {
+  width: 10px;
+  height: 10px;
 }
 
 .actions {
@@ -297,6 +327,12 @@ onUnmounted(() => {
   border-color: rgba(255, 255, 255, 0.45);
   color: rgba(255, 255, 255, 0.85);
   background: rgba(255, 255, 255, 0.06);
+}
+
+.is-lock-toggle-on {
+  border-color: rgba(255, 85, 115, 0.92);
+  background: rgba(255, 85, 115, 0.2);
+  color: #ff8ca6;
 }
 
 .is-chat-on {
