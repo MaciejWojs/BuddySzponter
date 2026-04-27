@@ -4,79 +4,83 @@
     :class="{ 'is-lockout': isGuestLockedOut }"
     style="-webkit-app-region: drag"
   >
-    <section class="status-wrap">
-      <span class="status-dot" />
-      <div class="status-text">
-        <strong>Sesja hosta</strong>
-        <small :class="{ 'lockout-countdown': isGuestLockedOut }">{{
-          isGuestLockedOut ? `Blokada gościa ${remainingTime.toFixed(1)}s` : 'Połączono'
-        }}</small>
-      </div>
-    </section>
+    <div v-if="isGuestLockedOut" class="lockout-chip">
+      Blokada gościa {{ remainingTime.toFixed(1) }}s
+    </div>
 
     <section class="actions" style="-webkit-app-region: no-drag">
-      <button
-        class="tool-btn"
-        :class="state.controlGranted ? 'is-control-on' : 'is-control-off'"
-        title="Status kontroli (podgląd)"
-      >
-        <svg viewBox="0 0 24 24" class="icon">
-          <path
-            fill="currentColor"
-            d="M18 8h-1V6a5 5 0 1 0-10 0v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2Zm-9-2a3 3 0 0 1 6 0v2H9V6Zm3 11a2 2 0 1 1 0-4 2 2 0 0 1 0 4Z"
-          />
-        </svg>
-      </button>
+      <div class="action-group">
+        <button
+          class="tool-btn"
+          :class="state.controlGranted ? 'is-control-on' : 'is-control-off'"
+          title="Status kontroli (podgląd)"
+        >
+          <svg viewBox="0 0 24 24" class="icon">
+            <path
+              fill="currentColor"
+              d="M18 8h-1V6a5 5 0 1 0-10 0v2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2Zm-9-2a3 3 0 0 1 6 0v2H9V6Zm3 11a2 2 0 1 1 0-4 2 2 0 0 1 0 4Z"
+            />
+          </svg>
+        </button>
 
-      <button
-        class="tool-btn"
-        :class="isChatOpen ? 'is-chat-on' : ''"
-        title="Rozwiń czat"
-        @click="toggleChat"
-      >
-        <svg viewBox="0 0 24 24" class="icon">
-          <path
-            fill="currentColor"
-            d="M12 3C7.03 3 3 6.58 3 11c0 2.13.96 4.07 2.53 5.5V21l4.23-2.31c.74.2 1.52.31 2.24.31 4.97 0 9-3.58 9-8s-4.03-8-9-8Zm-4 9h8a1 1 0 1 1 0 2H8a1 1 0 1 1 0-2Zm8-3H8a1 1 0 1 1 0-2h8a1 1 0 1 1 0 2Z"
-          />
-        </svg>
-      </button>
+        <button
+          class="tool-btn"
+          :class="isChatOpen ? 'is-chat-on' : ''"
+          title="Rozwiń czat"
+          @click="toggleChat"
+        >
+          <svg viewBox="0 0 24 24" class="icon">
+            <path
+              fill="currentColor"
+              d="M12 3C7.03 3 3 6.58 3 11c0 2.13.96 4.07 2.53 5.5V21l4.23-2.31c.74.2 1.52.31 2.24.31 4.97 0 9-3.58 9-8s-4.03-8-9-8Zm-4 9h8a1 1 0 1 1 0 2H8a1 1 0 1 1 0-2Zm8-3H8a1 1 0 1 1 0-2h8a1 1 0 1 1 0 2Z"
+            />
+          </svg>
+        </button>
+      </div>
 
-      <button
-        class="tool-btn"
-        :class="state.micActive ? 'is-active' : 'is-muted'"
-        :title="state.micActive ? 'Wycisz mikrofon hosta' : 'Włącz mikrofon hosta'"
-        @click="sendCommand('TOGGLE_MIC')"
-      >
-        <svg v-if="state.micActive" viewBox="0 0 24 24" class="icon">
-          <path
-            fill="currentColor"
-            d="M12 14a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v5a3 3 0 0 0 3 3Zm5-3a5 5 0 1 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2Z"
-          />
-        </svg>
-        <svg v-else viewBox="0 0 24 24" class="icon">
-          <path
-            fill="currentColor"
-            d="M19 11h-1.7a5.5 5.5 0 0 1-1.31 3.56l-1.43-1.43A3.5 3.5 0 0 0 15 11V6a3 3 0 0 0-5.14-2.12L8.43 2.45A5 5 0 0 1 17 6v5ZM3.27 2 2 3.27l7 7V11a3 3 0 0 0 4.85 2.35l1.48 1.48A4.97 4.97 0 0 1 13 15.9V21h-2v-5.1A7 7 0 0 1 5 11H3.3a8.7 8.7 0 0 0 7.7 6.85V21h2v-3.16a8.3 8.3 0 0 0 3.73-1.46L20.73 21 22 19.73 3.27 2Z"
-          />
-        </svg>
-      </button>
+      <div class="action-group">
+        <button
+          class="tool-btn"
+          :class="state.micActive ? 'is-active' : 'is-muted'"
+          :title="state.micActive ? 'Wycisz mikrofon hosta' : 'Włącz mikrofon hosta'"
+          @click="sendCommand('TOGGLE_MIC')"
+        >
+          <svg v-if="state.micActive" viewBox="0 0 24 24" class="icon">
+            <path
+              fill="currentColor"
+              d="M12 14a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v5a3 3 0 0 0 3 3Zm5-3a5 5 0 1 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2Z"
+            />
+          </svg>
+          <svg v-else viewBox="0 0 24 24" class="icon">
+            <path
+              fill="currentColor"
+              d="M19 11h-1.7a5.5 5.5 0 0 1-1.31 3.56l-1.43-1.43A3.5 3.5 0 0 0 15 11V6a3 3 0 0 0-5.14-2.12L8.43 2.45A5 5 0 0 1 17 6v5ZM3.27 2 2 3.27l7 7V11a3 3 0 0 0 4.85 2.35l1.48 1.48A4.97 4.97 0 0 1 13 15.9V21h-2v-5.1A7 7 0 0 1 5 11H3.3a8.7 8.7 0 0 0 7.7 6.85V21h2v-3.16a8.3 8.3 0 0 0 3.73-1.46L20.73 21 22 19.73 3.27 2Z"
+            />
+          </svg>
+        </button>
 
-      <button
-        class="tool-btn"
-        :class="state.sysActive ? 'is-active' : 'is-muted'"
-        :title="
-          state.sysActive ? 'Wycisz dźwięki systemowe hosta' : 'Włącz dźwięki systemowe hosta'
-        "
-        @click="sendCommand('TOGGLE_SYSTEM')"
-      >
-        <svg viewBox="0 0 24 24" class="icon">
-          <path
-            fill="currentColor"
-            d="M3 10v4h4l5 4V6L7 10H3Zm13.5 2a3.5 3.5 0 0 0-2.5-3.35v6.7A3.5 3.5 0 0 0 16.5 12ZM14 3.23v2.06A7 7 0 0 1 19 12a7 7 0 0 1-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77Z"
-          />
-        </svg>
-      </button>
+        <button
+          class="tool-btn"
+          :class="state.sysActive ? 'is-active' : 'is-muted'"
+          :title="
+            state.sysActive ? 'Wycisz dźwięki systemowe hosta' : 'Włącz dźwięki systemowe hosta'
+          "
+          @click="sendCommand('TOGGLE_SYSTEM')"
+        >
+          <svg v-if="state.sysActive" viewBox="0 0 24 24" class="icon">
+            <path
+              fill="currentColor"
+              d="M3 10v4h4l5 4V6L7 10H3Zm13.5 2a3.5 3.5 0 0 0-2.5-3.35v6.7A3.5 3.5 0 0 0 16.5 12ZM14 3.23v2.06A7 7 0 0 1 19 12a7 7 0 0 1-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77Z"
+            />
+          </svg>
+          <svg v-else viewBox="0 0 24 24" class="icon">
+            <path
+              fill="currentColor"
+              d="M3 10v4h4l5 4V6L7 10H3Zm10.33 2a3.5 3.5 0 0 0-.81-2.24l1.45-1.46A5.47 5.47 0 0 1 15.33 12c0 1.28-.44 2.45-1.18 3.37l-1.45-1.45c.39-.53.63-1.18.63-1.92ZM14 3.23v2.06c1.02.3 1.95.78 2.74 1.41l-1.42 1.42A4.93 4.93 0 0 0 14 7.35v3.03l-2-2V3.23h2ZM2 3.27 3.27 2 22 20.73 20.73 22l-3.88-3.88A8.85 8.85 0 0 1 14 20.77v-2.06a6.91 6.91 0 0 0 1.43-.54l-3.05-3.05L12 14.77V20l-5-4H3v-4h4l3.14-2.51L2 3.27Z"
+            />
+          </svg>
+        </button>
+      </div>
 
       <button class="tool-btn end-btn" title="Rozłącz sesję" @click="sendCommand('END_SESSION')">
         <svg viewBox="0 0 24 24" class="icon">
@@ -215,7 +219,7 @@ onUnmounted(() => {
   backdrop-filter: blur(10px);
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   padding: 8px 10px;
   overflow: visible;
   color: #f6f2ff;
@@ -226,45 +230,32 @@ onUnmounted(() => {
   border-color: rgba(255, 255, 255, 0.92);
 }
 
-.status-wrap {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.status-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  background: #6efe7f;
-  box-shadow: 0 0 8px rgba(110, 254, 127, 0.9);
-}
-
-.status-text {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.1;
-}
-
-.status-text strong {
-  font-size: 11px;
+.lockout-chip {
+  position: absolute;
+  top: 6px;
+  left: 10px;
+  font-size: 10px;
   font-weight: 700;
-}
-
-.status-text small {
-  font-size: 9px;
-  color: rgba(239, 231, 255, 0.78);
-}
-
-.status-text .lockout-countdown {
-  color: rgba(255, 255, 255, 0.98);
+  line-height: 1;
+  color: #ffffff;
   text-shadow: 0 0 8px rgba(255, 255, 255, 0.35);
+  pointer-events: none;
 }
 
 .actions {
   display: flex;
   align-items: center;
+  gap: 8px;
+}
+
+.action-group {
+  display: flex;
+  align-items: center;
   gap: 5px;
+  padding: 2px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .tool-btn {
@@ -330,6 +321,7 @@ onUnmounted(() => {
   border-color: rgba(255, 110, 110, 0.75);
   color: #ff7c7c;
   background: rgba(255, 107, 107, 0.15);
+  margin-left: 2px;
 }
 
 .lockout-progress {
