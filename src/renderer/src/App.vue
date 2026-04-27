@@ -19,11 +19,17 @@ const settingsStore = useSettingsStore()
 const socketStore = useSocketStore()
 const userStore = useUserStore()
 
-settingsStore.initSettings()
-socketStore.init()
-userStore.initSession()
-useAudioMixer()
-useWidgetBridge()
+const hashPath = window.location.hash.replace(/^#/, '').toLowerCase()
+const isWidgetWindow =
+  hashPath.startsWith('/session/host-widget') || hashPath.startsWith('/session/host-widget-chat')
+
+if (!isWidgetWindow) {
+  settingsStore.initSettings()
+  socketStore.init()
+  userStore.initSession()
+  useAudioMixer()
+  useWidgetBridge()
+}
 
 const isRtcConnected = computed(() => webRtcStore.rtcStatus === 'connected')
 const isHostConnected = computed(() => connectionStore.isHost && isRtcConnected.value)
@@ -41,37 +47,39 @@ const syncWindowMode = async (hostActive: boolean): Promise<void> => {
   }
 }
 
-watch(
-  isHostConnected,
-  (hostActive) => {
-    void syncWindowMode(hostActive)
-  },
-  { immediate: true }
-)
+if (!isWidgetWindow) {
+  watch(
+    isHostConnected,
+    (hostActive) => {
+      void syncWindowMode(hostActive)
+    },
+    { immediate: true }
+  )
 
-onUnmounted(() => {
-  window.api.app.hideHostWidget().catch(() => {})
-})
+  onUnmounted(() => {
+    window.api.app.hideHostWidget().catch(() => {})
+  })
 
-const previousRoute = ref('/api-test')
+  const previousRoute = ref('/api-test')
 
-watch(
-  isGuestConnected,
-  (connected) => {
-    if (connected) {
-      if (!router.currentRoute.value.path.includes('/session/guest-view')) {
-        previousRoute.value = router.currentRoute.value.fullPath
+  watch(
+    isGuestConnected,
+    (connected) => {
+      if (connected) {
+        if (!router.currentRoute.value.path.includes('/session/guest-view')) {
+          previousRoute.value = router.currentRoute.value.fullPath
+        }
+
+        router.push('/session/guest-view')
+      } else {
+        if (router.currentRoute.value.path.includes('/session/guest-view')) {
+          router.push(previousRoute.value)
+        }
       }
-
-      router.push('/session/guest-view')
-    } else {
-      if (router.currentRoute.value.path.includes('/session/guest-view')) {
-        router.push(previousRoute.value)
-      }
-    }
-  },
-  { immediate: true }
-)
+    },
+    { immediate: true }
+  )
+}
 </script>
 
 <template>
