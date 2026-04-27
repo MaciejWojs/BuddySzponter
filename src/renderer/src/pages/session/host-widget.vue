@@ -4,7 +4,7 @@
       v-show="visible"
       class="host-widget"
       :class="{ 'is-lockout': isAnyGuestLockout, 'is-minimized': minimized }"
-      style="-webkit-app-region: drag"
+      :style="mainDragStyle"
     >
       <template v-if="!minimized">
         <div
@@ -212,6 +212,9 @@ const connectionStatusClass = computed(() => {
 
 const isAnyGuestLockout = computed(() => isGuestLockedOut.value || isManualGuestLock.value)
 const visible = computed(() => !closed.value || hovered.value)
+const mainDragStyle = computed(() => ({
+  WebkitAppRegion: pinned.value ? 'no-drag' : 'drag'
+}))
 
 const stopTimer = (): void => {
   if (timerInterval) {
@@ -258,6 +261,7 @@ const togglePin = (): void => {
 }
 
 const handleMinimize = (): void => {
+  pinned.value = false
   minimized.value = true
 }
 
