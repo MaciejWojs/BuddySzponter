@@ -206,6 +206,18 @@ type VideoFrameWithRelease = VideoFrame & {
   [sharedTextureReleaseSymbol]?: () => void
 }
 
+const frameFinalizer = new FinalizationRegistry<() => void>((releaseTexture) => {
+  try {
+    releaseTexture()
+  } catch {
+    // ignore finalizer errors
+  }
+})
+
+const registerFrameFinalizer = (frame: VideoFrame, releaseTexture: () => void): void => {
+  frameFinalizer.register(frame, releaseTexture, frame)
+}
+
 const wrapFrameWithRelease = (frame: VideoFrame, releaseTexture: () => void): VideoFrame => {
   let closed = false
   const originalClose = frame.close.bind(frame)
@@ -215,6 +227,7 @@ const wrapFrameWithRelease = (frame: VideoFrame, releaseTexture: () => void): Vi
   wrappedFrame.close = (): void => {
     if (closed) return
     closed = true
+    frameFinalizer.unregister(wrappedFrame)
     try {
       originalClose()
     } catch {
@@ -223,6 +236,7 @@ const wrapFrameWithRelease = (frame: VideoFrame, releaseTexture: () => void): Vi
     releaseTexture()
   }
 
+  registerFrameFinalizer(wrappedFrame, releaseTexture)
   return wrappedFrame
 }
 
