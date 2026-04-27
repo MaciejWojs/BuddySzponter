@@ -4,16 +4,20 @@
     :class="{ 'is-lockout': isAnyGuestLockout }"
     style="-webkit-app-region: drag"
   >
-    <section class="actions" style="-webkit-app-region: no-drag">
-      <div class="connection-meter" :title="`Jakość połączenia: ${connectionLabel}`">
-        <span class="meter-dot" :class="`is-${connectionStatusClass}`" />
-        <div class="meter-bars" aria-hidden="true">
-          <span class="meter-bar" :class="{ active: state.connectionBars >= 1 }" />
-          <span class="meter-bar" :class="{ active: state.connectionBars >= 2 }" />
-          <span class="meter-bar" :class="{ active: state.connectionBars >= 3 }" />
-        </div>
+    <div
+      class="connection-meter"
+      :title="`Jakość połączenia: ${connectionLabel}`"
+      style="-webkit-app-region: no-drag"
+    >
+      <span class="meter-dot" :class="`is-${connectionStatusClass}`" />
+      <div class="meter-bars" aria-hidden="true">
+        <span class="meter-bar" :class="{ active: state.connectionBars >= 1 }" />
+        <span class="meter-bar" :class="{ active: state.connectionBars >= 2 }" />
+        <span class="meter-bar" :class="{ active: state.connectionBars >= 3 }" />
       </div>
+    </div>
 
+    <section class="actions" style="-webkit-app-region: no-drag">
       <div class="action-group">
         <button
           class="tool-btn"
@@ -36,6 +40,7 @@
           class="tool-btn"
           :class="isChatOpen ? 'is-chat-on' : ''"
           title="Rozwiń czat"
+          :disabled="isChatToggling"
           @click="toggleChat"
         >
           <svg viewBox="0 0 24 24" class="icon">
@@ -125,6 +130,7 @@ const state = ref({
 })
 
 const isChatOpen = ref(false)
+const isChatToggling = ref(false)
 const isManualGuestLock = ref(false)
 
 const LOCKOUT_DURATION_MS = 3000
@@ -177,11 +183,16 @@ const handleHostLockout = (_event, data: { active: boolean; until: number }): vo
 }
 
 const toggleChat = async (): Promise<void> => {
+  if (isChatToggling.value) return
+
+  isChatToggling.value = true
   try {
     isChatOpen.value = await window.api.app.toggleHostWidgetChat()
     syncChannel?.postMessage({ type: 'CHAT_VISIBILITY', open: isChatOpen.value })
   } catch (error) {
     console.error('Nie udało się przełączyć okna czatu widgetu:', error)
+  } finally {
+    isChatToggling.value = false
   }
 }
 
@@ -267,10 +278,14 @@ onUnmounted(() => {
 }
 
 .connection-meter {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
   display: flex;
   align-items: flex-end;
   gap: 5px;
-  padding: 0 6px 0 2px;
 }
 
 .meter-dot {
@@ -358,6 +373,11 @@ onUnmounted(() => {
 
 .tool-btn:active {
   transform: scale(0.95);
+}
+
+.tool-btn:disabled {
+  opacity: 0.78;
+  cursor: wait;
 }
 
 .icon {
