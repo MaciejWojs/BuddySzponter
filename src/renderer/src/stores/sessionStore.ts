@@ -120,6 +120,9 @@ export const useSessionStore = defineStore('session', () => {
     stopCapture: captureStore.stopCapture,
     handleRespond,
 
+    activeVideoQuality: computed(() => captureStore.activeVideoQuality),
+    applyQualityPreset: captureStore.applyQualityPreset,
+
     isRecording: computed(() => recordingService.isRecording),
     startRecording: () => recordingService.startRecording(webRtcStore.remoteStream),
     stopRecording: () => recordingService.stopRecording()

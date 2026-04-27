@@ -10,9 +10,8 @@ import { videoService } from '@renderer/services/video/videoService'
 import { microphoneService } from '@renderer/services/audio/in/micService'
 import { screenCaptureService } from '@renderer/services/video/ScreenCaptureService'
 import { recordingService } from '@renderer/services/video/RecordingService'
-import { webRtcService } from '@renderer/composables/connection/webRTCService' // POTRZEBNE DO LIMITÓW
+import { webRtcService } from '@renderer/composables/connection/webRTCService'
 
-// Typy profili jakości
 export type VideoQualityPreset = 'low' | 'medium' | 'high' | 'ultra'
 
 export const useCaptureStore = defineStore('capture', () => {
@@ -24,23 +23,25 @@ export const useCaptureStore = defineStore('capture', () => {
   const includeScreenVideo = ref(true)
   const currentCaptureMode = ref<'host-shared' | 'host-native' | 'guest-mic' | null>(null)
   const isCapturing = computed((): boolean => currentCaptureMode.value !== null)
-  const sharedTextureCaptureFps = 120
+
+  const sharedTextureCaptureFps = 60
 
   const activeVideoQuality = ref<VideoQualityPreset>('high')
+
   const applyQualityPreset = async (preset: VideoQualityPreset): Promise<void> => {
     activeVideoQuality.value = preset
     switch (preset) {
       case 'low':
-        await webRtcService.setVideoQualityLimits(1500, 30, 2)
+        await webRtcService.setVideoQualityLimits(2000, 30)
         break
       case 'medium':
-        await webRtcService.setVideoQualityLimits(3500, 60, 1)
+        await webRtcService.setVideoQualityLimits(5000, 60)
         break
       case 'high':
-        await webRtcService.setVideoQualityLimits(8000, 60, 1)
+        await webRtcService.setVideoQualityLimits(8000, 60)
         break
       case 'ultra':
-        await webRtcService.setVideoQualityLimits(15000, 120, 1)
+        await webRtcService.setVideoQualityLimits(15000, 120)
         break
     }
   }
@@ -55,7 +56,6 @@ export const useCaptureStore = defineStore('capture', () => {
       webRtcStore.localStream = stream
     } else {
       await webRtcStore.publishLocalStream(stream)
-      // Opcjonalnie: Zastosuj od razu domyślny preset po publikacji
       void applyQualityPreset(activeVideoQuality.value)
     }
   }
@@ -93,29 +93,42 @@ export const useCaptureStore = defineStore('capture', () => {
         )
 
         if (stream) {
-          webRtcStore.setLocalPreviewFps(sharedTextureCaptureFps)
-          webRtcStore.setLocalPreviewQuality('high')
           currentCaptureMode.value = 'host-shared'
           await assignLocalStream(stream)
+          return
         } else {
-          logStore.addLog('ERROR', 'Błąd inicjalizacji ScreenCaptureService', 'api')
+          console.warn(
+            '[CaptureStore] Shared Texture Capture zwróciło null, przechodzenie do fallbacku.'
+          )
         }
       } catch (e) {
-        logStore.addLog('ERROR', `Błąd startSharedTextureCapture: ${e}`, 'api')
+        console.log('error w Shared Texture Capture:', e)
       }
-      return
     }
 
     try {
+      console.warn(
+        '[CaptureStore] Shared Texture Capture niedostępne, przechodzenie do fallbacku (getDisplayMedia + VideoService)'
+      )
       const micTrack = await prepareExternalMicTrack()
-      const stream = await videoService.start({
-        includeScreen: true,
+
+      const displayStream = await navigator.mediaDevices.getDisplayMedia({
+        video: true,
+        audio: false
+      })
+      const videoTrack = displayStream.getVideoTracks()[0]
+      videoTrack.contentHint = 'detail'
+
+      const stream = await videoService.startWithExternalVideoTrack(videoTrack, {
         includeSystemAudio: audioStore.includeSystemAudio,
         externalMicTrack: micTrack ?? undefined,
         systemAudioVolume: audioStore.localSystemAudioVolume
       })
+
       currentCaptureMode.value = 'host-native'
       await assignLocalStream(stream)
+
+      videoTrack.onended = () => stopCapture()
     } catch (err) {
       logStore.addLog('ERROR', `Błąd przechwytywania natywnego: ${err}`, 'api')
     }
@@ -130,11 +143,13 @@ export const useCaptureStore = defineStore('capture', () => {
 
     try {
       const micTrack = await prepareExternalMicTrack()
-      const stream = await videoService.start({
-        includeScreen: false,
-        includeSystemAudio: false,
-        externalMicTrack: micTrack ?? undefined
-      })
+
+      // Gość nie potrzebuje Miksera (videoService) ani wideo. Po prostu tworzymy strumień z mikrofonem.
+      const stream = new MediaStream()
+      if (micTrack) {
+        stream.addTrack(micTrack)
+      }
+
       currentCaptureMode.value = 'guest-mic'
       await assignLocalStream(stream)
     } catch (err) {
@@ -148,6 +163,7 @@ export const useCaptureStore = defineStore('capture', () => {
 
     if (recordingService.isRecording) recordingService.stopRecording()
 
+    // Zatrzymujemy wszystkie serwisy
     screenCaptureService.stop()
     microphoneService.stop()
     await videoService.stop()
@@ -158,9 +174,6 @@ export const useCaptureStore = defineStore('capture', () => {
       webRtcStore.localStream.getTracks().forEach((t) => t.stop())
       webRtcStore.localStream = null
     }
-
-    webRtcStore.setLocalPreviewFps(null)
-    webRtcStore.setLocalPreviewQuality(null)
   }
 
   const applySelectedMicrophone = async (): Promise<void> => {

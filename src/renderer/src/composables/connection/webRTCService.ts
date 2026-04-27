@@ -116,11 +116,14 @@ export class WebRTCService {
 
       if (capabilities?.codecs && this.videoTransceiver?.setCodecPreferences) {
         const codecs = capabilities.codecs
-        const videoCodecs = codecs.filter((c) => c.mimeType.startsWith('video/'))
-        const h264 = videoCodecs.filter((c) => c.mimeType.toLowerCase() === 'video/h264')
-        const nonH264 = videoCodecs.filter((c) => c.mimeType.toLowerCase() !== 'video/h264')
+        const vp9 = codecs.filter((c) => c.mimeType.toLowerCase() === 'video/vp9')
+        const h264 = codecs.filter((c) => c.mimeType.toLowerCase() === 'video/h264')
+        const others = codecs.filter(
+          (c) =>
+            c.mimeType.toLowerCase() !== 'video/vp9' && c.mimeType.toLowerCase() !== 'video/h264'
+        )
 
-        const ordered = [...nonH264, ...h264]
+        const ordered = [...vp9, ...others, ...h264]
         this.videoTransceiver.setCodecPreferences(ordered)
       }
     }
@@ -282,7 +285,7 @@ export class WebRTCService {
         const mutableParams = params as RTCRtpSendParameters & {
           degradationPreference?: RTCDegradationPreference
         }
-        mutableParams.degradationPreference = 'maintain-framerate'
+        mutableParams.degradationPreference = 'maintain-resolution'
         this.videoTransceiver.sender.setParameters(mutableParams).catch(console.error)
       }
     }
@@ -472,26 +475,18 @@ export class WebRTCService {
     this.recorder = null
   }
 
-  public async setVideoQualityLimits(
-    maxBitrateKbps?: number,
-    maxFps?: number,
-    scaleResolutionDownBy: number = 1
-  ): Promise<boolean> {
-    if (!this.peerConnection) {
-      console.warn('[WebRTC] Brak aktywnego połączenia P2P by zmienić jakość.')
-      return false
-    }
+  public async setVideoQualityLimits(maxBitrateKbps?: number, maxFps?: number): Promise<boolean> {
+    if (!this.peerConnection) return false
 
     const senders = this.peerConnection.getSenders()
     const videoSender = senders.find((s) => s.track?.kind === 'video')
 
-    if (!videoSender) {
-      console.warn('[WebRTC] Nie znaleziono nadajnika wideo do zoptymalizowania.')
-      return false
-    }
+    if (!videoSender) return false
 
     try {
       const params = videoSender.getParameters()
+
+      params.degradationPreference = 'maintain-resolution'
 
       if (!params.encodings || params.encodings.length === 0) {
         params.encodings = [{}]
@@ -511,13 +506,13 @@ export class WebRTCService {
         delete encoding.maxFramerate
       }
 
-      encoding.scaleResolutionDownBy = Math.max(1, scaleResolutionDownBy)
+      encoding.scaleResolutionDownBy = 1
+
+      encoding.priority = 'high'
+      ;(encoding as RTCRtpEncodingParameters & { scalabilityMode?: string }).scalabilityMode =
+        'L1T1'
 
       await videoSender.setParameters(params)
-
-      console.log(
-        `[WebRTC] Zaktualizowano limity wideo: Bitrate=${maxBitrateKbps || 'AUTO'}Kbps, FPS=${maxFps || 'AUTO'}, Skala=1/${scaleResolutionDownBy}`
-      )
       return true
     } catch (error) {
       console.error('[WebRTC] Błąd podczas zmiany limitów wideo:', error)
