@@ -8,7 +8,7 @@
       <span class="status-dot" />
       <div class="status-text">
         <strong>Sesja hosta</strong>
-        <small>{{
+        <small :class="{ 'lockout-countdown': isGuestLockedOut }">{{
           isGuestLockedOut ? `Blokada gościa ${remainingTime.toFixed(1)}s` : 'Połączono'
         }}</small>
       </div>
@@ -18,8 +18,7 @@
       <button
         class="tool-btn"
         :class="state.controlGranted ? 'is-control-on' : 'is-control-off'"
-        :title="state.controlGranted ? 'Zabierz kontrolę' : 'Oddaj kontrolę'"
-        @click="sendCommand('TOGGLE_CONTROL')"
+        title="Status kontroli (podgląd)"
       >
         <svg viewBox="0 0 24 24" class="icon">
           <path
@@ -251,6 +250,11 @@ onUnmounted(() => {
   color: rgba(239, 231, 255, 0.78);
 }
 
+.status-text .lockout-countdown {
+  color: rgba(255, 255, 255, 0.98);
+  text-shadow: 0 0 8px rgba(255, 255, 255, 0.35);
+}
+
 .actions {
   display: flex;
   align-items: center;
@@ -288,15 +292,16 @@ onUnmounted(() => {
 }
 
 .is-control-on {
-  border-color: rgba(95, 241, 154, 0.7);
-  color: #5ff19a;
-  background: rgba(95, 241, 154, 0.14);
+  border-color: rgba(255, 255, 255, 0.92);
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
+  animation: control-pulse 1.3s ease-in-out infinite;
 }
 
 .is-control-off {
-  border-color: rgba(255, 175, 77, 0.75);
-  color: #ffaf4d;
-  background: rgba(255, 175, 77, 0.12);
+  border-color: rgba(255, 255, 255, 0.45);
+  color: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .is-chat-on {
@@ -329,13 +334,25 @@ onUnmounted(() => {
   height: 2px;
   border-radius: 999px;
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.35);
 }
 
 .lockout-fill {
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #ffcf5c 0%, #ff7b4e 100%);
+  background: linear-gradient(90deg, #ffffff 0%, #f1f1f1 100%);
   transition: width 75ms linear;
+}
+
+@keyframes control-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.35);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(255, 255, 255, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
+  }
 }
 </style>
