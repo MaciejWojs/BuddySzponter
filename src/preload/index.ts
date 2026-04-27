@@ -200,6 +200,32 @@ const api = {
   }
 }
 
+const sharedTextureReleaseSymbol = Symbol('sharedTextureRelease')
+
+type VideoFrameWithRelease = VideoFrame & {
+  [sharedTextureReleaseSymbol]?: () => void
+}
+
+const wrapFrameWithRelease = (frame: VideoFrame, releaseTexture: () => void): VideoFrame => {
+  let closed = false
+  const originalClose = frame.close.bind(frame)
+  const wrappedFrame = frame as VideoFrameWithRelease
+
+  wrappedFrame[sharedTextureReleaseSymbol] = releaseTexture
+  wrappedFrame.close = (): void => {
+    if (closed) return
+    closed = true
+    try {
+      originalClose()
+    } catch {
+      // ignore close errors
+    }
+    releaseTexture()
+  }
+
+  return wrappedFrame
+}
+
 const frameConsumers = new Set<(frame: VideoFrame) => void>()
 
 const addFrameConsumer = (callback: (frame: VideoFrame) => void): (() => void) => {
@@ -224,7 +250,11 @@ const dispatchFrame = (frame: VideoFrame): void => {
   } else {
     for (let i = 0; i < consumers.length; i++) {
       const isLast = i === consumers.length - 1
-      const frameToDeliver = isLast ? frame : frame.clone()
+      let frameToDeliver = isLast ? frame : frame.clone()
+      const releaseTexture = (frame as VideoFrameWithRelease)[sharedTextureReleaseSymbol]
+      if (releaseTexture) {
+        frameToDeliver = wrapFrameWithRelease(frameToDeliver, releaseTexture)
+      }
       try {
         consumers[i]!(frameToDeliver)
       } catch (e) {
@@ -262,16 +292,8 @@ try {
     try {
       const frame = data.importedSharedTexture.getVideoFrame()
       if (frame) {
-        const originalClose = frame.close.bind(frame)
-        frame.close = () => {
-          try {
-            originalClose()
-          } catch {
-            // ignorujemy błędy zamykania klatki
-          }
-          releaseTexture()
-        }
-        dispatchFrame(frame)
+        const wrappedFrame = wrapFrameWithRelease(frame, releaseTexture)
+        dispatchFrame(wrappedFrame)
       } else {
         releaseTexture()
       }
