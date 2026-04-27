@@ -1,22 +1,23 @@
 import { defineStore } from 'pinia'
-import { ref, watch } from 'vue'
+import { watch } from 'vue'
+import { useStorage } from '@vueuse/core'
 import { videoService } from '@renderer/services/video/videoService'
 import { microphoneService } from '@renderer/services/audio/in/micService' // Upewnij się co do ścieżki!
 
 export const useAudioSettingsStore = defineStore('audioSettings', () => {
-  const includeSystemAudio = ref(true)
-  const includeMicrophone = ref(true)
-  const microphoneMuted = ref(false)
+  const includeSystemAudio = useStorage('buddy-audio-include-system', true)
+  const includeMicrophone = useStorage('buddy-audio-include-microphone', true)
+  const microphoneMuted = useStorage('buddy-audio-microphone-muted', false)
 
-  const localSystemAudioVolume = ref<number>(1)
-  const localMicrophoneVolume = ref<number>(1)
+  const localSystemAudioVolume = useStorage<number>('buddy-audio-local-system-volume', 1)
+  const localMicrophoneVolume = useStorage<number>('buddy-audio-local-microphone-volume', 1)
 
-  const remoteMicVolume = ref<number>(1)
-  const remoteSystemVolume = ref<number>(1)
-  const audioDuckingLevel = ref<number>(0.3)
-  const audioSpeechThreshold = ref<number>(0.02)
-  const audioGainSmoothing = ref<number>(0.08)
-  const audioHoldFrames = ref<number>(8)
+  const remoteMicVolume = useStorage<number>('buddy-audio-remote-mic-volume', 1)
+  const remoteSystemVolume = useStorage<number>('buddy-audio-remote-system-volume', 1)
+  const audioDuckingLevel = useStorage<number>('buddy-audio-ducking-level', 0.3)
+  const audioSpeechThreshold = useStorage<number>('buddy-audio-speech-threshold', 0.02)
+  const audioGainSmoothing = useStorage<number>('buddy-audio-gain-smoothing', 0.08)
+  const audioHoldFrames = useStorage<number>('buddy-audio-hold-frames', 8)
 
   const toggleMicrophone = (isMuted: boolean): void => {
     microphoneMuted.value = isMuted

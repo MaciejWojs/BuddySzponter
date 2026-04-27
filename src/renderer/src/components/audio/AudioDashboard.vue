@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, watch } from 'vue'
 import { storeToRefs } from 'pinia'
+import { useStorage } from '@vueuse/core'
 import { useWebRtcStore } from '@renderer/stores/webRtcStore'
 import { useSessionStore } from '@renderer/stores/sessionStore'
 import { microphoneService } from '@renderer/services/audio/in/micService'
@@ -34,16 +35,29 @@ const isMyMicMuted = computed({
   }
 })
 
-const isMySystemMuted = ref(false)
-const isGuestSystemMuted = ref(false)
-const isAdvancedOpen = ref(false)
-const micLimiterEnabled = ref(true)
-const micBassBoostEnabled = ref(false)
-const micStudioModeEnabled = ref(false)
-const micMonitoringEnabled = ref(false)
-const micInputThresholdDb = ref(-60)
+const isMySystemMuted = computed({
+  get: () => !sessionStore.includeSystemAudio,
+  set: (muted: boolean) => {
+    sessionStore.toggleSystemAudio(muted)
+  }
+})
+const isGuestSystemMuted = computed({
+  get: () => sessionStore.remoteSystemVolume <= 0,
+  set: (muted: boolean) => {
+    sessionStore.remoteSystemVolume = muted ? 0 : 1
+  }
+})
+const isAdvancedOpen = useStorage('buddy-audio-advanced-open', false)
+const micLimiterEnabled = useStorage('buddy-audio-mic-limiter-enabled', true)
+const micBassBoostEnabled = useStorage('buddy-audio-mic-bass-boost-enabled', false)
+const micStudioModeEnabled = useStorage('buddy-audio-mic-studio-mode-enabled', false)
+const micMonitoringEnabled = useStorage('buddy-audio-mic-monitoring-enabled', false)
+const micInputThresholdDb = useStorage('buddy-audio-mic-input-threshold-db', -60)
 const isAutoGate = computed(() => micInputThresholdDb.value <= -60)
-const activeVoicePreset = ref<VoicePresetOption['id']>('none')
+const activeVoicePreset = useStorage<VoicePresetOption['id']>(
+  'buddy-audio-active-voice-preset',
+  'none'
+)
 
 const voicePresets: VoicePresetOption[] = [
   { id: 'none', label: 'Czysty' },
@@ -150,7 +164,6 @@ const clampDb = (value: number, min = -60, max = 0): number => {
   return Math.max(min, Math.min(max, value))
 }
 
-const linearToDb = (linear: number): number => clampDb(20 * Math.log10(Math.max(1e-8, linear)))
 const dbToLinear = (db: number): number => Math.max(0, Math.min(1, Math.pow(10, clampDb(db) / 20)))
 
 const clampMicThresholdToContext = (): void => {
@@ -228,12 +241,10 @@ const syncMicMuteStateFromStream = (stream: MediaStream | null): void => {
 
 const toggleMySystemMute = (): void => {
   isMySystemMuted.value = !isMySystemMuted.value
-  sessionStore.toggleSystemAudio(isMySystemMuted.value)
 }
 
 const toggleGuestSystemMute = (): void => {
   isGuestSystemMuted.value = !isGuestSystemMuted.value
-  sessionStore.remoteSystemVolume = isGuestSystemMuted.value ? 0 : 1
 }
 
 const selectVoicePreset = (presetId: VoicePresetOption['id']): void => {
@@ -244,8 +255,7 @@ const selectVoicePreset = (presetId: VoicePresetOption['id']): void => {
 /* ================= LIFECYCLE & WATCHERS ================= */
 
 onMounted(() => {
-  micMonitoringEnabled.value = microphoneService.getLocalMonitoringEnabled()
-  micInputThresholdDb.value = clampDb(linearToDb(microphoneService.getInputThreshold()), -60, 0)
+  micInputThresholdDb.value = clampDb(micInputThresholdDb.value, -60, 0)
   clampMicThresholdToContext()
 
   microphoneService.setLimiter(micLimiterEnabled.value)

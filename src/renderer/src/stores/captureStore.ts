@@ -1,6 +1,7 @@
 // renderer/src/stores/captureStore.ts
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { useStorage } from '@vueuse/core'
 import { useWebRtcStore } from './webRtcStore'
 import { useDeviceStore } from './deviceStore'
 import { useAudioSettingsStore } from './audioSettingsStore'
@@ -21,12 +22,12 @@ export const useCaptureStore = defineStore('capture', () => {
   const audioStore = useAudioSettingsStore()
   const logStore = useLogStore()
 
-  const includeScreenVideo = ref(true)
+  const includeScreenVideo = useStorage('buddy-capture-include-screen-video', true)
   const currentCaptureMode = ref<'host-shared' | 'host-native' | 'guest-mic' | null>(null)
   const isCapturing = computed((): boolean => currentCaptureMode.value !== null)
   const sharedTextureCaptureFps = 120
 
-  const activeVideoQuality = ref<VideoQualityPreset>('high')
+  const activeVideoQuality = useStorage<VideoQualityPreset>('buddy-capture-video-quality', 'high')
   const applyQualityPreset = async (preset: VideoQualityPreset): Promise<void> => {
     activeVideoQuality.value = preset
     switch (preset) {
