@@ -213,9 +213,7 @@ onUnmounted(() => {
       rgba(90, 52, 158, 0.94) 56%,
       rgba(46, 29, 83, 0.96) 100%
     );
-  box-shadow:
-    0 10px 28px rgba(14, 8, 30, 0.55),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(10px);
   display: flex;
   align-items: center;
