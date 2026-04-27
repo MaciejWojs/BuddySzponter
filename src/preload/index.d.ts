@@ -69,6 +69,8 @@ declare global {
       settings: {
         getLanguage: () => Promise<AppLanguage>
         setLanguage: (lang: AppLanguage) => Promise<boolean>
+        getConnectionPassword: () => Promise<string>
+        setConnectionPassword: (password: string) => Promise<boolean>
         getTranslation: () => Promise<Translation>
         getHardwareId: () => Promise<string>
       }

@@ -1,6 +1,7 @@
 import { createHash } from 'crypto'
 import os from 'os'
 import { localStore, translationStore } from '../store/localStore'
+import { secureStore } from '../store/secureStore'
 import { ipcMain } from 'electron'
 import { AppLanguage, Translation } from '../../shared/schemas/langSchemas'
 import fallbackTranslations from '../../shared/locales/en.json'
@@ -119,6 +120,17 @@ export class AppSettingsService {
     return `SZPN-${hash}`
   }
 
+  // --- CONNECTION PASSWORD MANAGEMENT ---
+
+  public getConnectionPassword(): string {
+    return secureStore.getSecure('connectionPassword') || ''
+  }
+
+  public setConnectionPassword(password: string): boolean {
+    secureStore.setSecure('connectionPassword', password)
+    return true
+  }
+
   public registerHandlers(): void {
     ipcMain.handle('settings:getLanguage', () => {
       return this.getSelectedLanguage()
@@ -130,6 +142,14 @@ export class AppSettingsService {
 
     ipcMain.handle('settings:setLanguage', (_event, lang: AppLanguage) => {
       return this.setLanguage(lang)
+    })
+
+    ipcMain.handle('settings:getConnectionPassword', () => {
+      return this.getConnectionPassword()
+    })
+
+    ipcMain.handle('settings:setConnectionPassword', (_event, password: string) => {
+      return this.setConnectionPassword(password)
     })
   }
 }

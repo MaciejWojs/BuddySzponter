@@ -17,18 +17,15 @@ export const useSocketStore = defineStore('socket', () => {
   const incomingRequest = ref<WsRequestAccess | null>(null)
   const isAcknowledged = ref(false)
   const isReconnecting = ref(false)
+  const isAccessRejected = ref(false)
 
   let lastConnectionToken: string | null = null
   let isDisconnectingLocally = false
 
-  const wait = (ms: number): Promise<void> =>
-    new Promise((resolve) => {
-      setTimeout(resolve, ms)
-    })
+  const wait = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
 
   const tryReconnect = async (): Promise<boolean> => {
     if (!lastConnectionToken) return false
-
     isReconnecting.value = true
 
     for (let attempt = 1; attempt <= RECONNECT_MAX_ATTEMPTS; attempt += 1) {
@@ -37,9 +34,7 @@ export const useSocketStore = defineStore('socket', () => {
         isReconnecting.value = false
         return true
       }
-
-      const delayMs = RECONNECT_BASE_DELAY_MS * 2 ** (attempt - 1)
-      await wait(delayMs)
+      await wait(RECONNECT_BASE_DELAY_MS * 2 ** (attempt - 1))
     }
 
     isReconnecting.value = false
@@ -56,30 +51,28 @@ export const useSocketStore = defineStore('socket', () => {
         isConnected.value = true
       },
       onDisconnected: async () => {
-        isConnected.value = false
-        isAcknowledged.value = false
+        // Jeśli sami wywołaliśmy disconnect, ignorujemy ten event
+        if (isDisconnectingLocally) return
 
-        const reconnected = await tryReconnect()
-        if (reconnected) {
-          return
+        console.log('[SocketStore] Wykryto rozłączenie gniazda.')
+        isConnected.value = false
+
+        // Jeśli sesja trwała (WebRTC), próbujemy ją uratować (reconnect)
+        if (isAcknowledged.value) {
+          const reconnected = await tryReconnect()
+          if (reconnected) return
         }
 
+        isAcknowledged.value = false
         rtcStore.forceDisconnect()
         connectionStore.resetState()
       },
-      onManualDisconnected: async () => {
-        console.log('[SocketStore][manual-disconnect] Otrzymano onManualDisconnected z IPC')
-        if (isDisconnectingLocally) {
-          console.log('[SocketStore][manual-disconnect] Pomijam: lokalne rozłączanie już trwa')
-          isConnected.value = false
-          isAcknowledged.value = false
-          return
-        }
-
+      onManualDisconnected: () => {
+        // TO BYŁ SPRAWCA: Całkowicie ignorujemy wymuszone rozłączenia z IPC
+        // podczas trwania sesji, aby zapobiec "duchom" ze starych sesji.
         console.log(
-          '[SocketStore][manual-disconnect] Uruchamiam lokalne disconnect() po zdalnym sygnale'
+          '[SocketStore] Sygnał manual-disconnect z IPC zignorowany dla stabilności sesji.'
         )
-        await disconnect()
       },
       onConnectError: (err) => console.error('[SocketStore]', err.message)
     })
@@ -87,16 +80,14 @@ export const useSocketStore = defineStore('socket', () => {
     wsService.setupAccess({
       onRequest: (data) => {
         incomingRequest.value = data
-        console.log('[SocketStore] Otrzymano żądanie dostępu:', data)
       },
-      onAccepted: (data) => {
-        console.log('[SocketStore] Żądanie dostępu zaakceptowane:', data)
+      onAccepted: () => {
         isAcknowledged.value = true
         incomingRequest.value = null
       },
       onRejected: () => {
-        resetLocalState()
-
+        resetLocalState(true)
+        isAccessRejected.value = true
         const connectionStore = useConnectionStore()
         connectionStore.handleAccessRejected()
       },
@@ -121,9 +112,10 @@ export const useSocketStore = defineStore('socket', () => {
     })
   }
 
-  const resetLocalState = (): void => {
+  const resetLocalState = (preserveRejected = false): void => {
     incomingRequest.value = null
     isAcknowledged.value = false
+    if (!preserveRejected) isAccessRejected.value = false
   }
 
   const connect = async (token: string): Promise<WsConnectResponse> => {
@@ -133,23 +125,22 @@ export const useSocketStore = defineStore('socket', () => {
   }
 
   const disconnect = async (): Promise<WsActionResponse> => {
-    if (isDisconnectingLocally) {
-      console.log('[SocketStore][manual-disconnect] disconnect() pominięte: już w toku')
-      return { success: true }
-    }
+    if (isDisconnectingLocally) return { success: true }
 
-    console.log('[SocketStore][manual-disconnect] Start disconnect()')
     isDisconnectingLocally = true
     lastConnectionToken = null
+    isConnected.value = false
+    resetLocalState(true)
 
     const rtcStore = useWebRtcStore()
-    await rtcStore.disconnect()
+    try {
+      await rtcStore.disconnect()
+    } catch (e) {
+      console.error('[SocketStore] Błąd podczas rozłączania WebRTC:', e)
+    }
 
     const res = await wsService.disconnect()
-    isConnected.value = false
-    resetLocalState()
     isDisconnectingLocally = false
-    console.log(`[SocketStore][manual-disconnect] disconnect() zakończone, success=${res.success}`)
     return res
   }
 
@@ -157,11 +148,9 @@ export const useSocketStore = defineStore('socket', () => {
     if (accept) {
       await wsService.respondAccept()
     } else {
-      const res = await wsService.respondReject()
-      if (res.success) {
-        const connectionStore = useConnectionStore()
-        await connectionStore.handleAccessRejected()
-      }
+      await wsService.respondReject()
+      const connectionStore = useConnectionStore()
+      await connectionStore.handleAccessRejected()
     }
     incomingRequest.value = null
   }
@@ -171,6 +160,7 @@ export const useSocketStore = defineStore('socket', () => {
     incomingRequest,
     isAcknowledged,
     isReconnecting,
+    isAccessRejected,
     wsService,
     init,
     connect,

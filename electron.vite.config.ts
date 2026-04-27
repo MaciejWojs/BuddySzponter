@@ -15,6 +15,7 @@ export default defineConfig({
       alias: {
         '@renderer': resolve('src/renderer/src'),
         '@images': resolve('src/renderer/src/assets/images'),
+        '@shared': resolve('src/shared'),
         'vue-i18n': 'vue-i18n/dist/vue-i18n.runtime.esm-browser.prod.js'
       }
     },

@@ -25,6 +25,7 @@ settingsStore.initSettings()
 socketStore.init()
 userStore.initSession()
 deviceStore.refreshMicrophones()
+connectionStore.initHost()
 useAudioMixer()
 useWidgetBridge()
 
