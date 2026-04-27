@@ -5,6 +5,15 @@
     style="-webkit-app-region: drag"
   >
     <section class="actions" style="-webkit-app-region: no-drag">
+      <div class="connection-meter" :title="`Jakość połączenia: ${connectionLabel}`">
+        <span class="meter-dot" :class="`is-${connectionStatusClass}`" />
+        <div class="meter-bars" aria-hidden="true">
+          <span class="meter-bar" :class="{ active: state.connectionBars >= 1 }" />
+          <span class="meter-bar" :class="{ active: state.connectionBars >= 2 }" />
+          <span class="meter-bar" :class="{ active: state.connectionBars >= 3 }" />
+        </div>
+      </div>
+
       <div class="action-group">
         <button
           class="tool-btn"
@@ -111,7 +120,8 @@ type WidgetCommand =
 const state = ref({
   micActive: true,
   sysActive: true,
-  controlGranted: false
+  controlGranted: false,
+  connectionBars: 0
 })
 
 const isChatOpen = ref(false)
@@ -127,6 +137,20 @@ let syncChannel: BroadcastChannel | null = null
 const lockoutProgress = computed(() => {
   const current = lockoutUntil.value - currentTime.value
   return Math.min(100, Math.max(0, (current / LOCKOUT_DURATION_MS) * 100))
+})
+
+const connectionLabel = computed(() => {
+  if (state.value.connectionBars >= 3) return 'dobre'
+  if (state.value.connectionBars >= 2) return 'średnie'
+  if (state.value.connectionBars >= 1) return 'słabe'
+  return 'brak'
+})
+
+const connectionStatusClass = computed(() => {
+  if (state.value.connectionBars >= 3) return 'good'
+  if (state.value.connectionBars >= 2) return 'fair'
+  if (state.value.connectionBars >= 1) return 'poor'
+  return 'off'
 })
 
 const isAnyGuestLockout = computed(() => isGuestLockedOut.value || isManualGuestLock.value)
@@ -208,7 +232,7 @@ onUnmounted(() => {
 
 .host-widget {
   position: relative;
-  width: 500px;
+  width: 440px;
   height: 60px;
   box-sizing: border-box;
   border-radius: 16px;
@@ -240,6 +264,65 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.connection-meter {
+  display: flex;
+  align-items: flex-end;
+  gap: 5px;
+  padding: 0 6px 0 2px;
+}
+
+.meter-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.35);
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.25);
+}
+
+.meter-dot.is-good {
+  background: #57f0a3;
+  box-shadow: 0 0 8px rgba(87, 240, 163, 0.5);
+}
+
+.meter-dot.is-fair {
+  background: #ffd66b;
+  box-shadow: 0 0 8px rgba(255, 214, 107, 0.45);
+}
+
+.meter-dot.is-poor {
+  background: #ff8e8e;
+  box-shadow: 0 0 8px rgba(255, 142, 142, 0.45);
+}
+
+.meter-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 14px;
+}
+
+.meter-bar {
+  width: 3px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.meter-bar:nth-child(1) {
+  height: 6px;
+}
+
+.meter-bar:nth-child(2) {
+  height: 9px;
+}
+
+.meter-bar:nth-child(3) {
+  height: 12px;
+}
+
+.meter-bar.active {
+  background: #f6f2ff;
 }
 
 .action-group {
