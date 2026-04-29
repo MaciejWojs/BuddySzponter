@@ -52,9 +52,11 @@ export function registerGuestWindowHandlers(): void {
     if (!win) return
 
     const ratio = width / height
-    win.setAspectRatio(ratio)
+
+    win.setAspectRatio(0)
 
     const currentContentBounds = win.getContentBounds()
+
     const targetContentHeight = Math.round(currentContentBounds.width / ratio)
 
     win.setContentBounds(
