@@ -1,7 +1,7 @@
-// src/renderer/stores/signalingStore.ts
 import { defineStore } from 'pinia'
 import { useSocketStore } from './socketStore'
 import { useWebRtcStore } from './webRtcStore'
+import { useCaptureStore } from './captureStore'
 import { webRtcService } from '@renderer/composables/connection/webRTCService'
 import { WsWebRTCAnswer, WsWebRTCIceCandidate } from '@shared/schemas/ws'
 
@@ -35,17 +35,20 @@ export const useSignalingStore = defineStore('signaling', () => {
   }
 
   const createAnswerForRelay = async (offerSdp: string): Promise<string> => {
+    const captureStore = useCaptureStore()
+
     webRtcStore.setLocalPublishProfile('guest')
     webRtcService.cleanup()
-    webRtcService.initialize(false) // Fałsz, bo to okno Gościa
+    webRtcService.initialize(false)
     webRtcStore.rtcStatus = 'connecting'
 
     try {
+      await captureStore.startGuestCapture()
+
       const offer = JSON.parse(offerSdp)
-      // Okno Gościa nie wysyła swojego wideo/audio stąd lokalnego strumienia (null)
       const answer = await webRtcService.handleOfferAndCreateAnswer(
         offer,
-        null,
+        webRtcStore.localStream,
         webRtcStore.getCurrentTrackPolicy()
       )
       return JSON.stringify(answer)
