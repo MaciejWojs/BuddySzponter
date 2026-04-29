@@ -159,9 +159,28 @@ const api = {
     showApp: (): Promise<void> => ipcRenderer.invoke('show-main-window'),
     hideToTray: (): Promise<void> => ipcRenderer.invoke('hide-to-tray'),
     quitApp: (): Promise<void> => ipcRenderer.invoke('quit-app'),
+    showHostWidget: (): Promise<void> => ipcRenderer.invoke('show-host-widget'),
+    hideHostWidget: (): Promise<void> => ipcRenderer.invoke('hide-host-widget'),
+    resizeToVideoRatio: (width: number, height: number) =>
+      ipcRenderer.invoke('app:resize-to-video-ratio', width, height),
+    resetAspectRatio: () => ipcRenderer.invoke('app:reset-aspect-ratio'),
 
     setHostTrayMode: (active: boolean): Promise<void> =>
       ipcRenderer.invoke('set-host-tray-mode', active)
+  },
+  input: {
+    moveAbsolute: (x: number, y: number): Promise<void> =>
+      ipcRenderer.invoke('input:move-absolute', x, y),
+
+    mouseAction: (button: string, action: string, x: number, y: number): Promise<void> =>
+      ipcRenderer.invoke('input:mouse-action', button, action, x, y),
+
+    keyboardEvent: (keyCode: string, action: string): Promise<void> =>
+      ipcRenderer.invoke('input:keyboard-event', keyCode, action),
+    scrollMouse: (deltaY: number): Promise<void> =>
+      ipcRenderer.invoke('input:scroll-mouse', deltaY),
+    getHostScreenSize: (): Promise<{ width: number; height: number }> =>
+      ipcRenderer.invoke('input:get-host-screen-size')
   },
 
   events: {
@@ -181,7 +200,84 @@ const api = {
   }
 }
 
-let currentOnFrame: ((frame: VideoFrame) => void) | null = null
+const sharedTextureReleaseSymbol = Symbol('sharedTextureRelease')
+
+type VideoFrameWithRelease = VideoFrame & {
+  [sharedTextureReleaseSymbol]?: () => void
+}
+
+const frameFinalizer = new FinalizationRegistry<() => void>((releaseTexture) => {
+  try {
+    releaseTexture()
+  } catch {
+    // ignore finalizer errors
+  }
+})
+
+const registerFrameFinalizer = (frame: VideoFrame, releaseTexture: () => void): void => {
+  frameFinalizer.register(frame, releaseTexture, frame)
+}
+
+const wrapFrameWithRelease = (frame: VideoFrame, releaseTexture: () => void): VideoFrame => {
+  let closed = false
+  const originalClose = frame.close.bind(frame)
+  const wrappedFrame = frame as VideoFrameWithRelease
+
+  wrappedFrame[sharedTextureReleaseSymbol] = releaseTexture
+  wrappedFrame.close = (): void => {
+    if (closed) return
+    closed = true
+    frameFinalizer.unregister(wrappedFrame)
+    try {
+      originalClose()
+    } catch {
+      // ignore close errors
+    }
+    releaseTexture()
+  }
+
+  registerFrameFinalizer(wrappedFrame, releaseTexture)
+  return wrappedFrame
+}
+
+const frameConsumers = new Set<(frame: VideoFrame) => void>()
+
+const addFrameConsumer = (callback: (frame: VideoFrame) => void): (() => void) => {
+  frameConsumers.add(callback)
+  return () => {
+    frameConsumers.delete(callback)
+    if (frameConsumers.size === 0) {
+      ipcRenderer.postMessage('capture:stop-stream', null)
+    }
+  }
+}
+
+const dispatchFrame = (frame: VideoFrame): void => {
+  const consumers = Array.from(frameConsumers)
+  if (consumers.length === 0) {
+    frame.close()
+    return
+  }
+
+  if (consumers.length === 1) {
+    consumers[0](frame)
+  } else {
+    for (let i = 0; i < consumers.length; i++) {
+      const isLast = i === consumers.length - 1
+      let frameToDeliver = isLast ? frame : frame.clone()
+      const releaseTexture = (frame as VideoFrameWithRelease)[sharedTextureReleaseSymbol]
+      if (releaseTexture) {
+        frameToDeliver = wrapFrameWithRelease(frameToDeliver, releaseTexture)
+      }
+      try {
+        consumers[i]!(frameToDeliver)
+      } catch (e) {
+        console.error('[Preload] Error delivering frame:', e)
+        frameToDeliver.close()
+      }
+    }
+  }
+}
 
 const registerSharedTextureReceiver = (): void => {
   const receiverApi = sharedTexture as unknown as {
@@ -195,23 +291,88 @@ const registerSharedTextureReceiver = (): void => {
 
 try {
   sharedTexture.setSharedTextureReceiver(async (data) => {
-    try {
-      if (currentOnFrame) {
-        const frame = data.importedSharedTexture.getVideoFrame()
-        if (frame) {
-          currentOnFrame(frame)
+    let released = false
+    const releaseTexture = (): void => {
+      if (!released) {
+        released = true
+        try {
+          data.importedSharedTexture.release()
+        } catch {
+          // ignorujemy błędy zwalniania tekstury
         }
+      }
+    }
+
+    try {
+      let frame = data.importedSharedTexture.getVideoFrame()
+      if (frame) {
+        if (typeof frame.timestamp !== 'number' || frame.timestamp === 0) {
+          const normalizedFrame = new VideoFrame(frame, {
+            timestamp: performance.now() * 1000
+          })
+          frame.close()
+          frame = normalizedFrame
+        }
+        const wrappedFrame = wrapFrameWithRelease(frame, releaseTexture)
+        dispatchFrame(wrappedFrame)
+      } else {
+        releaseTexture()
       }
     } catch (e) {
       console.error('[Preload] Odbiór klatki sharedTexture:', e)
-    } finally {
-      // Must release the shared texture regardless
-      data.importedSharedTexture.release()
+      releaseTexture()
     }
   })
 } catch (e) {
   console.error('[Preload] Failed to set shared texture receiver:', e)
 }
+
+interface RawFramePayload {
+  buffer: ArrayBuffer | Uint8Array
+  width: number
+  height: number
+  stride: number
+  format: number
+  timestamp: number
+}
+
+ipcRenderer.on('capture:raw-frame', async (_, rawFrame: RawFramePayload) => {
+  if (!rawFrame) {
+    return
+  }
+
+  try {
+    let pixelData: Uint8ClampedArray
+
+    if (rawFrame.buffer instanceof ArrayBuffer) {
+      pixelData = new Uint8ClampedArray(rawFrame.buffer)
+    } else {
+      pixelData = new Uint8ClampedArray(
+        rawFrame.buffer.buffer as ArrayBuffer,
+        rawFrame.buffer.byteOffset,
+        rawFrame.buffer.byteLength
+      )
+    }
+
+    // const imageData = new ImageData(
+    //   pixelData as unknown as ImageDataArray,
+    //   rawFrame.width,
+    //   rawFrame.height
+    // )
+    // const bitmap = await createImageBitmap(imageData)
+    // const frame = new VideoFrame(bitmap, { timestamp: performance.now() * 1000 })
+    const frame = new VideoFrame(pixelData, {
+      format: 'RGBA',
+      codedWidth: rawFrame.width,
+      codedHeight: rawFrame.height,
+      timestamp: rawFrame.timestamp
+    })
+
+    dispatchFrame(frame)
+  } catch (e) {
+    console.error('[Preload] Odbiór surowej klatki:', e)
+  }
+})
 
 // Use `contextBridge` APIs to expose Electron APIs to
 // renderer only if context isolation is enabled, otherwise
@@ -226,14 +387,12 @@ if (process.contextIsolated) {
     contextBridge.exposeInMainWorld('capture', {
       start: () => ipcRenderer.invoke('capture:start'),
       stop: () => ipcRenderer.invoke('capture:stop'),
+      getFps: () => ipcRenderer.invoke('capture:getFps'),
       subscribeStream: (onFrame: (frame: VideoFrame) => void) => {
-        currentOnFrame = onFrame
+        const cleanupSubscription = addFrameConsumer(onFrame)
 
         const cleanup = (): void => {
-          if (currentOnFrame) {
-            currentOnFrame = null
-            ipcRenderer.postMessage('capture:stop-stream', null)
-          }
+          cleanupSubscription()
         }
         window.addEventListener('beforeunload', cleanup, { once: true })
 
@@ -260,13 +419,14 @@ if (process.contextIsolated) {
         registerSharedTextureReceiver()
       },
       onFrameReceived: (callback: (frame: VideoFrame) => void) => {
-        currentOnFrame = callback
+        const cleanupSubscription = addFrameConsumer(callback)
 
         return () => {
-          if (currentOnFrame === callback) {
-            currentOnFrame = null
-          }
+          cleanupSubscription()
         }
+      },
+      shouldUseCpu: async (): Promise<boolean> => {
+        return ipcRenderer.invoke('capture:should-use-cpu')
       }
     })
   } catch (error) {

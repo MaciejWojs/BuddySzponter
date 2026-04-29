@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
-import { microphoneService } from '@renderer/services/micService'
+import { microphoneService } from '@renderer/services/audio/in/micService'
 import VUMeterS from '../simple/VUMeterS.vue'
 
 const props = defineProps<{
@@ -122,8 +122,7 @@ const stopMeter = (): void => {
 const tick = (): void => {
   const analyser = getEffectiveAnalyser()
   if (!analyser) {
-    const shouldRetry =
-      props.contextMode === 'auto-mic' && (props.enabled ?? true) && (props.isCapturing ?? false)
+    const shouldRetry = props.enabled ?? true
     if (!shouldRetry) {
       stopAnimationLoop()
     }

@@ -1,8 +1,9 @@
 import { onMounted, onUnmounted, watch } from 'vue'
-import { useRemoteAudioTracks } from './useRemoteAudioTracks'
+import { useRemoteAudioTracks } from '../../../composables/audio/useRemoteAudioTracks'
 import { useWebRtcStore } from '@renderer/stores/webRtcStore'
+import { useSessionStore } from '@renderer/stores/sessionStore' // <-- NOWY IMPORT
 import { getAudioContext, resumeAudioContext } from '@renderer/composables/useSharedAudioContext'
-import { useAudioMixerEngine } from './useAudioMixerEngine'
+import { useAudioMixerEngine } from '../../../composables/audio/useAudioMixerEngine'
 
 type AudioMixerEngineHandle = ReturnType<typeof useAudioMixerEngine>
 
@@ -15,13 +16,15 @@ export function useAudioMixer(): {
   unlock: () => Promise<void>
 } {
   const webRtcStore = useWebRtcStore()
+  const sessionStore = useSessionStore()
+
   const { micTrack, systemTrack } = useRemoteAudioTracks()
   const audioContext = getAudioContext()
 
-  const getDuckingLevel = (): number => webRtcStore.audioDuckingLevel
-  const getSpeechThreshold = (): number => webRtcStore.audioSpeechThreshold
-  const getGainSmoothing = (): number => webRtcStore.audioGainSmoothing
-  const getHoldFrames = (): number => webRtcStore.audioHoldFrames
+  const getDuckingLevel = (): number => sessionStore.audioDuckingLevel
+  const getSpeechThreshold = (): number => sessionStore.audioSpeechThreshold
+  const getGainSmoothing = (): number => sessionStore.audioGainSmoothing
+  const getHoldFrames = (): number => sessionStore.audioHoldFrames
 
   if (!sharedEngine) {
     sharedEngine = useAudioMixerEngine({
@@ -30,7 +33,8 @@ export function useAudioMixer(): {
       duckingLevel: getDuckingLevel(),
       speechThreshold: getSpeechThreshold(),
       smoothing: getGainSmoothing(),
-      holdFrames: Math.round(getHoldFrames())
+      holdFrames: Math.round(getHoldFrames()),
+      enableKeepAliveDummy: true
     })
   }
   sharedEngineConsumers += 1
@@ -45,11 +49,11 @@ export function useAudioMixer(): {
     }
   }
 
-  const setMicVolume = (v: number): void => {
-    engine.setMicVolume(v)
+  const setMicVolume = (v?: number): void => {
+    engine.setMicVolume(typeof v === 'number' ? v : 1)
   }
-  const setSystemVolume = (v: number): void => {
-    engine.setSystemVolume(v)
+  const setSystemVolume = (v?: number): void => {
+    engine.setSystemVolume(typeof v === 'number' ? v : 1)
   }
   const unlock = async (): Promise<void> => await ensureRunning()
 
@@ -72,10 +76,11 @@ export function useAudioMixer(): {
     engine.stop()
   }
 
-  const unwatchMicVol = watch(() => webRtcStore.remoteMicVolume, setMicVolume, { immediate: true })
-  const unwatchSysVol = watch(() => webRtcStore.remoteSystemVolume, setSystemVolume, {
+  const unwatchMicVol = watch(() => sessionStore.remoteMicVolume, setMicVolume, { immediate: true })
+  const unwatchSysVol = watch(() => sessionStore.remoteSystemVolume, setSystemVolume, {
     immediate: true
   })
+
   const unwatchRemoteStream = watch(() => webRtcStore.remoteStream, syncMixerState, {
     immediate: true
   })

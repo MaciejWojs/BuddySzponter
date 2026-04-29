@@ -1,25 +1,23 @@
 import { webRtcService } from '@renderer/composables/connection/webRTCService'
 import { P2PMessage } from '@renderer/schemas/p2pProtocol'
+import { messageRouter } from '@renderer/composables/webrtc/MessageRouter'
 
 export type ControlAction = Extract<P2PMessage, { type: 'CONTROL' }>['payload']['action']
 
 export interface SystemEventsChannelApi {
-  handleIncomingMessage: (msg: P2PMessage) => void
   sendVideoCommand: (action: ControlAction) => void
   sendDisconnectEvent: () => void
 }
 
 export function SystemEventsChannel(onForceDisconnect: () => void): SystemEventsChannelApi {
-  const handleIncomingMessage = (msg: P2PMessage): void => {
+  // --- AUTONOMICZNY NASŁUCH ---
+  messageRouter.subscribe('system-events', (msg: P2PMessage) => {
     if (msg.type === 'DISCONNECT') {
       onForceDisconnect()
-      return
-    }
-
-    if (msg.type === 'CONTROL') {
+    } else if (msg.type === 'CONTROL') {
       console.log('[SystemEvents] Otrzymano CONTROL:', msg.payload.action)
     }
-  }
+  })
 
   const sendVideoCommand = (action: ControlAction): void => {
     webRtcService.sendData(
@@ -32,5 +30,6 @@ export function SystemEventsChannel(onForceDisconnect: () => void): SystemEvents
     webRtcService.sendData('system-events', JSON.stringify({ type: 'DISCONNECT', payload: {} }))
   }
 
-  return { handleIncomingMessage, sendVideoCommand, sendDisconnectEvent }
+  // Nie zwracamy już handleIncomingMessage!
+  return { sendVideoCommand, sendDisconnectEvent }
 }

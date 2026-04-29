@@ -48,6 +48,7 @@ watchEffect(() => {
       muted
       class="w-full h-full object-contain absolute inset-0 transition-opacity duration-500"
       :class="stream ? 'opacity-100' : 'opacity-0'"
+      @loadedmetadata="$emit('loadedmetadata', $event)"
     ></video>
   </div>
 </template>

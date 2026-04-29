@@ -1,22 +1,24 @@
 import { ref, Ref } from 'vue'
 import { webRtcService } from '@renderer/composables/connection/webRTCService'
 import { P2PMessage } from '@renderer/schemas/p2pProtocol'
+import { messageRouter } from '@renderer/composables/webrtc/MessageRouter'
 
 export type ChatPayload = Extract<P2PMessage, { type: 'CHAT' }>['payload']
 
 export interface ChatChannelApi {
   chatMessages: Ref<string[]>
-  handleIncomingMessage: (payload: ChatPayload) => void
   sendChatMessage: (text: string, sender?: string) => void
 }
 
-export function ChatChannel(): ChatChannelApi {
-  const chatMessages = ref<string[]>([])
+const chatMessages = ref<string[]>([])
 
-  const handleIncomingMessage = (payload: ChatPayload): void => {
-    chatMessages.value.push(`${payload.sender}: ${payload.text}`)
+messageRouter.subscribe('chat-channel', (msg: P2PMessage) => {
+  if (msg.type === 'CHAT') {
+    chatMessages.value.push(`${msg.payload.sender}: ${msg.payload.text}`)
   }
+})
 
+export function useChatChannel(): ChatChannelApi {
   const sendChatMessage = (text: string, sender = 'Ja'): void => {
     const normalized = text.trim()
     if (!normalized) return
@@ -28,5 +30,5 @@ export function ChatChannel(): ChatChannelApi {
     )
   }
 
-  return { chatMessages, handleIncomingMessage, sendChatMessage }
+  return { chatMessages, sendChatMessage }
 }

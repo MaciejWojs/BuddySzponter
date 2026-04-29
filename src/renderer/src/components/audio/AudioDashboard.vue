@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
-import { useWebRtcStore } from '@renderer/stores/webRtcStore'
-import { SessionStore } from '@renderer/stores/sessionStore'
-import { microphoneService } from '@renderer/services/micService'
+import { useSessionStore } from '@renderer/stores/sessionStore'
+import { microphoneService } from '@renderer/services/audio/in/micService'
 import SelectMicrophoneL from './smart/SelectMicrophoneL.vue'
 import MicrophoneVolumeL from './smart/MicrophoneVolumeL.vue'
 import VUMeterL from './smart/VUMeterL.vue'
@@ -17,8 +16,7 @@ interface VoicePresetOption {
   label: string
 }
 
-const webRtcStore = useWebRtcStore()
-const sessionStore = SessionStore()
+const sessionStore = useSessionStore()
 const { selectedMicrophoneDeviceId } = storeToRefs(sessionStore)
 
 const isMyMicMuted = ref(false)
@@ -146,7 +144,7 @@ watch(micStudioModeEnabled, (enabled) => {
               :enabled="sessionStore.includeMicrophone && !isMyMicMuted"
               :is-capturing="sessionStore.isCapturing"
               :device-id="selectedMicrophoneDeviceId || undefined"
-              :volume="webRtcStore.localMicrophoneVolume"
+              :volume="sessionStore.localMicrophoneVolume"
               :input-threshold-linear="dbToLinear(micInputThresholdDb)"
               :limiter-threshold-db="limiterThresholdDb"
             />

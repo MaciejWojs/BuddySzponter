@@ -36,13 +36,13 @@
             class="bg-black/50 border border-[#222] rounded p-3 h-37.5 overflow-y-auto text-sm font-mono flex flex-col gap-1 shadow-inner"
           >
             <div
-              v-for="(msg, i) in webRtcStore.chatMessages"
+              v-for="(msg, i) in chatChannel.chatMessages.value"
               :key="i"
               :class="msg.startsWith('Ja:') ? 'text-emerald-400 text-right' : 'text-blue-400'"
             >
               {{ msg }}
             </div>
-            <div v-if="webRtcStore.chatMessages.length === 0" class="text-gray-600">
+            <div v-if="chatChannel.chatMessages.value.length === 0" class="text-gray-600">
               Brak wiadomości...
             </div>
           </div>
@@ -81,8 +81,8 @@
             <div
               class="absolute w-4 h-4 bg-rose-500 rounded-full blur-[2px] transition-all duration-75 ease-linear pointer-events-none shadow-[0_0_10px_#f43f5e]"
               :style="{
-                left: `${webRtcStore.remoteMouse.x}%`,
-                top: `${webRtcStore.remoteMouse.y}%`,
+                left: `${hidChannel.remoteMouse.value.x}%`,
+                top: `${hidChannel.remoteMouse.value.y}%`,
                 transform: 'translate(-50%, -50%)'
               }"
             ></div>
@@ -95,50 +95,22 @@
         <div class="flex gap-3">
           <button
             class="px-4 py-2 bg-[#222] border border-[#444] hover:bg-[#333] hover:border-yellow-500 text-gray-300 hover:text-yellow-400 rounded text-xs font-bold transition-all"
-            @click="webRtcStore.sendVideoCommand('PAUSE_VIDEO')"
+            @click="systemEvents.sendVideoCommand('PAUSE_VIDEO')"
           >
             ⏸ Pauzuj Wideo
           </button>
           <button
             class="px-4 py-2 bg-[#222] border border-[#444] hover:bg-[#333] hover:border-emerald-500 text-gray-300 hover:text-emerald-400 rounded text-xs font-bold transition-all"
-            @click="webRtcStore.sendVideoCommand('RESUME_VIDEO')"
+            @click="systemEvents.sendVideoCommand('RESUME_VIDEO')"
           >
             ▶ Wznów Wideo
           </button>
           <button
             class="px-4 py-2 bg-[#222] border border-[#444] hover:bg-[#333] hover:border-blue-500 text-gray-300 hover:text-blue-400 rounded text-xs font-bold transition-all"
-            @click="webRtcStore.sendVideoCommand('LOWER_QUALITY')"
+            @click="systemEvents.sendVideoCommand('LOWER_QUALITY')"
           >
             📉 Wymuś Zrzut Jakości
           </button>
-        </div>
-        <p class="text-[10px] text-gray-500 mt-2">
-          Te przyciski wysyłają niezawodne zdarzenia systemowe (np. komendy), niezależnie od ruchu
-          HID/czatu. Otwórz konsolę (F12) u partnera, by zobaczyć odbiór komendy!
-        </p>
-      </div>
-      <div class="pt-4 border-t border-[#333]">
-        <h3 class="text-sm font-bold text-cyan-400 mb-3 m-0">📊 Metrics (metrics)</h3>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-          <div class="bg-black/40 border border-[#333] rounded p-3">
-            <p class="m-0 text-gray-400 mb-2">Lokalne</p>
-            <p class="m-0 text-white">FPS: {{ webRtcStore.localMetrics.fps ?? '-' }}</p>
-            <p class="m-0 text-white">
-              Jakość: {{ webRtcStore.localMetrics.qualityPreset ?? '-' }}
-            </p>
-            <p class="m-0 text-white">RTT: {{ webRtcStore.localMetrics.rttMs ?? '-' }} ms</p>
-            <p class="m-0 text-white">CPU: {{ webRtcStore.localMetrics.cpuLoadPct ?? '-' }}%</p>
-          </div>
-
-          <div class="bg-black/40 border border-[#333] rounded p-3">
-            <p class="m-0 text-gray-400 mb-2">Zdalne</p>
-            <p class="m-0 text-white">FPS: {{ webRtcStore.remoteMetrics.fps ?? '-' }}</p>
-            <p class="m-0 text-white">
-              Jakość: {{ webRtcStore.remoteMetrics.qualityPreset ?? '-' }}
-            </p>
-            <p class="m-0 text-white">RTT: {{ webRtcStore.remoteMetrics.rttMs ?? '-' }} ms</p>
-            <p class="m-0 text-white">CPU: {{ webRtcStore.remoteMetrics.cpuLoadPct ?? '-' }}%</p>
-          </div>
         </div>
       </div>
     </div>
@@ -148,15 +120,20 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useWebRtcStore } from '@renderer/stores/webRtcStore'
+import { useChatChannel } from '@renderer/composables/channels/ChatChannel'
+import { useHidChannel } from '@renderer/composables/channels/HidChannel'
+import { SystemEventsChannel } from '@renderer/composables/channels/SystemEventsChannel'
 
 const webRtcStore = useWebRtcStore()
+const chatChannel = useChatChannel()
+const hidChannel = useHidChannel()
+const systemEvents = SystemEventsChannel(() => webRtcStore.forceDisconnect())
 
 const chatInput = ref('')
 
 const handleSend = (): void => {
   if (chatInput.value.trim()) {
-    webRtcStore.sendChatMessage(chatInput.value, 'Rozmówca')
-
+    chatChannel.sendChatMessage(chatInput.value, 'Rozmówca')
     chatInput.value = ''
   }
 }
@@ -167,9 +144,10 @@ const handleMouseMove = (e: MouseEvent): void => {
   const target = e.currentTarget as HTMLElement
   const rect = target.getBoundingClientRect()
 
-  const x = Math.round(((e.clientX - rect.left) / rect.width) * 100)
-  const y = Math.round(((e.clientY - rect.top) / rect.height) * 100)
+  const x = ((e.clientX - rect.left) / rect.width) * 100
+  const y = ((e.clientY - rect.top) / rect.height) * 100
 
-  webRtcStore.sendMousePosition(x, y)
+  // Wysyłamy przez nasz wydzielony kanał HID
+  hidChannel.sendMouseFromVideo(x, y)
 }
 </script>

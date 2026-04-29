@@ -23,7 +23,7 @@
           <BuSocketTest @log-result="logResult" />
           <AudioDashboard @log-result="logResult" />
           <!-- <BuDataChannelTest @log-result="logResult" /> -->
-          <!-- <BuScreenCaptureTest /> -->
+          <BuScreenCaptureTest />
           <!-- <BuAudioParametersTestPanel /> -->
         </div>
 

@@ -16,7 +16,7 @@ class MicrophoneService {
   private bassBoostDb = 0
   private inputThreshold = 0.008
   private gateHoldTimeSeconds = 0.5
-  private gateAttackTime = 0.015
+  private gateAttackTime = 0.014
   private gateReleaseTime = 1.0
   private autoGainControlEnabled = true
   private noiseSuppressionEnabled = true
@@ -66,16 +66,6 @@ class MicrophoneService {
     }
 
     this.syncMonitoringOutput()
-  }
-
-  public async getAvailableMicrophones(): Promise<AudioInputDeviceOption[]> {
-    const devices = await navigator.mediaDevices.enumerateDevices()
-    return devices
-      .filter((device) => device.kind === 'audioinput' && !!device.deviceId)
-      .map((device, index) => ({
-        deviceId: device.deviceId,
-        label: device.label || `Mikrofon ${index + 1}`
-      }))
   }
 
   public async start(deviceId?: string, volume = 1): Promise<MediaStreamTrack | null> {
