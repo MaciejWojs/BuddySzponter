@@ -3,7 +3,7 @@ import { defineStore } from 'pinia'
 import { useSocketStore } from './socketStore'
 import { useWebRtcStore } from './webRtcStore'
 import { webRtcService } from '@renderer/composables/connection/webRTCService'
-import { WsWebRTCOffer, WsWebRTCAnswer, WsWebRTCIceCandidate } from '@shared/schemas/ws'
+import { WsWebRTCAnswer, WsWebRTCIceCandidate } from '@shared/schemas/ws'
 
 export const useSignalingStore = defineStore('signaling', () => {
   const socketStore = useSocketStore()
@@ -29,23 +29,30 @@ export const useSignalingStore = defineStore('signaling', () => {
     }
   }
 
-  const handleOffer = async (data: WsWebRTCOffer): Promise<void> => {
+  const handleOffer = async (): Promise<void> => {
+    console.log('[Signaling] Otrzymano ofertę od Hosta. Czekam na przekaźnik...')
+    webRtcStore.rtcStatus = 'connecting'
+  }
+
+  const createAnswerForRelay = async (offerSdp: string): Promise<string> => {
     webRtcStore.setLocalPublishProfile('guest')
     webRtcService.cleanup()
-    webRtcService.initialize(false)
+    webRtcService.initialize(false) // Fałsz, bo to okno Gościa
     webRtcStore.rtcStatus = 'connecting'
 
     try {
-      const offer = JSON.parse(data.sdp)
+      const offer = JSON.parse(offerSdp)
+      // Okno Gościa nie wysyła swojego wideo/audio stąd lokalnego strumienia (null)
       const answer = await webRtcService.handleOfferAndCreateAnswer(
         offer,
-        webRtcStore.localStream,
+        null,
         webRtcStore.getCurrentTrackPolicy()
       )
-      await socketStore.wsService.sendAnswer({ sdp: JSON.stringify(answer) })
+      return JSON.stringify(answer)
     } catch (e) {
-      console.error('[Signaling] Błąd obsługi oferty:', e)
+      console.error('[Signaling] Błąd tworzenia odpowiedzi w oknie Gościa:', e)
       webRtcStore.forceDisconnect()
+      throw e
     }
   }
 
@@ -66,12 +73,15 @@ export const useSignalingStore = defineStore('signaling', () => {
   }
 
   webRtcService.onIceCandidateGenerated = async (candidate): Promise<void> => {
-    await socketStore.wsService.sendIceCandidate({ candidate: JSON.stringify(candidate) })
+    if (socketStore.isConnected) {
+      await socketStore.wsService.sendIceCandidate({ candidate: JSON.stringify(candidate) })
+    }
   }
 
   return {
     startConnectionAsHost,
     handleOffer,
+    createAnswerForRelay,
     handleAnswer,
     handleCandidate
   }
