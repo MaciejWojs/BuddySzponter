@@ -72,7 +72,7 @@ onMounted(() => {
   }
 
   webRtcService.onIceCandidateGenerated = async (candidate) => {
-    localRelay?.postMessage({ type: 'RELAY_ICE', payload: candidate })
+    localRelay?.postMessage({ type: 'RELAY_ICE', payload: candidate.toJSON() })
   }
 })
 
