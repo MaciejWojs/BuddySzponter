@@ -1,36 +1,32 @@
 <template>
   <div
-    class="bg-[#1e1e1e] border border-[#333] rounded-xl p-5 shadow-2xl relative flex flex-col gap-4"
+    ref="videoContainer"
+    class="bg-black w-full h-full relative focus:outline-none"
+    tabindex="0"
+    :class="{
+      'cursor-crosshair': hidChannel.isControlGranted,
+      'cursor-not-allowed': !hidChannel.isControlGranted
+    }"
+    @mouseenter="focusContainer"
+    @mousemove="handleMouseMove"
+    @mousedown="handleMouseDown"
+    @mouseup="handleMouseUp"
+    @contextmenu.prevent
+    @keydown.prevent="handleKeyDown"
+    @keyup.prevent="handleKeyUp"
+    @wheel.passive="false"
+    @wheel="handleWheel"
   >
-    <div
-      ref="videoContainer"
-      class="bg-black border border-[#444] overflow-hidden aspect-video relative w-full focus:outline-none"
-      tabindex="0"
-      :class="{
-        'cursor-crosshair': hidChannel.isControlGranted,
-        'cursor-not-allowed': !hidChannel.isControlGranted
-      }"
-      @mouseenter="focusContainer"
-      @mousemove="handleMouseMove"
-      @mousedown="handleMouseDown"
-      @mouseup="handleMouseUp"
-      @contextmenu.prevent
-      @keydown.prevent="handleKeyDown"
-      @keyup.prevent="handleKeyUp"
-      @wheel.passive="false"
-      @wheel="handleWheel"
-    >
-      <VideoPlayer
-        class="absolute inset-0 w-full h-full pointer-events-none"
-        :stream="webRtcStore.remoteStream"
-        :placeholder-text="
-          webRtcStore.rtcStatus === 'connected'
-            ? 'Czekam na obraz od hosta...'
-            : 'Połącz się, aby zobaczyć ekran.'
-        "
-        @loadedmetadata="handleMetadataLoaded"
-      />
-    </div>
+    <VideoPlayer
+      class="absolute inset-0 w-full h-full pointer-events-none"
+      :stream="webRtcStore.remoteStream"
+      :placeholder-text="
+        webRtcStore.rtcStatus === 'connected'
+          ? 'Czekam na obraz od hosta...'
+          : 'Połącz się, aby zobaczyć ekran.'
+      "
+      @loadedmetadata="handleMetadataLoaded"
+    />
   </div>
 </template>
 
