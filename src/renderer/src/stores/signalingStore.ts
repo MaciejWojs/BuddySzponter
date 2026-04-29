@@ -9,10 +9,16 @@ export const useSignalingStore = defineStore('signaling', () => {
   const socketStore = useSocketStore()
   const webRtcStore = useWebRtcStore()
 
+  let isRemoteDescriptionSet = false
+  let pendingIceCandidates: RTCIceCandidateInit[] = []
+
   const startConnectionAsHost = async (): Promise<void> => {
     webRtcStore.setLocalPublishProfile('host')
     webRtcService.cleanup()
     webRtcService.initialize(true)
+
+    isRemoteDescriptionSet = false
+    pendingIceCandidates = []
 
     if (webRtcStore.localStream) {
       webRtcService.publishLocalStream(webRtcStore.localStream, webRtcStore.getCurrentTrackPolicy())
@@ -40,10 +46,14 @@ export const useSignalingStore = defineStore('signaling', () => {
     webRtcStore.setLocalPublishProfile('guest')
     webRtcService.cleanup()
     webRtcService.initialize(false)
-    webRtcStore.rtcStatus = 'connecting'
+
+    isRemoteDescriptionSet = false
+    pendingIceCandidates = []
 
     try {
       await captureStore.startGuestCapture()
+
+      webRtcStore.rtcStatus = 'connecting'
 
       const offer = JSON.parse(offerSdp)
       const answer = await webRtcService.handleOfferAndCreateAnswer(
@@ -51,6 +61,13 @@ export const useSignalingStore = defineStore('signaling', () => {
         webRtcStore.localStream,
         webRtcStore.getCurrentTrackPolicy()
       )
+
+      isRemoteDescriptionSet = true
+      for (const candidate of pendingIceCandidates) {
+        await webRtcService.addIceCandidate(candidate)
+      }
+      pendingIceCandidates = []
+
       return JSON.stringify(answer)
     } catch (e) {
       console.error('[Signaling] Błąd tworzenia odpowiedzi w oknie Gościa:', e)
@@ -62,6 +79,12 @@ export const useSignalingStore = defineStore('signaling', () => {
   const handleAnswer = async (data: WsWebRTCAnswer): Promise<void> => {
     try {
       await webRtcService.handleAnswer(JSON.parse(data.sdp))
+
+      isRemoteDescriptionSet = true
+      for (const candidate of pendingIceCandidates) {
+        await webRtcService.addIceCandidate(candidate)
+      }
+      pendingIceCandidates = []
     } catch (e) {
       console.error('[Signaling] Błąd obsługi odpowiedzi:', e)
     }
@@ -69,7 +92,14 @@ export const useSignalingStore = defineStore('signaling', () => {
 
   const handleCandidate = async (data: WsWebRTCIceCandidate): Promise<void> => {
     try {
-      await webRtcService.addIceCandidate(JSON.parse(data.candidate))
+      const candidate = JSON.parse(data.candidate)
+
+      if (!isRemoteDescriptionSet) {
+        console.log('[Signaling] WebRTC jeszcze myśli. Kolejkuję pakiet ICE...')
+        pendingIceCandidates.push(candidate)
+      } else {
+        await webRtcService.addIceCandidate(candidate)
+      }
     } catch (e) {
       console.error('[Signaling] Błąd dodawania ICE Candidate:', e)
     }
