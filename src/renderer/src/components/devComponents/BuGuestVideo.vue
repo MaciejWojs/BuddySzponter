@@ -51,13 +51,27 @@ const focusContainer = (): void => {
   videoContainer.value?.focus()
 }
 
-const handleMetadataLoaded = (event: Event): void => {
-  const target = event.target as HTMLVideoElement
-  if (target && target.videoWidth && target.videoHeight) {
-    // 🔥 FIX 1: USUNIĘTO NADPISYWANIE EKRANU!
-    // Proporcje służą tylko do wizualnego dopasowania okna. Prawdziwy rozmiar zależy od Handshake'a!
-    emit('video-ready', target.videoWidth, target.videoHeight)
+let videoCheckInterval: ReturnType<typeof setInterval> | null = null
+const lastVw = ref(0)
+const lastVh = ref(0)
+
+const checkVideoDimensions = (): void => {
+  if (!videoContainer.value) return
+  const videoEl = videoContainer.value.querySelector('video')
+  if (!videoEl) return
+
+  const vw = videoEl.videoWidth
+  const vh = videoEl.videoHeight
+
+  if (vw > 0 && vh > 0 && (vw !== lastVw.value || vh !== lastVh.value)) {
+    lastVw.value = vw
+    lastVh.value = vh
+    emit('video-ready', vw, vh)
   }
+}
+
+const handleMetadataLoaded = (): void => {
+  checkVideoDimensions()
 }
 
 /* ================= KULOODPORNA MATEMATYKA (Bypass czarnych pasów) ================= */
@@ -74,26 +88,21 @@ const getPercentCoords = (event: MouseEvent): { x: number; y: number } => {
   const vw = videoElement.videoWidth
   const vh = videoElement.videoHeight
 
-  // 2. Fizyczne wymiary tagu <video> na Twoim ekranie
   const cw = rect.width
   const ch = rect.height
+  if (cw === 0 || ch === 0) return { x: 0, y: 0 }
 
-  // 3. Obliczamy idealną skalę obrazu (działa niezależnie od tego, jak duże są pasy)
   const scale = Math.min(cw / vw, ch / vh)
 
-  // 4. Rozmiar samego "obrazka" wewnątrz diva
   const renderWidth = vw * scale
   const renderHeight = vh * scale
 
-  // 5. Grubość czarnych pasów
   const offsetX = (cw - renderWidth) / 2
   const offsetY = (ch - renderHeight) / 2
 
-  // 6. Czyste współrzędne myszki (bez czarnych pasów)
   const videoX = event.clientX - rect.left - offsetX
   const videoY = event.clientY - rect.top - offsetY
 
-  // 7. Zatrzymanie kursora na krawędzi obrazu, gdy wiedziesz na czarny pas
   const clampedX = Math.max(0, Math.min(renderWidth, videoX))
   const clampedY = Math.max(0, Math.min(renderHeight, videoY))
 
@@ -165,9 +174,11 @@ const handleKeyUp = (e: KeyboardEvent): void => {
 
 onMounted(() => {
   window.addEventListener('mouseup', handleMouseUp)
+  videoCheckInterval = setInterval(checkVideoDimensions, 500)
 })
 
 onUnmounted(() => {
   window.removeEventListener('mouseup', handleMouseUp)
+  if (videoCheckInterval) clearInterval(videoCheckInterval)
 })
 </script>
