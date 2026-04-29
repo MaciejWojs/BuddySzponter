@@ -54,56 +54,52 @@ const focusContainer = (): void => {
 const handleMetadataLoaded = (event: Event): void => {
   const target = event.target as HTMLVideoElement
   if (target && target.videoWidth && target.videoHeight) {
-    hidChannel.remoteScreenSize.value = {
-      width: target.videoWidth,
-      height: target.videoHeight
-    }
-
+    // 🔥 FIX 1: USUNIĘTO NADPISYWANIE EKRANU!
+    // Proporcje służą tylko do wizualnego dopasowania okna. Prawdziwy rozmiar zależy od Handshake'a!
     emit('video-ready', target.videoWidth, target.videoHeight)
   }
 }
 
-/* ================= HELPERS (Magia omijania czarnych pasów) ================= */
+/* ================= KULOODPORNA MATEMATYKA (Bypass czarnych pasów) ================= */
 
 const getPercentCoords = (event: MouseEvent): { x: number; y: number } => {
   if (!videoContainer.value) return { x: 0, y: 0 }
 
-  // Szukamy faktycznego tagu <video> wewnątrz kontenera
   const videoElement = videoContainer.value.querySelector('video')
   if (!videoElement || !videoElement.videoWidth) return { x: 0, y: 0 }
 
   const rect = videoElement.getBoundingClientRect()
 
-  // Matematyka Letterboxingu (obliczamy faktyczny obszar wyrenderowanego obrazu)
-  const videoRatio = videoElement.videoWidth / videoElement.videoHeight
-  const containerRatio = rect.width / rect.height
+  // 1. Rozdzielczość strumienia (np. 1280x720 z WebRTC)
+  const vw = videoElement.videoWidth
+  const vh = videoElement.videoHeight
 
-  let renderWidth = rect.width
-  let renderHeight = rect.height
-  let offsetX = 0
-  let offsetY = 0
+  // 2. Fizyczne wymiary tagu <video> na Twoim ekranie
+  const cw = rect.width
+  const ch = rect.height
 
-  if (videoRatio > containerRatio) {
-    // Czarne pasy są na górze i na dole (Letterbox)
-    renderHeight = rect.width / videoRatio
-    offsetY = (rect.height - renderHeight) / 2
-  } else {
-    // Czarne pasy są po bokach (Pillarbox)
-    renderWidth = rect.height * videoRatio
-    offsetX = (rect.width - renderWidth) / 2
-  }
+  // 3. Obliczamy idealną skalę obrazu (działa niezależnie od tego, jak duże są pasy)
+  const scale = Math.min(cw / vw, ch / vh)
 
-  // Odejmujemy przesunięcie czarnych pasów od pozycji myszki
-  const rawX = event.clientX - rect.left - offsetX
-  const rawY = event.clientY - rect.top - offsetY
+  // 4. Rozmiar samego "obrazka" wewnątrz diva
+  const renderWidth = vw * scale
+  const renderHeight = vh * scale
 
-  // Liczymy procenty TYLKO po faktycznym obrazie
-  const x = (rawX / renderWidth) * 100
-  const y = (rawY / renderHeight) * 100
+  // 5. Grubość czarnych pasów
+  const offsetX = (cw - renderWidth) / 2
+  const offsetY = (ch - renderHeight) / 2
+
+  // 6. Czyste współrzędne myszki (bez czarnych pasów)
+  const videoX = event.clientX - rect.left - offsetX
+  const videoY = event.clientY - rect.top - offsetY
+
+  // 7. Zatrzymanie kursora na krawędzi obrazu, gdy wiedziesz na czarny pas
+  const clampedX = Math.max(0, Math.min(renderWidth, videoX))
+  const clampedY = Math.max(0, Math.min(renderHeight, videoY))
 
   return {
-    x: Math.max(0, Math.min(100, x)),
-    y: Math.max(0, Math.min(100, y))
+    x: (clampedX / renderWidth) * 100,
+    y: (clampedY / renderHeight) * 100
   }
 }
 
@@ -117,29 +113,22 @@ const getButton = (event: MouseEvent): 'l' | 'r' | 'm' => {
 
 const handleMouseMove = (event: MouseEvent): void => {
   if (!hidChannel.isControlGranted.value || !videoContainer.value) return
-
   const { x, y } = getPercentCoords(event)
   hidChannel.sendMouseFromVideo(x, y)
 }
 
 const handleMouseDown = (event: MouseEvent): void => {
   if (!hidChannel.isControlGranted.value) return
-
   isMouseDown.value = true
   currentButton.value = getButton(event)
-
   const { x, y } = getPercentCoords(event)
-
   hidChannel.sendMouseAction(currentButton.value, 'd', x, y)
 }
 
 const handleMouseUp = (event: MouseEvent): void => {
   if (!hidChannel.isControlGranted.value || !isMouseDown.value) return
-
   isMouseDown.value = false
-
   const { x, y } = getPercentCoords(event)
-
   hidChannel.sendMouseAction(currentButton.value, 'u', x, y)
 }
 
@@ -148,10 +137,8 @@ const handleMouseUp = (event: MouseEvent): void => {
 const normalizeScroll = (deltaY: number): number => {
   const isTrackpad = Math.abs(deltaY) < 40
   let value = deltaY
-
   if (isTrackpad) value *= 0.6
   if (!isTrackpad) value *= -1
-
   return value
 }
 
