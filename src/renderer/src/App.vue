@@ -1,19 +1,19 @@
 <script setup lang="ts">
 import { computed, onUnmounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
+
 import { useSettingsStore } from '@renderer/stores/settingsStore'
 import { useUserStore } from './stores/userStore'
 import { useSocketStore } from '@renderer/stores/socketStore'
 import { useDeviceStore } from './stores/deviceStore'
 import { useAudioMixer } from './services/audio/out/useAudioMixer'
-import WidgetControlListener from '@renderer/components/p2p/WidgetControlListener.vue'
 import { useWebRtcStore } from './stores/webRtcStore'
 import { useConnectionStore } from './stores/connectionStore'
-import { useWidgetBridge } from '@renderer/composables/useWidgetSync'
+import { useWidgetBridge } from '@renderer/composables/syncWindow/useWidgetSync'
+
+import { useGuestSync } from '@renderer/composables/syncWindow/useGuestSync'
 
 const toaster = { position: 'top-left', duration: 3000, dismissible: true, max: 3, expand: false }
 
-const router = useRouter()
 const webRtcStore = useWebRtcStore()
 const connectionStore = useConnectionStore()
 const settingsStore = useSettingsStore()
@@ -28,9 +28,10 @@ deviceStore.refreshMicrophones()
 useAudioMixer()
 useWidgetBridge()
 
+useGuestSync(true)
+
 const isRtcConnected = computed(() => webRtcStore.rtcStatus === 'connected')
 const isHostConnected = computed(() => connectionStore.isHost && isRtcConnected.value)
-const isGuestConnected = computed(() => !connectionStore.isHost && isRtcConnected.value)
 
 const syncWindowMode = async (hostActive: boolean): Promise<void> => {
   try {
@@ -55,26 +56,6 @@ watch(
 onUnmounted(() => {
   window.api.app.hideHostWidget().catch(() => {})
 })
-
-const previousRoute = ref('/api-test')
-
-watch(
-  isGuestConnected,
-  (connected) => {
-    if (connected) {
-      if (!router.currentRoute.value.path.includes('/session/guest-view')) {
-        previousRoute.value = router.currentRoute.value.fullPath
-      }
-
-      router.push('/session/guest-view')
-    } else {
-      if (router.currentRoute.value.path.includes('/session/guest-view')) {
-        router.push(previousRoute.value)
-      }
-    }
-  },
-  { immediate: true }
-)
 </script>
 
 <template>
