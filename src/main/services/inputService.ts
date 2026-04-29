@@ -56,56 +56,65 @@ class InputController {
     this.startFrameLoop()
   }
 
+  private isProcessingFrame = false
+
   private startFrameLoop(): void {
     this.frameLoop = setInterval(() => {
       this.processFrame()
     }, 10)
   }
 
-  private processFrame(): void {
-    if (!this.bridge) return
+  private async processFrame(): Promise<void> {
+    if (!this.bridge || this.isProcessingFrame) return
+    this.isProcessingFrame = true
 
-    let needsFlush = false
+    try {
+      let needsFlush = false
 
-    if (this.queue.length > 0) {
-      this.queue.sort((a, b) => a.priority - b.priority || a.timestamp - b.timestamp)
+      if (this.queue.length > 0) {
+        this.queue.sort((a, b) => a.priority - b.priority || a.timestamp - b.timestamp)
 
-      const lastMove = [...this.queue].reverse().find((i) => i.type === 'move')
-      const filteredQueue = this.queue.filter((i) => i.type !== 'move' || i === lastMove)
+        const lastMove = [...this.queue].reverse().find((i) => i.type === 'move')
+        const filteredQueue = this.queue.filter((i) => i.type !== 'move' || i === lastMove)
 
-      for (const item of filteredQueue) {
-        if (item.type === 'move') {
-          const { x, y } = item.payload
-          this.bridge.moveMouseAbsolute(x, y)
-          needsFlush = true
-        } else if (item.type === 'click') {
-          this.bridge.mouseClick(item.payload.btn, item.payload.down)
-          needsFlush = true
-        } else if (item.type === 'key') {
-          this.bridge.keyPressDOM(item.payload.code, item.payload.down)
-          needsFlush = true
+        for (const item of filteredQueue) {
+          if (item.type === 'move') {
+            const { x, y } = item.payload
+            await this.bridge.moveMouseAbsolute(x, y)
+            needsFlush = true
+          } else if (item.type === 'click') {
+            await this.bridge.mouseClick(item.payload.btn, item.payload.down)
+            needsFlush = true
+          } else if (item.type === 'key') {
+            await this.bridge.keyPressDOM(item.payload.code, item.payload.down)
+            needsFlush = true
+          }
         }
+
+        this.queue = []
       }
 
-      this.queue = []
-    }
+      const scrollDiff = this.targetScroll - this.currentScroll
+      if (Math.abs(scrollDiff) > 0.1) {
+        const step = scrollDiff * 0.3
+        this.currentScroll += step
 
-    const scrollDiff = this.targetScroll - this.currentScroll
-    if (Math.abs(scrollDiff) > 0.1) {
-      const step = scrollDiff * 0.3
-      this.currentScroll += step
-
-      const roundedStep = Math.round(step)
-      if (roundedStep !== 0) {
-        this.bridge.scrollMouse?.(roundedStep)
-        needsFlush = true
+        const roundedStep = Math.round(step)
+        if (roundedStep !== 0) {
+          if (this.bridge.scrollMouse) {
+            await this.bridge.scrollMouse(roundedStep)
+            needsFlush = true
+          }
+        }
+      } else {
+        this.currentScroll = this.targetScroll
       }
-    } else {
-      this.currentScroll = this.targetScroll
-    }
 
-    if (needsFlush) {
-      this.bridge.flush()
+      if (needsFlush) {
+        this.bridge.flush()
+      }
+    } finally {
+      this.isProcessingFrame = false
     }
   }
 

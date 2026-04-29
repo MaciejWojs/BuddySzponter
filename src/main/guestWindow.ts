@@ -54,15 +54,15 @@ export function registerGuestWindowHandlers(): void {
     const ratio = width / height
     win.setAspectRatio(ratio)
 
-    const currentBounds = win.getBounds()
-    const targetHeight = Math.round(currentBounds.width / ratio)
+    const currentContentBounds = win.getContentBounds()
+    const targetContentHeight = Math.round(currentContentBounds.width / ratio)
 
-    win.setBounds(
+    win.setContentBounds(
       {
-        x: currentBounds.x,
-        y: currentBounds.y,
-        width: currentBounds.width,
-        height: targetHeight
+        x: currentContentBounds.x,
+        y: currentContentBounds.y,
+        width: currentContentBounds.width,
+        height: targetContentHeight
       },
       true
     )
