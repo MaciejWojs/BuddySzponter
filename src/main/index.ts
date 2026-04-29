@@ -17,6 +17,7 @@ import { wsService } from './services/ws/WsService'
 // --- ODBLOKOWANE: Importy hostWidget ---
 import { closeHostWidget, createHostWidget } from './hostWidget'
 import { inputService } from './services/inputService'
+import { closeGuestWindow, createGuestWindow } from './guestWindow'
 // import trayIconDefault from '../../resources/tray/default.png?asset'
 // import { trayService } from './services/trayService'
 
@@ -161,6 +162,16 @@ if (!gotTheLock) {
 
     ipcMain.handle('hide-host-widget', () => {
       closeHostWidget()
+      showWindowSafely(mainWindow)
+    })
+
+    ipcMain.handle('app:open-guest-window', (_, sessionId: string) => {
+      createGuestWindow(sessionId)
+      hideWindowSafely(mainWindow)
+    })
+
+    ipcMain.handle('app:close-guest-window', () => {
+      closeGuestWindow()
       showWindowSafely(mainWindow)
     })
 
