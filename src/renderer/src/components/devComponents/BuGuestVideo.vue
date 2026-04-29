@@ -145,10 +145,7 @@ const handleMouseUp = (event: MouseEvent): void => {
 
 const normalizeScroll = (deltaY: number): number => {
   const isTrackpad = Math.abs(deltaY) < 40
-  let value = deltaY
-  if (isTrackpad) value *= 0.6
-  if (!isTrackpad) value *= -1
-  return value
+  return isTrackpad ? deltaY * -0.6 : deltaY * -1
 }
 
 const handleWheel = (event: WheelEvent): void => {
