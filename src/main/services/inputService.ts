@@ -49,7 +49,6 @@ class InputController {
     const bridge = new InputBridge({ autoFlush: false })
     await bridge.init()
 
-    // this.isOptimizationEnabled = bridge.toggleOptimization()
     bridge.optimizeMouseMovesAbsolute(2)
     this.bridge = bridge
 
@@ -77,21 +76,25 @@ class InputController {
         const lastMove = [...this.queue].reverse().find((i) => i.type === 'move')
         const filteredQueue = this.queue.filter((i) => i.type !== 'move' || i === lastMove)
 
+        this.queue = []
+
         for (const item of filteredQueue) {
-          if (item.type === 'move') {
-            const { x, y } = item.payload
-            await this.bridge.moveMouseAbsolute(x, y)
-            needsFlush = true
-          } else if (item.type === 'click') {
-            await this.bridge.mouseClick(item.payload.btn, item.payload.down)
-            needsFlush = true
-          } else if (item.type === 'key') {
-            await this.bridge.keyPressDOM(item.payload.code, item.payload.down)
-            needsFlush = true
+          try {
+            if (item.type === 'move') {
+              const { x, y } = item.payload
+              await this.bridge.moveMouseAbsolute(x, y)
+              needsFlush = true
+            } else if (item.type === 'click') {
+              await this.bridge.mouseClick(item.payload.btn, item.payload.down)
+              needsFlush = true
+            } else if (item.type === 'key') {
+              await this.bridge.keyPressDOM(item.payload.code, item.payload.down)
+              needsFlush = true
+            }
+          } catch (err) {
+            console.error(`[InputService] Błąd natywny przy akcji ${item.type}:`, err)
           }
         }
-
-        this.queue = []
       }
 
       const scrollDiff = this.targetScroll - this.currentScroll
