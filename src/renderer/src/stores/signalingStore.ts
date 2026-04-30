@@ -11,7 +11,7 @@ export const useSignalingStore = defineStore('signaling', () => {
 
   const startConnectionAsHost = async (): Promise<void> => {
     webRtcStore.setLocalPublishProfile('host')
-    webRtcService.cleanup()
+    webRtcService.cleanup(true)
     webRtcService.initialize(true)
 
     if (webRtcStore.localStream) {
@@ -31,7 +31,7 @@ export const useSignalingStore = defineStore('signaling', () => {
 
   const handleOffer = async (data: WsWebRTCOffer): Promise<void> => {
     webRtcStore.setLocalPublishProfile('guest')
-    webRtcService.cleanup()
+    webRtcService.cleanup(true)
     webRtcService.initialize(false)
     webRtcStore.rtcStatus = 'connecting'
 
