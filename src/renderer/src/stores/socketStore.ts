@@ -61,6 +61,15 @@ export const useSocketStore = defineStore('socket', () => {
 
         const reconnected = await tryReconnect()
         if (reconnected) {
+          // Jeśli WS powrócił, a WebRTC w międzyczasie padło, Host odnawia połączenie P2P
+          if (
+            connectionStore.isHost &&
+            rtcStore.rtcStatus !== 'connected' &&
+            rtcStore.localStream
+          ) {
+            console.log('[SocketStore] Reconnected WS, restarting dead WebRTC...')
+            signalingStore.startConnectionAsHost()
+          }
           return
         }
 
@@ -141,6 +150,8 @@ export const useSocketStore = defineStore('socket', () => {
     console.log('[SocketStore][manual-disconnect] Start disconnect()')
     isDisconnectingLocally = true
     lastConnectionToken = null
+
+    isAcknowledged.value = false
 
     const rtcStore = useWebRtcStore()
     await rtcStore.disconnect()
