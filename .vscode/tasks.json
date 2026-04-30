@@ -14,7 +14,7 @@
         "command": "Remove-Item -Recurse -Force dist,out -ErrorAction SilentlyContinue; echo 'Cleaned up dist and out directories'"
       },
       "linux": {
-        "command": "rm -rf dist/* out/*"
+        "command": "rm -rf dist out"
       },
       "problemMatcher": [],
       "presentation": {
