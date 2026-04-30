@@ -1,6 +1,6 @@
 // renderer/src/stores/webRtcStore.ts
 import { defineStore } from 'pinia'
-import { ref, shallowRef } from 'vue'
+import { ref, shallowRef, triggerRef } from 'vue'
 import {
   guestTrackPolicy,
   hostTrackPolicy,
@@ -42,7 +42,8 @@ export const useWebRtcStore = defineStore('webrtc', () => {
   // --- ACTIONS ---
 
   const publishLocalStream = async (stream: MediaStream): Promise<void> => {
-    localStream.value = stream
+    localStream.value = new MediaStream(stream.getTracks())
+    triggerRef(localStream)
     if (rtcStatus.value === 'disconnected') return
     webRtcService.publishLocalStream(stream, getCurrentTrackPolicy())
   }
@@ -53,13 +54,8 @@ export const useWebRtcStore = defineStore('webrtc', () => {
       webRtcService.publishLocalStream(localStream.value, getCurrentTrackPolicy())
     }
 
-    if (rtcStatus.value === 'connected') {
-      if (localStream.value) {
-        webRtcService.publishLocalStream(localStream.value, getCurrentTrackPolicy())
-      }
-      if (profile === 'host') {
-        hid.sendHandshake()
-      }
+    if (rtcStatus.value === 'connected' && profile === 'host') {
+      hid.sendHandshake()
     }
   }
 
@@ -99,6 +95,8 @@ export const useWebRtcStore = defineStore('webrtc', () => {
         if (t) t.enabled = isEnabled
       }
     }
+
+    triggerRef(localStream)
   }
 
   return {
