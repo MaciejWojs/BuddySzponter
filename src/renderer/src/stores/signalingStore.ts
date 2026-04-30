@@ -1,5 +1,6 @@
 // src/renderer/stores/signalingStore.ts
 import { defineStore } from 'pinia'
+import { watch } from 'vue'
 import { useSocketStore } from './socketStore'
 import { useWebRtcStore } from './webRtcStore'
 import { webRtcService } from '@renderer/composables/connection/webRTCService'
@@ -68,6 +69,30 @@ export const useSignalingStore = defineStore('signaling', () => {
   webRtcService.onIceCandidateGenerated = async (candidate): Promise<void> => {
     await socketStore.wsService.sendIceCandidate({ candidate: JSON.stringify(candidate) })
   }
+
+  webRtcService.onConnectionFailed = () => {
+    console.warn('[Signaling] Połączenie WebRTC uległo awarii (stan failed)!')
+    if (webRtcStore.localPublishProfile === 'host' && socketStore.isConnected) {
+      console.log('[Signaling] Próbuję nawiązać połączenie WebRTC ponownie (jako Host)...')
+      startConnectionAsHost()
+    } else if (webRtcStore.localPublishProfile === 'guest') {
+      webRtcStore.rtcStatus = 'connecting'
+    }
+  }
+
+  watch(
+    () => webRtcStore.rtcStatus,
+    (status) => {
+      if (status === 'disconnected' && socketStore.isAcknowledged) {
+        console.log('[Signaling] P2P rozłączone, ale sesja aktywna. Automatyczne wznawianie...')
+        if (webRtcStore.localPublishProfile === 'host') {
+          startConnectionAsHost()
+        } else {
+          webRtcStore.rtcStatus = 'connecting'
+        }
+      }
+    }
+  )
 
   return {
     startConnectionAsHost,
