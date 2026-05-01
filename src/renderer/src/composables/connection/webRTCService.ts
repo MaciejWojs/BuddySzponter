@@ -297,18 +297,6 @@ export class WebRTCService {
       this.systemTransceiver.sender.replaceTrack(sysTrack).catch(console.error)
   }
 
-  private clearLocalSenders(peerConnection: RTCPeerConnection | null = this.peerConnection): void {
-    if (!peerConnection) return
-
-    peerConnection.getSenders().forEach((sender) => {
-      if (sender.track) {
-        sender
-          .replaceTrack(null)
-          .catch((e) => console.warn('[WebRTCService] Błąd replaceTrack(null):', e))
-      }
-    })
-  }
-
   private setupChannel(channel: RTCDataChannel): void {
     const handleOpen = (): void => {
       if (channel.label === 'system-events' && this.onDataChannelOpened) {
@@ -547,7 +535,6 @@ export class WebRTCService {
     this.recordingStream = null
     this.recordedChunks = []
 
-    this.clearLocalSenders(currentPeerConnection)
     currentPeerConnection?.close()
 
     this.peerConnection = null
