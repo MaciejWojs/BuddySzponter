@@ -133,10 +133,6 @@ export class ScreenService {
     this.capturer.onFrame(this.handleFrame)
 
     console.log('[ScreenService] Capture started successfully')
-
-    setTimeout(async () => {
-      await this.nextMonitor()
-    }, 15000)
   }
 
   public async nextMonitor(): Promise<void> {
