@@ -389,6 +389,7 @@ if (process.contextIsolated) {
     contextBridge.exposeInMainWorld('capture', {
       start: () => ipcRenderer.invoke('capture:start'),
       stop: () => ipcRenderer.invoke('capture:stop'),
+      nextMonitor: () => ipcRenderer.invoke('capture:next-monitor'),
       getFps: () => ipcRenderer.invoke('capture:getFps'),
       subscribeStream: (onFrame: (frame: VideoFrame) => void) => {
         const cleanupSubscription = addFrameConsumer(onFrame)
@@ -417,6 +418,7 @@ if (process.contextIsolated) {
         ipcRenderer.postMessage('capture:stop-stream', null)
         void ipcRenderer.invoke('capture:stop')
       },
+      nextMonitor: () => ipcRenderer.invoke('capture:next-monitor'),
       registerReceiver: () => {
         registerSharedTextureReceiver()
       },
