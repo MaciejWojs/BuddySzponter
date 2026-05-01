@@ -73,6 +73,11 @@ export class ScreenService {
       return this.useCpuPath
     })
 
+    ipcMain.handle('capture:next-monitor', async () => {
+      console.log('[IPC] capture:next-monitor called')
+      await this.nextMonitor()
+    })
+
     ipcMain.on('capture:request-stream', (event) => {
       const frame = event.senderFrame
       const wc = event.sender
@@ -117,6 +122,9 @@ export class ScreenService {
     // this.capturer.forceBackend('gdi')
     // this.capturer.forceBackend('dxgi')
 
+    const monitorCount = await this.capturer.getMonitorCount()
+    console.log(`[ScreenService] Detected ${monitorCount} monitor(s) available for capture`)
+
     // Uruchamiamy przechwytywanie i od razu rejestrujemy callback
     console.log('[ScreenService] Calling capturer.start()')
     await this.capturer.start()
@@ -125,6 +133,26 @@ export class ScreenService {
     this.capturer.onFrame(this.handleFrame)
 
     console.log('[ScreenService] Capture started successfully')
+
+    setTimeout(async () => {
+      await this.nextMonitor()
+    }, 15000)
+  }
+
+  public async nextMonitor(): Promise<void> {
+    if (this.capturer) {
+      console.log('[ScreenService] Changing to next monitor, clearing old frames/textures...')
+      this.releaseCachedSharedTexture()
+
+      this.isProcessingFrame = false
+      if (typeof this.capturer.nextMonitor === 'function') {
+        await this.capturer.nextMonitor()
+      } else {
+        console.warn(
+          '[ScreenService] capturer.nextMonitor is not available in the current screen-capture plugin version'
+        )
+      }
+    }
   }
 
   private stopCapture(): void {
