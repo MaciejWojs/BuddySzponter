@@ -165,6 +165,8 @@ const api = {
     quitApp: (): Promise<void> => ipcRenderer.invoke('quit-app'),
     showHostWidget: (): Promise<void> => ipcRenderer.invoke('show-host-widget'),
     hideHostWidget: (): Promise<void> => ipcRenderer.invoke('hide-host-widget'),
+    openGuestWindow: (sessionId: string) => ipcRenderer.invoke('app:open-guest-window', sessionId),
+    closeGuestWindow: () => ipcRenderer.invoke('app:close-guest-window'),
     resizeToVideoRatio: (width: number, height: number) =>
       ipcRenderer.invoke('app:resize-to-video-ratio', width, height),
     resetAspectRatio: () => ipcRenderer.invoke('app:reset-aspect-ratio'),
@@ -391,6 +393,7 @@ if (process.contextIsolated) {
     contextBridge.exposeInMainWorld('capture', {
       start: () => ipcRenderer.invoke('capture:start'),
       stop: () => ipcRenderer.invoke('capture:stop'),
+      nextMonitor: () => ipcRenderer.invoke('capture:next-monitor'),
       getFps: () => ipcRenderer.invoke('capture:getFps'),
       subscribeStream: (onFrame: (frame: VideoFrame) => void) => {
         const cleanupSubscription = addFrameConsumer(onFrame)
@@ -419,6 +422,7 @@ if (process.contextIsolated) {
         ipcRenderer.postMessage('capture:stop-stream', null)
         void ipcRenderer.invoke('capture:stop')
       },
+      nextMonitor: () => ipcRenderer.invoke('capture:next-monitor'),
       registerReceiver: () => {
         registerSharedTextureReceiver()
       },

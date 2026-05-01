@@ -8,8 +8,7 @@ type InputType = 'move' | 'click' | 'key'
 
 interface QueuedInput {
   type: InputType
-  priority: number
-  payload: any /// TODO: make this more specific per type
+  payload: any
   timestamp: number
 }
 
@@ -42,6 +41,7 @@ class InputController {
 
   private targetScroll = 0
   private currentScroll = 0
+  private isProcessingFrame = false
 
   async init(): Promise<void> {
     if (this.bridge) return
@@ -49,7 +49,6 @@ class InputController {
     const bridge = new InputBridge({ autoFlush: false })
     await bridge.init()
 
-    // this.isOptimizationEnabled = bridge.toggleOptimization()
     bridge.optimizeMouseMovesAbsolute(2)
     this.bridge = bridge
 
@@ -62,50 +61,65 @@ class InputController {
     }, 10)
   }
 
-  private processFrame(): void {
-    if (!this.bridge) return
+  private async processFrame(): Promise<void> {
+    if (!this.bridge || this.isProcessingFrame) return
+    this.isProcessingFrame = true
 
-    let needsFlush = false
+    try {
+      let needsFlush = false
 
-    if (this.queue.length > 0) {
-      this.queue.sort((a, b) => a.priority - b.priority || a.timestamp - b.timestamp)
+      if (this.queue.length > 0) {
+        // 1. Sortujemy TYLKO po czasie (Chronologia zdarzeń)
+        this.queue.sort((a, b) => a.timestamp - b.timestamp)
 
-      const lastMove = [...this.queue].reverse().find((i) => i.type === 'move')
-      const filteredQueue = this.queue.filter((i) => i.type !== 'move' || i === lastMove)
+        // 2. Kopiujemy i czyścimy natychmiast kolejkę
+        const currentQueue = this.queue
+        this.queue = []
 
-      for (const item of filteredQueue) {
-        if (item.type === 'move') {
-          const { x, y } = item.payload
-          this.bridge.moveMouseAbsolute(x, y)
-          needsFlush = true
-        } else if (item.type === 'click') {
-          this.bridge.mouseClick(item.payload.btn, item.payload.down)
-          needsFlush = true
-        } else if (item.type === 'key') {
-          this.bridge.keyPressDOM(item.payload.code, item.payload.down)
-          needsFlush = true
+        // 3. Przetwarzamy bez zgubnego filtrowania! Ruch zawsze dotrze na miejsce przed kliknięciem!
+        for (const item of currentQueue) {
+          try {
+            if (item.type === 'move') {
+              const { x, y } = item.payload
+              await this.bridge.moveMouseAbsolute(x, y)
+
+              // 🔥 KRYTYCZNY FIX: Odnawiamy ochronę Anty-Cheat DOKŁADNIE wtedy, gdy system u Hosta przesuwa kursor!
+              inputService.tracker?.updateInjection(x, y)
+              needsFlush = true
+            } else if (item.type === 'click') {
+              await this.bridge.mouseClick(item.payload.btn, item.payload.down)
+              needsFlush = true
+            } else if (item.type === 'key') {
+              await this.bridge.keyPressDOM(item.payload.code, item.payload.down)
+              needsFlush = true
+            }
+          } catch (e) {
+            console.error('[InputController] Zignorowano błąd polecenia z systemu:', e)
+          }
         }
       }
 
-      this.queue = []
-    }
+      const scrollDiff = this.targetScroll - this.currentScroll
+      if (Math.abs(scrollDiff) > 0.1) {
+        const step = scrollDiff * 0.3
+        this.currentScroll += step
 
-    const scrollDiff = this.targetScroll - this.currentScroll
-    if (Math.abs(scrollDiff) > 0.1) {
-      const step = scrollDiff * 0.3
-      this.currentScroll += step
-
-      const roundedStep = Math.round(step)
-      if (roundedStep !== 0) {
-        this.bridge.scrollMouse?.(roundedStep)
-        needsFlush = true
+        const roundedStep = Math.round(step)
+        if (roundedStep !== 0) {
+          if (this.bridge.scrollMouse) {
+            await this.bridge.scrollMouse(roundedStep)
+            needsFlush = true
+          }
+        }
+      } else {
+        this.currentScroll = this.targetScroll
       }
-    } else {
-      this.currentScroll = this.targetScroll
-    }
 
-    if (needsFlush) {
-      this.bridge.flush()
+      if (needsFlush) {
+        this.bridge.flush()
+      }
+    } finally {
+      this.isProcessingFrame = false
     }
   }
 
@@ -117,11 +131,9 @@ class InputController {
   }
 
   // --- API ---
-
   async move(targetX: number, targetY: number): Promise<void> {
     this.queue.push({
       type: 'move',
-      priority: 1,
       payload: { x: targetX, y: targetY },
       timestamp: Date.now()
     })
@@ -129,18 +141,8 @@ class InputController {
 
   async click(button: number): Promise<void> {
     const now = Date.now()
-    this.queue.push({
-      type: 'click',
-      priority: 0,
-      payload: { btn: button, down: true },
-      timestamp: now
-    })
-    this.queue.push({
-      type: 'click',
-      priority: 0,
-      payload: { btn: button, down: false },
-      timestamp: now + 1
-    })
+    this.queue.push({ type: 'click', payload: { btn: button, down: true }, timestamp: now })
+    this.queue.push({ type: 'click', payload: { btn: button, down: false }, timestamp: now + 1 })
   }
 
   async doubleClick(button: number): Promise<void> {
@@ -149,21 +151,11 @@ class InputController {
   }
 
   async mouseDown(button: number): Promise<void> {
-    this.queue.push({
-      type: 'click',
-      priority: 0,
-      payload: { btn: button, down: true },
-      timestamp: Date.now()
-    })
+    this.queue.push({ type: 'click', payload: { btn: button, down: true }, timestamp: Date.now() })
   }
 
   async mouseUp(button: number): Promise<void> {
-    this.queue.push({
-      type: 'click',
-      priority: 0,
-      payload: { btn: button, down: false },
-      timestamp: Date.now()
-    })
+    this.queue.push({ type: 'click', payload: { btn: button, down: false }, timestamp: Date.now() })
   }
 
   async scrollMouse(deltaY: number): Promise<void> {
@@ -173,7 +165,6 @@ class InputController {
   async key(domCode: string, action: 'd' | 'u'): Promise<void> {
     this.queue.push({
       type: 'key',
-      priority: 0,
       payload: { code: domCode, down: action === 'd' },
       timestamp: Date.now()
     })
@@ -194,11 +185,9 @@ class InputController {
 
 class HostActivityTracker {
   private interval: NodeJS.Timeout | null = null
-
   private lastX = -1
   private lastY = -1
   private lastInjectedAt = 0
-
   private isCurrentlyLockedOut = false
 
   constructor(
@@ -235,17 +224,11 @@ class HostActivityTracker {
 
         if (!this.isCurrentlyLockedOut) {
           this.isCurrentlyLockedOut = true
-          this.emit({
-            active: true,
-            until: this.lockout.getUntil()
-          })
+          this.emit({ active: true, until: this.lockout.getUntil() })
         }
       } else if (this.isCurrentlyLockedOut && !this.lockout.isLockedOut()) {
         this.isCurrentlyLockedOut = false
-        this.emit({
-          active: false,
-          until: 0
-        })
+        this.emit({ active: false, until: 0 })
       }
     }, 50)
   }
@@ -301,7 +284,6 @@ export const inputService = {
 
     ipcMain.handle('input:get-host-screen-size', async () => {
       const display = screen.getPrimaryDisplay()
-
       const logicalWidth = display.size.width
       const logicalHeight = display.size.height
       const scaleFactor = display.scaleFactor
@@ -320,12 +302,8 @@ export const inputService = {
 
     ipcMain.handle('input:move-absolute', async (_e, x: number, y: number) => {
       if (!Number.isFinite(x) || !Number.isFinite(y) || isLocked()) return
-
-      const tx = Math.round(x)
-      const ty = Math.round(y)
-
-      await this.controller.move(tx, ty)
-      this.tracker?.updateInjection(tx, ty)
+      await this.controller.move(Math.round(x), Math.round(y))
+      // USUNIĘTO: updateInjection było tu wywoływane zbyt wcześnie!
     })
 
     ipcMain.handle(
@@ -336,17 +314,14 @@ export const inputService = {
         const map: Record<string, number> = { l: 0, m: 2, r: 1 }
         if (typeof map[btn] !== 'number') return
 
-        const tx = Math.round(x)
-        const ty = Math.round(y)
+        // 1. Zawsze wymuszamy najpierw przesunięcie w miejsce kliknięcia
+        await this.controller.move(Math.round(x), Math.round(y))
 
-        await this.controller.move(tx, ty)
-
+        // 2. Potem wpychamy akcję kliknięcia
         if (act === 'c') await this.controller.click(map[btn])
         else if (act === 'dc') await this.controller.doubleClick(map[btn])
         else if (act === 'd') await this.controller.mouseDown(map[btn])
         else if (act === 'u') await this.controller.mouseUp(map[btn])
-
-        this.tracker?.updateInjection(tx, ty)
       }
     )
 

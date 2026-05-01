@@ -1,36 +1,32 @@
 <template>
   <div
-    class="bg-[#1e1e1e] border border-[#333] rounded-xl p-5 shadow-2xl relative flex flex-col gap-4"
+    ref="videoContainer"
+    class="bg-black w-full h-full relative focus:outline-none"
+    tabindex="0"
+    :class="{
+      'cursor-crosshair': hidChannel.isControlGranted,
+      'cursor-not-allowed': !hidChannel.isControlGranted
+    }"
+    @mouseenter="focusContainer"
+    @mousemove="handleMouseMove"
+    @mousedown="handleMouseDown"
+    @mouseup="handleMouseUp"
+    @contextmenu.prevent
+    @keydown.prevent="handleKeyDown"
+    @keyup.prevent="handleKeyUp"
+    @wheel.passive="false"
+    @wheel="handleWheel"
   >
-    <div
-      ref="videoContainer"
-      class="bg-black border border-[#444] overflow-hidden aspect-video relative w-full focus:outline-none"
-      tabindex="0"
-      :class="{
-        'cursor-crosshair': hidChannel.isControlGranted,
-        'cursor-not-allowed': !hidChannel.isControlGranted
-      }"
-      @mouseenter="focusContainer"
-      @mousemove="handleMouseMove"
-      @mousedown="handleMouseDown"
-      @mouseup="handleMouseUp"
-      @contextmenu.prevent
-      @keydown.prevent="handleKeyDown"
-      @keyup.prevent="handleKeyUp"
-      @wheel.passive="false"
-      @wheel="handleWheel"
-    >
-      <VideoPlayer
-        class="absolute inset-0 w-full h-full pointer-events-none"
-        :stream="webRtcStore.remoteStream"
-        :placeholder-text="
-          webRtcStore.rtcStatus === 'connected'
-            ? 'Czekam na obraz od hosta...'
-            : 'Połącz się, aby zobaczyć ekran.'
-        "
-        @loadedmetadata="handleMetadataLoaded"
-      />
-    </div>
+    <VideoPlayer
+      class="absolute inset-0 w-full h-full pointer-events-none"
+      :stream="webRtcStore.remoteStream"
+      :placeholder-text="
+        webRtcStore.rtcStatus === 'connected'
+          ? 'Czekam na obraz od hosta...'
+          : 'Połącz się, aby zobaczyć ekran.'
+      "
+      @loadedmetadata="handleMetadataLoaded"
+    />
   </div>
 </template>
 
@@ -55,24 +51,64 @@ const focusContainer = (): void => {
   videoContainer.value?.focus()
 }
 
-const handleMetadataLoaded = (event: Event): void => {
-  const target = event.target as HTMLVideoElement
-  if (target && target.videoWidth && target.videoHeight) {
-    emit('video-ready', target.videoWidth, target.videoHeight)
+let videoCheckInterval: ReturnType<typeof setInterval> | null = null
+const lastVw = ref(0)
+const lastVh = ref(0)
+
+const checkVideoDimensions = (): void => {
+  if (!videoContainer.value) return
+  const videoEl = videoContainer.value.querySelector('video')
+  if (!videoEl) return
+
+  const vw = videoEl.videoWidth
+  const vh = videoEl.videoHeight
+
+  if (vw > 0 && vh > 0 && (vw !== lastVw.value || vh !== lastVh.value)) {
+    lastVw.value = vw
+    lastVh.value = vh
+    emit('video-ready', vw, vh)
   }
 }
 
-/* ================= HELPERS ================= */
+const handleMetadataLoaded = (): void => {
+  checkVideoDimensions()
+}
+
+/* ================= KULOODPORNA MATEMATYKA (Bypass czarnych pasów) ================= */
 
 const getPercentCoords = (event: MouseEvent): { x: number; y: number } => {
-  const rect = videoContainer.value!.getBoundingClientRect()
+  if (!videoContainer.value) return { x: 0, y: 0 }
 
-  const x = ((event.clientX - rect.left) / rect.width) * 100
-  const y = ((event.clientY - rect.top) / rect.height) * 100
+  const videoElement = videoContainer.value.querySelector('video')
+  if (!videoElement || !videoElement.videoWidth) return { x: 0, y: 0 }
+
+  const rect = videoElement.getBoundingClientRect()
+
+  // 1. Rozdzielczość strumienia (np. 1280x720 z WebRTC)
+  const vw = videoElement.videoWidth
+  const vh = videoElement.videoHeight
+
+  const cw = rect.width
+  const ch = rect.height
+  if (cw === 0 || ch === 0) return { x: 0, y: 0 }
+
+  const scale = Math.min(cw / vw, ch / vh)
+
+  const renderWidth = vw * scale
+  const renderHeight = vh * scale
+
+  const offsetX = (cw - renderWidth) / 2
+  const offsetY = (ch - renderHeight) / 2
+
+  const videoX = event.clientX - rect.left - offsetX
+  const videoY = event.clientY - rect.top - offsetY
+
+  const clampedX = Math.max(0, Math.min(renderWidth, videoX))
+  const clampedY = Math.max(0, Math.min(renderHeight, videoY))
 
   return {
-    x: Math.max(0, Math.min(100, x)),
-    y: Math.max(0, Math.min(100, y))
+    x: (clampedX / renderWidth) * 100,
+    y: (clampedY / renderHeight) * 100
   }
 }
 
@@ -86,55 +122,35 @@ const getButton = (event: MouseEvent): 'l' | 'r' | 'm' => {
 
 const handleMouseMove = (event: MouseEvent): void => {
   if (!hidChannel.isControlGranted.value || !videoContainer.value) return
-
   const { x, y } = getPercentCoords(event)
   hidChannel.sendMouseFromVideo(x, y)
 }
 
 const handleMouseDown = (event: MouseEvent): void => {
   if (!hidChannel.isControlGranted.value) return
-
   isMouseDown.value = true
   currentButton.value = getButton(event)
-
   const { x, y } = getPercentCoords(event)
-
   hidChannel.sendMouseAction(currentButton.value, 'd', x, y)
 }
 
 const handleMouseUp = (event: MouseEvent): void => {
   if (!hidChannel.isControlGranted.value || !isMouseDown.value) return
-
   isMouseDown.value = false
-
   const { x, y } = getPercentCoords(event)
-
   hidChannel.sendMouseAction(currentButton.value, 'u', x, y)
 }
 
-/* ================= SCROLL FIX (MOUSE + TOUCHPAD) ================= */
+/* ================= SCROLL FIX ================= */
 
 const normalizeScroll = (deltaY: number): number => {
   const isTrackpad = Math.abs(deltaY) < 40
-
-  let value = deltaY
-
-  if (isTrackpad) {
-    value *= 0.6
-  }
-
-  if (!isTrackpad) {
-    value *= -1
-  }
-
-  return value
+  return isTrackpad ? deltaY * -0.6 : deltaY * -1
 }
 
 const handleWheel = (event: WheelEvent): void => {
   if (!hidChannel.isControlGranted.value) return
-
   event.preventDefault()
-
   const scroll = normalizeScroll(event.deltaY)
   hidChannel.sendMouseScroll(scroll)
 }
@@ -155,9 +171,11 @@ const handleKeyUp = (e: KeyboardEvent): void => {
 
 onMounted(() => {
   window.addEventListener('mouseup', handleMouseUp)
+  videoCheckInterval = setInterval(checkVideoDimensions, 500)
 })
 
 onUnmounted(() => {
   window.removeEventListener('mouseup', handleMouseUp)
+  if (videoCheckInterval) clearInterval(videoCheckInterval)
 })
 </script>

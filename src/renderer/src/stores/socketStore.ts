@@ -1,5 +1,3 @@
-// renderer/src/stores/socketStore.ts
-
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { useWebRtcStore } from './webRtcStore'
@@ -18,11 +16,20 @@ export const useSocketStore = defineStore('socket', () => {
   const isAcknowledged = ref(false)
   const isReconnecting = ref(false)
   const isAccessRejected = ref(false)
+  const isInitialized = ref(false)
 
   let lastConnectionToken: string | null = null
   let isDisconnectingLocally = false
 
   const wait = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
+  let pendingOfferSdp: string | null = null
+  let isGuestWindowReady = false
+  let relayChannel: BroadcastChannel | null = null
+
+  const wait = (ms: number): Promise<void> =>
+    new Promise((resolve) => {
+      setTimeout(resolve, ms)
+    })
 
   const tryReconnect = async (): Promise<boolean> => {
     if (!lastConnectionToken) return false
@@ -42,9 +49,33 @@ export const useSocketStore = defineStore('socket', () => {
   }
 
   const init = (): void => {
+    if (isInitialized.value) return
+    isInitialized.value = true
+
     const rtcStore = useWebRtcStore()
     const connectionStore = useConnectionStore()
     const signalingStore = useSignalingStore()
+
+    if (!relayChannel) {
+      relayChannel = new BroadcastChannel('guest-sync-channel')
+
+      relayChannel.onmessage = (event) => {
+        if (event.data.type === 'GUEST_READY') {
+          isGuestWindowReady = true
+          if (pendingOfferSdp) {
+            console.log('[SocketStore] Okno Gościa gotowe, przesyłam zmagazynowaną Ofertę!')
+            relayChannel?.postMessage({ type: 'RELAY_OFFER', payload: pendingOfferSdp })
+            pendingOfferSdp = null
+          } else {
+            console.log('[SocketStore] Okno Gościa gotowe przed Ofertą. Czekam na Hosta...')
+          }
+        } else if (event.data.type === 'RELAY_ANSWER') {
+          wsService.sendAnswer({ sdp: event.data.payload })
+        } else if (event.data.type === 'RELAY_ICE') {
+          wsService.sendIceCandidate({ candidate: JSON.stringify(event.data.payload) })
+        }
+      }
+    }
 
     wsService.setupConnection({
       onConnected: () => {
@@ -84,6 +115,10 @@ export const useSocketStore = defineStore('socket', () => {
       onAccepted: () => {
         isAcknowledged.value = true
         incomingRequest.value = null
+
+        if (!connectionStore.isHost && window.api?.app?.openGuestWindow) {
+          window.api.app.openGuestWindow(data.sessionId)
+        }
       },
       onRejected: () => {
         resetLocalState(true)
@@ -105,9 +140,28 @@ export const useSocketStore = defineStore('socket', () => {
     })
 
     wsService.setupWebRtc({
-      onOffer: (data) => signalingStore.handleOffer(data),
+      onOffer: (data) => {
+        if (connectionStore.isHost) {
+          signalingStore.handleOffer()
+        } else {
+          signalingStore.handleOffer()
+          if (isGuestWindowReady) {
+            console.log('[SocketStore] Oferta od Hosta dotarła, Okno Gościa czeka. Przesyłam!')
+            relayChannel?.postMessage({ type: 'RELAY_OFFER', payload: data.sdp })
+          } else {
+            console.log('[SocketStore] Zamrażam Ofertę Hosta, czekając na załadowanie Okna Gościa.')
+            pendingOfferSdp = data.sdp
+          }
+        }
+      },
       onAnswer: (data) => signalingStore.handleAnswer(data),
-      onIceCandidate: (data) => signalingStore.handleCandidate(data),
+      onIceCandidate: (data) => {
+        if (connectionStore.isHost) {
+          signalingStore.handleCandidate(data)
+        } else {
+          relayChannel?.postMessage({ type: 'RELAY_HOST_ICE', payload: data })
+        }
+      },
       onReady: () => console.log('[SocketStore] P2P Ready!')
     })
   }
@@ -116,6 +170,8 @@ export const useSocketStore = defineStore('socket', () => {
     incomingRequest.value = null
     isAcknowledged.value = false
     if (!preserveRejected) isAccessRejected.value = false
+    pendingOfferSdp = null
+    isGuestWindowReady = false
   }
 
   const connect = async (token: string): Promise<WsConnectResponse> => {
@@ -131,6 +187,8 @@ export const useSocketStore = defineStore('socket', () => {
     lastConnectionToken = null
     isConnected.value = false
     resetLocalState(true)
+
+    isAcknowledged.value = false
 
     const rtcStore = useWebRtcStore()
     try {
@@ -161,6 +219,7 @@ export const useSocketStore = defineStore('socket', () => {
     isAcknowledged,
     isReconnecting,
     isAccessRejected,
+    isInitialized,
     wsService,
     init,
     connect,

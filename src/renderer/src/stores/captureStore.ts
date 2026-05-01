@@ -52,10 +52,8 @@ export const useCaptureStore = defineStore('capture', () => {
   }
 
   const assignLocalStream = async (stream: MediaStream): Promise<void> => {
-    if (webRtcStore.rtcStatus === 'disconnected') {
-      webRtcStore.localStream = stream
-    } else {
-      await webRtcStore.publishLocalStream(stream)
+    await webRtcStore.publishLocalStream(stream)
+    if (webRtcStore.rtcStatus !== 'disconnected') {
       void applyQualityPreset(activeVideoQuality.value)
     }
   }

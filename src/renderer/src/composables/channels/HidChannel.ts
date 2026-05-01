@@ -56,6 +56,12 @@ messageRouter.subscribe('hid-control', (msg: P2PMessage) => {
       remoteScreenSize.value = { width: msg.payload.screenWidth, height: msg.payload.screenHeight }
       if (localRole.value !== 'host') {
         isControlGranted.value = msg.payload.isControlGranted
+
+        if (window.api?.app?.resizeToVideoRatio) {
+          window.api.app
+            .resizeToVideoRatio(msg.payload.screenWidth, msg.payload.screenHeight)
+            .catch(() => {})
+        }
       }
       break
 

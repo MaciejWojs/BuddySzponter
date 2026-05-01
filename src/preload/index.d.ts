@@ -131,6 +131,8 @@ declare global {
         hideToTray: () => Promise<void>
         showHostWidget: () => Promise<void>
         hideHostWidget: () => Promise<void>
+        openGuestWindow: (sessionId: string) => Promise<void>
+        closeGuestWindow: () => Promise<void>
         setHostTrayMode: (active: boolean) => Promise<void>
         resizeToVideoRatio: (width: number, height: number) => Promise<void>
         resetAspectRatio: () => Promise<void>
@@ -151,12 +153,14 @@ declare global {
     capture: {
       start: () => Promise<void>
       stop: () => Promise<void>
+      nextMonitor: () => Promise<void>
       getFps(): Promise<number | null>
       subscribeStream: (onFrame: (frame: VideoFrame) => void) => () => void
     }
     screenCapture: {
       requestStream: () => void
       stopStream: () => void
+      nextMonitor: () => Promise<void>
       registerReceiver: () => void
       onFrameReceived: (callback: (frameData: VideoFrame) => void) => () => void
       shouldUseCpu: () => Promise<boolean>
