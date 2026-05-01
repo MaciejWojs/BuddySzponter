@@ -14,7 +14,7 @@ export const useSignalingStore = defineStore('signaling', () => {
 
   const startConnectionAsHost = async (): Promise<void> => {
     webRtcStore.setLocalPublishProfile('host')
-    webRtcService.cleanup()
+    webRtcService.cleanup(true)
     webRtcService.initialize(true)
 
     isRemoteDescriptionSet = false
@@ -44,7 +44,7 @@ export const useSignalingStore = defineStore('signaling', () => {
     const captureStore = useCaptureStore()
 
     webRtcStore.setLocalPublishProfile('guest')
-    webRtcService.cleanup()
+    webRtcService.cleanup(true)
     webRtcService.initialize(false)
 
     isRemoteDescriptionSet = false

@@ -310,9 +310,18 @@ export class WebRTCService {
   }
 
   private setupChannel(channel: RTCDataChannel): void {
-    channel.onopen = (): void => {
-      if (channel.label === 'system-events' && this.onDataChannelOpened) this.onDataChannelOpened()
+    const handleOpen = (): void => {
+      if (channel.label === 'system-events' && this.onDataChannelOpened) {
+        this.onDataChannelOpened()
+      }
     }
+
+    if (channel.readyState === 'open') {
+      handleOpen()
+    } else {
+      channel.onopen = handleOpen
+    }
+
     channel.onmessage = (e): void => {
       if (this.onMessageReceived) this.onMessageReceived(e.data, channel.label)
     }
@@ -355,9 +364,9 @@ export class WebRTCService {
 
     if (localStream) this.publishLocalStream(localStream, policy)
 
-    await this.flushIceQueue()
     const answer = await this.peerConnection!.createAnswer()
     await this.peerConnection!.setLocalDescription(answer)
+    await this.flushIceQueue()
     return answer
   }
 
@@ -371,13 +380,23 @@ export class WebRTCService {
       this.iceCandidateQueue.push(candidate)
       return
     }
-    await this.peerConnection.addIceCandidate(new RTCIceCandidate(candidate))
+    try {
+      await this.peerConnection.addIceCandidate(new RTCIceCandidate(candidate))
+    } catch (e) {
+      console.warn('[WebRTCService] Błąd podczas addIceCandidate:', e)
+    }
   }
 
   private async flushIceQueue(): Promise<void> {
     while (this.iceCandidateQueue.length > 0) {
       const cand = this.iceCandidateQueue.shift()
-      if (cand) await this.peerConnection?.addIceCandidate(new RTCIceCandidate(cand))
+      if (cand) {
+        try {
+          await this.peerConnection?.addIceCandidate(new RTCIceCandidate(cand))
+        } catch (e) {
+          console.warn('[WebRTCService] Błąd w flushIceQueue:', e)
+        }
+      }
     }
   }
 
@@ -520,7 +539,7 @@ export class WebRTCService {
     }
   }
 
-  public cleanup(): void {
+  public cleanup(preserveIceQueue: boolean = false): void {
     const currentPeerConnection = this.peerConnection
 
     this.isIntentionallyClosing = true
@@ -532,7 +551,9 @@ export class WebRTCService {
     currentPeerConnection?.close()
 
     this.peerConnection = null
-    this.iceCandidateQueue = []
+    if (!preserveIceQueue) {
+      this.iceCandidateQueue = []
+    }
     this.chatChannel = null
     this.hidControlChannel = null
     this.systemEventsChannel = null
