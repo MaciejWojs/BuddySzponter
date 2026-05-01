@@ -1,19 +1,83 @@
 <script setup lang="ts">
-import { onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 
-import { useSessionStore } from '@renderer/stores/sessionStore'
-import { useWebRtcStore } from '@renderer/stores/webRtcStore'
+import { useSignalingStore } from '@renderer/stores/signalingStore'
+import { useGuestSync } from '@renderer/composables/syncWindow/useGuestSync'
+import { webRtcService } from '@renderer/composables/connection/webRTCService'
 
-const sessionStore = useSessionStore()
-const webRtcStore = useWebRtcStore()
+const signalingStore = useSignalingStore()
+const { sendCommand } = useGuestSync(false)
+
+const isVideoReady = ref(false)
+
+const state = ref({
+  microphoneMuted: false,
+  localMicrophoneVolume: 1,
+  remoteSystemVolume: 1
+})
 
 const handleVideoReady = (width: number, height: number): void => {
+  isVideoReady.value = true
   if (window.api?.app?.resizeToVideoRatio) {
     window.api.app.resizeToVideoRatio(width, height).catch(() => {})
   }
 }
 
+const handleMicToggle = (): void => {
+  state.value.microphoneMuted = !state.value.microphoneMuted
+  sendCommand('COMMAND_TOGGLE_MIC', state.value.microphoneMuted)
+}
+
+const handleMicVolumeChange = (event: Event): void => {
+  const val = parseFloat((event.target as HTMLInputElement).value)
+  state.value.localMicrophoneVolume = val
+  sendCommand('COMMAND_SET_MIC_VOL', val)
+}
+
+const handleSysVolumeChange = (event: Event): void => {
+  const val = parseFloat((event.target as HTMLInputElement).value)
+  state.value.remoteSystemVolume = val
+  sendCommand('COMMAND_SET_SYS_VOL', val)
+}
+
+const handleDisconnect = (): void => {
+  sendCommand('COMMAND_DISCONNECT')
+}
+
+let localRelay: BroadcastChannel | null = null
+
+onMounted(() => {
+  localRelay = new BroadcastChannel('guest-sync-channel')
+
+  localRelay.postMessage({ type: 'REQUEST_STATE' })
+  localRelay.postMessage({ type: 'GUEST_READY' })
+
+  localRelay.onmessage = async (event) => {
+    const { type, payload } = event.data
+
+    if (type === 'STATE_UPDATE') {
+      state.value.microphoneMuted = payload.microphoneMuted
+      state.value.localMicrophoneVolume = payload.localMicrophoneVolume
+      state.value.remoteSystemVolume = payload.remoteSystemVolume
+    } else if (type === 'RELAY_OFFER') {
+      try {
+        const answerStr = await signalingStore.createAnswerForRelay(payload)
+        localRelay?.postMessage({ type: 'RELAY_ANSWER', payload: answerStr })
+      } catch (error) {
+        console.error('[GuestWindow] Błąd podczas tworzenia odpowiedzi P2P:', error)
+      }
+    } else if (type === 'RELAY_HOST_ICE') {
+      await signalingStore.handleCandidate(payload)
+    }
+  }
+
+  webRtcService.onIceCandidateGenerated = async (candidate) => {
+    localRelay?.postMessage({ type: 'RELAY_ICE', payload: candidate.toJSON() })
+  }
+})
+
 onUnmounted(() => {
+  if (localRelay) localRelay.close()
   if (window.api?.app?.resetAspectRatio) {
     window.api.app.resetAspectRatio().catch(() => {})
   }
@@ -21,24 +85,36 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="relative w-full h-screen overflow-hidden bg-black group">
+  <div class="relative w-full h-screen overflow-hidden bg-[#0a0a0a] group font-sans">
+    <div
+      v-if="!isVideoReady"
+      class="absolute inset-0 flex flex-col items-center justify-center z-40"
+    >
+      <div
+        class="w-10 h-10 border-4 border-white/10 border-t-emerald-500 rounded-full animate-spin mb-4"
+      ></div>
+      <h3 class="text-white text-lg font-semibold m-0">Nawiązywanie połączenia P2P...</h3>
+      <p class="text-gray-400 text-sm mt-2">Tunelowanie strumienia wideo.</p>
+    </div>
+
     <BuGuestVideo class="w-full h-full" @video-ready="handleVideoReady" />
 
     <div
+      v-show="isVideoReady"
       class="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-[#18181b]/80 hover:bg-[#18181b]/95 border border-white/10 px-5 py-3 rounded-full shadow-2xl backdrop-blur-md opacity-0 group-hover:opacity-100 transition-all duration-300 z-50"
     >
       <button
-        :title="sessionStore.microphoneMuted ? 'Włącz mikrofon' : 'Wycisz mikrofon'"
+        :title="state.microphoneMuted ? 'Włącz mikrofon' : 'Wycisz mikrofon'"
         class="w-10 h-10 flex items-center justify-center rounded-full transition-colors active:scale-95"
         :class="
-          sessionStore.microphoneMuted
-            ? 'bg-red-500/20 text-red-500 hover:bg-red-500/30'
+          state.microphoneMuted
+            ? 'bg-rose-500/20 text-rose-500 hover:bg-rose-500/30'
             : 'bg-white/10 text-gray-200 hover:bg-white/20'
         "
-        @click="sessionStore.toggleMicrophone(!sessionStore.microphoneMuted)"
+        @click="handleMicToggle"
       >
         <svg
-          v-if="sessionStore.microphoneMuted"
+          v-if="state.microphoneMuted"
           xmlns="http://www.w3.org/2000/svg"
           width="20"
           height="20"
@@ -92,12 +168,13 @@ onUnmounted(() => {
           <line x1="12" x2="12" y1="19" y2="22" />
         </svg>
         <input
-          v-model.number="sessionStore.localMicrophoneVolume"
+          :value="state.localMicrophoneVolume"
           type="range"
           min="0"
           max="2"
           step="0.1"
           class="w-full h-1.5 bg-[#333] rounded-lg appearance-none cursor-pointer accent-white hover:accent-gray-300 transition-all"
+          @input="handleMicVolumeChange"
         />
       </div>
 
@@ -121,12 +198,13 @@ onUnmounted(() => {
           <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
         </svg>
         <input
-          v-model.number="sessionStore.remoteSystemVolume"
+          :value="state.remoteSystemVolume"
           type="range"
           min="0"
           max="2"
           step="0.1"
           class="w-full h-1.5 bg-[#333] rounded-lg appearance-none cursor-pointer accent-white hover:accent-gray-300 transition-all"
+          @input="handleSysVolumeChange"
         />
       </div>
 
@@ -135,7 +213,7 @@ onUnmounted(() => {
       <button
         title="Rozłącz sesję"
         class="w-10 h-10 flex items-center justify-center rounded-full bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-900/20 transition-all active:scale-95"
-        @click="webRtcStore.disconnect()"
+        @click="handleDisconnect"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"

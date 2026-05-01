@@ -17,6 +17,7 @@ import { wsService } from './services/ws/WsService'
 // --- ODBLOKOWANE: Importy hostWidget ---
 import { closeHostWidget, createHostWidget } from './hostWidget'
 import { inputService } from './services/inputService'
+import { closeGuestWindow, createGuestWindow, registerGuestWindowHandlers } from './guestWindow'
 // import trayIconDefault from '../../resources/tray/default.png?asset'
 // import { trayService } from './services/trayService'
 
@@ -130,6 +131,7 @@ if (!gotTheLock) {
     connectionService.registerHandlers()
     screenService.registerHandlers()
     wsService.registerWsHandlers()
+    registerGuestWindowHandlers()
 
     try {
       const baseURL = import.meta.env.VITE_API_BASE_URL
@@ -164,6 +166,16 @@ if (!gotTheLock) {
       showWindowSafely(mainWindow)
     })
 
+    ipcMain.handle('app:open-guest-window', (_, sessionId: string) => {
+      createGuestWindow(sessionId)
+      hideWindowSafely(mainWindow)
+    })
+
+    ipcMain.handle('app:close-guest-window', () => {
+      closeGuestWindow()
+      showWindowSafely(mainWindow)
+    })
+
     ipcMain.handle('hide-to-tray', () => {
       hideWindowSafely(mainWindow)
     })
@@ -178,34 +190,6 @@ if (!gotTheLock) {
 
     ipcMain.handle('quit-app', () => {
       quitApp()
-    })
-
-    ipcMain.handle('app:resize-to-video-ratio', (event, width, height) => {
-      const win = BrowserWindow.fromWebContents(event.sender)
-      if (!win) return
-
-      const ratio = width / height
-
-      win.setAspectRatio(ratio)
-
-      const currentBounds = win.getBounds()
-      const targetHeight = Math.round(currentBounds.width / ratio)
-
-      win.setBounds(
-        {
-          x: currentBounds.x,
-          y: currentBounds.y,
-          width: currentBounds.width,
-          height: targetHeight
-        },
-        true
-      )
-    })
-
-    ipcMain.handle('app:reset-aspect-ratio', (event) => {
-      const win = BrowserWindow.fromWebContents(event.sender)
-      if (!win) return
-      win.setAspectRatio(0)
     })
 
     // ipcMain.handle('save-file', async (_, buffer: ArrayBuffer) => {

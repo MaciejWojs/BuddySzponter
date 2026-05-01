@@ -129,6 +129,8 @@ declare global {
         hideToTray: () => Promise<void>
         showHostWidget: () => Promise<void>
         hideHostWidget: () => Promise<void>
+        openGuestWindow: (sessionId: string) => Promise<void>
+        closeGuestWindow: () => Promise<void>
         setHostTrayMode: (active: boolean) => Promise<void>
         resizeToVideoRatio: (width: number, height: number) => Promise<void>
         resetAspectRatio: () => Promise<void>
