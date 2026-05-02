@@ -86,27 +86,27 @@ export const useSocketStore = defineStore('socket', () => {
         isConnected.value = false
         isAcknowledged.value = false
 
+        if (!lastConnectionToken) return
+
         const reconnected = await tryReconnect()
         if (reconnected) {
           return
         }
 
         rtcStore.forceDisconnect()
-        connectionStore.resetState()
+        await connectionStore.restoreDefaultHost()
       },
       onManualDisconnected: async () => {
         console.log('[SocketStore][manual-disconnect] Otrzymano onManualDisconnected z IPC')
         if (isDisconnectingLocally) {
           console.log('[SocketStore][manual-disconnect] Pomijam: lokalne rozłączanie już trwa')
-          isConnected.value = false
-          isAcknowledged.value = false
           return
         }
 
         console.log(
           '[SocketStore][manual-disconnect] Uruchamiam lokalne disconnect() po zdalnym sygnale'
         )
-        await disconnect()
+        await disconnect(true)
       },
       onConnectError: (err) => console.error('[SocketStore]', err.message)
     })
@@ -183,7 +183,7 @@ export const useSocketStore = defineStore('socket', () => {
     return await wsService.connect(token)
   }
 
-  const disconnect = async (): Promise<WsActionResponse> => {
+  const disconnect = async (restoreHost = true): Promise<WsActionResponse> => {
     if (isDisconnectingLocally) {
       console.log('[SocketStore][manual-disconnect] disconnect() pominięte: już w toku')
       return { success: true }
@@ -201,6 +201,12 @@ export const useSocketStore = defineStore('socket', () => {
     resetLocalState()
     isDisconnectingLocally = false
     console.log(`[SocketStore][manual-disconnect] disconnect() zakończone, success=${res.success}`)
+
+    if (restoreHost) {
+      const connectionStore = useConnectionStore()
+      await connectionStore.restoreDefaultHost()
+    }
+
     return res
   }
 

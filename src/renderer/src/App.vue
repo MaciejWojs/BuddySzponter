@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onUnmounted, watch } from 'vue'
+import { computed, onMounted, onUnmounted, watch } from 'vue'
 
 import { useSettingsStore } from '@renderer/stores/settingsStore'
 import { useUserStore } from './stores/userStore'
@@ -29,6 +29,17 @@ useAudioMixer()
 useWidgetBridge()
 
 useGuestSync(true)
+
+onMounted(() => {
+  const isMainWindow =
+    !window.location.hash.includes('guest') && !window.location.hash.includes('widget')
+  if (isMainWindow) {
+    // Opóźnienie zapobiegające wywołaniu API, zanim userStore zdąży zainicjować token (unikamy "Connection token missing")
+    setTimeout(async () => {
+      await connectionStore.restoreDefaultHost()
+    }, 1000)
+  }
+})
 
 const isRtcConnected = computed(() => webRtcStore.rtcStatus === 'connected')
 const isHostConnected = computed(() => connectionStore.isHost && isRtcConnected.value)

@@ -24,9 +24,8 @@ export const useConnectionStore = defineStore('connection', () => {
   watch(
     () => getSocketStore().isConnected,
     (connected) => {
-      if (!connected && connectionCode.value) {
+      if (!connected) {
         stopAutoRefresh()
-        clearConnection()
       }
     }
   )
@@ -55,42 +54,65 @@ export const useConnectionStore = defineStore('connection', () => {
       }
 
       console.log('[ConnectionStore] Token wygasa! Odświeżam połączenie...')
-      await createHostConnection()
+      await restoreDefaultHost()
     }, timeUntilRefresh)
   }
 
   // --- Główne Akcje ---
 
+  let isConnecting = false
+
+  const restoreDefaultHost = async (): Promise<void> => {
+    console.log('[ConnectionStore] Odtwarzanie domyślnej sesji Hosta...')
+    if (!connectionPassword.value) {
+      connectionPassword.value = Math.random().toString(36).slice(-8)
+    }
+    await createHostConnection()
+  }
+
   const createHostConnection = async (): Promise<CreateConnectionResponse | undefined> => {
-    const data = {
-      password: connectionPassword.value
-    } as CreateConnectionRequestSchema
-
-    //TODO: dodać userId ze stora
-
-    if (getSocketStore().isConnected) {
-      await clearConnection()
+    if (isConnecting) {
+      console.log('[ConnectionStore] Tworzenie sesji już w toku, pomijam...')
+      return undefined
     }
 
-    const response = await connectionService.createConnection(data)
+    isConnecting = true
+    try {
+      if (!connectionPassword.value) {
+        connectionPassword.value = Math.random().toString(36).slice(-8)
+      }
+      const data = {
+        password: connectionPassword.value
+      } as CreateConnectionRequestSchema
 
-    if (response?.success && response.data) {
-      isHost.value = true
-      connectionCode.value = response.data.code
-      connectionPassword.value = data.password
-      scheduleAutoRefresh()
-    } else {
-      connectionCode.value = ''
-      connectionPassword.value = ''
+      //TODO: dodać userId ze stora
+
+      if (getSocketStore().isConnected) {
+        await clearConnection(false)
+      }
+
+      const response = await connectionService.createConnection(data)
+
+      if (response?.success && response.data) {
+        isHost.value = true
+        connectionCode.value = response.data.code
+        connectionPassword.value = data.password
+        scheduleAutoRefresh()
+      } else {
+        connectionCode.value = ''
+        connectionPassword.value = ''
+      }
+      return response
+    } finally {
+      isConnecting = false
     }
-    return response
   }
 
   const joinGuestConnection = async (
     data: JoinConnectionRequestSchema
   ): Promise<JoinConnectionResponse | undefined> => {
     if (getSocketStore().isConnected) {
-      await clearConnection()
+      await clearConnection(false)
     }
 
     stopAutoRefresh()
@@ -103,32 +125,24 @@ export const useConnectionStore = defineStore('connection', () => {
     return response
   }
 
-  const clearConnection = async (): Promise<void> => {
+  const clearConnection = async (restoreHost = false): Promise<void> => {
     stopAutoRefresh()
     isHost.value = false
     connectionCode.value = ''
-    connectionPassword.value = ''
-    await getSocketStore().disconnect()
+    await getSocketStore().disconnect(restoreHost)
   }
 
   const handleAccessRejected = async (): Promise<void> => {
-    if (!isHost.value) {
-      await clearConnection()
-      return
-    }
-
-    if (connectionPassword.value) {
-      await createHostConnection()
-    } else {
-      console.warn('[ConnectionStore] Brak hasła hosta. Nie mogę wygenerować nowego kodu.')
-    }
+    console.log(
+      '[ConnectionStore] Dostęp odrzucony/Odrzucono kandydata. Odtwarzam domyślnego Hosta...'
+    )
+    await restoreDefaultHost()
   }
 
   const resetState = (): void => {
     stopAutoRefresh()
     isHost.value = false
     connectionCode.value = ''
-    connectionPassword.value = ''
   }
 
   return {
@@ -139,6 +153,7 @@ export const useConnectionStore = defineStore('connection', () => {
     createHostConnection,
     joinGuestConnection,
     clearConnection,
-    handleAccessRejected
+    handleAccessRejected,
+    restoreDefaultHost
   }
 })
