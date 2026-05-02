@@ -189,6 +189,8 @@ const minimized = ref(false)
 const closed = ref(false)
 /** Kursor w obszarze okna widgetu, także gdy zawartość paska jest ukryta przez `v-show`. */
 const hovered = ref(false)
+/** Po kliknięciu „X” kursor nadal jest nad oknem, więc ignorujemy ten hover do opuszczenia strefy. */
+const dismissHoverBlocked = ref(false)
 
 const LOCKOUT_DURATION_MS = 3000
 const isGuestLockedOut = ref(false)
@@ -218,8 +220,8 @@ const connectionStatusClass = computed(() => {
 
 const isAnyGuestLockout = computed(() => isGuestLockedOut.value || isManualGuestLock.value)
 
-/** Pasek jest widoczny, gdy nie jest zamknięty albo właśnie najechano na jego obszar. */
-const visible = computed(() => !closed.value || hovered.value)
+/** Pasek jest widoczny, gdy nie jest zamknięty albo po „X” ponownie najechano na jego obszar. */
+const visible = computed(() => !closed.value || (hovered.value && !dismissHoverBlocked.value))
 const mainDragStyle = computed(() => ({
   WebkitAppRegion: pinned.value ? 'no-drag' : 'drag'
 }))
@@ -291,19 +293,22 @@ async function handleDismissBar(): Promise<void> {
   minimized.value = false
   pinned.value = false
   closed.value = true
+  hovered.value = false
+  dismissHoverBlocked.value = true
   await nextTick()
   syncWidgetWindowLayout({ minimized: false, snapVertical: true })
 }
 
 function onWrapperMouseEnter(): void {
   hovered.value = true
-  if (closed.value) {
+  if (closed.value && !dismissHoverBlocked.value) {
     closed.value = false
   }
 }
 
 function onWrapperMouseLeave(): void {
   hovered.value = false
+  dismissHoverBlocked.value = false
 }
 
 const sendCommand = (actionType: WidgetCommand): void => {
