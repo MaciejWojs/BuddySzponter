@@ -42,10 +42,18 @@ export const useConnectionStore = defineStore('connection', () => {
     stopAutoRefresh()
 
     const expiresAt = connectionService.connectionExpiresDate?.getTime()
-    if (!expiresAt) return
+    if (!expiresAt || isNaN(expiresAt)) return
 
     const now = new Date().getTime()
-    const timeUntilRefresh = Math.max(expiresAt - now - 5000, 0)
+    let timeUntilRefresh = expiresAt - now - 5000
+
+    // Zabezpieczenie przed pętlą (0ms timeout), gdy data wygaśnięcia jest przestarzała, w przeszłości lub z innej strefy czasowej
+    if (isNaN(timeUntilRefresh) || timeUntilRefresh <= 0) {
+      console.warn(
+        '[ConnectionStore] Czas wygaśnięcia wyliczony na <= 0 lub NaN. Wymuszam 30s opóźnienia, by zapobiec pętli.'
+      )
+      timeUntilRefresh = 30000
+    }
 
     refreshTimer = setTimeout(async () => {
       if (getSocketStore().isAcknowledged) {
@@ -83,7 +91,8 @@ export const useConnectionStore = defineStore('connection', () => {
           error
         )
       }
-      connectionPassword.value = Math.random().toString(36).slice(-8)
+      // Generujemy hasło spełniające potencjalne wymogi (wielka i mała litera, cyfra, znak spec.)
+      connectionPassword.value = 'H0st@' + Math.random().toString(36).slice(-4) + 'aA'
     }
   }
 
