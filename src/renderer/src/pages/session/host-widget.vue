@@ -160,7 +160,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 
 type WidgetCommand =
   | 'REQUEST_STATE'
@@ -260,19 +260,26 @@ const togglePin = (): void => {
   pinned.value = !pinned.value
 }
 
-const handleMinimize = (): void => {
-  pinned.value = false
-  minimized.value = true
+const syncWidgetWindowLayout = (minimizedFlag: boolean, snapVertical: boolean): void => {
+  void window.api.app.layoutHostWidget({ minimized: minimizedFlag, snapVertical }).catch(() => {})
 }
 
-const handleRestore = (): void => {
+const handleMinimize = (): void => {
+  minimized.value = true
+  syncWidgetWindowLayout(true, true)
+}
+
+const handleRestore = async (): Promise<void> => {
   minimized.value = false
+  await nextTick()
+  syncWidgetWindowLayout(false, false)
 }
 
 const handleClose = (): void => {
   closed.value = true
   minimized.value = false
   pinned.value = false
+  syncWidgetWindowLayout(false, true)
 }
 
 const onMouseEnter = (): void => {
@@ -283,7 +290,6 @@ const onMouseEnter = (): void => {
 }
 
 const onMouseLeave = (): void => {
-  if (pinned.value) return
   hovered.value = false
 }
 
@@ -292,6 +298,8 @@ const sendCommand = (actionType: WidgetCommand): void => {
 }
 
 onMounted(() => {
+  syncWidgetWindowLayout(minimized.value, false)
+
   syncChannel = new BroadcastChannel('widget-sync-channel')
 
   syncChannel.onmessage = (event) => {
@@ -354,8 +362,9 @@ onUnmounted(() => {
 }
 
 .host-widget-wrapper {
-  width: 440px;
+  width: 100%;
   min-height: 60px;
+  box-sizing: border-box;
 }
 
 .host-widget.is-minimized {
