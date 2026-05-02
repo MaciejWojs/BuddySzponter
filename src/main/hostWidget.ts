@@ -6,7 +6,9 @@ import { is } from '@electron-toolkit/utils'
 let hostWidgetWindow: BrowserWindow | null = null
 let hostWidgetChatWindow: BrowserWindow | null = null
 
-const WIDGET_WIDTH = 500
+/** Szerokość jak w `host-widget.vue` (pełny pasek). */
+const WIDGET_WIDTH = 440
+const WIDGET_MIN_WIDTH = 72
 const WIDGET_HEIGHT = 60
 const CHAT_WIDTH = 340
 const CHAT_HEIGHT = 240
@@ -19,6 +21,19 @@ function loadWidgetRoute(window: BrowserWindow, routeHash: string): void {
       hash: routeHash
     })
   }
+}
+
+function repositionHostWidgetChatIfNeeded(): void {
+  if (!hostWidgetChatWindow || hostWidgetChatWindow.isDestroyed()) {
+    return
+  }
+
+  if (!hostWidgetChatWindow.isVisible()) {
+    return
+  }
+
+  const { x, y } = getChatWindowPosition()
+  hostWidgetChatWindow.setBounds({ x, y, width: CHAT_WIDTH, height: CHAT_HEIGHT })
 }
 
 function getChatWindowPosition(): { x: number; y: number } {
@@ -40,6 +55,33 @@ function getChatWindowPosition(): { x: number; y: number } {
   const y = Math.max(workArea.y + 8, Math.min(rawY, workArea.y + workArea.height - CHAT_HEIGHT - 8))
 
   return { x, y }
+}
+
+/**
+ * Dopasowuje rozmiar i pozycję okna widgetu (jak LinuxSharingBar: wyśrodkowanie,
+ * po minimalizacji / zamknięciu „X” — opcjonalnie przyklejenie do góry obszaru roboczego).
+ */
+export function layoutHostWidget(opts: { minimized: boolean; snapVertical?: boolean }): void {
+  if (!hostWidgetWindow || hostWidgetWindow.isDestroyed()) {
+    return
+  }
+
+  const primaryDisplay = screen.getPrimaryDisplay()
+  const workArea = primaryDisplay.workArea
+  const width = opts.minimized ? WIDGET_MIN_WIDTH : WIDGET_WIDTH
+  const height = WIDGET_HEIGHT
+  const prev = hostWidgetWindow.getBounds()
+  const x = Math.round(workArea.x + (workArea.width - width) / 2)
+
+  let y = prev.y
+  if (opts.snapVertical) {
+    y = workArea.y + 20
+  } else {
+    y = Math.max(workArea.y, Math.min(y, workArea.y + workArea.height - height))
+  }
+
+  hostWidgetWindow.setBounds({ x, y, width, height })
+  repositionHostWidgetChatIfNeeded()
 }
 
 function createHostWidgetChat(): void {
@@ -98,13 +140,13 @@ export function createHostWidget(): void {
   }
 
   const primaryDisplay = screen.getPrimaryDisplay()
-  const { width } = primaryDisplay.workAreaSize
+  const workArea = primaryDisplay.workArea
 
   hostWidgetWindow = new BrowserWindow({
     width: WIDGET_WIDTH,
     height: WIDGET_HEIGHT,
-    x: Math.round(width / 2 - WIDGET_WIDTH / 2),
-    y: 20,
+    x: Math.round(workArea.x + workArea.width / 2 - WIDGET_WIDTH / 2),
+    y: workArea.y + 20,
     show: false,
     frame: false,
     transparent: true,
