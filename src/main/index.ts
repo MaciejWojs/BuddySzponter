@@ -15,7 +15,12 @@ import { screenService } from './services/screenService'
 import { wsService } from './services/ws/WsService'
 
 // --- ODBLOKOWANE: Importy hostWidget ---
-import { closeHostWidget, createHostWidget, toggleHostWidgetChat } from './hostWidget'
+import {
+  closeHostWidget,
+  createHostWidget,
+  layoutHostWidget,
+  toggleHostWidgetChat
+} from './hostWidget'
 import { inputService } from './services/inputService'
 // import trayIconDefault from '../../resources/tray/default.png?asset'
 // import { trayService } from './services/trayService'
@@ -167,6 +172,13 @@ if (!gotTheLock) {
     ipcMain.handle('host-widget-chat:toggle', () => {
       return toggleHostWidgetChat()
     })
+
+    ipcMain.handle(
+      'host-widget:layout',
+      (_event, opts: { minimized: boolean; snapVertical?: boolean }) => {
+        layoutHostWidget(opts)
+      }
+    )
 
     ipcMain.handle('hide-to-tray', () => {
       hideWindowSafely(mainWindow)

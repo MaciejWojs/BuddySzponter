@@ -130,6 +130,7 @@ declare global {
         showHostWidget: () => Promise<void>
         hideHostWidget: () => Promise<void>
         toggleHostWidgetChat: () => Promise<boolean>
+        layoutHostWidget: (opts: { minimized: boolean; snapVertical?: boolean }) => Promise<void>
         setHostTrayMode: (active: boolean) => Promise<void>
         resizeToVideoRatio: (width: number, height: number) => Promise<void>
         resetAspectRatio: () => Promise<void>
