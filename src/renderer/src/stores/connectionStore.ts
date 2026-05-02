@@ -62,11 +62,33 @@ export const useConnectionStore = defineStore('connection', () => {
 
   let isConnecting = false
 
-  const restoreDefaultHost = async (): Promise<void> => {
-    console.log('[ConnectionStore] Odtwarzanie domyślnej sesji Hosta...')
+  // Automatyczna synchronizacja hasła z secureStore po każdej jego zmianie
+  watch(connectionPassword, async (newVal) => {
+    if (newVal) {
+      await window.api?.settings?.setHostPassword?.(newVal).catch(() => {})
+    }
+  })
+
+  const initPasswordIfNeeded = async (): Promise<void> => {
     if (!connectionPassword.value) {
+      try {
+        const savedPassword = await window.api?.settings?.getHostPassword?.()
+        if (savedPassword) {
+          connectionPassword.value = savedPassword
+          return
+        }
+      } catch (error) {
+        console.warn(
+          '[ConnectionStore] Brak dostępu do API ustawień, generuję losowe hasło.',
+          error
+        )
+      }
       connectionPassword.value = Math.random().toString(36).slice(-8)
     }
+  }
+
+  const restoreDefaultHost = async (): Promise<void> => {
+    console.log('[ConnectionStore] Odtwarzanie domyślnej sesji Hosta...')
     await createHostConnection()
   }
 
@@ -77,10 +99,8 @@ export const useConnectionStore = defineStore('connection', () => {
     }
 
     isConnecting = true
+    await initPasswordIfNeeded()
     try {
-      if (!connectionPassword.value) {
-        connectionPassword.value = Math.random().toString(36).slice(-8)
-      }
       const data = {
         password: connectionPassword.value
       } as CreateConnectionRequestSchema
