@@ -5,6 +5,7 @@ interface StoreSchema {
   sessionId: string
   aesKey: string
   refreshToken?: string
+  hostPassword?: string
 }
 
 class SecureStore {
