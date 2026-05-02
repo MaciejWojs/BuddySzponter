@@ -24,7 +24,7 @@
           </div>
         </div>
 
-        <section class="actions" style="-webkit-app-region: no-drag">
+        <section class="actions" style="-webkit-app-region: no-drag" @click.capture="onBtnClick">
           <div class="action-group">
             <button
               class="tool-btn"
@@ -152,7 +152,12 @@
         </div>
       </template>
 
-      <section v-else class="actions minimized-actions" style="-webkit-app-region: no-drag">
+      <section
+        v-else
+        class="actions minimized-actions"
+        style="-webkit-app-region: no-drag"
+        @click.capture="onBtnClick"
+      >
         <button class="tool-btn" title="Przywróć pasek" @click="handleRestore">
           <svg viewBox="0 0 24 24" class="icon">
             <path fill="currentColor" d="M8 5v2h7.59L4 18.59 5.41 20 17 8.41V16h2V5z" />
@@ -164,7 +169,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
+import gsap from 'gsap'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 
 type WidgetCommand =
   | 'REQUEST_STATE'
@@ -330,6 +336,84 @@ function onWrapperMouseLeave(): void {
     dismissHoverBlocked.value = false
   }
 }
+
+/**
+ * Delegowana animacja kliknięcia dla dowolnego tool-btn.
+ * Elastic bounce na przycisku + szybki scale na ikonie.
+ */
+function onBtnClick(event: MouseEvent): void {
+  const btn = (event.target as HTMLElement).closest<HTMLButtonElement>('.tool-btn')
+  if (!btn || btn.disabled) return
+
+  const icon = btn.querySelector<SVGElement | HTMLElement>('.icon')
+
+  gsap.killTweensOf(btn)
+  gsap
+    .timeline()
+    .to(btn, { scale: 0.86, duration: 0.07, ease: 'power3.in', overwrite: true })
+    .to(btn, { scale: 1, duration: 0.38, ease: 'elastic.out(1.1, 0.45)' })
+
+  if (icon) {
+    gsap.killTweensOf(icon)
+    gsap.fromTo(
+      icon,
+      { scale: 0.8, opacity: 0.7 },
+      { scale: 1, opacity: 1, duration: 0.3, ease: 'back.out(2)' }
+    )
+  }
+}
+
+/**
+ * Subtelna animacja ikony przy zmianie stanu (toggle).
+ * Używana przez watche reagujące na mic, sys, lock, chat.
+ */
+function animateIconToggle(selector: string): void {
+  const el = document.querySelector<HTMLElement>(selector)
+  if (!el) return
+  gsap.killTweensOf(el)
+  gsap.fromTo(
+    el,
+    { scale: 0.7, rotate: -15, opacity: 0.5 },
+    { scale: 1, rotate: 0, opacity: 1, duration: 0.35, ease: 'back.out(2.2)' }
+  )
+}
+
+watch(
+  () => state.value.micActive,
+  () => animateIconToggle('.actions .icon:nth-of-type(1)')
+)
+
+watch(
+  () => state.value.sysActive,
+  () => animateIconToggle('.actions .icon:nth-of-type(2)')
+)
+
+watch(isManualGuestLock, () => {
+  const lockBtn = document.querySelector<HTMLElement>(
+    '.tool-btn.is-lock-toggle-on, .is-control-off'
+  )
+  if (!lockBtn) return
+  const icon = lockBtn.querySelector<HTMLElement>('.icon')
+  if (!icon) return
+  gsap.killTweensOf(icon)
+  gsap.fromTo(
+    icon,
+    { scale: 0.65, rotate: 20 },
+    { scale: 1, rotate: 0, duration: 0.4, ease: 'back.out(2.5)' }
+  )
+})
+
+watch(isChatOpen, (open) => {
+  const chatBtns = document.querySelectorAll<HTMLElement>('.is-chat-on .icon, .tool-btn .icon')
+  const target = open ? document.querySelector<HTMLElement>('.is-chat-on .icon') : chatBtns[1]
+  if (!target) return
+  gsap.killTweensOf(target)
+  gsap.fromTo(
+    target,
+    { scale: 0.7, y: 4, opacity: 0.6 },
+    { scale: 1, y: 0, opacity: 1, duration: 0.32, ease: 'back.out(2)' }
+  )
+})
 
 const sendCommand = (actionType: WidgetCommand): void => {
   if (syncChannel) syncChannel.postMessage({ type: actionType })
@@ -507,30 +591,33 @@ onUnmounted(() => {
   color: #e9dcff;
   display: grid;
   place-items: center;
+  will-change: transform;
+  cursor: pointer;
   transition:
-    transform 0.14s ease,
-    border-color 0.18s ease,
-    background-color 0.18s ease,
+    border-color 0.18s cubic-bezier(0.34, 1.56, 0.64, 1),
+    background-color 0.2s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.2s cubic-bezier(0.22, 1, 0.36, 1),
     color 0.18s ease;
 }
 
 .tool-btn:hover {
-  transform: translateY(-1px);
-  background: rgba(255, 255, 255, 0.16);
-}
-
-.tool-btn:active {
-  transform: scale(0.95);
+  background: rgba(255, 255, 255, 0.15);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.1),
+    0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 .tool-btn:disabled {
-  opacity: 0.78;
-  cursor: wait;
+  opacity: 0.55;
+  cursor: default;
+  pointer-events: none;
 }
 
 .icon {
   width: 15px;
   height: 15px;
+  will-change: transform;
+  transition: color 0.18s ease;
 }
 
 .is-control-on {
@@ -538,6 +625,7 @@ onUnmounted(() => {
   color: #ffffff;
   background: rgba(255, 255, 255, 0.1);
   animation: control-pulse 1.3s ease-in-out infinite;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.12);
 }
 
 .is-control-off {
@@ -550,12 +638,14 @@ onUnmounted(() => {
   border-color: rgba(255, 85, 115, 0.92);
   background: rgba(255, 85, 115, 0.2);
   color: #ff8ca6;
+  box-shadow: 0 0 10px rgba(255, 85, 115, 0.25);
 }
 
 .is-chat-on {
   border-color: rgba(120, 230, 255, 0.72);
   color: #78e6ff;
   background: rgba(120, 230, 255, 0.16);
+  box-shadow: 0 0 10px rgba(120, 230, 255, 0.2);
 }
 
 .is-active {
@@ -566,6 +656,7 @@ onUnmounted(() => {
   border-color: rgba(255, 110, 155, 0.75);
   color: #ff6e9b;
   background: rgba(255, 110, 155, 0.12);
+  box-shadow: 0 0 8px rgba(255, 110, 155, 0.18);
 }
 
 .end-btn {
@@ -575,10 +666,15 @@ onUnmounted(() => {
   margin-left: 2px;
 }
 
+.end-btn:hover {
+  box-shadow: 0 0 12px rgba(255, 110, 110, 0.3);
+}
+
 .is-pin-on {
   border-color: rgba(255, 214, 107, 0.85);
   color: #ffd66b;
   background: rgba(255, 214, 107, 0.18);
+  box-shadow: 0 0 10px rgba(255, 214, 107, 0.22);
 }
 
 .lockout-progress {
