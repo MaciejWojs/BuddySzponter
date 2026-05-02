@@ -260,26 +260,27 @@ const togglePin = (): void => {
   pinned.value = !pinned.value
 }
 
-const syncWidgetWindowLayout = (minimizedFlag: boolean, snapVertical: boolean): void => {
-  void window.api.app.layoutHostWidget({ minimized: minimizedFlag, snapVertical }).catch(() => {})
+function syncWidgetWindowLayout(opts: { minimized: boolean; snapVertical?: boolean }): void {
+  void window.api.app.layoutHostWidget(opts).catch(() => {})
 }
 
 const handleMinimize = (): void => {
   minimized.value = true
-  syncWidgetWindowLayout(true, true)
+  syncWidgetWindowLayout({ minimized: true, snapVertical: true })
 }
 
 const handleRestore = async (): Promise<void> => {
   minimized.value = false
   await nextTick()
-  syncWidgetWindowLayout(false, false)
+  syncWidgetWindowLayout({ minimized: false, snapVertical: false })
 }
 
-const handleClose = (): void => {
+const handleClose = async (): Promise<void> => {
   closed.value = true
   minimized.value = false
   pinned.value = false
-  syncWidgetWindowLayout(false, true)
+  await nextTick()
+  syncWidgetWindowLayout({ minimized: false, snapVertical: true })
 }
 
 const onMouseEnter = (): void => {
@@ -298,7 +299,7 @@ const sendCommand = (actionType: WidgetCommand): void => {
 }
 
 onMounted(() => {
-  syncWidgetWindowLayout(minimized.value, false)
+  syncWidgetWindowLayout({ minimized: minimized.value })
 
   syncChannel = new BroadcastChannel('widget-sync-channel')
 
