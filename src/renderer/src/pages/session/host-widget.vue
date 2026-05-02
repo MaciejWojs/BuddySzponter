@@ -1,5 +1,9 @@
 <template>
-  <div class="host-widget-wrapper" @mouseenter="onMouseEnter" @mouseleave="onMouseLeave">
+  <div
+    class="host-widget-wrapper"
+    @mouseenter="onWrapperMouseEnter"
+    @mouseleave="onWrapperMouseLeave"
+  >
     <main
       v-show="visible"
       class="host-widget"
@@ -119,7 +123,7 @@
               </svg>
             </button>
 
-            <button class="tool-btn" title="Zamknij pasek" @click="handleClose">
+            <button class="tool-btn" title="Zamknij pasek" @click="handleDismissBar">
               <svg viewBox="0 0 24 24" class="icon">
                 <path
                   fill="currentColor"
@@ -181,7 +185,9 @@ const isChatToggling = ref(false)
 const isManualGuestLock = ref(false)
 const pinned = ref(false)
 const minimized = ref(false)
+/** Ukryty po „X”; wraca przy wejściu kursorem w górną strefę, jak w LinuxSharingBar. */
 const closed = ref(false)
+/** Kursor w obszarze okna widgetu, także gdy zawartość paska jest ukryta przez `v-show`. */
 const hovered = ref(false)
 
 const LOCKOUT_DURATION_MS = 3000
@@ -211,6 +217,8 @@ const connectionStatusClass = computed(() => {
 })
 
 const isAnyGuestLockout = computed(() => isGuestLockedOut.value || isManualGuestLock.value)
+
+/** Pasek jest widoczny, gdy nie jest zamknięty albo właśnie najechano na jego obszar. */
 const visible = computed(() => !closed.value || hovered.value)
 const mainDragStyle = computed(() => ({
   WebkitAppRegion: pinned.value ? 'no-drag' : 'drag'
@@ -275,22 +283,26 @@ const handleRestore = async (): Promise<void> => {
   syncWidgetWindowLayout({ minimized: false, snapVertical: false })
 }
 
-const handleClose = async (): Promise<void> => {
-  closed.value = true
+/**
+ * „X” działa jak LinuxSharingBar:
+ * chowa pasek, resetuje pin i pozycję do góry, ale zostawia pełną szerokość okna.
+ */
+async function handleDismissBar(): Promise<void> {
   minimized.value = false
   pinned.value = false
+  closed.value = true
   await nextTick()
   syncWidgetWindowLayout({ minimized: false, snapVertical: true })
 }
 
-const onMouseEnter = (): void => {
+function onWrapperMouseEnter(): void {
   hovered.value = true
   if (closed.value) {
     closed.value = false
   }
 }
 
-const onMouseLeave = (): void => {
+function onWrapperMouseLeave(): void {
   hovered.value = false
 }
 
