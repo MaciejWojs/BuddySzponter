@@ -10,8 +10,27 @@ let hostWidgetChatWindow: BrowserWindow | null = null
 const WIDGET_WIDTH = 440
 const WIDGET_MIN_WIDTH = 72
 const WIDGET_HEIGHT = 60
+/** Jak przy pierwszym `createHostWidget` — góra obszaru roboczego. */
+const WIDGET_LAUNCH_Y_OFFSET = 20
 const CHAT_WIDTH = 340
 const CHAT_HEIGHT = 240
+
+function getHostWidgetLaunchBounds(minimized: boolean): {
+  x: number
+  y: number
+  width: number
+  height: number
+} {
+  const workArea = screen.getPrimaryDisplay().workArea
+  const width = minimized ? WIDGET_MIN_WIDTH : WIDGET_WIDTH
+  const height = WIDGET_HEIGHT
+  return {
+    x: Math.round(workArea.x + (workArea.width - width) / 2),
+    y: workArea.y + WIDGET_LAUNCH_Y_OFFSET,
+    width,
+    height
+  }
+}
 
 function loadWidgetRoute(window: BrowserWindow, routeHash: string): void {
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
@@ -58,8 +77,9 @@ function getChatWindowPosition(): { x: number; y: number } {
 }
 
 /**
- * Dopasowuje rozmiar i pozycję okna widgetu (jak LinuxSharingBar: wyśrodkowanie,
- * po minimalizacji / zamknięciu „X” — opcjonalnie przyklejenie do góry obszaru roboczego).
+ * Dopasowuje rozmiar i pozycję okna widgetu.
+ * `snapVertical: true` — to samo co przy minimalizacji: wyśrodkowanie w poziomie i przyklejenie do góry obszaru roboczego.
+ * Przy `minimized: false` pasek zostaje pełnej szerokości (np. zamknięcie „X” bez zwężania okna).
  */
 export function layoutHostWidget(opts: { minimized: boolean; snapVertical?: boolean }): void {
   if (!hostWidgetWindow || hostWidgetWindow.isDestroyed()) {
@@ -75,7 +95,7 @@ export function layoutHostWidget(opts: { minimized: boolean; snapVertical?: bool
 
   let y = prev.y
   if (opts.snapVertical) {
-    y = workArea.y + 20
+    y = workArea.y + WIDGET_LAUNCH_Y_OFFSET
   } else {
     y = Math.max(workArea.y, Math.min(y, workArea.y + workArea.height - height))
   }
@@ -139,14 +159,13 @@ export function createHostWidget(): void {
     return
   }
 
-  const primaryDisplay = screen.getPrimaryDisplay()
-  const workArea = primaryDisplay.workArea
+  const launch = getHostWidgetLaunchBounds(false)
 
   hostWidgetWindow = new BrowserWindow({
-    width: WIDGET_WIDTH,
-    height: WIDGET_HEIGHT,
-    x: Math.round(workArea.x + workArea.width / 2 - WIDGET_WIDTH / 2),
-    y: workArea.y + 20,
+    width: launch.width,
+    height: launch.height,
+    x: launch.x,
+    y: launch.y,
     show: false,
     frame: false,
     transparent: true,
