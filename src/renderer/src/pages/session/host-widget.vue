@@ -192,11 +192,14 @@ const hovered = ref(false)
 /** Po kliknięciu „X” kursor nadal jest nad oknem, więc ignorujemy ten hover do opuszczenia strefy. */
 const dismissHoverBlocked = ref(false)
 
+const DISMISS_REVEAL_GUARD_MS = 220
 const LOCKOUT_DURATION_MS = 3000
 const isGuestLockedOut = ref(false)
 const lockoutUntil = ref(0)
 const currentTime = ref(Date.now())
 let timerInterval: ReturnType<typeof setInterval> | null = null
+let dismissRevealTimer: ReturnType<typeof setTimeout> | null = null
+let dismissRevealGuardUntil = 0
 let syncChannel: BroadcastChannel | null = null
 
 const lockoutProgress = computed(() => {
@@ -230,6 +233,13 @@ const stopTimer = (): void => {
   if (timerInterval) {
     clearInterval(timerInterval)
     timerInterval = null
+  }
+}
+
+function clearDismissRevealTimer(): void {
+  if (dismissRevealTimer) {
+    clearTimeout(dismissRevealTimer)
+    dismissRevealTimer = null
   }
 }
 
@@ -295,6 +305,14 @@ async function handleDismissBar(): Promise<void> {
   closed.value = true
   hovered.value = false
   dismissHoverBlocked.value = true
+  dismissRevealGuardUntil = Date.now() + DISMISS_REVEAL_GUARD_MS
+  clearDismissRevealTimer()
+  dismissRevealTimer = setTimeout(() => {
+    dismissRevealTimer = null
+    if (!hovered.value) {
+      dismissHoverBlocked.value = false
+    }
+  }, DISMISS_REVEAL_GUARD_MS)
   await nextTick()
   syncWidgetWindowLayout({ minimized: false, snapVertical: true })
 }
@@ -308,7 +326,9 @@ function onWrapperMouseEnter(): void {
 
 function onWrapperMouseLeave(): void {
   hovered.value = false
-  dismissHoverBlocked.value = false
+  if (Date.now() >= dismissRevealGuardUntil) {
+    dismissHoverBlocked.value = false
+  }
 }
 
 const sendCommand = (actionType: WidgetCommand): void => {
@@ -336,6 +356,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   stopTimer()
+  clearDismissRevealTimer()
   if (syncChannel) syncChannel.close()
   window.electron.ipcRenderer.removeListener('input:host-lockout', handleHostLockout)
 })
