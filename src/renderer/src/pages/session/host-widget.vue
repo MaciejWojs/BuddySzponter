@@ -1,6 +1,6 @@
 <template>
   <main
-    class="w-[500px] h-[60px] px-4 bg-[#1e1e1e]/90 backdrop-blur-xl border border-[#333] shadow-2xl flex items-center justify-between text-[#e8e8e8] select-none overflow-hidden rounded-[16px]"
+    class="w-[550px] h-[60px] px-4 bg-[#1e1e1e]/90 backdrop-blur-xl border border-[#333] shadow-2xl flex items-center justify-between text-[#e8e8e8] select-none overflow-hidden rounded-[16px]"
     style="-webkit-app-region: drag"
   >
     <div class="flex items-center gap-3">
@@ -33,6 +33,14 @@
         <span class="text-lg group-active:scale-90 transition-transform">{{
           state.micActive ? '🎙️' : '🎙️'
         }}</span>
+      </button>
+
+      <button
+        class="flex items-center justify-center w-10 h-10 rounded-lg transition-all border group bg-[#2a2a2a] border-[#444] text-gray-200 hover:border-purple-500"
+        title="Następny monitor"
+        @click="goToNextMonitor"
+      >
+        <span class="text-lg group-active:scale-90 transition-transform">🖥️</span>
       </button>
 
       <button
@@ -121,6 +129,21 @@ onMounted(() => {
 onUnmounted(() => {
   if (syncChannel) syncChannel.close()
 })
+
+const goToNextMonitor = async (): Promise<void> => {
+  if (typeof window.screenCapture?.nextMonitor === 'function') {
+    await window.screenCapture.nextMonitor()
+    return
+  }
+
+  if (typeof window.capture?.nextMonitor === 'function') {
+    await window.capture.nextMonitor()
+    return
+  }
+
+  // Fallback: jeśli widget opiera się tylko na kanale komunikacyjnym do wywołań
+  sendCommand('NEXT_MONITOR')
+}
 
 const sendCommand = (actionType: string): void => {
   if (syncChannel) syncChannel.postMessage({ type: actionType })
