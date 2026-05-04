@@ -68,16 +68,18 @@ class InputController {
     try {
       let needsFlush = false
 
-      if (this.queue.length > 0) {
-        // 1. Sortujemy TYLKO po czasie (Chronologia zdarzeń)
-        this.queue.sort((a, b) => a.timestamp - b.timestamp)
+      const now = Date.now()
+      const readyItems = this.queue.filter((item) => item.timestamp <= now)
 
-        // 2. Kopiujemy i czyścimy natychmiast kolejkę
-        const currentQueue = this.queue
-        this.queue = []
+      if (readyItems.length > 0) {
+        // 1. Zostawiamy w kolejce to, co ma się wykonać w przyszłości
+        this.queue = this.queue.filter((item) => item.timestamp > now)
+
+        // 2. Sortujemy TYLKO po czasie (Chronologia zdarzeń)
+        readyItems.sort((a, b) => a.timestamp - b.timestamp)
 
         // 3. Przetwarzamy bez zgubnego filtrowania! Ruch zawsze dotrze na miejsce przed kliknięciem!
-        for (const item of currentQueue) {
+        for (const item of readyItems) {
           try {
             if (item.type === 'move') {
               const { x, y } = item.payload
@@ -88,10 +90,14 @@ class InputController {
               needsFlush = true
             } else if (item.type === 'click') {
               await this.bridge.mouseClick(item.payload.btn, item.payload.down)
-              needsFlush = true
+              // Wymuszamy natychmiastowy flush dla kliknięć, by OS to zinterpretował poprawnie
+              this.bridge.flush()
+              needsFlush = false
             } else if (item.type === 'key') {
               await this.bridge.keyPressDOM(item.payload.code, item.payload.down)
-              needsFlush = true
+              // Wymuszamy natychmiastowy flush dla klawiszy
+              this.bridge.flush()
+              needsFlush = false
             }
           } catch (e) {
             console.error('[InputController] Zignorowano błąd polecenia z systemu:', e)
@@ -142,12 +148,16 @@ class InputController {
   async click(button: number): Promise<void> {
     const now = Date.now()
     this.queue.push({ type: 'click', payload: { btn: button, down: true }, timestamp: now })
-    this.queue.push({ type: 'click', payload: { btn: button, down: false }, timestamp: now + 1 })
+    // Dodajemy 30ms odstępu dla naturalności puszczenia przycisku
+    this.queue.push({ type: 'click', payload: { btn: button, down: false }, timestamp: now + 30 })
   }
 
   async doubleClick(button: number): Promise<void> {
-    await this.click(button)
-    await this.click(button)
+    const now = Date.now()
+    this.queue.push({ type: 'click', payload: { btn: button, down: true }, timestamp: now })
+    this.queue.push({ type: 'click', payload: { btn: button, down: false }, timestamp: now + 30 })
+    this.queue.push({ type: 'click', payload: { btn: button, down: true }, timestamp: now + 60 })
+    this.queue.push({ type: 'click', payload: { btn: button, down: false }, timestamp: now + 90 })
   }
 
   async mouseDown(button: number): Promise<void> {
