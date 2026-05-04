@@ -72,30 +72,24 @@ class InputController {
       const readyItems = this.queue.filter((item) => item.timestamp <= now)
 
       if (readyItems.length > 0) {
-        // 1. Zostawiamy w kolejce to, co ma się wykonać w przyszłości
         this.queue = this.queue.filter((item) => item.timestamp > now)
 
-        // 2. Sortujemy TYLKO po czasie (Chronologia zdarzeń)
         readyItems.sort((a, b) => a.timestamp - b.timestamp)
 
-        // 3. Przetwarzamy bez zgubnego filtrowania! Ruch zawsze dotrze na miejsce przed kliknięciem!
         for (const item of readyItems) {
           try {
             if (item.type === 'move') {
               const { x, y } = item.payload
               await this.bridge.moveMouseAbsolute(x, y)
 
-              // 🔥 KRYTYCZNY FIX: Odnawiamy ochronę Anty-Cheat DOKŁADNIE wtedy, gdy system u Hosta przesuwa kursor!
               inputService.tracker?.updateInjection(x, y)
               needsFlush = true
             } else if (item.type === 'click') {
               await this.bridge.mouseClick(item.payload.btn, item.payload.down)
-              // Wymuszamy natychmiastowy flush dla kliknięć, by OS to zinterpretował poprawnie
               this.bridge.flush()
               needsFlush = false
             } else if (item.type === 'key') {
               await this.bridge.keyPressDOM(item.payload.code, item.payload.down)
-              // Wymuszamy natychmiastowy flush dla klawiszy
               this.bridge.flush()
               needsFlush = false
             }
@@ -148,7 +142,6 @@ class InputController {
   async click(button: number): Promise<void> {
     const now = Date.now()
     this.queue.push({ type: 'click', payload: { btn: button, down: true }, timestamp: now })
-    // Dodajemy 30ms odstępu dla naturalności puszczenia przycisku
     this.queue.push({ type: 'click', payload: { btn: button, down: false }, timestamp: now + 30 })
   }
 
@@ -313,7 +306,6 @@ export const inputService = {
     ipcMain.handle('input:move-absolute', async (_e, x: number, y: number) => {
       if (!Number.isFinite(x) || !Number.isFinite(y) || isLocked()) return
       await this.controller.move(Math.round(x), Math.round(y))
-      // USUNIĘTO: updateInjection było tu wywoływane zbyt wcześnie!
     })
 
     ipcMain.handle(
@@ -324,10 +316,8 @@ export const inputService = {
         const map: Record<string, number> = { l: 0, m: 2, r: 1 }
         if (typeof map[btn] !== 'number') return
 
-        // 1. Zawsze wymuszamy najpierw przesunięcie w miejsce kliknięcia
         await this.controller.move(Math.round(x), Math.round(y))
 
-        // 2. Potem wpychamy akcję kliknięcia
         if (act === 'c') await this.controller.click(map[btn])
         else if (act === 'dc') await this.controller.doubleClick(map[btn])
         else if (act === 'd') await this.controller.mouseDown(map[btn])
