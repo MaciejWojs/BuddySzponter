@@ -71,6 +71,8 @@ declare global {
         setLanguage: (lang: AppLanguage) => Promise<boolean>
         getTranslation: () => Promise<Translation>
         getHardwareId: () => Promise<string>
+        getHostPassword: () => Promise<string>
+        setHostPassword: (password: string) => Promise<void>
       }
       core: {
         getLocale: (lang: AppLanguage) => Promise<GetLocaleResponse>

@@ -62,10 +62,6 @@ export function useGuestSync(isMainWindow: boolean): UseGuestSyncReturn {
         ],
         () => {
           pushStateToGuest()
-
-          if (webRtcStore.rtcStatus === 'disconnected') {
-            syncChannel?.postMessage({ type: 'HOST_DISCONNECTED' })
-          }
         }
       )
     } else {

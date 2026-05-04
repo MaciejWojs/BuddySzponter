@@ -4,9 +4,11 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { useSignalingStore } from '@renderer/stores/signalingStore'
 import { useGuestSync } from '@renderer/composables/syncWindow/useGuestSync'
 import { webRtcService } from '@renderer/composables/connection/webRTCService'
+import { useWebRtcStore } from '@renderer/stores/webRtcStore'
 
 const signalingStore = useSignalingStore()
 const { sendCommand } = useGuestSync(false)
+const webRtcStore = useWebRtcStore()
 
 const isVideoReady = ref(false)
 
@@ -40,7 +42,8 @@ const handleSysVolumeChange = (event: Event): void => {
   sendCommand('COMMAND_SET_SYS_VOL', val)
 }
 
-const handleDisconnect = (): void => {
+const handleDisconnect = async (): Promise<void> => {
+  await webRtcStore.disconnect()
   sendCommand('COMMAND_DISCONNECT')
 }
 

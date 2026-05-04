@@ -8,6 +8,7 @@ import {
 } from '@renderer/composables/connection/webRTCService'
 import { messageRouter } from '@renderer/composables/webrtc/MessageRouter'
 import { useHidChannel } from '@renderer/composables/channels/HidChannel'
+import { useSocketStore } from './socketStore'
 
 export const useWebRtcStore = defineStore('webrtc', () => {
   // --- STAN POŁĄCZENIA ---
@@ -23,6 +24,25 @@ export const useWebRtcStore = defineStore('webrtc', () => {
   }
 
   webRtcService.onMessageReceived = (data: string, channelLabel: string): void => {
+    if (channelLabel === 'system-events') {
+      try {
+        const parsed = JSON.parse(data)
+        if (parsed.type === 'DISCONNECT') {
+          console.log('[WebRtcStore] Otrzymano sygnał DISCONNECT (P2P)')
+          if (localPublishProfile.value === 'guest') {
+            const relay = new BroadcastChannel('guest-sync-channel')
+            relay.postMessage({ type: 'COMMAND_DISCONNECT' })
+            relay.close()
+          } else {
+            const socketStore = useSocketStore()
+            socketStore.disconnect(true)
+          }
+          return
+        }
+      } catch (e) {
+        console.warn('[WebRtcStore] Błąd parsowania system-events:', e)
+      }
+    }
     messageRouter.route(channelLabel, data)
   }
 
@@ -69,7 +89,13 @@ export const useWebRtcStore = defineStore('webrtc', () => {
   const disconnect = async (): Promise<void> => {
     if (rtcStatus.value === 'disconnected') return
 
-    webRtcService.sendData('system-events', JSON.stringify({ type: 'DISCONNECT', payload: {} }))
+    try {
+      webRtcService.sendData('system-events', JSON.stringify({ type: 'DISCONNECT', payload: {} }))
+    } catch (e) {
+      console.warn('[WebRtcStore] Nie udało się wysłać sygnału DISCONNECT (kanał zamknięty?):', e)
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 50))
 
     forceDisconnect()
   }
@@ -105,7 +131,6 @@ export const useWebRtcStore = defineStore('webrtc', () => {
     remoteStream,
     localPublishProfile,
 
-    // Eksport metod
     getCurrentTrackPolicy,
     publishLocalStream,
     setLocalPublishProfile,
