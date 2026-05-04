@@ -199,6 +199,9 @@ const api = {
       ipcRenderer.removeAllListeners('tray-stop-session')
       ipcRenderer.removeAllListeners('host-session-ended')
     }
+  },
+  desktop: {
+    getSources: () => ipcRenderer.invoke('desktop:get-sources')
   }
 }
 
@@ -390,6 +393,7 @@ if (process.contextIsolated) {
       start: () => ipcRenderer.invoke('capture:start'),
       stop: () => ipcRenderer.invoke('capture:stop'),
       nextMonitor: () => ipcRenderer.invoke('capture:next-monitor'),
+      getMonitorState: () => ipcRenderer.invoke('capture:get-monitor-state'),
       getFps: () => ipcRenderer.invoke('capture:getFps'),
       subscribeStream: (onFrame: (frame: VideoFrame) => void) => {
         const cleanupSubscription = addFrameConsumer(onFrame)

@@ -6,6 +6,8 @@ export class ScreenService {
   private capturer: IScreenCapture | null = null
   private activeFrames: { frame: WebFrameMain; wc: Electron.WebContents }[] = []
   private isProcessingFrame = false
+  private monitorCount = 0
+  private currentMonitorIndex = 0
   // Flagi pomocnicze do logów – zapobiegają spamowaniu konsoli
   private isHandleLogged = false
   private lastSharedTextureInfoSignature: string | null = null
@@ -78,6 +80,13 @@ export class ScreenService {
       await this.nextMonitor()
     })
 
+    ipcMain.handle('capture:get-monitor-state', () => {
+      return {
+        count: this.monitorCount,
+        currentIndex: this.currentMonitorIndex
+      }
+    })
+
     ipcMain.on('capture:request-stream', (event) => {
       const frame = event.senderFrame
       const wc = event.sender
@@ -122,8 +131,9 @@ export class ScreenService {
     // this.capturer.forceBackend('gdi')
     // this.capturer.forceBackend('dxgi')
 
-    const monitorCount = await this.capturer.getMonitorCount()
-    console.log(`[ScreenService] Detected ${monitorCount} monitor(s) available for capture`)
+    this.monitorCount = await this.capturer.getMonitorCount()
+    this.currentMonitorIndex = 0
+    console.log(`[ScreenService] Detected ${this.monitorCount} monitor(s) available for capture`)
 
     // Uruchamiamy przechwytywanie i od razu rejestrujemy callback
     console.log('[ScreenService] Calling capturer.start()')
@@ -143,6 +153,9 @@ export class ScreenService {
       this.isProcessingFrame = false
       if (typeof this.capturer.nextMonitor === 'function') {
         await this.capturer.nextMonitor()
+        if (this.monitorCount > 0) {
+          this.currentMonitorIndex = (this.currentMonitorIndex + 1) % this.monitorCount
+        }
       } else {
         console.warn(
           '[ScreenService] capturer.nextMonitor is not available in the current screen-capture plugin version'
@@ -165,6 +178,8 @@ export class ScreenService {
     const framesCount = this.activeFrames.length
     this.activeFrames = []
     this.isProcessingFrame = false
+    this.monitorCount = 0
+    this.currentMonitorIndex = 0
     console.log(`[ScreenService] Capture stopped, cleared ${framesCount} active frames`)
   }
 

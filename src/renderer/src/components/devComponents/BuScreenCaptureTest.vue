@@ -15,21 +15,34 @@
       </div>
     </h3>
 
-    <div class="flex gap-2">
-      <button
-        :disabled="isCapturing"
-        class="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-4 py-2 rounded font-medium transition-colors"
-        @click="startCapture"
-      >
-        Start
-      </button>
-      <button
-        :disabled="!isCapturing"
-        class="bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-4 py-2 rounded font-medium transition-colors"
-        @click="stopCapture"
-      >
-        Stop
-      </button>
+    <div class="flex flex-col gap-2">
+      <p v-if="!canSwitchMonitor" class="text-xs text-yellow-400 m-0">
+        Przełączanie monitora nie jest dostępne w bieżącym API.
+      </p>
+
+      <div class="flex gap-2">
+        <button
+          :disabled="isCapturing"
+          class="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-4 py-2 rounded font-medium transition-colors"
+          @click="startCapture"
+        >
+          Start
+        </button>
+        <button
+          :disabled="!isCapturing"
+          class="bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-4 py-2 rounded font-medium transition-colors"
+          @click="stopCapture"
+        >
+          Stop
+        </button>
+        <button
+          :disabled="!isCapturing || !canSwitchMonitor"
+          class="bg-zinc-700 hover:bg-zinc-600 disabled:opacity-50 text-white px-4 py-2 rounded font-medium transition-colors"
+          @click="goToNextMonitor"
+        >
+          Następny monitor
+        </button>
+      </div>
     </div>
 
     <div
@@ -59,6 +72,25 @@ const hasNativeScreenCapture =
   typeof window.screenCapture?.stopStream === 'function'
 
 const canRegisterSharedTexture = typeof window.screenCapture?.registerReceiver === 'function'
+const canSwitchMonitor =
+  typeof window.screenCapture?.nextMonitor === 'function' ||
+  typeof window.capture?.nextMonitor === 'function'
+
+const rotateToNextMonitor = async (): Promise<void> => {
+  if (typeof window.screenCapture?.nextMonitor === 'function') {
+    await window.screenCapture.nextMonitor()
+    return
+  }
+
+  if (typeof window.capture?.nextMonitor === 'function') {
+    await window.capture.nextMonitor()
+  }
+}
+
+const goToNextMonitor = async (): Promise<void> => {
+  if (!isCapturing.value || !canSwitchMonitor) return
+  await rotateToNextMonitor()
+}
 
 const updateFps = async (): Promise<void> => {
   if (typeof window.capture?.getFps === 'function') {

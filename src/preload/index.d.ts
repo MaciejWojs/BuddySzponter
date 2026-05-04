@@ -152,6 +152,7 @@ declare global {
       start: () => Promise<void>
       stop: () => Promise<void>
       nextMonitor: () => Promise<void>
+      getMonitorState: () => Promise<{ count: number; currentIndex: number }>
       getFps(): Promise<number | null>
       subscribeStream: (onFrame: (frame: VideoFrame) => void) => () => void
     }
