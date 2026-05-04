@@ -126,7 +126,6 @@ export const useSocketStore = defineStore('socket', () => {
 
         rtcStore.forceDisconnect()
 
-        // Bezpieczne i natychmiastowe zamykanie okna Gościa (IPC lub Broadcast fallback) po padzie sesji
         killGuestWindow()
 
         await connectionStore.restoreDefaultHost()
@@ -230,7 +229,6 @@ export const useSocketStore = defineStore('socket', () => {
     lastDisconnectTime = Date.now()
     lastConnectionToken = null
 
-    // Bezpieczne i natychmiastowe zamykanie okna Gościa
     killGuestWindow()
 
     const rtcStore = useWebRtcStore()
@@ -249,8 +247,6 @@ export const useSocketStore = defineStore('socket', () => {
       }
     }
 
-    // Czekamy chwilę na przetworzenie eventu zamykającego stare gniazdo przez event loop,
-    // aby zapobiec wywołaniu onDisconnected i przerwaniu nowo odtwarzanej sesji
     await new Promise((resolve) => setTimeout(resolve, 100))
 
     isConnected.value = false

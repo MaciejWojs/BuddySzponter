@@ -131,7 +131,6 @@ export const useWebRtcStore = defineStore('webrtc', () => {
     remoteStream,
     localPublishProfile,
 
-    // Eksport metod
     getCurrentTrackPolicy,
     publishLocalStream,
     setLocalPublishProfile,

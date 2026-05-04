@@ -47,7 +47,6 @@ export const useConnectionStore = defineStore('connection', () => {
     const now = new Date().getTime()
     let timeUntilRefresh = expiresAt - now - 5000
 
-    // Zabezpieczenie przed pętlą (0ms timeout), gdy data wygaśnięcia jest przestarzała, w przeszłości lub z innej strefy czasowej
     if (isNaN(timeUntilRefresh) || timeUntilRefresh <= 0) {
       console.warn(
         '[ConnectionStore] Czas wygaśnięcia wyliczony na <= 0 lub NaN. Wymuszam 30s opóźnienia, by zapobiec pętli.'
@@ -66,11 +65,8 @@ export const useConnectionStore = defineStore('connection', () => {
     }, timeUntilRefresh)
   }
 
-  // --- Główne Akcje ---
-
   let isConnecting = false
 
-  // Automatyczna synchronizacja hasła z secureStore po każdej jego zmianie
   watch(connectionPassword, async (newVal) => {
     if (newVal) {
       await window.api?.settings?.setHostPassword?.(newVal).catch(() => {})
@@ -91,7 +87,6 @@ export const useConnectionStore = defineStore('connection', () => {
           error
         )
       }
-      // Generujemy hasło spełniające potencjalne wymogi (wielka i mała litera, cyfra, znak spec.)
       connectionPassword.value = 'H0st@' + Math.random().toString(36).slice(-4) + 'aA'
     }
   }
