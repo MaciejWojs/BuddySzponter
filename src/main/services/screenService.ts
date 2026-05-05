@@ -1,6 +1,7 @@
 // screen-service.ts
 import { desktopCapturer, ipcMain, sharedTexture, WebFrameMain } from 'electron'
 import { IScreenCapture, ScreenCapture, FrameUpdate } from '@maciejwojs/screen-capture'
+import { inputService } from './inputService'
 
 export class ScreenService {
   private capturer: IScreenCapture | null = null
@@ -8,7 +9,6 @@ export class ScreenService {
   private isProcessingFrame = false
   private monitorCount = 0
   private currentMonitorIndex = 0
-  // Flagi pomocnicze do logów – zapobiegają spamowaniu konsoli
   private isHandleLogged = false
   private lastSharedTextureInfoSignature: string | null = null
   private lastSharedTextureWarning: 'noInfo' | 'noHandle' | null = null
@@ -25,6 +25,12 @@ export class ScreenService {
       ScreenService.instance = new ScreenService()
     }
     return ScreenService.instance
+  }
+
+  public getCurrentMonitorIndex(): number {
+    return this.capturer && typeof this.capturer.getCurrentMonitorIndex === 'function'
+      ? this.capturer.getCurrentMonitorIndex()
+      : this.currentMonitorIndex
   }
 
   public registerHandlers(): void {
@@ -135,6 +141,14 @@ export class ScreenService {
     this.currentMonitorIndex = 0
     console.log(`[ScreenService] Detected ${this.monitorCount} monitor(s) available for capture`)
 
+    this.capturer.onMonitorChanged((monitor) => {
+      console.log(
+        `[ScreenService] Monitor changed to index: ${monitor.index}, setting inputService to match.`
+      )
+      inputService.monitorIndex = monitor.index
+      inputService.controller.setCurrentMonitor(monitor.index)
+    })
+
     // Uruchamiamy przechwytywanie i od razu rejestrujemy callback
     console.log('[ScreenService] Calling capturer.start()')
     await this.capturer.start()
@@ -169,6 +183,7 @@ export class ScreenService {
     if (this.capturer) {
       console.log('[ScreenService] Removing onFrame callback and stopping capturer')
       this.capturer.offFrame()
+      this.capturer.offMonitorChanged()
       this.capturer.stop()
       this.capturer = null
     }
@@ -201,6 +216,7 @@ export class ScreenService {
   // Callback wywoływany dla każdej nowej klatki
   // ------------------------------------------------------------------
   private handleFrame = (frame: FrameUpdate): void => {
+    console.log(frame)
     const beforeFilter = this.activeFrames.length
     // Oczyszczamy listę aktywnych ramek
     this.activeFrames = this.activeFrames.filter(({ frame, wc }) => {
@@ -259,7 +275,7 @@ export class ScreenService {
         this.isHandleLogged = true
       }
 
-      console.debug('[Capture] Importing shared texture and sending to frames...')
+      // console.debug('[Capture] Importing shared texture and sending to frames...')
       try {
         const isNewTexture =
           currentSignature !== this.lastSharedTextureInfoSignature || !this.cachedSharedTexture
@@ -293,17 +309,17 @@ export class ScreenService {
           }
         })
 
-        console.debug(`[Capture] Sending shared texture to ${sends.length} frames`)
+        // console.debug(`[Capture] Sending shared texture to ${sends.length} frames`)
         void Promise.allSettled(sends).then((results) => {
           const allFailed = results.every((r) => r.status === 'rejected')
           if (allFailed) {
             const firstError = results.find((r) => r.status === 'rejected')
             console.error('[Capture] Błąd wysyłania sharedTexture do ramki:', firstError)
           } else {
-            const succeeded = results.filter((r) => r.status === 'fulfilled').length
-            console.debug(
-              `[Capture] Shared texture sent: ${succeeded} succeeded, ${results.length - succeeded} failed`
-            )
+            // const succeeded = results.filter((r) => r.status === 'fulfilled').length
+            // console.debug(
+            //   `[Capture] Shared texture sent: ${succeeded} succeeded, ${results.length - succeeded} failed`
+            // )
           }
         })
       } catch (e) {

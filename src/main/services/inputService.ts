@@ -80,9 +80,21 @@ class InputController {
           try {
             if (item.type === 'move') {
               const { x, y } = item.payload
+
               await this.bridge.moveMouseAbsolute(x, y)
 
-              inputService.tracker?.updateInjection(x, y)
+              // Mamy globalny offset z monitorIndex
+              const monitors = this.bridge.getMonitors()
+              const targetMonitor =
+                monitors.find((m) => m.index === inputService.monitorIndex) ||
+                monitors.find((m) => m.primary) ||
+                monitors[0]
+
+              if (targetMonitor) {
+                inputService.tracker?.updateInjection(targetMonitor.x + x, targetMonitor.y + y)
+              } else {
+                inputService.tracker?.updateInjection(x, y)
+              }
               needsFlush = true
             } else if (item.type === 'click') {
               await this.bridge.mouseClick(item.payload.btn, item.payload.down)
@@ -173,6 +185,16 @@ class InputController {
     })
   }
 
+  setCurrentMonitor(index: number): boolean {
+    if (!this.bridge) return false
+    return this.bridge.setCurrentMonitor(index)
+  }
+
+  getMonitors() {
+    if (!this.bridge) return []
+    return this.bridge.getMonitors()
+  }
+
   toggleOptimization(): boolean {
     if (!this.bridge) return false
     this.isOptimizationEnabled = this.bridge.toggleOptimization()
@@ -258,6 +280,7 @@ export const inputService = {
   tracker: null as HostActivityTracker | null,
   mainWindow: null as BrowserWindow | null,
   handlersRegistered: false,
+  monitorIndex: 0,
 
   async init(mainWindow: BrowserWindow): Promise<void> {
     this.mainWindow = mainWindow
@@ -286,7 +309,24 @@ export const inputService = {
     const isLocked = (): boolean => this.lockout.isLockedOut()
 
     ipcMain.handle('input:get-host-screen-size', async () => {
-      const display = screen.getPrimaryDisplay()
+      const monitors = this.controller.getMonitors()
+      const targetMonitor =
+        monitors.find((m) => m.index === this.monitorIndex) ||
+        monitors.find((m) => m.primary) ||
+        monitors[0]
+
+      let display = screen.getPrimaryDisplay()
+      if (targetMonitor) {
+        const foundDisplay = screen
+          .getAllDisplays()
+          .find(
+            (d) =>
+              Math.abs(d.bounds.x - targetMonitor.x) < 5 &&
+              Math.abs(d.bounds.y - targetMonitor.y) < 5
+          )
+        if (foundDisplay) display = foundDisplay
+      }
+
       const logicalWidth = display.size.width
       const logicalHeight = display.size.height
       const scaleFactor = display.scaleFactor
@@ -311,7 +351,7 @@ export const inputService = {
     ipcMain.handle(
       'input:mouse-action',
       async (_e, btn: 'l' | 'm' | 'r', act: 'c' | 'dc' | 'd' | 'u', x: number, y: number) => {
-        if (isLocked()) return
+        if (!Number.isFinite(x) || !Number.isFinite(y) || isLocked()) return
 
         const map: Record<string, number> = { l: 0, m: 2, r: 1 }
         if (typeof map[btn] !== 'number') return
@@ -339,7 +379,7 @@ export const inputService = {
     })
 
     ipcMain.handle('input:scroll-mouse', async (_e, deltaY: number) => {
-      if (isLocked()) return
+      if (!Number.isFinite(deltaY) || isLocked()) return
       await this.controller.scrollMouse(deltaY)
     })
   }
