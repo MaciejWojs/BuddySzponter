@@ -68,30 +68,42 @@ class InputController {
     try {
       let needsFlush = false
 
-      if (this.queue.length > 0) {
-        // 1. Sortujemy TYLKO po czasie (Chronologia zdarzeń)
-        this.queue.sort((a, b) => a.timestamp - b.timestamp)
+      const now = Date.now()
+      const readyItems = this.queue.filter((item) => item.timestamp <= now)
 
-        // 2. Kopiujemy i czyścimy natychmiast kolejkę
-        const currentQueue = this.queue
-        this.queue = []
+      if (readyItems.length > 0) {
+        this.queue = this.queue.filter((item) => item.timestamp > now)
 
-        // 3. Przetwarzamy bez zgubnego filtrowania! Ruch zawsze dotrze na miejsce przed kliknięciem!
-        for (const item of currentQueue) {
+        readyItems.sort((a, b) => a.timestamp - b.timestamp)
+
+        for (const item of readyItems) {
           try {
             if (item.type === 'move') {
               const { x, y } = item.payload
+
               await this.bridge.moveMouseAbsolute(x, y)
 
-              // 🔥 KRYTYCZNY FIX: Odnawiamy ochronę Anty-Cheat DOKŁADNIE wtedy, gdy system u Hosta przesuwa kursor!
-              inputService.tracker?.updateInjection(x, y)
+              // Mamy globalny offset z monitorIndex
+              const monitors = this.bridge.getMonitors()
+              const targetMonitor =
+                monitors.find((m) => m.index === inputService.monitorIndex) ||
+                monitors.find((m) => m.primary) ||
+                monitors[0]
+
+              if (targetMonitor) {
+                inputService.tracker?.updateInjection(targetMonitor.x + x, targetMonitor.y + y)
+              } else {
+                inputService.tracker?.updateInjection(x, y)
+              }
               needsFlush = true
             } else if (item.type === 'click') {
               await this.bridge.mouseClick(item.payload.btn, item.payload.down)
-              needsFlush = true
+              this.bridge.flush()
+              needsFlush = false
             } else if (item.type === 'key') {
               await this.bridge.keyPressDOM(item.payload.code, item.payload.down)
-              needsFlush = true
+              this.bridge.flush()
+              needsFlush = false
             }
           } catch (e) {
             console.error('[InputController] Zignorowano błąd polecenia z systemu:', e)
@@ -142,12 +154,15 @@ class InputController {
   async click(button: number): Promise<void> {
     const now = Date.now()
     this.queue.push({ type: 'click', payload: { btn: button, down: true }, timestamp: now })
-    this.queue.push({ type: 'click', payload: { btn: button, down: false }, timestamp: now + 1 })
+    this.queue.push({ type: 'click', payload: { btn: button, down: false }, timestamp: now + 30 })
   }
 
   async doubleClick(button: number): Promise<void> {
-    await this.click(button)
-    await this.click(button)
+    const now = Date.now()
+    this.queue.push({ type: 'click', payload: { btn: button, down: true }, timestamp: now })
+    this.queue.push({ type: 'click', payload: { btn: button, down: false }, timestamp: now + 30 })
+    this.queue.push({ type: 'click', payload: { btn: button, down: true }, timestamp: now + 60 })
+    this.queue.push({ type: 'click', payload: { btn: button, down: false }, timestamp: now + 90 })
   }
 
   async mouseDown(button: number): Promise<void> {
@@ -168,6 +183,16 @@ class InputController {
       payload: { code: domCode, down: action === 'd' },
       timestamp: Date.now()
     })
+  }
+
+  setCurrentMonitor(index: number): boolean {
+    if (!this.bridge) return false
+    return this.bridge.setCurrentMonitor(index)
+  }
+
+  getMonitors() {
+    if (!this.bridge) return []
+    return this.bridge.getMonitors()
   }
 
   toggleOptimization(): boolean {
@@ -255,6 +280,7 @@ export const inputService = {
   tracker: null as HostActivityTracker | null,
   mainWindow: null as BrowserWindow | null,
   handlersRegistered: false,
+  monitorIndex: 0,
 
   async init(mainWindow: BrowserWindow): Promise<void> {
     this.mainWindow = mainWindow
@@ -283,7 +309,24 @@ export const inputService = {
     const isLocked = (): boolean => this.lockout.isLockedOut()
 
     ipcMain.handle('input:get-host-screen-size', async () => {
-      const display = screen.getPrimaryDisplay()
+      const monitors = this.controller.getMonitors()
+      const targetMonitor =
+        monitors.find((m) => m.index === this.monitorIndex) ||
+        monitors.find((m) => m.primary) ||
+        monitors[0]
+
+      let display = screen.getPrimaryDisplay()
+      if (targetMonitor) {
+        const foundDisplay = screen
+          .getAllDisplays()
+          .find(
+            (d) =>
+              Math.abs(d.bounds.x - targetMonitor.x) < 5 &&
+              Math.abs(d.bounds.y - targetMonitor.y) < 5
+          )
+        if (foundDisplay) display = foundDisplay
+      }
+
       const logicalWidth = display.size.width
       const logicalHeight = display.size.height
       const scaleFactor = display.scaleFactor
@@ -303,21 +346,18 @@ export const inputService = {
     ipcMain.handle('input:move-absolute', async (_e, x: number, y: number) => {
       if (!Number.isFinite(x) || !Number.isFinite(y) || isLocked()) return
       await this.controller.move(Math.round(x), Math.round(y))
-      // USUNIĘTO: updateInjection było tu wywoływane zbyt wcześnie!
     })
 
     ipcMain.handle(
       'input:mouse-action',
       async (_e, btn: 'l' | 'm' | 'r', act: 'c' | 'dc' | 'd' | 'u', x: number, y: number) => {
-        if (isLocked()) return
+        if (!Number.isFinite(x) || !Number.isFinite(y) || isLocked()) return
 
         const map: Record<string, number> = { l: 0, m: 2, r: 1 }
         if (typeof map[btn] !== 'number') return
 
-        // 1. Zawsze wymuszamy najpierw przesunięcie w miejsce kliknięcia
         await this.controller.move(Math.round(x), Math.round(y))
 
-        // 2. Potem wpychamy akcję kliknięcia
         if (act === 'c') await this.controller.click(map[btn])
         else if (act === 'dc') await this.controller.doubleClick(map[btn])
         else if (act === 'd') await this.controller.mouseDown(map[btn])
@@ -339,7 +379,7 @@ export const inputService = {
     })
 
     ipcMain.handle('input:scroll-mouse', async (_e, deltaY: number) => {
-      if (isLocked()) return
+      if (!Number.isFinite(deltaY) || isLocked()) return
       await this.controller.scrollMouse(deltaY)
     })
   }
