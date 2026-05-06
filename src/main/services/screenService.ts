@@ -1,6 +1,6 @@
 // screen-service.ts
 import { desktopCapturer, ipcMain, sharedTexture, WebFrameMain } from 'electron'
-import { IScreenCapture, ScreenCapture, FrameUpdate } from '@maciejwojs/screen-capture'
+import { IScreenCapture, ScreenCapture, FrameUpdate, MonitorUpdate } from '@maciejwojs/screen-capture'
 import { inputService } from './inputService'
 
 enum LogLevel {
@@ -21,7 +21,7 @@ export class ScreenService {
   private lastSharedTextureWarning: 'noInfo' | 'noHandle' | null = null
   private useCpuPath = false
   private cachedSharedTexture: ReturnType<typeof sharedTexture.importSharedTexture> | null = null
-  private logLevel: LogLevel = LogLevel.INFO
+  private logLevel: LogLevel = LogLevel.DEBUG
 
   private constructor() {
     this.log(LogLevel.INFO, '[ScreenService] Initializing service...')
@@ -160,11 +160,6 @@ export class ScreenService {
 
     this.currentMonitorIndex = 0
 
-    this.capturer.onMonitorChanged((monitor) => {
-      this.log(LogLevel.INFO, `[ScreenService] Monitor changed to index: ${monitor.index}, setting inputService to match.`)
-      inputService.monitorIndex = monitor.index
-      inputService.controller.setCurrentMonitor(monitor.index)
-    })
 
     // Uruchamiamy przechwytywanie i od razu rejestrujemy callback
     this.log(LogLevel.INFO, '[ScreenService] Calling capturer.start()')
@@ -172,6 +167,22 @@ export class ScreenService {
 
     this.monitorCount = await this.capturer.getMonitorCount()
     this.log(LogLevel.INFO, `[ScreenService] Detected ${this.monitorCount} monitor(s) available for capture`)
+
+    if (typeof this.capturer.getCurrentMonitorIndex === 'function') {
+      this.currentMonitorIndex = this.capturer.getCurrentMonitorIndex()
+      inputService.monitorIndex = this.currentMonitorIndex
+      inputService.controller.setCurrentMonitor(this.currentMonitorIndex)
+      this.log(LogLevel.INFO, `[ScreenService] Initial monitor index synced: ${this.currentMonitorIndex}`)
+    }
+
+    this.capturer.onMonitorChanged((monitor: MonitorUpdate) => {
+      this.log(LogLevel.DEBUG, '[ScreenService] Monitor index before change:', this.currentMonitorIndex)
+
+      this.log(LogLevel.INFO, `[ScreenService] Monitor changed callback: index ${monitor.index}`)
+      this.currentMonitorIndex = monitor.index
+      inputService.monitorIndex = monitor.index
+      inputService.controller.setCurrentMonitor(monitor.index)
+    })
 
     // await new Promise((resolve) => setTimeout(resolve, 1000))
     this.log(LogLevel.INFO, '[ScreenService] Registering onFrame callback')
@@ -183,22 +194,15 @@ export class ScreenService {
   public async nextMonitor(): Promise<void> {
     if (this.capturer) {
       this.log(LogLevel.INFO, '[ScreenService] Changing to next monitor, clearing old frames/textures...')
-      this.releaseCachedSharedTexture()
 
+      this.currentMonitorIndex = (this.currentMonitorIndex + 1) % this.monitorCount
+
+      this.releaseCachedSharedTexture()
       this.isProcessingFrame = false
-      if (typeof this.capturer.nextMonitor === 'function') {
-        await this.capturer.nextMonitor()
-        if (this.monitorCount > 0) {
-          this.log(LogLevel.INFO, `[ScreenService] ${this.monitorCount} monitors available, manually updating currentMonitorIndex [${this.currentMonitorIndex}]`)
-          this.currentMonitorIndex = (this.currentMonitorIndex + 1) % this.monitorCount
-          // Ręczny update na wypadek, gdyby event onMonitorChanged nie zadziałał na danym systemie (np. Linux backend)
-          inputService.monitorIndex = this.currentMonitorIndex
-          inputService.controller.setCurrentMonitor(this.currentMonitorIndex)
-          this.log(LogLevel.INFO, `[ScreenService] nextMonitor manually synced inputService to index: ${this.currentMonitorIndex}`)
-        }
-      } else {
-        this.log(LogLevel.WARN, '[ScreenService] capturer.nextMonitor is not available in the current screen-capture plugin version')
-      }
+      await this.capturer.nextMonitor()
+
+
+      inputService.monitorIndex = this.currentMonitorIndex
     }
   }
 
