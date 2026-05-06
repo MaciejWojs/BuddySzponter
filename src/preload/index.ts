@@ -304,7 +304,10 @@ try {
       if (!released) {
         released = true
         try {
-          data.importedSharedTexture.release()
+          const result = data.importedSharedTexture.release() as unknown as Promise<void> | void
+          if (result && typeof result.catch === 'function') {
+            result.catch(() => {})
+          }
         } catch {
           // ignorujemy błędy zwalniania tekstury
         }
