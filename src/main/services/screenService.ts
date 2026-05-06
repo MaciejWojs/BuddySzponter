@@ -188,9 +188,9 @@ export class ScreenService {
 
     try {
       this.cachedSharedTexture.release()
-      console.debug('[Capture] Released cached shared texture')
-    } catch (e) {
-      console.error('[Capture] Błąd przy release() cached shared texture:', e)
+      // console.debug('[Capture] Released cached shared texture')
+    } catch {
+      // console.error('[Capture] Błąd przy release() cached shared texture:', e)
     } finally {
       this.cachedSharedTexture = null
       this.lastSharedTextureInfoSignature = null
@@ -208,19 +208,19 @@ export class ScreenService {
       const frameValid = frame && typeof frame.isDestroyed === 'function' && !frame.isDestroyed()
       const isValid = wcValid && frameValid && frame === wc.mainFrame
       if (!isValid) {
-        console.debug('[Capture] Removing invalid frame (webContents destroyed or frame changed)')
+        // console.debug('[Capture] Removing invalid frame (webContents destroyed or frame changed)')
       }
       return isValid
     })
 
     if (this.activeFrames.length !== beforeFilter) {
-      console.debug(
-        `[Capture] Filtered active frames: ${beforeFilter} -> ${this.activeFrames.length}`
-      )
+      // console.debug(
+      //   `[Capture] Filtered active frames: ${beforeFilter} -> ${this.activeFrames.length}`
+      // )
     }
 
     if (this.activeFrames.length === 0) {
-      console.debug('[Capture] No active frames, skipping frame processing')
+      // console.debug('[Capture] No active frames, skipping frame processing')
       return
     }
 
@@ -230,7 +230,7 @@ export class ScreenService {
       const currentSignature = `${info.pixelFormat}-${info.codedSize.width}x${info.codedSize.height}-${Object.keys(info.handle ?? {}).join(',')}`
 
       if (currentSignature !== this.lastSharedTextureInfoSignature) {
-        console.log(`[Capture] New shared texture signature: ${currentSignature}`)
+        // console.log(`[Capture] New shared texture signature: ${currentSignature}`)
         this.lastSharedTextureInfoSignature = currentSignature
         this.lastSharedTextureWarning = null
       }
@@ -239,10 +239,10 @@ export class ScreenService {
         this.releaseCachedSharedTexture()
         this.useCpuPath = true
         if (this.lastSharedTextureWarning !== 'noHandle') {
-          console.warn('[Capture] Otrzymano info o sharedTexture, ale brak handle:', {
-            pixelFormat: info.pixelFormat,
-            codedSize: info.codedSize
-          })
+          // console.warn('[Capture] Otrzymano info o sharedTexture, ale brak handle:', {
+          //   pixelFormat: info.pixelFormat,
+          //   codedSize: info.codedSize
+          // })
           this.lastSharedTextureWarning = 'noHandle'
         }
         this.sendCpuFrame(frame)
@@ -251,15 +251,15 @@ export class ScreenService {
 
       this.useCpuPath = false
       if (!this.isHandleLogged) {
-        console.log('[Capture] Otrzymano info o sharedTexture:', {
-          pixelFormat: info.pixelFormat,
-          codedSize: info.codedSize,
-          handleKeys: Object.keys(info.handle)
-        })
+        // console.log('[Capture] Otrzymano info o sharedTexture:', {
+        //   pixelFormat: info.pixelFormat,
+        //   codedSize: info.codedSize,
+        //   handleKeys: Object.keys(info.handle)
+        // })
         this.isHandleLogged = true
       }
 
-      console.debug('[Capture] Importing shared texture and sending to frames...')
+      // console.debug('[Capture] Importing shared texture and sending to frames...')
       try {
         const isNewTexture =
           currentSignature !== this.lastSharedTextureInfoSignature || !this.cachedSharedTexture
@@ -270,11 +270,11 @@ export class ScreenService {
             textureInfo: info as Electron.SharedTextureImportTextureInfo
           })
           this.lastSharedTextureInfoSignature = currentSignature
-          console.debug('[Capture] Shared texture imported successfully')
+          // console.debug('[Capture] Shared texture imported successfully')
         }
 
         if (!this.cachedSharedTexture) {
-          console.warn('[Capture] Brak zaimportowanej sharedTexture, przechodzę do CPU fallback')
+          // console.warn('[Capture] Brak zaimportowanej sharedTexture, przechodzę do CPU fallback')
           this.sendCpuFrame(frame)
           return
         }
@@ -287,27 +287,27 @@ export class ScreenService {
               importedSharedTexture: importedTexture
             })
           } catch (e: unknown) {
-            console.warn('[Capture] Ignored frame (disposed?):', e)
+            // console.warn('[Capture] Ignored frame (disposed?):', e)
             this.activeFrames = this.activeFrames.filter((f) => f.frame !== frame)
             return Promise.reject(e)
           }
         })
 
-        console.debug(`[Capture] Sending shared texture to ${sends.length} frames`)
-        void Promise.allSettled(sends).then((results) => {
-          const allFailed = results.every((r) => r.status === 'rejected')
-          if (allFailed) {
-            const firstError = results.find((r) => r.status === 'rejected')
-            console.error('[Capture] Błąd wysyłania sharedTexture do ramki:', firstError)
-          } else {
-            const succeeded = results.filter((r) => r.status === 'fulfilled').length
-            console.debug(
-              `[Capture] Shared texture sent: ${succeeded} succeeded, ${results.length - succeeded} failed`
-            )
-          }
+        // console.debug(`[Capture] Sending shared texture to ${sends.length} frames`)
+        void Promise.allSettled(sends).then(() => {
+          // const allFailed = results.every((r) => r.status === 'rejected')
+          // if (allFailed) {
+          //   const firstError = results.find((r) => r.status === 'rejected')
+          //   // console.error('[Capture] Błąd wysyłania sharedTexture do ramki:', firstError)
+          // } else {
+          //   const succeeded = results.filter((r) => r.status === 'fulfilled').length
+          //   // console.debug(
+          //   //   `[Capture] Shared texture sent: ${succeeded} succeeded, ${results.length - succeeded} failed`
+          //   // )
+          // }
         })
-      } catch (e) {
-        console.error('[Capture] Główny błąd importSharedTexture:', e)
+      } catch {
+        // console.error('[Capture] Główny błąd importSharedTexture:', e)
         this.releaseCachedSharedTexture()
       }
 
@@ -317,11 +317,11 @@ export class ScreenService {
     // --- Fallback na CPU (surowe bajty) ---
     if (frame.pixelData) {
       this.releaseCachedSharedTexture()
-      console.debug('[Capture] No shared texture info, using CPU path (pixelData)')
+      // console.debug('[Capture] No shared texture info, using CPU path (pixelData)')
       this.useCpuPath = true
       this.sendCpuFrame(frame)
     } else {
-      console.warn('[Capture] Frame has neither sharedTextureInfo nor pixelData')
+      // console.warn('[Capture] Frame has neither sharedTextureInfo nor pixelData')
     }
   }
 
@@ -332,20 +332,20 @@ export class ScreenService {
     const buffer = frame.pixelData
     const width = frame.width
     const height = frame.height
-    const stride = frame.stride
-    const format = frame.pixelFormat
+    // const stride = frame.stride
+    // const format = frame.pixelFormat
 
     if (!buffer || width === 0 || height === 0) {
-      console.warn('[Capture] Invalid CPU frame data - skipping')
+      // console.warn('[Capture] Invalid CPU frame data - skipping')
       return
     }
 
-    console.debug(
-      `[Capture] Sending CPU frame ${width}x${height}, stride=${stride}, buffer size=${buffer.byteLength}, format=${format}`
-    )
+    // console.debug(
+    //   `[Capture] Sending CPU frame ${width}x${height}, stride=${stride}, buffer size=${buffer.byteLength}, format=${format}`
+    // )
 
     if (this.isProcessingFrame) {
-      console.debug('[Capture] CPU frame already processing, skipping duplicate send')
+      // console.debug('[Capture] CPU frame already processing, skipping duplicate send')
       return
     }
 
@@ -358,8 +358,6 @@ export class ScreenService {
       buffer.byteOffset,
       buffer.byteOffset + buffer.byteLength
     )
-
-    let sent = 0
 
     for (let i = 0; i < this.activeFrames.length; i++) {
       const { wc } = this.activeFrames[i]
@@ -384,18 +382,17 @@ export class ScreenService {
           // ArrayBuffer nie może być "transferowany" w ten sposób do Renderera (ograniczenie API Electrona).
           // Dane zostaną przesłane automatycznie przy użyciu wydajnego algorytmu Structured Clone.
           wc.postMessage('capture:raw-frame', payload)
-          sent++
-        } catch (e) {
-          console.warn('[Capture] Nie udało się wysłać surowej klatki:', e)
+        } catch {
+          // console.warn('[Capture] Nie udało się wysłać surowej klatki:', e)
         }
       } else {
-        console.debug('[Capture] Skipping destroyed webContents')
+        // console.debug('[Capture] Skipping destroyed webContents')
       }
     }
 
-    console.debug(
-      `[Capture] CPU frame sent to ${sent} of ${this.activeFrames.length} active frames`
-    )
+    // console.debug(
+    //   `[Capture] CPU frame sent to ${sent} of ${this.activeFrames.length} active frames`
+    // )
 
     this.isProcessingFrame = false
   }
