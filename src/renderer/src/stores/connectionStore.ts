@@ -172,7 +172,10 @@ export const useConnectionStore = defineStore('connection', () => {
 
     if (response?.success) {
       isHost.value = false
+
+      connectionCode.value = data.connectionCode
     }
+
     return response
   }
 
