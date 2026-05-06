@@ -1,7 +1,7 @@
-import { Tray, BrowserWindow, nativeImage, screen, ipcMain } from 'electron'
+import { Tray, BrowserWindow, nativeImage, screen, ipcMain, Menu } from 'electron'
 import { isAbsolute, join } from 'path'
 import { is } from '@electron-toolkit/utils'
-import { quitApp } from '../index' // <-- Importujemy bezpieczne zamykanie
+import { quitApp, showWindowSafely } from '../index'
 
 let tray: Tray | null = null
 let trayWindow: BrowserWindow | null = null
@@ -40,11 +40,6 @@ export const trayService = {
         tray.setImage(active && trayActiveImage ? trayActiveImage : trayDefaultImage!)
       }
     })
-
-    // Używamy bezpiecznej funkcji zamykania z ustawieniem flagi
-    ipcMain.handle('quit-app', () => {
-      quitApp()
-    })
   },
 
   showTrayIcon() {
@@ -57,6 +52,21 @@ export const trayService = {
       this.toggleTrayWindow(bounds)
     })
 
+    tray.on('right-click', () => {
+      const contextMenu = Menu.buildFromTemplate([
+        {
+          label: 'Otwórz aplikację',
+          click: () => this.restoreMainWindow()
+        },
+        { type: 'separator' },
+        {
+          label: 'Zamknij',
+          click: () => quitApp()
+        }
+      ])
+      tray?.popUpContextMenu(contextMenu)
+    })
+
     tray.on('double-click', () => {
       if (!isHostMode) {
         this.restoreMainWindow()
@@ -66,14 +76,8 @@ export const trayService = {
 
   restoreMainWindow() {
     if (mainWindowRef && !mainWindowRef.isDestroyed()) {
-      mainWindowRef.show()
-      mainWindowRef.setOpacity(1) // <-- PRZYWRACAMY WIDOCZNOŚĆ
-      mainWindowRef.setSkipTaskbar(false) // <-- PRZYWRACAMY NA PASEK ZADAŃ
-      mainWindowRef.focus()
+      showWindowSafely(mainWindowRef)
     }
-
-    // Ukrywamy tray i menu po przywróceniu okna
-    this.hideTrayIcon()
   },
 
   hideTrayIcon() {
