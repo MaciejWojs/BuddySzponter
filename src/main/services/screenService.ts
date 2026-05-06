@@ -3,6 +3,13 @@ import { desktopCapturer, ipcMain, sharedTexture, WebFrameMain } from 'electron'
 import { IScreenCapture, ScreenCapture, FrameUpdate } from '@maciejwojs/screen-capture'
 import { inputService } from './inputService'
 
+enum LogLevel {
+  ERROR = 0,
+  WARN = 1,
+  INFO = 2,
+  DEBUG = 3,
+}
+
 export class ScreenService {
   private capturer: IScreenCapture | null = null
   private activeFrames: { frame: WebFrameMain; wc: Electron.WebContents }[] = []
@@ -14,9 +21,29 @@ export class ScreenService {
   private lastSharedTextureWarning: 'noInfo' | 'noHandle' | null = null
   private useCpuPath = false
   private cachedSharedTexture: ReturnType<typeof sharedTexture.importSharedTexture> | null = null
+  private logLevel: LogLevel = LogLevel.INFO
 
   private constructor() {
-    console.log('[ScreenService] Initializing service...')
+    this.log(LogLevel.INFO, '[ScreenService] Initializing service...')
+  }
+
+  private log(level: LogLevel, message: string, ...args: any[]): void {
+    if (level > this.logLevel) return
+
+    switch (level) {
+      case LogLevel.ERROR:
+        console.error(message, ...args)
+        break
+      case LogLevel.WARN:
+        console.warn(message, ...args)
+        break
+      case LogLevel.INFO:
+        console.log(message, ...args)
+        break
+      case LogLevel.DEBUG:
+        console.debug(message, ...args)
+        break
+    }
   }
 
   private static instance: ScreenService
