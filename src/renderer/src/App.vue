@@ -21,18 +21,25 @@ const socketStore = useSocketStore()
 const userStore = useUserStore()
 const deviceStore = useDeviceStore()
 
-settingsStore.initSettings()
-socketStore.init()
-userStore.initSession()
-deviceStore.refreshMicrophones()
-useAudioMixer()
-useWidgetBridge()
+// Ustawienia i stan inicjalizujemy w zależności od typu okna
+const isMainWindow =
+  !window.location.hash.includes('guest') &&
+  !window.location.hash.includes('widget') &&
+  !window.location.hash.includes('tray-menu')
 
-useGuestSync(true)
+if (isMainWindow) {
+  settingsStore.initSettings()
+  socketStore.init()
+  userStore.initSession()
+  deviceStore.refreshMicrophones()
+  useAudioMixer()
+  useWidgetBridge()
+  useGuestSync(true)
+} else if (window.location.hash.includes('guest')) {
+  useGuestSync(false)
+}
 
 onMounted(() => {
-  const isMainWindow =
-    !window.location.hash.includes('guest') && !window.location.hash.includes('widget')
   if (isMainWindow) {
     // Opóźnienie zapobiegające wywołaniu API, zanim userStore zdąży zainicjować token (unikamy "Connection token missing")
     setTimeout(async () => {
