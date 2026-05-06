@@ -65,18 +65,15 @@ export class ScreenService {
     this.log(LogLevel.INFO, '[ScreenService] Registering IPC handlers...')
 
     ipcMain.handle('capture:getFps', async () => {
-      this.log(LogLevel.DEBUG, '[IPC] capture:getFps called')
       if (this.capturer && typeof this.capturer.getFps === 'function') {
         try {
           const fps = await this.capturer.getFps()
-          this.log(LogLevel.DEBUG, `[IPC] capture:getFps returning ${fps}`)
           return fps
         } catch (e) {
           this.log(LogLevel.ERROR, '[ScreenService] Error occurred while fetching FPS:', e)
           return null
         }
       }
-      this.log(LogLevel.DEBUG, '[IPC] capture:getFps - no capturer or method missing')
       return null
     })
 
