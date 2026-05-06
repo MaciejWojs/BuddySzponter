@@ -11,10 +11,14 @@ import SettingButton from '@renderer/components/simpleComponents/SettingButton.v
 import UserIcon from '@renderer/components/simpleComponents/UserIcon.vue'
 import UserNoLogin from '@renderer/components/simpleComponents/UserNoLogin.vue'
 import { useUserStore } from '@renderer/stores/userStore'
+import { useSocketStore } from '@renderer/stores/socketStore'
 import { storeToRefs } from 'pinia'
 import buddySzponterLogo from '@images/buddyszponterLogo.png'
+import WidgetWrapper from '@renderer/components/UI/WidgetWrapper.vue'
+import IncomingRequestWidget from '@renderer/components/widgets/IncomingRequestWidget.vue'
 
 const userStore = useUserStore()
+const socketStore = useSocketStore()
 const { isAuthenticated } = storeToRefs(userStore)
 
 // Stan aktywnej zakładki w dolnym pasku nawigacji.
@@ -63,9 +67,18 @@ const navItems: NavBarItem[] = [
 
       <article class="menu-column">
         <!-- Sekcja hosta: przejęcie sterowania z użyciem kodu i hasła. -->
-        <h2>{{ $t('hostForm.title') }}</h2>
-        <p>{{ $t('hostForm.description') }}</p>
-        <HostForm />
+        <WidgetWrapper>
+          <div
+            v-if="!socketStore.incomingRequest"
+            key="host-form"
+            class="flex flex-col items-center w-full"
+          >
+            <h2>{{ $t('hostForm.title') }}</h2>
+            <p>{{ $t('hostForm.description') }}</p>
+            <HostForm />
+          </div>
+          <IncomingRequestWidget v-else key="incoming-request" />
+        </WidgetWrapper>
       </article>
     </main>
 
