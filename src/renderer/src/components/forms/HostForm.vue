@@ -27,6 +27,7 @@ function hasRequiredPasswordCharacters(value: string): boolean {
 
 const sessionCode = computed(() => connectionStore.connectionCode)
 
+// Używamy draftu z store, a nie bezpośredniego czystopisu
 const sessionPassword = computed({
   get: () => connectionStore.connectionPassword,
   set: (val) => {
@@ -97,6 +98,7 @@ const timer = ref<InstanceType<typeof BuTimer>>()
 const time = ref(0)
 const totalTimeWindow = ref(120)
 
+// Wykrycie zmiany brudnopisu względem czystopisu
 const isPasswordChanged = computed(() => {
   return connectionStore.connectionPassword !== connectionStore.activePassword
 })
@@ -104,6 +106,7 @@ const isPasswordChanged = computed(() => {
 let intervalFrame: number
 
 onMounted(() => {
+  // Jeśli odświeżamy stronę, uruchom połączenie hosta od zera!
   if (!connectionStore.isHost) {
     connectionStore.createHostConnection()
   }
@@ -162,9 +165,13 @@ function onPasswordBlur(): void {
   validateSessionPasswordDebounced()
 }
 
-function applyNewPassword(): void {
+async function applyNewPassword(): Promise<void> {
   if (passwordMeetsRequirements.value) {
-    connectionStore.createHostConnection()
+    const res = await connectionStore.createHostConnection()
+
+    if (!res?.success) {
+      console.error('Błąd podczas aktualizacji hasła hosta', res?.message)
+    }
   }
 }
 
@@ -186,6 +193,7 @@ function revertNewPassword(): void {
         font-size="20px"
         :copy-on-click="true"
         :show-copy-popover="true"
+        :placeholder="connectionStore.isHost ? '' : 'Łączenie z serwerem...'"
       />
     </div>
 
