@@ -61,31 +61,31 @@ export class ScreenService {
   }
 
   public registerHandlers(): void {
-    console.log('[ScreenService] Registering IPC handlers...')
+    this.log(LogLevel.INFO, '[ScreenService] Registering IPC handlers...')
 
     ipcMain.handle('capture:getFps', async () => {
-      console.debug('[IPC] capture:getFps called')
+      this.log(LogLevel.DEBUG, '[IPC] capture:getFps called')
       if (this.capturer && typeof this.capturer.getFps === 'function') {
         try {
           const fps = await this.capturer.getFps()
-          console.debug(`[IPC] capture:getFps returning ${fps}`)
+          this.log(LogLevel.DEBUG, `[IPC] capture:getFps returning ${fps}`)
           return fps
         } catch (e) {
-          console.error('[ScreenService] Error occurred while fetching FPS:', e)
+          this.log(LogLevel.ERROR, '[ScreenService] Error occurred while fetching FPS:', e)
           return null
         }
       }
-      console.debug('[IPC] capture:getFps - no capturer or method missing')
+      this.log(LogLevel.DEBUG, '[IPC] capture:getFps - no capturer or method missing')
       return null
     })
 
     ipcMain.handle('desktop:get-sources', async () => {
-      console.debug('[IPC] desktop:get-sources called')
+      this.log(LogLevel.DEBUG, '[IPC] desktop:get-sources called')
       const sources = await desktopCapturer.getSources({
         types: ['screen'],
         thumbnailSize: { width: 300, height: 200 }
       })
-      console.debug(`[IPC] desktop:get-sources returned ${sources.length} sources`)
+      this.log(LogLevel.DEBUG, `[IPC] desktop:get-sources returned ${sources.length} sources`)
       return sources.map((source) => ({
         id: source.id,
         name: source.name,
@@ -94,22 +94,22 @@ export class ScreenService {
     })
 
     ipcMain.handle('capture:start', async () => {
-      console.log('[IPC] capture:start called')
+      this.log(LogLevel.INFO, '[IPC] capture:start called')
       await this.startCapture()
     })
 
     ipcMain.handle('capture:stop', () => {
-      console.log('[IPC] capture:stop called')
+      this.log(LogLevel.INFO, '[IPC] capture:stop called')
       this.stopCapture()
     })
 
     ipcMain.handle('capture:should-use-cpu', () => {
-      console.debug(`[IPC] capture:should-use-cpu returning ${this.useCpuPath}`)
+      this.log(LogLevel.DEBUG, `[IPC] capture:should-use-cpu returning ${this.useCpuPath}`)
       return this.useCpuPath
     })
 
     ipcMain.handle('capture:next-monitor', async () => {
-      console.log('[IPC] capture:next-monitor called')
+      this.log(LogLevel.INFO, '[IPC] capture:next-monitor called')
       await this.nextMonitor()
     })
 
@@ -123,26 +123,22 @@ export class ScreenService {
     ipcMain.on('capture:request-stream', (event) => {
       const frame = event.senderFrame
       const wc = event.sender
-      console.debug(
-        `[IPC] capture:request-stream from frame ${frame?.routingId}, webContents ${wc?.id}`
-      )
+      this.log(LogLevel.DEBUG, `[IPC] capture:request-stream from frame ${frame?.routingId}, webContents ${wc?.id}`)
       if (frame && !this.activeFrames.some((f) => f.frame === frame)) {
         this.activeFrames.push({ frame, wc })
-        console.debug(`[IPC] Added frame, now ${this.activeFrames.length} active frames`)
+        this.log(LogLevel.DEBUG, `[IPC] Added frame, now ${this.activeFrames.length} active frames`)
       } else {
-        console.debug('[IPC] Frame already active or invalid')
+        this.log(LogLevel.DEBUG, '[IPC] Frame already active or invalid')
       }
     })
 
     ipcMain.on('capture:stop-stream', (event) => {
       const frame = event.senderFrame
-      console.debug(`[IPC] capture:stop-stream from frame ${frame?.routingId}`)
+      this.log(LogLevel.DEBUG, `[IPC] capture:stop-stream from frame ${frame?.routingId}`)
       if (frame) {
         const before = this.activeFrames.length
         this.activeFrames = this.activeFrames.filter((f) => f.frame !== frame)
-        console.debug(
-          `[IPC] Removed frame, active frames: ${before} -> ${this.activeFrames.length}`
-        )
+        this.log(LogLevel.DEBUG, `[IPC] Removed frame, active frames: ${before} -> ${this.activeFrames.length}`)
       }
     })
   }
@@ -151,9 +147,9 @@ export class ScreenService {
   // Start / Stop z użyciem onFrame
   // ------------------------------------------------------------------
   private async startCapture(): Promise<void> {
-    console.log('[ScreenService] Starting screen capture...')
+    this.log(LogLevel.INFO, '[ScreenService] Starting screen capture...')
     if (!this.capturer) {
-      console.log('[ScreenService] Creating new ScreenCapture instance with logLevel debug')
+      this.log(LogLevel.INFO, '[ScreenService] Creating new ScreenCapture instance with logLevel debug')
       this.capturer = new ScreenCapture({
         // logLevel: 'debug',
         disableLogging: true
@@ -166,29 +162,27 @@ export class ScreenService {
 
     this.monitorCount = await this.capturer.getMonitorCount()
     this.currentMonitorIndex = 0
-    console.log(`[ScreenService] Detected ${this.monitorCount} monitor(s) available for capture`)
+    this.log(LogLevel.INFO, `[ScreenService] Detected ${this.monitorCount} monitor(s) available for capture`)
 
     this.capturer.onMonitorChanged((monitor) => {
-      console.log(
-        `[ScreenService] Monitor changed to index: ${monitor.index}, setting inputService to match.`
-      )
+      this.log(LogLevel.INFO, `[ScreenService] Monitor changed to index: ${monitor.index}, setting inputService to match.`)
       inputService.monitorIndex = monitor.index
       inputService.controller.setCurrentMonitor(monitor.index)
     })
 
     // Uruchamiamy przechwytywanie i od razu rejestrujemy callback
-    console.log('[ScreenService] Calling capturer.start()')
+    this.log(LogLevel.INFO, '[ScreenService] Calling capturer.start()')
     await this.capturer.start()
     // await new Promise((resolve) => setTimeout(resolve, 1000))
-    console.log('[ScreenService] Registering onFrame callback')
+    this.log(LogLevel.INFO, '[ScreenService] Registering onFrame callback')
     this.capturer.onFrame(this.handleFrame)
 
-    console.log('[ScreenService] Capture started successfully')
+    this.log(LogLevel.INFO, '[ScreenService] Capture started successfully')
   }
 
   public async nextMonitor(): Promise<void> {
     if (this.capturer) {
-      console.log('[ScreenService] Changing to next monitor, clearing old frames/textures...')
+      this.log(LogLevel.INFO, '[ScreenService] Changing to next monitor, clearing old frames/textures...')
       this.releaseCachedSharedTexture()
 
       this.isProcessingFrame = false
@@ -198,17 +192,15 @@ export class ScreenService {
           this.currentMonitorIndex = (this.currentMonitorIndex + 1) % this.monitorCount
         }
       } else {
-        console.warn(
-          '[ScreenService] capturer.nextMonitor is not available in the current screen-capture plugin version'
-        )
+        this.log(LogLevel.WARN, '[ScreenService] capturer.nextMonitor is not available in the current screen-capture plugin version')
       }
     }
   }
 
   private stopCapture(): void {
-    console.log('[ScreenService] Stopping screen capture...')
+    this.log(LogLevel.INFO, '[ScreenService] Stopping screen capture...')
     if (this.capturer) {
-      console.log('[ScreenService] Removing onFrame callback and stopping capturer')
+      this.log(LogLevel.INFO, '[ScreenService] Removing onFrame callback and stopping capturer')
       this.capturer.offFrame()
       this.capturer.offMonitorChanged()
       this.capturer.stop()
@@ -222,7 +214,7 @@ export class ScreenService {
     this.isProcessingFrame = false
     this.monitorCount = 0
     this.currentMonitorIndex = 0
-    console.log(`[ScreenService] Capture stopped, cleared ${framesCount} active frames`)
+    this.log(LogLevel.INFO, `[ScreenService] Capture stopped, cleared ${framesCount} active frames`)
   }
 
   private releaseCachedSharedTexture(): void {
@@ -230,9 +222,9 @@ export class ScreenService {
 
     try {
       this.cachedSharedTexture.release()
-      console.debug('[Capture] Released cached shared texture')
+      this.log(LogLevel.DEBUG, '[Capture] Released cached shared texture')
     } catch (e) {
-      console.error('[Capture] Błąd przy release() cached shared texture:', e)
+      this.log(LogLevel.ERROR, '[Capture] Błąd przy release() cached shared texture:', e)
     } finally {
       this.cachedSharedTexture = null
       this.lastSharedTextureInfoSignature = null
@@ -243,7 +235,7 @@ export class ScreenService {
   // Callback wywoływany dla każdej nowej klatki
   // ------------------------------------------------------------------
   private handleFrame = (frame: FrameUpdate): void => {
-    console.log(frame)
+    this.log(LogLevel.INFO, 'FrameUpdate received:', frame)
     const beforeFilter = this.activeFrames.length
     // Oczyszczamy listę aktywnych ramek
     this.activeFrames = this.activeFrames.filter(({ frame, wc }) => {
@@ -251,19 +243,17 @@ export class ScreenService {
       const frameValid = frame && typeof frame.isDestroyed === 'function' && !frame.isDestroyed()
       const isValid = wcValid && frameValid && frame === wc.mainFrame
       if (!isValid) {
-        console.debug('[Capture] Removing invalid frame (webContents destroyed or frame changed)')
+        this.log(LogLevel.DEBUG, '[Capture] Removing invalid frame (webContents destroyed or frame changed)')
       }
       return isValid
     })
 
     if (this.activeFrames.length !== beforeFilter) {
-      console.debug(
-        `[Capture] Filtered active frames: ${beforeFilter} -> ${this.activeFrames.length}`
-      )
+      this.log(LogLevel.DEBUG, `[Capture] Filtered active frames: ${beforeFilter} -> ${this.activeFrames.length}`)
     }
 
     if (this.activeFrames.length === 0) {
-      console.debug('[Capture] No active frames, skipping frame processing')
+      this.log(LogLevel.DEBUG, '[Capture] No active frames, skipping frame processing')
       return
     }
 
@@ -273,7 +263,7 @@ export class ScreenService {
       const currentSignature = `${info.pixelFormat}-${info.codedSize.width}x${info.codedSize.height}-${Object.keys(info.handle ?? {}).join(',')}`
 
       if (currentSignature !== this.lastSharedTextureInfoSignature) {
-        console.log(`[Capture] New shared texture signature: ${currentSignature}`)
+        this.log(LogLevel.INFO, `[Capture] New shared texture signature: ${currentSignature}`)
         this.lastSharedTextureInfoSignature = currentSignature
         this.lastSharedTextureWarning = null
       }
@@ -282,7 +272,7 @@ export class ScreenService {
         this.releaseCachedSharedTexture()
         this.useCpuPath = true
         if (this.lastSharedTextureWarning !== 'noHandle') {
-          console.warn('[Capture] Otrzymano info o sharedTexture, ale brak handle:', {
+          this.log(LogLevel.WARN, '[Capture] Otrzymano info o sharedTexture, ale brak handle:', {
             pixelFormat: info.pixelFormat,
             codedSize: info.codedSize
           })
@@ -294,7 +284,7 @@ export class ScreenService {
 
       this.useCpuPath = false
       if (!this.isHandleLogged) {
-        console.log('[Capture] Otrzymano info o sharedTexture:', {
+        this.log(LogLevel.INFO, '[Capture] Otrzymano info o sharedTexture:', {
           pixelFormat: info.pixelFormat,
           codedSize: info.codedSize,
           handleKeys: Object.keys(info.handle)
@@ -313,11 +303,11 @@ export class ScreenService {
             textureInfo: info as Electron.SharedTextureImportTextureInfo
           })
           this.lastSharedTextureInfoSignature = currentSignature
-          console.debug('[Capture] Shared texture imported successfully')
+          this.log(LogLevel.DEBUG, '[Capture] Shared texture imported successfully')
         }
 
         if (!this.cachedSharedTexture) {
-          console.warn('[Capture] Brak zaimportowanej sharedTexture, przechodzę do CPU fallback')
+          this.log(LogLevel.WARN, '[Capture] Brak zaimportowanej sharedTexture, przechodzę do CPU fallback')
           this.sendCpuFrame(frame)
           return
         }
@@ -330,27 +320,25 @@ export class ScreenService {
               importedSharedTexture: importedTexture
             })
           } catch (e: unknown) {
-            console.warn('[Capture] Ignored frame (disposed?):', e)
+            this.log(LogLevel.WARN, '[Capture] Ignored frame (disposed?):', e)
             this.activeFrames = this.activeFrames.filter((f) => f.frame !== frame)
             return Promise.reject(e)
           }
         })
 
-        // console.debug(`[Capture] Sending shared texture to ${sends.length} frames`)
+        // this.log(LogLevel.DEBUG, `[Capture] Sending shared texture to ${sends.length} frames`)
         void Promise.allSettled(sends).then((results) => {
           const allFailed = results.every((r) => r.status === 'rejected')
           if (allFailed) {
             const firstError = results.find((r) => r.status === 'rejected')
-            console.error('[Capture] Błąd wysyłania sharedTexture do ramki:', firstError)
+            this.log(LogLevel.ERROR, '[Capture] Błąd wysyłania sharedTexture do ramki:', firstError)
           } else {
             // const succeeded = results.filter((r) => r.status === 'fulfilled').length
-            // console.debug(
-            //   `[Capture] Shared texture sent: ${succeeded} succeeded, ${results.length - succeeded} failed`
-            // )
+            // this.log(LogLevel.DEBUG, `[Capture] Shared texture sent: ${succeeded} succeeded, ${results.length - succeeded} failed`)
           }
         })
       } catch (e) {
-        console.error('[Capture] Główny błąd importSharedTexture:', e)
+        this.log(LogLevel.ERROR, '[Capture] Główny błąd importSharedTexture:', e)
         this.releaseCachedSharedTexture()
       }
 
@@ -360,11 +348,11 @@ export class ScreenService {
     // --- Fallback na CPU (surowe bajty) ---
     if (frame.pixelData) {
       this.releaseCachedSharedTexture()
-      console.debug('[Capture] No shared texture info, using CPU path (pixelData)')
+      this.log(LogLevel.DEBUG, '[Capture] No shared texture info, using CPU path (pixelData)')
       this.useCpuPath = true
       this.sendCpuFrame(frame)
     } else {
-      console.warn('[Capture] Frame has neither sharedTextureInfo nor pixelData')
+      this.log(LogLevel.WARN, '[Capture] Frame has neither sharedTextureInfo nor pixelData')
     }
   }
 
@@ -379,16 +367,14 @@ export class ScreenService {
     const format = frame.pixelFormat
 
     if (!buffer || width === 0 || height === 0) {
-      console.warn('[Capture] Invalid CPU frame data - skipping')
+      this.log(LogLevel.WARN, '[Capture] Invalid CPU frame data - skipping')
       return
     }
 
-    console.debug(
-      `[Capture] Sending CPU frame ${width}x${height}, stride=${stride}, buffer size=${buffer.byteLength}, format=${format}`
-    )
+    this.log(LogLevel.DEBUG, `[Capture] Sending CPU frame ${width}x${height}, stride=${stride}, buffer size=${buffer.byteLength}, format=${format}`)
 
     if (this.isProcessingFrame) {
-      console.debug('[Capture] CPU frame already processing, skipping duplicate send')
+      this.log(LogLevel.DEBUG, '[Capture] CPU frame already processing, skipping duplicate send')
       return
     }
 
@@ -429,16 +415,14 @@ export class ScreenService {
           wc.postMessage('capture:raw-frame', payload)
           sent++
         } catch (e) {
-          console.warn('[Capture] Nie udało się wysłać surowej klatki:', e)
+          this.log(LogLevel.WARN, '[Capture] Nie udało się wysłać surowej klatki:', e)
         }
       } else {
-        console.debug('[Capture] Skipping destroyed webContents')
+        this.log(LogLevel.DEBUG, '[Capture] Skipping destroyed webContents')
       }
     }
 
-    console.debug(
-      `[Capture] CPU frame sent to ${sent} of ${this.activeFrames.length} active frames`
-    )
+    this.log(LogLevel.DEBUG, `[Capture] CPU frame sent to ${sent} of ${this.activeFrames.length} active frames`)
 
     this.isProcessingFrame = false
   }
