@@ -27,6 +27,7 @@ export class ScreenService {
     this.log(LogLevel.INFO, '[ScreenService] Initializing service...')
   }
 
+  //@ts-ignore - console also has any[]
   private log(level: LogLevel, message: string, ...args: any[]): void {
     if (level > this.logLevel) return
 
@@ -160,9 +161,7 @@ export class ScreenService {
     // this.capturer.forceBackend('gdi')
     // this.capturer.forceBackend('dxgi')
 
-    this.monitorCount = await this.capturer.getMonitorCount()
     this.currentMonitorIndex = 0
-    this.log(LogLevel.INFO, `[ScreenService] Detected ${this.monitorCount} monitor(s) available for capture`)
 
     this.capturer.onMonitorChanged((monitor) => {
       this.log(LogLevel.INFO, `[ScreenService] Monitor changed to index: ${monitor.index}, setting inputService to match.`)
@@ -173,6 +172,10 @@ export class ScreenService {
     // Uruchamiamy przechwytywanie i od razu rejestrujemy callback
     this.log(LogLevel.INFO, '[ScreenService] Calling capturer.start()')
     await this.capturer.start()
+
+    this.monitorCount = await this.capturer.getMonitorCount()
+    this.log(LogLevel.INFO, `[ScreenService] Detected ${this.monitorCount} monitor(s) available for capture`)
+
     // await new Promise((resolve) => setTimeout(resolve, 1000))
     this.log(LogLevel.INFO, '[ScreenService] Registering onFrame callback')
     this.capturer.onFrame(this.handleFrame)
@@ -189,7 +192,12 @@ export class ScreenService {
       if (typeof this.capturer.nextMonitor === 'function') {
         await this.capturer.nextMonitor()
         if (this.monitorCount > 0) {
+          this.log(LogLevel.INFO, `[ScreenService] ${this.monitorCount} monitors available, manually updating currentMonitorIndex [${this.currentMonitorIndex}]`)
           this.currentMonitorIndex = (this.currentMonitorIndex + 1) % this.monitorCount
+          // Ręczny update na wypadek, gdyby event onMonitorChanged nie zadziałał na danym systemie (np. Linux backend)
+          inputService.monitorIndex = this.currentMonitorIndex
+          inputService.controller.setCurrentMonitor(this.currentMonitorIndex)
+          this.log(LogLevel.INFO, `[ScreenService] nextMonitor manually synced inputService to index: ${this.currentMonitorIndex}`)
         }
       } else {
         this.log(LogLevel.WARN, '[ScreenService] capturer.nextMonitor is not available in the current screen-capture plugin version')
@@ -235,7 +243,8 @@ export class ScreenService {
   // Callback wywoływany dla każdej nowej klatki
   // ------------------------------------------------------------------
   private handleFrame = (frame: FrameUpdate): void => {
-    this.log(LogLevel.INFO, 'FrameUpdate received:', frame)
+    // DO NOT log the whole object, it contains pixelData which is huge and ruins performance
+    // this.log(LogLevel.DEBUG, 'FrameUpdate received:', frame)
     const beforeFilter = this.activeFrames.length
     // Oczyszczamy listę aktywnych ramek
     this.activeFrames = this.activeFrames.filter(({ frame, wc }) => {
