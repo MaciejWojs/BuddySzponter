@@ -1,5 +1,3 @@
-// renderer/src/stores/connectionStore.ts
-
 import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
 import {
@@ -14,6 +12,8 @@ export const useConnectionStore = defineStore('connection', () => {
   const isHost = ref<boolean>(false)
   const connectionCode = ref<string>('')
   const connectionPassword = ref<string>('')
+
+  const activePassword = ref<string>('')
 
   let refreshTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -47,11 +47,13 @@ export const useConnectionStore = defineStore('connection', () => {
     const now = new Date().getTime()
     let timeUntilRefresh = expiresAt - now - 5000
 
-    if (isNaN(timeUntilRefresh) || timeUntilRefresh <= 0) {
+    if (isNaN(timeUntilRefresh) || timeUntilRefresh > 115000) {
       console.warn(
-        '[ConnectionStore] Czas wygaśnięcia wyliczony na <= 0 lub NaN. Wymuszam 30s opóźnienia, by zapobiec pętli.'
+        '[ConnectionStore] Zegar rozjechany! Ucinam czas do odświeżenia do bezpiecznych 115s.'
       )
-      timeUntilRefresh = 30000
+      timeUntilRefresh = 115000
+    } else if (timeUntilRefresh <= 0) {
+      timeUntilRefresh = 5000
     }
 
     refreshTimer = setTimeout(async () => {
@@ -67,18 +69,13 @@ export const useConnectionStore = defineStore('connection', () => {
 
   let isConnecting = false
 
-  watch(connectionPassword, async (newVal) => {
-    if (newVal) {
-      await window.api?.settings?.setHostPassword?.(newVal).catch(() => {})
-    }
-  })
-
   const initPasswordIfNeeded = async (): Promise<void> => {
     if (!connectionPassword.value) {
       try {
         const savedPassword = await window.api?.settings?.getHostPassword?.()
         if (savedPassword) {
           connectionPassword.value = savedPassword
+          activePassword.value = savedPassword
           return
         }
       } catch (error) {
@@ -87,8 +84,34 @@ export const useConnectionStore = defineStore('connection', () => {
           error
         )
       }
-      connectionPassword.value = 'H0st@' + Math.random().toString(36).slice(-4) + 'aA'
+
+      generateRandomPassword()
+
+      activePassword.value = connectionPassword.value
     }
+  }
+
+  const hasLowercase = (value: string): boolean => /\p{Ll}/u.test(value)
+  const hasUppercase = (value: string): boolean => /\p{Lu}/u.test(value)
+  const hasDigit = (value: string): boolean => /\p{N}/u.test(value)
+  const hasSpecialCharacter = (value: string): boolean => /[^\p{L}\p{N}]/u.test(value)
+
+  const hasRequiredPasswordCharacters = (value: string): boolean => {
+    return (
+      hasLowercase(value) && hasUppercase(value) && hasDigit(value) && hasSpecialCharacter(value)
+    )
+  }
+
+  const generateRandomPassword = (): void => {
+    const chars = '1234567890abcdefghijklmnoprstuvxyzABCDEFGHIJKLMNOPRSTUVXYZ#@!$%'
+    let generatedPassword = ''
+    while (!hasRequiredPasswordCharacters(generatedPassword)) {
+      generatedPassword = Array.from(
+        { length: 12 },
+        () => chars[Math.floor(Math.random() * chars.length)]
+      ).join('')
+    }
+    connectionPassword.value = generatedPassword
   }
 
   const restoreDefaultHost = async (): Promise<void> => {
@@ -121,6 +144,10 @@ export const useConnectionStore = defineStore('connection', () => {
         isHost.value = true
         connectionCode.value = response.data.code
         connectionPassword.value = data.password
+
+        activePassword.value = data.password
+        window.api?.settings?.setHostPassword?.(data.password).catch(() => {})
+
         scheduleAutoRefresh()
       } else {
         connectionCode.value = ''
@@ -169,15 +196,24 @@ export const useConnectionStore = defineStore('connection', () => {
     connectionCode.value = ''
   }
 
+  const revertPassword = (): void => {
+    if (activePassword.value) {
+      connectionPassword.value = activePassword.value
+    }
+  }
+
   return {
     isHost,
     connectionCode,
     connectionPassword,
+    activePassword,
     resetState,
     createHostConnection,
     joinGuestConnection,
     clearConnection,
     handleAccessRejected,
-    restoreDefaultHost
+    restoreDefaultHost,
+    generateRandomPassword,
+    revertPassword
   }
 })
