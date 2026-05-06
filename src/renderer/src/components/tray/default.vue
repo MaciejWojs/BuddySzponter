@@ -1,22 +1,30 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useWebRtcStore } from '@renderer/stores/webRtcStore'
-import { useSessionStore } from '@renderer/stores/sessionStore'
+import { onMounted, onUnmounted } from 'vue'
 
-const webRtcStore = useWebRtcStore()
-const isMicMuted = ref(false)
+const props = defineProps<{
+  isMicMuted: boolean
+}>()
+
+let syncChannel: BroadcastChannel | null = null
+
+onMounted(() => {
+  syncChannel = new BroadcastChannel('guest-sync-channel')
+})
+
+onUnmounted(() => {
+  if (syncChannel) syncChannel.close()
+})
 
 const handleOpenApp = async (): Promise<void> => {
   await window.api.app.showApp()
 }
 
 const handleToggleMic = (): void => {
-  isMicMuted.value = !isMicMuted.value
-  useSessionStore().toggleMicrophone(isMicMuted.value)
+  syncChannel?.postMessage({ type: 'COMMAND_TOGGLE_MIC', payload: !props.isMicMuted })
 }
 
 const handleStopSession = (): void => {
-  webRtcStore.forceDisconnect()
+  syncChannel?.postMessage({ type: 'COMMAND_DISCONNECT' })
 }
 
 const handleQuit = async (): Promise<void> => {
