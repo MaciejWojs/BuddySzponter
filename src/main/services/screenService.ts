@@ -1,6 +1,6 @@
 // screen-service.ts
 import { desktopCapturer, ipcMain, sharedTexture, WebFrameMain } from 'electron'
-import { IScreenCapture, ScreenCapture, FrameUpdate, MonitorUpdate } from '@maciejwojs/screen-capture'
+import { IScreenCapture, ScreenCapture, FrameUpdate, MonitorUpdate, MonitorMetadata } from '@maciejwojs/screen-capture'
 import { inputService } from './inputService'
 
 enum LogLevel {
@@ -22,6 +22,7 @@ export class ScreenService {
   private useCpuPath = false
   private cachedSharedTexture: ReturnType<typeof sharedTexture.importSharedTexture> | null = null
   private logLevel: LogLevel = LogLevel.DEBUG
+  private monitorsInfo: MonitorMetadata[] = []
 
   private constructor() {
     this.log(LogLevel.INFO, '[ScreenService] Initializing service...')
@@ -168,10 +169,21 @@ export class ScreenService {
     this.monitorCount = await this.capturer.getMonitorCount()
     this.log(LogLevel.INFO, `[ScreenService] Detected ${this.monitorCount} monitor(s) available for capture`)
 
+    this.monitorsInfo = this.capturer.getMonitors()
+    this.log(LogLevel.INFO, `[ScreenService] Retrieved monitor information for ${this.monitorsInfo.length} monitors`, this.monitorsInfo)
+
+    if (this.monitorCount === 0 || this.monitorsInfo.length === 0) {
+      this.log(LogLevel.WARN, '[ScreenService] No monitors detected, capture will not function')
+      return
+    }
+
+    inputService.controller.setMonitors(this.monitorsInfo)
+
+
     if (typeof this.capturer.getCurrentMonitorIndex === 'function') {
       this.currentMonitorIndex = this.capturer.getCurrentMonitorIndex()
       inputService.monitorIndex = this.currentMonitorIndex
-      inputService.controller.setCurrentMonitor(this.currentMonitorIndex)
+      inputService.controller.setCurrentMonitor(this.currentMonitorIndex, 0, 0)
       this.log(LogLevel.INFO, `[ScreenService] Initial monitor index synced: ${this.currentMonitorIndex}`)
     }
 
@@ -181,7 +193,12 @@ export class ScreenService {
       this.log(LogLevel.INFO, `[ScreenService] Monitor changed callback: index ${monitor.index}`)
       this.currentMonitorIndex = monitor.index
       inputService.monitorIndex = monitor.index
-      inputService.controller.setCurrentMonitor(monitor.index)
+      inputService.controller.setCurrentMonitor(monitor.index, monitor.width, monitor.height)
+      const monitors = this.capturer?.getMonitors()
+      if (monitors) {
+        this.monitorsInfo = monitors
+        inputService.controller.setMonitors(this.monitorsInfo)
+      }
     })
 
     // await new Promise((resolve) => setTimeout(resolve, 1000))

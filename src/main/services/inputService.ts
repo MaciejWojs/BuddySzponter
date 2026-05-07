@@ -1,6 +1,7 @@
 import { ipcMain, screen, BrowserWindow, app } from 'electron'
-import { InputBridge } from '@maciejwojs/input-bridge'
+import { InputBridge, MonitorInfo } from '@maciejwojs/input-bridge'
 import { broadcastLockoutToWidget } from '../hostWidget'
+import { MonitorMetadata } from '@maciejwojs/screen-capture'
 
 /* ================= TYPES & INTERFACES ================= */
 
@@ -185,12 +186,17 @@ class InputController {
     })
   }
 
-  setCurrentMonitor(index: number): boolean {
+  setCurrentMonitor(index: number, width: number, height: number): boolean {
     if (!this.bridge) return false
-    return this.bridge.setCurrentMonitor(index)
+    return this.bridge.setCurrentMonitor(index, width, height)
   }
 
-  getMonitors() {
+  setMonitors(monitors: MonitorMetadata[]): void {
+    if (!this.bridge) return
+    this.bridge.setMonitors(monitors)
+  }
+
+  getMonitors(): MonitorInfo[] {
     if (!this.bridge) return []
     return this.bridge.getMonitors()
   }
