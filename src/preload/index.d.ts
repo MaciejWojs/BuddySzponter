@@ -131,6 +131,8 @@ declare global {
         hideToTray: () => Promise<void>
         showHostWidget: () => Promise<void>
         hideHostWidget: () => Promise<void>
+        setHostWidgetMode: (mode: 'normal' | 'compact' | 'hidden' | 'peek') => Promise<void>
+        moveHostWidget: (x: number, y: number) => void
         openGuestWindow: (sessionId: string) => Promise<void>
         closeGuestWindow: () => Promise<void>
         setHostTrayMode: (active: boolean) => Promise<void>

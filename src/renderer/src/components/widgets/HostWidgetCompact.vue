@@ -59,20 +59,29 @@ const startDrag = (e: PointerEvent): void => {
 const onPointerMove = (e: PointerEvent): void => {
   if (!isDragging) return
 
-  if (props.widgetMode !== 'compact') return // Blokada przesuwania dla trybu peek
+  if (props.widgetMode !== 'compact') return
 
   const moveX = Math.abs(e.clientX - offsetX)
   const moveY = Math.abs(e.clientY - offsetY)
 
   if (moveX > 3 || moveY > 3) hasMoved = true
 
-  if (hasMoved && window.electron?.ipcRenderer?.invoke) {
-    void window.electron.ipcRenderer
-      .invoke('move-host-widget', {
-        x: e.screenX - offsetX,
-        y: e.screenY - offsetY
-      })
-      .catch(() => {})
+  if (hasMoved) {
+    const x = e.screenX - offsetX
+    const y = e.screenY - offsetY
+    if (window.api?.app?.moveHostWidget) {
+      try {
+        window.api.app.moveHostWidget(x, y)
+      } catch {
+        // Fallback dla starszych wersji API
+      }
+    } else if (window.electron?.ipcRenderer?.send) {
+      try {
+        window.electron.ipcRenderer.send('move-host-widget', { x, y })
+      } catch {
+        // Fallback dla starszych wersji API
+      }
+    }
   }
 }
 
