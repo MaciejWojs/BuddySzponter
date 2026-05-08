@@ -7,7 +7,7 @@ import { webRtcService } from '@renderer/composables/connection/webRTCService'
 import { useWebRtcStore } from '@renderer/stores/webRtcStore'
 
 const signalingStore = useSignalingStore()
-const { sendCommand } = useGuestSync(false)
+const { sendCommand } = useGuestSync()
 const webRtcStore = useWebRtcStore()
 
 const isVideoReady = ref(false)

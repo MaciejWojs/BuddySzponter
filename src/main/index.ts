@@ -18,8 +18,8 @@ import { wsService } from './services/ws/WsService'
 import { closeHostWidget, createHostWidget } from './hostWidget'
 import { inputService } from './services/inputService'
 import { closeGuestWindow, createGuestWindow, registerGuestWindowHandlers } from './guestWindow'
-// import trayIconDefault from '../../resources/tray/default.png?asset'
-// import { trayService } from './services/trayService'
+import trayIconDefault from '../../resources/tray/default.png?asset'
+import { trayService } from './services/trayService'
 
 let mainWindow: BrowserWindow | null = null
 let isQuitting = false
@@ -29,26 +29,34 @@ export function quitApp(): void {
   app.quit()
 }
 
-// Funkcja bezpiecznego ukrywania (minimalizacji) bez zabijania WebRTC
-function hideWindowSafely(win: BrowserWindow | null): void {
+export let previousBounds: Electron.Rectangle | null = null
+
+// Funkcja bezpiecznego ukrywania bez zabijania WebRTC (off-screen trick)
+export function hideWindowSafely(win: BrowserWindow | null): void {
   if (win && !win.isDestroyed()) {
-    win.minimize()
-    // Jeśli wolisz, żeby okno całkowicie zniknęło, a nie było zminimalizowane na pasku,
-    // użyj poniższych dwóch linii zamiast win.minimize():
-    // win.setOpacity(0)
-    // win.setSkipTaskbar(true)
+    const currentBounds = win.getBounds()
+    // Zapisujemy pozycję tylko jeśli nie jesteśmy już poza ekranem
+    if (currentBounds.x !== -10000 && currentBounds.y !== -10000) {
+      previousBounds = currentBounds
+    }
+    win.setPosition(-10000, -10000)
+    win.setSkipTaskbar(true)
   }
+  trayService.showTrayIcon()
 }
 
-function showWindowSafely(win: BrowserWindow | null): void {
+export function showWindowSafely(win: BrowserWindow | null): void {
   if (win && !win.isDestroyed()) {
-    if (win.isMinimized()) win.restore()
-    // Jeśli używasz opacity zamiast minimize, odkomentuj to:
-    // win.setOpacity(1)
-    // win.setSkipTaskbar(false)
+    if (previousBounds) {
+      win.setBounds(previousBounds)
+      previousBounds = null
+    }
+    win.setSkipTaskbar(false)
     win.show()
+    if (win.isMinimized()) win.restore()
     win.focus()
   }
+  trayService.hideTrayIcon()
 }
 
 function createWindow(): void {
@@ -111,7 +119,6 @@ if (!gotTheLock) {
     app.commandLine.appendSwitch('disable-renderer-backgrounding')
     app.commandLine.appendSwitch('disable-background-timer-throttling')
     app.commandLine.appendSwitch('disable-backgrounding-occluded-windows')
-    app.commandLine.appendSwitch('disable-backgrounding-occluded-windows')
     app.commandLine.appendSwitch('enable-transparent-visuals')
 
     app.on('browser-window-created', (_, window) => {
@@ -145,6 +152,10 @@ if (!gotTheLock) {
     }
 
     createWindow()
+
+    if (mainWindow) {
+      trayService.init(mainWindow, trayIconDefault)
+    }
 
     // --- BEZPIECZNA REJESTRACJA WIDGETU ---
     try {
@@ -182,10 +193,6 @@ if (!gotTheLock) {
 
     ipcMain.handle('show-main-window', () => {
       showWindowSafely(mainWindow)
-    })
-
-    ipcMain.handle('set-host-tray-mode', () => {
-      /* na razie wyłączone z trayService */
     })
 
     ipcMain.handle('quit-app', () => {

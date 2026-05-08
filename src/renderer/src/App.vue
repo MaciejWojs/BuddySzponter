@@ -8,9 +8,9 @@ import { useDeviceStore } from './stores/deviceStore'
 import { useAudioMixer } from './services/audio/out/useAudioMixer'
 import { useWebRtcStore } from './stores/webRtcStore'
 import { useConnectionStore } from './stores/connectionStore'
-import { useWidgetBridge } from '@renderer/composables/syncWindow/useWidgetSync'
 
 import { useGuestSync } from '@renderer/composables/syncWindow/useGuestSync'
+import { useHostSync } from './composables/syncWindow/useHostSync'
 
 const toaster = { position: 'top-left', duration: 3000, dismissible: true, max: 3, expand: false }
 
@@ -21,18 +21,24 @@ const socketStore = useSocketStore()
 const userStore = useUserStore()
 const deviceStore = useDeviceStore()
 
-settingsStore.initSettings()
-socketStore.init()
-userStore.initSession()
-deviceStore.refreshMicrophones()
-useAudioMixer()
-useWidgetBridge()
+// Ustawienia i stan inicjalizujemy w zależności od typu okna
+const isMainWindow =
+  !window.location.hash.includes('guest') &&
+  !window.location.hash.includes('widget') &&
+  !window.location.hash.includes('tray-menu')
 
-useGuestSync(true)
+if (isMainWindow) {
+  settingsStore.initSettings()
+  socketStore.init()
+  userStore.initSession()
+  deviceStore.refreshMicrophones()
+  useAudioMixer()
+  useHostSync()
+} else if (window.location.hash.includes('guest')) {
+  useGuestSync()
+}
 
 onMounted(() => {
-  const isMainWindow =
-    !window.location.hash.includes('guest') && !window.location.hash.includes('widget')
   if (isMainWindow) {
     // Opóźnienie zapobiegające wywołaniu API, zanim userStore zdąży zainicjować token (unikamy "Connection token missing")
     setTimeout(async () => {
