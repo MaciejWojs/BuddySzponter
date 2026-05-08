@@ -1,6 +1,6 @@
 <template>
   <main
-    class="w-[550px] h-[60px] px-4 bg-[#1e1e1e]/90 backdrop-blur-xl border border-[#333] shadow-2xl flex items-center justify-between text-[#e8e8e8] select-none overflow-hidden rounded-[16px]"
+    class="w-[600px] h-[60px] px-4 bg-[#1e1e1e]/90 border border-[#333] flex items-center justify-between text-[#e8e8e8] select-none overflow-hidden rounded-[16px]"
     style="-webkit-app-region: drag"
   >
     <div class="flex items-center gap-3">
