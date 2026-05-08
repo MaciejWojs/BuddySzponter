@@ -169,5 +169,9 @@ declare global {
     recorder: {
       saveFile: (buffer: ArrayBuffer) => Promise<void>
     }
+    clipboard: {
+      readText: () => Promise<string>
+      writeText: (text: string) => Promise<void>
+    }
   }
 }

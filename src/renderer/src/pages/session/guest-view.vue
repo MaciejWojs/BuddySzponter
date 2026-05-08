@@ -3,11 +3,13 @@ import { ref, onMounted, onUnmounted } from 'vue'
 
 import { useSignalingStore } from '@renderer/stores/signalingStore'
 import { useGuestSync } from '@renderer/composables/syncWindow/useGuestSync'
+import { useClipboardChannel } from '@renderer/composables/channels/useClipboardChannel'
 import { webRtcService } from '@renderer/composables/connection/webRTCService'
 import { useWebRtcStore } from '@renderer/stores/webRtcStore'
 
 const signalingStore = useSignalingStore()
 const { sendCommand } = useGuestSync(false)
+const { pushClipboardTextToPeer, requestClipboardTextFromPeer } = useClipboardChannel()
 const webRtcStore = useWebRtcStore()
 
 const isVideoReady = ref(false)
@@ -182,6 +184,52 @@ onUnmounted(() => {
       </div>
 
       <div class="w-px h-6 bg-white/10 mx-1"></div>
+
+      <button
+        title="Wyślij lokalny schowek"
+        class="w-10 h-10 flex items-center justify-center rounded-full bg-white/10 text-gray-200 hover:bg-white/20 transition-all active:scale-95"
+        @click="pushClipboardTextToPeer"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M8 4h8a2 2 0 0 1 2 2v14H6V6a2 2 0 0 1 2-2Z" />
+          <path d="M9 2h6" />
+          <path d="M12 8v8" />
+          <path d="m9 11 3-3 3 3" />
+        </svg>
+      </button>
+
+      <button
+        title="Pobierz schowek z peera"
+        class="w-10 h-10 flex items-center justify-center rounded-full bg-white/10 text-gray-200 hover:bg-white/20 transition-all active:scale-95"
+        @click="requestClipboardTextFromPeer"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M8 20h8a2 2 0 0 0 2-2V4H6v14a2 2 0 0 0 2 2Z" />
+          <path d="M9 22h6" />
+          <path d="M12 16V8" />
+          <path d="m15 13-3 3-3-3" />
+        </svg>
+      </button>
 
       <div class="flex items-center gap-2 w-28" title="Głośność systemu Hosta">
         <svg

@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain, session, desktopCapturer } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, session, desktopCapturer, clipboard } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
@@ -190,6 +190,15 @@ if (!gotTheLock) {
 
     ipcMain.handle('quit-app', () => {
       quitApp()
+    })
+
+    // --- SCHOWEK (CLIPBOARD) ---
+    ipcMain.handle('clipboard:readText', () => {
+      return clipboard.readText()
+    })
+
+    ipcMain.handle('clipboard:writeText', (_, text: string) => {
+      clipboard.writeText(text)
     })
 
     // ipcMain.handle('save-file', async (_, buffer: ArrayBuffer) => {

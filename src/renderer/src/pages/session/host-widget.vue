@@ -44,6 +44,22 @@
       </button>
 
       <button
+        class="flex items-center justify-center w-10 h-10 rounded-lg transition-all border group bg-[#2a2a2a] border-[#444] text-gray-200 hover:border-sky-500"
+        title="Wyślij lokalny schowek"
+        @click="pushClipboardTextToPeer"
+      >
+        <span class="text-lg group-active:scale-90 transition-transform">📋</span>
+      </button>
+
+      <button
+        class="flex items-center justify-center w-10 h-10 rounded-lg transition-all border group bg-[#2a2a2a] border-[#444] text-gray-200 hover:border-cyan-500"
+        title="Pobierz schowek z peera"
+        @click="requestClipboardTextFromPeer"
+      >
+        <span class="text-lg group-active:scale-90 transition-transform">📥</span>
+      </button>
+
+      <button
         class="flex items-center justify-center w-10 h-10 rounded-lg transition-all border group"
         :class="
           state.sysActive
@@ -103,6 +119,9 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
+import { useClipboardChannel } from '@renderer/composables/channels/useClipboardChannel'
+
+const { pushClipboardTextToPeer, requestClipboardTextFromPeer } = useClipboardChannel()
 
 const state = ref({
   micActive: true,

@@ -14,7 +14,12 @@ interface CustomRTCStreamStats {
   codecId?: string
 }
 
-export type DataChannelLabel = 'chat-channel' | 'hid-control' | 'system-events' | 'metrics'
+export type DataChannelLabel =
+  | 'chat-channel'
+  | 'hid-control'
+  | 'system-events'
+  | 'metrics'
+  | 'clipboard'
 export type ConnectionMetrics = {
   rttMs: number | null
   cpuLoadPct: number | null
@@ -46,6 +51,7 @@ export class WebRTCService {
   public hidControlChannel: RTCDataChannel | null = null
   public systemEventsChannel: RTCDataChannel | null = null
   public metricsChannel: RTCDataChannel | null = null
+  public clipboardChannel: RTCDataChannel | null = null
 
   // Recording
   private recorder: MediaRecorder | null = null
@@ -339,6 +345,7 @@ export class WebRTCService {
     else if (channel.label === 'hid-control') this.hidControlChannel = channel
     else if (channel.label === 'system-events') this.systemEventsChannel = channel
     else if (channel.label === 'metrics') this.metricsChannel = channel
+    else if (channel.label === 'clipboard') this.clipboardChannel = channel
   }
 
   /**
@@ -396,6 +403,7 @@ export class WebRTCService {
       this.setupChannel(this.peerConnection.createDataChannel('system-events', { ordered: true }))
       this.setupChannel(this.peerConnection.createDataChannel('chat-channel', { ordered: true }))
       this.setupChannel(this.peerConnection.createDataChannel('metrics', { ordered: false }))
+      this.setupChannel(this.peerConnection.createDataChannel('clipboard', { ordered: true }))
     }
 
     const offer = await this.peerConnection.createOffer()
@@ -504,6 +512,7 @@ export class WebRTCService {
     else if (channelLabel === 'hid-control') channel = this.hidControlChannel
     else if (channelLabel === 'system-events') channel = this.systemEventsChannel
     else if (channelLabel === 'metrics') channel = this.metricsChannel
+    else if (channelLabel === 'clipboard') channel = this.clipboardChannel
 
     if (channel && channel.readyState === 'open') {
       channel.send(message)

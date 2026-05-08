@@ -46,6 +46,35 @@ export const P2PMessageSchema = z.discriminatedUnion('type', [
     })
   }),
 
+  // --- CLIPBOARD (DataChannel) ---
+  z.object({
+    type: z.literal('clipboard-push'),
+    payload: z.object({
+      id: z.string(),
+      text: z.string()
+    })
+  }),
+  z.object({
+    type: z.literal('clipboard-request'),
+    payload: z.object({
+      id: z.string()
+    })
+  }),
+  z.object({
+    type: z.literal('clipboard-response'),
+    payload: z.object({
+      id: z.string(),
+      text: z.string()
+    })
+  }),
+  z.object({
+    type: z.literal('clipboard-error'),
+    payload: z.object({
+      id: z.string(),
+      message: z.string()
+    })
+  }),
+
   z.object({
     type: z.literal('HID_HANDSHAKE'),
     payload: z.object({

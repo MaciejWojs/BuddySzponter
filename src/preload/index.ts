@@ -205,6 +205,10 @@ const api = {
   },
   desktop: {
     getSources: () => ipcRenderer.invoke('desktop:get-sources')
+  },
+  clipboard: {
+    readText: (): Promise<string> => ipcRenderer.invoke('clipboard:readText'),
+    writeText: (text: string): Promise<void> => ipcRenderer.invoke('clipboard:writeText', text)
   }
 }
 
