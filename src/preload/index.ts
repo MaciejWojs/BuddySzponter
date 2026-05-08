@@ -164,6 +164,9 @@ const api = {
     quitApp: (): Promise<void> => ipcRenderer.invoke('quit-app'),
     showHostWidget: (): Promise<void> => ipcRenderer.invoke('show-host-widget'),
     hideHostWidget: (): Promise<void> => ipcRenderer.invoke('hide-host-widget'),
+    setHostWidgetMode: (mode: 'normal' | 'compact' | 'hidden' | 'peek'): Promise<void> =>
+      ipcRenderer.invoke('set-host-widget-mode', mode),
+    moveHostWidget: (x: number, y: number): void => ipcRenderer.send('move-host-widget', { x, y }),
     openGuestWindow: (sessionId: string) => ipcRenderer.invoke('app:open-guest-window', sessionId),
     closeGuestWindow: () => ipcRenderer.invoke('app:close-guest-window'),
     resizeToVideoRatio: (width: number, height: number) =>
