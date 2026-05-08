@@ -7,7 +7,7 @@ import { useConnectionStore } from '@renderer/stores/connectionStore'
 
 type WidgetMode = 'normal' | 'compact' | 'hidden' | 'peek'
 
-export function useHostSync(): void {
+export function useWidgetSync(): void {
   let widgetChannel: BroadcastChannel | null = null
   let guestChannel: BroadcastChannel | null = null
 

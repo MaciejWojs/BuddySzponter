@@ -10,7 +10,7 @@ import { useWebRtcStore } from './stores/webRtcStore'
 import { useConnectionStore } from './stores/connectionStore'
 
 import { useGuestSync } from '@renderer/composables/syncWindow/useGuestSync'
-import { useHostSync } from './composables/syncWindow/useHostSync'
+import { useWidgetSync } from './composables/syncWindow/useWidgetSync'
 
 const toaster = { position: 'top-left', duration: 3000, dismissible: true, max: 3, expand: false }
 
@@ -33,7 +33,7 @@ if (isMainWindow) {
   userStore.initSession()
   deviceStore.refreshMicrophones()
   useAudioMixer()
-  useHostSync()
+  useWidgetSync()
 } else if (window.location.hash.includes('guest')) {
   useGuestSync()
 }
