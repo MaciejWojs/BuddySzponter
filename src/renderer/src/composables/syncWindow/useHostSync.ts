@@ -5,6 +5,8 @@ import { useSocketStore } from '@renderer/stores/socketStore'
 import { useWebRtcStore } from '@renderer/stores/webRtcStore'
 import { useConnectionStore } from '@renderer/stores/connectionStore'
 
+type WidgetMode = 'normal' | 'compact' | 'hidden' | 'peek'
+
 export function useHostSync(): void {
   let widgetChannel: BroadcastChannel | null = null
   let guestChannel: BroadcastChannel | null = null
@@ -46,8 +48,8 @@ export function useHostSync(): void {
       })
     }
 
-    widgetChannel.onmessage = async (event) => {
-      const { type } = event.data
+    widgetChannel.onmessage = async (event: MessageEvent<{ type: string; payload: unknown }>) => {
+      const { type, payload } = event.data
 
       switch (type) {
         case 'REQUEST_STATE':
@@ -72,6 +74,11 @@ export function useHostSync(): void {
         case 'END_SESSION':
           await socketStore.disconnect()
           window.api?.app?.hideHostWidget().catch(() => {})
+          break
+        case 'SET_WIDGET_MODE':
+          if (window.electron?.ipcRenderer) {
+            window.electron.ipcRenderer.invoke('set-host-widget-mode', payload as WidgetMode)
+          }
           break
       }
     }
