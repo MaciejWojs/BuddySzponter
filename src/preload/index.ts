@@ -168,6 +168,10 @@ const api = {
     setHostWidgetMode: (mode: 'normal' | 'compact' | 'hidden' | 'peek'): Promise<void> =>
       ipcRenderer.invoke('set-host-widget-mode', mode),
     moveHostWidget: (x: number, y: number): void => ipcRenderer.send('move-host-widget', { x, y }),
+    showHostChatWindow: (): Promise<boolean> => ipcRenderer.invoke('show-host-chat-window'),
+    hideHostChatWindow: (): Promise<void> => ipcRenderer.invoke('hide-host-chat-window'),
+    moveHostChatWindow: (x: number, y: number): void =>
+      ipcRenderer.send('move-host-chat-window', { x, y }),
     openGuestWindow: (sessionId: string) => ipcRenderer.invoke('app:open-guest-window', sessionId),
     closeGuestWindow: () => ipcRenderer.invoke('app:close-guest-window'),
     resizeToVideoRatio: (width: number, height: number) =>
