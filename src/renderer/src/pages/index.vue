@@ -21,10 +21,8 @@ const userStore = useUserStore()
 const socketStore = useSocketStore()
 const { isAuthenticated } = storeToRefs(userStore)
 
-// Stan aktywnej zakładki w dolnym pasku nawigacji.
 const activeNav = ref('home')
 
-// Definicja pozycji nawigacji przekazywanych do komponentu NavBar.
 const navItems: NavBarItem[] = [
   {
     name: 'settings',
@@ -42,31 +40,21 @@ const navItems: NavBarItem[] = [
 </script>
 
 <template>
-  <!-- Główny widok menu: górna nawigacja, dwie kolumny akcji i stopka z logo. -->
   <section class="menu-page">
-    <!-- Selektor języka osadzony w lewym górnym rogu ekranu. -->
-    <!-- <div class="menu-lang-selector">
-      <BuLanguageSelector />
-    </div> -->
-
-    <!-- Ikona użytkownika zależna od statusu zalogowania. -->
     <UserIcon v-if="isAuthenticated" />
     <UserNoLogin v-else />
     <header class="menu-topbar">
-      <!-- Pasek nawigacyjny z ikonowymi przyciskami sekcji. -->
       <NavBar v-model="activeNav" :items="navItems" />
     </header>
 
     <main class="menu-content">
       <article class="menu-column">
-        <!-- Sekcja gościa: udostępnienie sterowania przez kod sesji. -->
         <h2>{{ $t('guestForm.title') }}</h2>
         <p>{{ $t('guestForm.description') }}</p>
         <GuestForm />
       </article>
 
       <article class="menu-column">
-        <!-- Sekcja hosta: przejęcie sterowania z użyciem kodu i hasła. -->
         <WidgetWrapper>
           <div
             v-if="!socketStore.incomingRequest"
@@ -83,20 +71,12 @@ const navItems: NavBarItem[] = [
     </main>
 
     <footer class="menu-footer">
-      <!-- Logo aplikacji prezentowane w stopce widoku. -->
       <img :src="buddySzponterLogo" :alt="$t('common.logoAlt')" class="menu-logo" />
     </footer>
   </section>
 </template>
 
 <style scoped>
-/*
-  Style widoku Menu:
-  .menu-page    - główny kontener strony
-  .menu-topbar  - obszar górnej nawigacji
-  .menu-content - sekcja kolumn formularzy
-  .menu-footer  - stopka z logo aplikacji
-*/
 .menu-lang-selector {
   position: absolute;
   top: 20px;
