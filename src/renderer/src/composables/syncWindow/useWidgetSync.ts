@@ -30,7 +30,8 @@ export function useWidgetSync(): void {
           micActive: !sessionStore.microphoneMuted && sessionStore.localMicrophoneVolume > 0,
           sysActive: sessionStore.localSystemAudioVolume > 0,
           guestMicActive: sessionStore.remoteMicVolume > 0,
-          controlGranted: hidChannel.isControlGranted.value
+          controlGranted: hidChannel.isControlGranted.value,
+          chatHasUnread: chatService.hasUnread.value
         }
       })
     }
@@ -115,7 +116,8 @@ export function useWidgetSync(): void {
         () => sessionStore.localMicrophoneVolume,
         () => sessionStore.localSystemAudioVolume,
         () => sessionStore.remoteMicVolume,
-        () => hidChannel.isControlGranted.value
+        () => hidChannel.isControlGranted.value,
+        () => chatService.hasUnread.value
       ],
       () => pushStateToWidget(),
       { deep: true }
