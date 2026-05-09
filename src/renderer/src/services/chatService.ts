@@ -1,4 +1,4 @@
-import { ref, watch } from 'vue'
+import { computed, ref, watch, type ComputedRef } from 'vue'
 import type { P2PMessage } from '@renderer/schemas/p2pProtocol'
 import { useUserStore } from '@renderer/stores/userStore'
 
@@ -27,6 +27,21 @@ const FALLBACK_SENDER_NAME = 'Guest'
 const messages = ref<ChatMessage[]>([])
 const localSenderName = ref<string>(FALLBACK_SENDER_NAME)
 const localAuthorId = ref<string>(crypto.randomUUID())
+const lastReadAt = ref<number>(Date.now())
+
+const hasUnread: ComputedRef<boolean> = computed(() =>
+  messages.value.some(
+    (message) => message.authorId !== localAuthorId.value && message.createdAt > lastReadAt.value
+  )
+)
+
+const markConversationRead = (): void => {
+  const latestForeign = messages.value.reduce<number>((acc, message) => {
+    if (message.authorId === localAuthorId.value) return acc
+    return message.createdAt > acc ? message.createdAt : acc
+  }, 0)
+  lastReadAt.value = Math.max(lastReadAt.value, latestForeign, Date.now())
+}
 
 let isSenderSyncInitialized = false
 let senderRefreshPromise: Promise<string> | null = null
@@ -163,6 +178,7 @@ const ingestChatPayload = (payload: ChatPayload): void => {
 
 const clearMessages = (): void => {
   messages.value = []
+  lastReadAt.value = Date.now()
 }
 
 const isOwnMessage = (message: ChatMessage): boolean => {
@@ -242,10 +258,12 @@ export const chatService = {
   messages,
   localSenderName,
   localAuthorId,
+  hasUnread,
   setTransport,
   ingestChatPayload,
   refreshLocalSenderName,
   clearMessages,
+  markConversationRead,
   isOwnMessage,
   sendMessage,
   editMessage,
