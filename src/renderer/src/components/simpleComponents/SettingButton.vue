@@ -1,5 +1,4 @@
 <template>
-  <!-- Sekcja widoku komponentu SettingButton: definiuje strukturę renderowaną w interfejsie użytkownika. -->
   <button
     :type="buttonType"
     :disabled="props.disabled || props.loading"
@@ -19,7 +18,6 @@
 </template>
 
 <script setup lang="ts">
-// Sekcja logiki komponentu SettingButton: zarządza danymi, zdarzeniami i zachowaniem widoku.
 import SettingIcon from '@renderer/assets/images/ui/Setting.svg?component'
 
 const props = defineProps({
