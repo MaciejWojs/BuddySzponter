@@ -30,36 +30,8 @@
 
     <div v-else class="flex flex-col gap-5">
       <div class="flex flex-col md:flex-row gap-5">
-        <div class="flex-1 flex flex-col gap-3 md:border-r border-[#333] md:pr-5">
-          <h3 class="text-sm font-bold text-blue-400 m-0">💬 Szybki Czat (chat-channel)</h3>
-          <div
-            class="bg-black/50 border border-[#222] rounded p-3 h-37.5 overflow-y-auto text-sm font-mono flex flex-col gap-1 shadow-inner"
-          >
-            <div
-              v-for="(msg, i) in chatChannel.chatMessages.value"
-              :key="i"
-              :class="msg.startsWith('Ja:') ? 'text-emerald-400 text-right' : 'text-blue-400'"
-            >
-              {{ msg }}
-            </div>
-            <div v-if="chatChannel.chatMessages.value.length === 0" class="text-gray-600">
-              Brak wiadomości...
-            </div>
-          </div>
-          <form class="flex gap-2" @submit.prevent="handleSend">
-            <input
-              v-model="chatInput"
-              type="text"
-              placeholder="Napisz coś..."
-              class="flex-1 p-2 bg-black border border-[#444] rounded text-white text-sm focus:border-blue-500 focus:outline-none"
-            />
-            <button
-              type="submit"
-              class="px-4 bg-emerald-600 hover:bg-emerald-500 rounded text-white text-sm font-bold transition-colors"
-            >
-              Wyślij
-            </button>
-          </form>
+        <div class="flex-1 md:border-r border-[#333] md:pr-5">
+          <ChatPanel class="h-96" />
         </div>
 
         <div class="flex-1 flex flex-col gap-3">
@@ -118,25 +90,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
 import { useWebRtcStore } from '@renderer/stores/webRtcStore'
-import { useChatChannel } from '@renderer/composables/channels/ChatChannel'
 import { useHidChannel } from '@renderer/composables/channels/HidChannel'
 import { SystemEventsChannel } from '@renderer/composables/channels/SystemEventsChannel'
+import ChatPanel from '@renderer/components/chat/ChatPanel.vue'
 
 const webRtcStore = useWebRtcStore()
-const chatChannel = useChatChannel()
 const hidChannel = useHidChannel()
 const systemEvents = SystemEventsChannel(() => webRtcStore.forceDisconnect())
-
-const chatInput = ref('')
-
-const handleSend = (): void => {
-  if (chatInput.value.trim()) {
-    chatChannel.sendChatMessage(chatInput.value, 'Rozmówca')
-    chatInput.value = ''
-  }
-}
 
 const handleMouseMove = (e: MouseEvent): void => {
   if (webRtcStore.rtcStatus !== 'connected') return

@@ -12,7 +12,7 @@
 
       <div class="flex flex-col lg:flex-row gap-5 grow min-h-0">
         <div class="flex-[1.2] flex flex-col gap-5 overflow-y-auto pr-2.5 pb-16 custom-scrollbar">
-          <BuRegisterForm @log-result="logResult" />
+          <!-- <BuRegisterForm @log-result="logResult" /> -->
           <BuLoginForm @log-result="logResult" />
           <BuSessionActions @log-result="logResult" @user-logged-out="clearUser" />
           <!-- <BuUserProfile :user="currentUser" @fetch-user="fetchCurrentUser" /> -->
@@ -21,6 +21,7 @@
           <BuJoinConnectionTest @log-result="logResult" />
           <!-- <BuSystemInfo @log-result="logResult" /> -->
           <BuSocketTest @log-result="logResult" />
+          <BuChatTestPanel />
           <AudioDashboard @log-result="logResult" />
           <!-- <BuDataChannelTest @log-result="logResult" /> -->
           <BuScreenCaptureTest />
@@ -68,12 +69,12 @@ import { ref } from 'vue'
 
 // Importy Komponentów
 import BuLanguageSelector from '../simpleComponents/BuLanguageSelector.vue'
-import BuRegisterForm from './BuRegisterForm.vue'
 import BuLoginForm from './BuLoginForm.vue'
 import BuSessionActions from './BuSessionActions.vue'
 import BuConnectionTest from './BuConnectionTest.vue'
 import BuJoinConnectionTest from './BuJoinConnectionTest.vue'
 import BuSocketTest from './BuSocketTest.vue'
+import BuChatTestPanel from './BuChatTestPanel.vue'
 // Stan Aplikacji
 const outputLog = ref<string>('')
 const wsLog = ref<string>('')
