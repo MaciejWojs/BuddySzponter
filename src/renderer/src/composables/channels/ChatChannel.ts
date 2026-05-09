@@ -1,34 +1,53 @@
-import { ref, Ref } from 'vue'
 import { webRtcService } from '@renderer/composables/connection/webRTCService'
-import { P2PMessage } from '@renderer/schemas/p2pProtocol'
+import type { P2PMessage } from '@renderer/schemas/p2pProtocol'
 import { messageRouter } from '@renderer/composables/webrtc/MessageRouter'
-
-export type ChatPayload = Extract<P2PMessage, { type: 'CHAT' }>['payload']
+import { chatService, type ChatPayload } from '@renderer/services/chatService'
 
 export interface ChatChannelApi {
-  chatMessages: Ref<string[]>
-  sendChatMessage: (text: string, sender?: string) => void
+  sendChatPayload: (payload: ChatPayload) => void
 }
 
-const chatMessages = ref<string[]>([])
+const sendChatPayload = (payload: ChatPayload): void => {
+  const encoded = JSON.stringify({ type: 'CHAT', payload })
+
+  if (webRtcService.chatChannel?.readyState === 'open') {
+    webRtcService.sendData('chat-channel', encoded)
+    return
+  }
+
+  // Main guest window doesn't own the RTC connection.
+  // Forward outgoing chat payload to guest-view window via BroadcastChannel.
+  if (!window.location.hash.toLowerCase().includes('guest')) {
+    try {
+      const bc = new BroadcastChannel('guest-sync-channel')
+      bc.postMessage({ type: 'RELAY_CHAT_OUTGOING', payload })
+      bc.close()
+    } catch {
+      // BroadcastChannel may not be available in every context
+    }
+  }
+}
+
+chatService.setTransport(sendChatPayload)
 
 messageRouter.subscribe('chat-channel', (msg: P2PMessage) => {
-  if (msg.type === 'CHAT') {
-    chatMessages.value.push(`${msg.payload.sender}: ${msg.payload.text}`)
+  if (msg.type !== 'CHAT') return
+
+  chatService.ingestChatPayload(msg.payload)
+
+  // Guest window has the real P2P connection but no ChatPanel UI.
+  // Relay the incoming message to the main window via BroadcastChannel.
+  if (window.location.hash.toLowerCase().includes('guest')) {
+    try {
+      const bc = new BroadcastChannel('guest-sync-channel')
+      bc.postMessage({ type: 'RELAY_CHAT', payload: msg.payload })
+      bc.close()
+    } catch {
+      // BroadcastChannel may not be available in every context
+    }
   }
 })
 
 export function useChatChannel(): ChatChannelApi {
-  const sendChatMessage = (text: string, sender = 'Ja'): void => {
-    const normalized = text.trim()
-    if (!normalized) return
-
-    chatMessages.value.push(`Ja: ${normalized}`)
-    webRtcService.sendData(
-      'chat-channel',
-      JSON.stringify({ type: 'CHAT', payload: { text: normalized, sender } })
-    )
-  }
-
-  return { chatMessages, sendChatMessage }
+  return { sendChatPayload }
 }
