@@ -3,22 +3,6 @@
     class="w-full h-full px-4 bg-[#1e1e1e]/90 border border-[#333] flex items-center justify-between text-[#e8e8e8] select-none overflow-hidden rounded-[16px]"
     style="-webkit-app-region: drag"
   >
-    <div class="flex items-center gap-3">
-      <div
-        class="relative flex items-center justify-center w-8 h-8 bg-rose-500/10 rounded-full border border-rose-500/30"
-      >
-        <div
-          class="w-3 h-3 rounded-full bg-rose-500 animate-pulse shadow-[0_0_8px_rgba(244,63,94,0.8)]"
-        ></div>
-      </div>
-      <div class="flex flex-col">
-        <span class="text-[10px] text-gray-400 font-bold uppercase tracking-wider leading-none"
-          >Status</span
-        >
-        <span class="text-sm font-semibold text-rose-400 leading-tight">Udostępniasz</span>
-      </div>
-    </div>
-
     <div class="flex items-center gap-2" style="-webkit-app-region: no-drag">
       <button
         class="flex items-center justify-center w-10 h-10 rounded-lg transition-all border group"
@@ -73,6 +57,23 @@
         <span class="text-lg group-active:scale-90 transition-transform">{{
           state.guestMicActive ? '🎧' : '🔕'
         }}</span>
+      </button>
+
+      <button
+        class="relative flex items-center justify-center w-10 h-10 rounded-lg transition-all border group"
+        :class="
+          state.chatHasUnread
+            ? 'bg-amber-500/15 border-amber-500/60 text-amber-300 shadow-[0_0_10px_rgba(245,158,11,0.25)]'
+            : 'bg-[#2a2a2a] border-[#444] text-gray-200 hover:border-blue-500'
+        "
+        :title="state.chatHasUnread ? 'Czat — nowe wiadomości' : 'Otwórz czat'"
+        @click="$emit('toggleChat')"
+      >
+        <span class="text-lg group-active:scale-90 transition-transform">💬</span>
+        <span
+          v-if="state.chatHasUnread"
+          class="absolute -top-1 -right-1 inline-flex h-2.5 w-2.5 rounded-full bg-amber-400 ring-2 ring-[#1e1e1e]"
+        />
       </button>
 
       <button
@@ -148,6 +149,7 @@ defineProps<{
     sysActive: boolean
     guestMicActive: boolean
     controlGranted: boolean
+    chatHasUnread: boolean
   }
 }>()
 
@@ -155,5 +157,6 @@ defineEmits<{
   (e: 'sendCommand', actionType: string, payload?: unknown): void
   (e: 'goToNextMonitor'): void
   (e: 'setWidgetMode', mode: 'normal' | 'compact' | 'hidden' | 'peek'): void
+  (e: 'toggleChat'): void
 }>()
 </script>
