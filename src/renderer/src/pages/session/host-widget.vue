@@ -6,6 +6,7 @@
       @send-command="sendCommand"
       @go-to-next-monitor="goToNextMonitor"
       @set-widget-mode="setWidgetMode"
+      @toggle-chat="toggleChat"
     />
 
     <HostWidgetCompact
@@ -25,7 +26,8 @@ const state = ref({
   micActive: true,
   sysActive: true,
   guestMicActive: true,
-  controlGranted: false
+  controlGranted: false,
+  chatHasUnread: false
 })
 
 let syncChannel: BroadcastChannel | null = null
@@ -69,6 +71,12 @@ const sendCommand = (actionType: string, payload?: unknown): void => {
 const setWidgetMode = (mode: 'normal' | 'compact' | 'hidden' | 'peek'): void => {
   widgetMode.value = mode
   sendCommand('SET_WIDGET_MODE', mode)
+}
+
+const toggleChat = async (): Promise<void> => {
+  if (window.api?.app?.showHostChatWindow) {
+    await window.api.app.showHostChatWindow().catch(() => undefined)
+  }
 }
 
 let leaveTimeout: ReturnType<typeof setTimeout> | null = null
