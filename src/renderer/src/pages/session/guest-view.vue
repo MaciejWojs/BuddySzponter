@@ -5,6 +5,7 @@ import { useSignalingStore } from '@renderer/stores/signalingStore'
 import { useGuestSync } from '@renderer/composables/syncWindow/useGuestSync'
 import { webRtcService } from '@renderer/composables/connection/webRTCService'
 import { useWebRtcStore } from '@renderer/stores/webRtcStore'
+import type { ChatPayload } from '@renderer/services/chatService'
 
 const signalingStore = useSignalingStore()
 const { sendCommand } = useGuestSync()
@@ -71,6 +72,11 @@ onMounted(() => {
       }
     } else if (type === 'RELAY_HOST_ICE') {
       await signalingStore.handleCandidate(payload)
+    } else if (type === 'RELAY_CHAT_OUTGOING') {
+      webRtcService.sendData(
+        'chat-channel',
+        JSON.stringify({ type: 'CHAT', payload: payload as ChatPayload })
+      )
     }
   }
 
