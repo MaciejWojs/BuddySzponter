@@ -71,6 +71,7 @@ declare global {
         setLanguage: (lang: AppLanguage) => Promise<boolean>
         getTranslation: () => Promise<Translation>
         getHardwareId: () => Promise<string>
+        getDeviceName: () => Promise<string>
         getHostPassword: () => Promise<string>
         setHostPassword: (password: string) => Promise<void>
       }
