@@ -68,17 +68,19 @@ const syncWindowMode = async (hostActive: boolean): Promise<void> => {
   }
 }
 
-watch(
-  isHostConnected,
-  (hostActive) => {
-    void syncWindowMode(hostActive)
-  },
-  { immediate: true }
-)
+if (isMainWindow) {
+  watch(
+    isHostConnected,
+    (hostActive) => {
+      void syncWindowMode(hostActive)
+    },
+    { immediate: true }
+  )
 
-onUnmounted(() => {
-  window.api.app.hideHostWidget().catch(() => {})
-})
+  onUnmounted(() => {
+    window.api.app.hideHostWidget().catch(() => {})
+  })
+}
 </script>
 
 <template>
