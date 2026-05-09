@@ -8,6 +8,8 @@ import {
 } from '@renderer/composables/connection/webRTCService'
 import { messageRouter } from '@renderer/composables/webrtc/MessageRouter'
 import { useHidChannel } from '@renderer/composables/channels/HidChannel'
+import '@renderer/composables/channels/ChatChannel'
+import { chatService } from '@renderer/services/chatService'
 import { useSocketStore } from './socketStore'
 
 export const useWebRtcStore = defineStore('webrtc', () => {
@@ -84,6 +86,7 @@ export const useWebRtcStore = defineStore('webrtc', () => {
     webRtcService.cleanup()
     remoteStream.value = null
     localPublishProfile.value = 'host'
+    chatService.clearMessages()
   }
 
   const disconnect = async (): Promise<void> => {

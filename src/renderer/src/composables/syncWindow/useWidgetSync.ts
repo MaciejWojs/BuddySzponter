@@ -4,6 +4,7 @@ import { useHidChannel } from '@renderer/composables/channels/HidChannel'
 import { useSocketStore } from '@renderer/stores/socketStore'
 import { useWebRtcStore } from '@renderer/stores/webRtcStore'
 import { useConnectionStore } from '@renderer/stores/connectionStore'
+import { chatService, type ChatPayload } from '@renderer/services/chatService'
 
 type WidgetMode = 'normal' | 'compact' | 'hidden' | 'peek'
 
@@ -101,6 +102,9 @@ export function useWidgetSync(): void {
           break
         case 'COMMAND_SET_SYS_VOL':
           sessionStore.remoteSystemVolume = payload as number
+          break
+        case 'RELAY_CHAT':
+          chatService.ingestChatPayload(payload as ChatPayload)
           break
       }
     }
