@@ -50,6 +50,7 @@ const api = {
       ipcRenderer.invoke('settings:setLanguage', lang),
     getTranslation: (): Promise<Translation> => ipcRenderer.invoke('settings:getTranslation'),
     getHardwareId: (): Promise<string> => ipcRenderer.invoke('settings:getHardwareId'),
+    getDeviceName: (): Promise<string> => ipcRenderer.invoke('settings:getDeviceName'),
     getHostPassword: (): Promise<string> => ipcRenderer.invoke('settings:getHostPassword'),
     setHostPassword: (password: string): Promise<void> =>
       ipcRenderer.invoke('settings:setHostPassword', password)
