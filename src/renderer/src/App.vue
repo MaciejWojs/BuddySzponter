@@ -11,6 +11,7 @@ import { useConnectionStore } from './stores/connectionStore'
 
 import { useGuestSync } from '@renderer/composables/syncWindow/useGuestSync'
 import { useWidgetSync } from './composables/syncWindow/useWidgetSync'
+import { useHostChatPortalSync } from '@renderer/composables/syncWindow/useHostChatPortalSync'
 
 const toaster = { position: 'top-left', duration: 3000, dismissible: true, max: 3, expand: false }
 
@@ -22,10 +23,12 @@ const userStore = useUserStore()
 const deviceStore = useDeviceStore()
 
 // Ustawienia i stan inicjalizujemy w zależności od typu okna
+const isHostChatWindow = window.location.hash.includes('host-chat')
 const isMainWindow =
   !window.location.hash.includes('guest') &&
   !window.location.hash.includes('widget') &&
-  !window.location.hash.includes('tray-menu')
+  !window.location.hash.includes('tray-menu') &&
+  !isHostChatWindow
 
 if (isMainWindow) {
   settingsStore.initSettings()
@@ -34,8 +37,11 @@ if (isMainWindow) {
   deviceStore.refreshMicrophones()
   useAudioMixer()
   useWidgetSync()
+  useHostChatPortalSync('main')
 } else if (window.location.hash.includes('guest')) {
   useGuestSync()
+} else if (isHostChatWindow) {
+  useHostChatPortalSync('portal')
 }
 
 onMounted(() => {
