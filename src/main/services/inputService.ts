@@ -1,5 +1,5 @@
 import { ipcMain, screen, BrowserWindow, app } from 'electron'
-import { InputBridge } from '@maciejwojs/input-bridge'
+import { InputBridge, getCursorType } from '@maciejwojs/input-bridge'
 import { broadcastLockoutToWidget } from '../hostWidget'
 
 /* ================= TYPES & INTERFACES ================= */
@@ -187,7 +187,7 @@ class InputController {
 
   setCurrentMonitor(index: number): boolean {
     if (!this.bridge) return false
-    return this.bridge.setCurrentMonitor(index)
+    return this.bridge.setCurrentMonitor(index, 0, 0)
   }
 
   getMonitors() {
@@ -282,6 +282,9 @@ export const inputService = {
   handlersRegistered: false,
   monitorIndex: 0,
 
+  cursorRelayInterval: null as NodeJS.Timeout | null,
+  lastRelayedCursorType: '',
+
   async init(mainWindow: BrowserWindow): Promise<void> {
     this.mainWindow = mainWindow
     await this.controller.init()
@@ -299,7 +302,28 @@ export const inputService = {
     app.on('before-quit', () => {
       this.tracker?.stop()
       this.controller.stop()
+      this.stopCursorP2PRelay()
     })
+  },
+
+  startCursorP2PRelay(): void {
+    if (this.cursorRelayInterval) return
+
+    this.lastRelayedCursorType = ''
+    this.cursorRelayInterval = setInterval(() => {
+      const cursorType = getCursorType()
+      if (cursorType === this.lastRelayedCursorType) return
+
+      this.lastRelayedCursorType = cursorType
+      this.mainWindow?.webContents.send('input:host-cursor-sync', { cursorType })
+    }, 150)
+  },
+
+  stopCursorP2PRelay(): void {
+    if (!this.cursorRelayInterval) return
+    clearInterval(this.cursorRelayInterval)
+    this.cursorRelayInterval = null
+    this.lastRelayedCursorType = ''
   },
 
   registerHandlers(): void {
@@ -381,6 +405,23 @@ export const inputService = {
     ipcMain.handle('input:scroll-mouse', async (_e, deltaY: number) => {
       if (!Number.isFinite(deltaY) || isLocked()) return
       await this.controller.scrollMouse(deltaY)
+    })
+
+    ipcMain.handle('input:get-cursor-type', () => {
+      try {
+        return getCursorType()
+      } catch (e) {
+        console.warn('[InputService] Nie udało się odczytać kursora:', e)
+        return 'default'
+      }
+    })
+
+    ipcMain.handle('input:cursor-p2p-relay-start', () => {
+      this.startCursorP2PRelay()
+    })
+
+    ipcMain.handle('input:cursor-p2p-relay-stop', () => {
+      this.stopCursorP2PRelay()
     })
   }
 }

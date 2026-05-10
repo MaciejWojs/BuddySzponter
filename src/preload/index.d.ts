@@ -149,6 +149,10 @@ declare global {
         keyboardEvent: (keyCode: string, action: string) => Promise<void>
         getHostScreenSize: () => Promise<{ width: number; height: number }>
         scrollMouse: (deltaY: number) => Promise<void>
+        getCursorType: () => Promise<string>
+        startCursorP2PRelay: () => Promise<void>
+        stopCursorP2PRelay: () => Promise<void>
+        onHostCursorSync: (callback: (cursorType: string) => void) => () => void
       }
       events: {
         onToggleMic: (callback: () => void) => void

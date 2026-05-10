@@ -3,10 +3,8 @@
     ref="videoContainer"
     class="bg-black w-full h-full relative focus:outline-none"
     tabindex="0"
-    :class="{
-      'cursor-crosshair': hidChannel.isControlGranted,
-      'cursor-not-allowed': !hidChannel.isControlGranted
-    }"
+    :class="{ 'cursor-not-allowed': !hidChannel.isControlGranted.value }"
+    :style="cursorStyle"
     @mouseenter="focusContainer"
     @mousemove="handleMouseMove"
     @mousedown="handleMouseDown"
@@ -31,7 +29,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useWebRtcStore } from '@renderer/stores/webRtcStore'
 import { useHidChannel } from '@renderer/composables/channels/HidChannel'
 import VideoPlayer from '../p2p/VideoPlayer.vue'
@@ -46,6 +44,12 @@ const hidChannel = useHidChannel()
 const videoContainer = ref<HTMLElement | null>(null)
 const isMouseDown = ref(false)
 const currentButton = ref<'l' | 'r' | 'm'>('l')
+
+const cursorStyle = computed(() => {
+  if (!hidChannel.isControlGranted.value) return {}
+  const cursor = hidChannel.remoteHostCursorType.value || 'default'
+  return { cursor }
+})
 
 const focusContainer = (): void => {
   videoContainer.value?.focus()
