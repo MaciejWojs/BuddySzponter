@@ -1,13 +1,19 @@
 // screen-service.ts
 import { desktopCapturer, ipcMain, sharedTexture, WebFrameMain } from 'electron'
-import { IScreenCapture, ScreenCapture, FrameUpdate, MonitorUpdate, MonitorMetadata } from '@maciejwojs/screen-capture'
+import {
+  IScreenCapture,
+  ScreenCapture,
+  FrameUpdate,
+  MonitorUpdate,
+  MonitorMetadata
+} from '@maciejwojs/screen-capture'
 import { inputService } from './inputService'
 
 enum LogLevel {
   ERROR = 0,
   WARN = 1,
   INFO = 2,
-  DEBUG = 3,
+  DEBUG = 3
 }
 
 export class ScreenService {
@@ -21,7 +27,7 @@ export class ScreenService {
   private lastSharedTextureWarning: 'noInfo' | 'noHandle' | null = null
   private useCpuPath = false
   private cachedSharedTexture: ReturnType<typeof sharedTexture.importSharedTexture> | null = null
-  private logLevel: LogLevel = LogLevel.DEBUG
+  private logLevel: LogLevel = LogLevel.WARN
   private monitorsInfo: MonitorMetadata[] = []
   // private currentMonitor: MonitorMetadata | null = null
 
@@ -30,6 +36,7 @@ export class ScreenService {
   }
 
   //@ts-ignore - console also has any[]
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private log(level: LogLevel, message: string, ...args: any[]): void {
     if (level > this.logLevel) return
 
@@ -123,7 +130,10 @@ export class ScreenService {
     ipcMain.on('capture:request-stream', (event) => {
       const frame = event.senderFrame
       const wc = event.sender
-      this.log(LogLevel.DEBUG, `[IPC] capture:request-stream from frame ${frame?.routingId}, webContents ${wc?.id}`)
+      this.log(
+        LogLevel.DEBUG,
+        `[IPC] capture:request-stream from frame ${frame?.routingId}, webContents ${wc?.id}`
+      )
       if (frame && !this.activeFrames.some((f) => f.frame === frame)) {
         this.activeFrames.push({ frame, wc })
         this.log(LogLevel.DEBUG, `[IPC] Added frame, now ${this.activeFrames.length} active frames`)
@@ -138,7 +148,10 @@ export class ScreenService {
       if (frame) {
         const before = this.activeFrames.length
         this.activeFrames = this.activeFrames.filter((f) => f.frame !== frame)
-        this.log(LogLevel.DEBUG, `[IPC] Removed frame, active frames: ${before} -> ${this.activeFrames.length}`)
+        this.log(
+          LogLevel.DEBUG,
+          `[IPC] Removed frame, active frames: ${before} -> ${this.activeFrames.length}`
+        )
       }
     })
   }
@@ -147,12 +160,14 @@ export class ScreenService {
   // Start / Stop z użyciem onFrame
   // ------------------------------------------------------------------
   private async startCapture(): Promise<void> {
-
     const portalMonitors = inputService.controller.getMonitors()
 
     this.log(LogLevel.INFO, '[ScreenService] Starting screen capture...')
     if (!this.capturer) {
-      this.log(LogLevel.INFO, '[ScreenService] Creating new ScreenCapture instance with logLevel debug')
+      this.log(
+        LogLevel.INFO,
+        '[ScreenService] Creating new ScreenCapture instance with logLevel debug'
+      )
       this.capturer = new ScreenCapture({
         logLevel: 'debug',
         // disableLogging: true,
@@ -174,32 +189,54 @@ export class ScreenService {
     await this.capturer.start()
 
     this.monitorCount = await this.capturer.getMonitorCount()
-    this.log(LogLevel.INFO, `[ScreenService] Detected ${this.monitorCount} monitor(s) available for capture`)
+    this.log(
+      LogLevel.INFO,
+      `[ScreenService] Detected ${this.monitorCount} monitor(s) available for capture`
+    )
 
     // this.capturer.set
     const currentMonitor = this.capturer.getCurrentMonitor()
     // this.currentMonitor = currentMonitor
 
     if (!currentMonitor) {
-      this.log(LogLevel.WARN, '[ScreenService] No current monitor information available after start()')
+      this.log(
+        LogLevel.WARN,
+        '[ScreenService] No current monitor information available after start()'
+      )
       return
     }
-
 
     // inputService.setStartingX(currentMonitor.x)
 
     this.currentMonitorIndex = currentMonitor.pipewireStream || currentMonitor.index
-    this.log(LogLevel.INFO, `[ScreenService] Current monitor after start: index ${currentMonitor.index}, size ${currentMonitor.width}x${currentMonitor.height}, pipewireStream ${currentMonitor.pipewireStream}`)
+    this.log(
+      LogLevel.INFO,
+      `[ScreenService] Current monitor after start: index ${currentMonitor.index}, size ${currentMonitor.width}x${currentMonitor.height}, pipewireStream ${currentMonitor.pipewireStream}`
+    )
     inputService.monitorIndex = this.currentMonitorIndex
-    inputService.controller.setCurrentMonitor(this.currentMonitorIndex, currentMonitor?.width, currentMonitor?.height)
-    this.log(LogLevel.INFO, `[ScreenService] Current monitor index: ${this.currentMonitorIndex} (${currentMonitor.width}x${currentMonitor.height})`)
+    inputService.controller.setCurrentMonitor(
+      this.currentMonitorIndex,
+      currentMonitor?.width,
+      currentMonitor?.height
+    )
+    this.log(
+      LogLevel.INFO,
+      `[ScreenService] Current monitor index: ${this.currentMonitorIndex} (${currentMonitor.width}x${currentMonitor.height})`
+    )
 
     if (currentMonitor.pipewireStream) {
-      this.log(LogLevel.INFO, `[ScreenService] PipeWire stream [id=${currentMonitor.pipewireStream}] detected for current monitor`)
+      this.log(
+        LogLevel.INFO,
+        `[ScreenService] PipeWire stream [id=${currentMonitor.pipewireStream}] detected for current monitor`
+      )
     }
 
     this.monitorsInfo = this.capturer.getMonitors()
-    this.log(LogLevel.INFO, `[ScreenService] Retrieved monitor information for ${this.monitorsInfo.length} monitors`, this.monitorsInfo)
+    this.log(
+      LogLevel.INFO,
+      `[ScreenService] Retrieved monitor information for ${this.monitorsInfo.length} monitors`,
+      this.monitorsInfo
+    )
 
     if (this.monitorCount === 0 || this.monitorsInfo.length === 0) {
       this.log(LogLevel.WARN, '[ScreenService] No monitors detected, capture will not function')
@@ -208,18 +245,24 @@ export class ScreenService {
 
     inputService.controller.setMonitors(this.monitorsInfo)
 
-
     this.capturer.onMonitorChanged((monitor: MonitorUpdate) => {
       const currentMonitor = this.capturer?.getCurrentMonitor()
       if (!currentMonitor) {
-        return;
+        return
       }
 
       this.currentMonitorIndex = currentMonitor.pipewireStream || currentMonitor.index
-      this.log(LogLevel.DEBUG, '[ScreenService] Monitor index before change:', this.currentMonitorIndex)
-      inputService.controller.setCurrentMonitor(this.currentMonitorIndex, monitor.width, monitor.height)
+      this.log(
+        LogLevel.DEBUG,
+        '[ScreenService] Monitor index before change:',
+        this.currentMonitorIndex
+      )
+      inputService.controller.setCurrentMonitor(
+        this.currentMonitorIndex,
+        monitor.width,
+        monitor.height
+      )
       // inputService.setStartingX(currentMonitor.x)
-
 
       // this.log(LogLevel.INFO, `[ScreenService] Monitor changed callback: index ${monitor.index}`)
 
@@ -239,14 +282,16 @@ export class ScreenService {
 
   public async nextMonitor(): Promise<void> {
     if (this.capturer) {
-      this.log(LogLevel.INFO, '[ScreenService] Changing to next monitor, clearing old frames/textures...')
+      this.log(
+        LogLevel.INFO,
+        '[ScreenService] Changing to next monitor, clearing old frames/textures...'
+      )
 
       // this.currentMonitorIndex = (this.currentMonitorIndex + 1) % this.monitorCount
 
       this.releaseCachedSharedTexture()
       this.isProcessingFrame = false
       await this.capturer.nextMonitor()
-
 
       // inputService.monitorIndex = this.currentMonitorIndex
     }
@@ -299,13 +344,19 @@ export class ScreenService {
       const frameValid = frame && typeof frame.isDestroyed === 'function' && !frame.isDestroyed()
       const isValid = wcValid && frameValid && frame === wc.mainFrame
       if (!isValid) {
-        this.log(LogLevel.DEBUG, '[Capture] Removing invalid frame (webContents destroyed or frame changed)')
+        this.log(
+          LogLevel.DEBUG,
+          '[Capture] Removing invalid frame (webContents destroyed or frame changed)'
+        )
       }
       return isValid
     })
 
     if (this.activeFrames.length !== beforeFilter) {
-      this.log(LogLevel.DEBUG, `[Capture] Filtered active frames: ${beforeFilter} -> ${this.activeFrames.length}`)
+      this.log(
+        LogLevel.DEBUG,
+        `[Capture] Filtered active frames: ${beforeFilter} -> ${this.activeFrames.length}`
+      )
     }
 
     if (this.activeFrames.length === 0) {
@@ -363,7 +414,10 @@ export class ScreenService {
         }
 
         if (!this.cachedSharedTexture) {
-          this.log(LogLevel.WARN, '[Capture] Brak zaimportowanej sharedTexture, przechodzę do CPU fallback')
+          this.log(
+            LogLevel.WARN,
+            '[Capture] Brak zaimportowanej sharedTexture, przechodzę do CPU fallback'
+          )
           this.sendCpuFrame(frame)
           return
         }
@@ -427,7 +481,10 @@ export class ScreenService {
       return
     }
 
-    this.log(LogLevel.DEBUG, `[Capture] Sending CPU frame ${width}x${height}, stride=${stride}, buffer size=${buffer.byteLength}, format=${format}`)
+    this.log(
+      LogLevel.DEBUG,
+      `[Capture] Sending CPU frame ${width}x${height}, stride=${stride}, buffer size=${buffer.byteLength}, format=${format}`
+    )
 
     if (this.isProcessingFrame) {
       this.log(LogLevel.DEBUG, '[Capture] CPU frame already processing, skipping duplicate send')
@@ -478,7 +535,10 @@ export class ScreenService {
       }
     }
 
-    this.log(LogLevel.DEBUG, `[Capture] CPU frame sent to ${sent} of ${this.activeFrames.length} active frames`)
+    this.log(
+      LogLevel.DEBUG,
+      `[Capture] CPU frame sent to ${sent} of ${this.activeFrames.length} active frames`
+    )
 
     this.isProcessingFrame = false
   }
