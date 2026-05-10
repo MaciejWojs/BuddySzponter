@@ -169,8 +169,8 @@ export class ScreenService {
         '[ScreenService] Creating new ScreenCapture instance with logLevel debug'
       )
       this.capturer = new ScreenCapture({
-        logLevel: 'debug',
-        // disableLogging: true,
+        // logLevel: 'debug',
+        disableLogging: true,
         portalSessionHandle: inputService.controller.getSessionHandle() || undefined,
         pipewireRemoteFd: inputService.controller.getRemotePipewireFd() || undefined,
         portalMonitors: portalMonitors as MonitorMetadata[]
