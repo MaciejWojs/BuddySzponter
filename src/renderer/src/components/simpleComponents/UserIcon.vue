@@ -272,7 +272,7 @@ async function handleLogout(): Promise<void> {
   toastSuccess('toast.logoutSuccess')
   showUserModal.value = false
   showVersionModal.value = false
-  await router.push('/Menu')
+  await router.replace('/')
 }
 </script>
 

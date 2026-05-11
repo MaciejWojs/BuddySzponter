@@ -8,17 +8,12 @@
     <div class="menu-app-shell__main">
       <slot />
     </div>
-
-    <footer class="menu-footer">
-      <img :src="buddySzponterLogo" :alt="$t('common.logoAlt')" class="menu-logo" />
-    </footer>
   </section>
 </template>
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
 import { useUserStore } from '@renderer/stores/userStore'
-import buddySzponterLogo from '@images/buddyszponterLogo.png'
 import MainMenuNavBar from '@renderer/components/menu/MainMenuNavBar.vue'
 import UserIcon from '@renderer/components/simpleComponents/UserIcon.vue'
 import UserNoLogin from '@renderer/components/simpleComponents/UserNoLogin.vue'
@@ -37,6 +32,8 @@ const { isAuthenticated } = storeToRefs(userStore)
 
 .menu-page {
   min-height: 100vh;
+  max-height: 100vh;
+  overflow-y: auto;
   display: grid;
   grid-template-rows: auto auto 1fr auto;
   padding: 20px 56px 24px;
@@ -66,7 +63,6 @@ const { isAuthenticated } = storeToRefs(userStore)
 @media (max-width: 1100px) {
   .menu-page {
     padding: 12px 6vw 16px;
-    overflow-y: auto;
   }
 
   .menu-lang-selector {

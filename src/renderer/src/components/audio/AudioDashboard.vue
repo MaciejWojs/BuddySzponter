@@ -301,501 +301,880 @@ watch(micStudioModeEnabled, (enabled) => {
 </script>
 
 <template>
-  <section class="bg-[#1e1e1e] border border-[#333] rounded-lg p-5 shadow-xl">
-    <header class="mb-4">
-      <h2 class="text-lg font-bold text-white">Audio Dashboard</h2>
-      <p class="text-xs text-gray-400">Zaawansowany panel dzwieku WebRTC</p>
-    </header>
+  <div class="audio-dash">
+    <div class="audio-dash__flow">
+      <h3 class="audio-dash__section-head">{{ $t('audioDashboard.sectionSent') }}</h3>
 
-    <div class="grid grid-cols-1 gap-4">
-      <article class="bg-[#161616] border border-[#333] rounded-lg p-4">
-        <div class="flex items-center justify-between mb-3">
-          <h3 class="text-sm font-bold text-blue-300">🎙️ Moje Audio (Wysylane w siec)</h3>
-        </div>
-
-        <div class="mb-4">
-          <label class="text-xs text-gray-300 block mb-1.5">Mikrofon</label>
-          <select
-            v-model="selectedMicrophoneDeviceId"
-            class="w-full px-3 py-2 rounded-md bg-[#111] border border-[#3a3a3a] text-gray-200 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
-            @change="handleSelectedMicrophoneChange"
+      <div class="audio-dash__block">
+        <label class="audio-dash__label">{{ $t('menuNav.microphoneLabel') }}</label>
+        <select
+          v-model="selectedMicrophoneDeviceId"
+          class="audio-dash__select"
+          @change="handleSelectedMicrophoneChange"
+        >
+          <option value="">Domyslny mikrofon</option>
+          <option
+            v-for="mic in sessionStore.availableMicrophones"
+            :key="mic.deviceId"
+            :value="mic.deviceId"
           >
-            <option value="">Domyslny mikrofon</option>
-            <option
-              v-for="mic in sessionStore.availableMicrophones"
-              :key="mic.deviceId"
-              :value="mic.deviceId"
-            >
-              {{ mic.label }}
-            </option>
-          </select>
+            {{ mic.label }}
+          </option>
+        </select>
+      </div>
+
+      <div class="audio-dash__block">
+        <div class="audio-dash__row">
+          <span class="audio-dash__muted">{{ $t('audioDashboard.micVolume') }}</span>
+          <span
+            class="audio-dash__mono"
+            :class="isBoosting ? 'audio-dash__mono--warn' : 'audio-dash__mono--accent'"
+          >
+            {{ myMicPercent }}%
+          </span>
         </div>
 
-        <div class="mb-4">
-          <div class="flex items-center justify-between mb-2">
-            <span class="text-xs text-gray-300">Glosnosc mikrofonu</span>
-            <span
-              class="text-xs font-mono font-semibold transition-colors"
-              :class="isBoosting ? 'text-amber-400' : 'text-blue-400'"
-            >
-              {{ myMicPercent }}%
-            </span>
-          </div>
-
-          <div class="flex flex-col gap-3">
-            <div class="flex items-center gap-3">
-              <!-- //TODO - przerobić slider -->
-              <input
-                v-model.number="micVolumeSliderPercent"
-                type="range"
-                min="0"
-                max="100"
-                step="1"
-                class="pro-slider flex-1"
-                :class="isBoosting ? 'boost' : 'normal'"
-              />
-              <!-- TODO - przerobić button -->
-              <button
-                type="button"
-                class="h-9 w-9 rounded-md border text-xs font-bold transition-colors"
-                :class="
-                  isMyMicMuted
-                    ? 'bg-rose-900/30 border-rose-700 text-rose-300'
-                    : 'bg-[#202020] border-[#3f3f3f] text-gray-200 hover:border-blue-500'
-                "
-                :title="isMyMicMuted ? 'Wlacz mikrofon' : 'Wycisz mikrofon'"
-                @click="toggleMyMicMute()"
-              >
-                {{ isMyMicMuted ? '🎙️x' : '🎙️' }}
-              </button>
-            </div>
-
-            <VUMeter
-              class="w-full"
-              context-mode="auto-mic"
-              :enabled="sessionStore.includeMicrophone && !isMyMicMuted"
-              :is-capturing="sessionStore.isCapturing"
-              :device-id="selectedMicrophoneDeviceId || undefined"
-              :volume="sessionStore.localMicrophoneVolume"
-              :input-threshold-linear="dbToLinear(micInputThresholdDb)"
-              :limiter-threshold-db="limiterThresholdDb"
-            />
-
-            <div class="rounded-md border border-[#3a3a3a] bg-[#111] p-3">
-              <p class="text-xs text-gray-300 mb-3">Efekty mikrofonu</p>
-
-              <div class="flex flex-wrap items-center gap-2 mb-3">
-                <button
-                  type="button"
-                  class="px-3 py-1.5 rounded border text-[11px] transition-colors"
-                  :class="
-                    micLimiterEnabled
-                      ? 'border-amber-500 bg-amber-500/15 text-amber-300'
-                      : 'border-[#4a4a4a] text-gray-300 hover:border-amber-500/60'
-                  "
-                  @click="micLimiterEnabled = !micLimiterEnabled"
-                >
-                  Limiter {{ micLimiterEnabled ? 'ON' : 'OFF' }}
-                </button>
-
-                <button
-                  type="button"
-                  class="px-3 py-1.5 rounded border text-[11px] transition-colors"
-                  :class="
-                    micBassBoostEnabled
-                      ? 'border-indigo-500 bg-indigo-500/15 text-indigo-300'
-                      : 'border-[#4a4a4a] text-gray-300 hover:border-indigo-500/60'
-                  "
-                  @click="micBassBoostEnabled = !micBassBoostEnabled"
-                >
-                  Radiowy Bas {{ micBassBoostEnabled ? 'ON' : 'OFF' }}
-                </button>
-
-                <button
-                  type="button"
-                  class="px-3 py-1.5 rounded border text-[11px] transition-colors relative group"
-                  :class="
-                    micStudioModeEnabled
-                      ? 'border-fuchsia-500 bg-fuchsia-500/15 text-fuchsia-300'
-                      : 'border-[#4a4a4a] text-gray-300 hover:border-fuchsia-500/60'
-                  "
-                  @click="micStudioModeEnabled = !micStudioModeEnabled"
-                >
-                  Tryb Studio {{ micStudioModeEnabled ? 'ON' : 'OFF' }}
-                  <div
-                    class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block w-48 p-2 bg-black border border-gray-700 text-gray-300 text-[10px] rounded shadow-lg z-10 whitespace-normal text-center"
-                  >
-                    Wylacza obrobke przegladarki dla maksymalnej jakosci. Uzywaj tylko w
-                    sluchawkach!
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  class="px-3 py-1.5 rounded border text-[11px] transition-colors"
-                  :class="
-                    micMonitoringEnabled
-                      ? 'border-emerald-500 bg-emerald-500/15 text-emerald-300'
-                      : 'border-[#4a4a4a] text-gray-300 hover:border-emerald-500/60'
-                  "
-                  @click="micMonitoringEnabled = !micMonitoringEnabled"
-                >
-                  Odsłuch {{ micMonitoringEnabled ? 'ON' : 'OFF' }}
-                </button>
-              </div>
-
-              <div class="mt-3 border border-[#2f2f2f] rounded-md bg-[#0f0f0f] p-3">
-                <p class="text-xs text-gray-300 mb-2">Presety Głosowe</p>
-                <div class="flex flex-wrap gap-2">
-                  <button
-                    v-for="preset in voicePresets"
-                    :key="preset.id"
-                    type="button"
-                    class="px-3 py-1.5 rounded-full border text-[11px] transition-colors"
-                    :class="
-                      activeVoicePreset === preset.id
-                        ? 'bg-blue-600 border-blue-400 text-white'
-                        : 'bg-[#111] border-[#3a3a3a] text-gray-400 hover:border-gray-500'
-                    "
-                    @click="selectVoicePreset(preset.id)"
-                  >
-                    {{ preset.label }}
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <div class="flex items-center justify-between mb-2">
-                  <span class="text-xs text-gray-300">Próg wejścia (Noise Gate)</span>
-                  <span
-                    class="text-xs font-mono font-bold"
-                    :class="isAutoGate ? 'text-emerald-400' : 'text-cyan-300'"
-                  >
-                    {{ isAutoGate ? 'AUTO (Adaptacyjny)' : micInputThresholdDb.toFixed(1) + ' dB' }}
-                  </span>
-                </div>
-                <input
-                  v-model.number="micInputThresholdSliderPercent"
-                  type="range"
-                  min="0"
-                  max="100"
-                  step="0.5"
-                  class="pro-slider monitor w-full"
-                  :class="isAutoGate ? 'system' : ''"
-                />
-                <p v-if="isAutoGate" class="mt-1 text-[10px] text-gray-500">
-                  Bramka automatycznie uczy sie poziomu szumu w Twoim pokoju.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div>
-          <div class="flex items-center justify-between mb-2">
-            <span class="text-xs text-gray-300">Moje audio systemowe</span>
-            <span class="text-xs font-mono text-emerald-400">{{ mySystemPercent }}%</span>
-          </div>
-
-          <div class="flex items-center gap-3">
+        <div class="audio-dash__stack">
+          <div class="audio-dash__row audio-dash__row--tight">
             <input
-              v-model.number="mySystemPercent"
+              v-model.number="micVolumeSliderPercent"
               type="range"
               min="0"
               max="100"
               step="1"
-              class="pro-slider system flex-1"
+              class="audio-dash__slider flex-1"
+              :class="isBoosting ? 'audio-dash__slider--boost' : 'audio-dash__slider--mic'"
             />
             <button
               type="button"
-              class="h-9 w-9 rounded-md border text-xs font-bold transition-colors"
+              class="audio-dash__icon-btn"
               :class="
-                isMySystemMuted
-                  ? 'bg-rose-900/30 border-rose-700 text-rose-300'
-                  : 'bg-[#202020] border-[#3f3f3f] text-gray-200 hover:border-emerald-500'
+                isMyMicMuted ? 'audio-dash__icon-btn--danger' : 'audio-dash__icon-btn--neutral'
               "
-              :title="isMySystemMuted ? 'Wlacz system audio' : 'Wycisz system audio'"
-              @click="toggleMySystemMute()"
+              :title="isMyMicMuted ? $t('audioDashboard.unmuteMic') : $t('audioDashboard.muteMic')"
+              @click="toggleMyMicMute()"
             >
-              {{ isMySystemMuted ? '🔇' : '🔊' }}
+              {{ isMyMicMuted ? '🎙️x' : '🎙️' }}
             </button>
           </div>
-        </div>
-      </article>
 
-      <article class="bg-[#161616] border border-[#333] rounded-lg p-4">
-        <div class="flex items-center justify-between mb-3">
-          <h3 class="text-sm font-bold text-cyan-300">🎧 Odsluch (Lokalny mikser)</h3>
-        </div>
+          <VUMeter
+            class="audio-dash__meter"
+            context-mode="auto-mic"
+            :enabled="sessionStore.includeMicrophone && !isMyMicMuted"
+            :is-capturing="sessionStore.isCapturing"
+            :device-id="selectedMicrophoneDeviceId || undefined"
+            :volume="sessionStore.localMicrophoneVolume"
+            :input-threshold-linear="dbToLinear(micInputThresholdDb)"
+            :limiter-threshold-db="limiterThresholdDb"
+          />
 
-        <div class="mb-4">
-          <div class="flex items-center justify-between mb-2">
-            <span class="text-xs text-gray-300 flex items-center gap-2">
-              Mikrofon Goscia
-              <span
-                class="inline-flex h-4 w-4 items-center justify-center rounded-full border border-cyan-700 text-cyan-400 text-[10px]"
-                title="Dzwiek scisza sie automatycznie, gdy Gosc mowi (Audio Ducking)."
-                >i</span
+          <div class="audio-dash__group">
+            <p class="audio-dash__group-title">{{ $t('audioDashboard.micEffects') }}</p>
+
+            <div class="audio-dash__pills">
+              <button
+                type="button"
+                class="audio-dash__pill"
+                :class="micLimiterEnabled ? 'audio-dash__pill--on' : ''"
+                @click="micLimiterEnabled = !micLimiterEnabled"
               >
-            </span>
-            <span class="text-xs font-mono text-cyan-400">{{ guestMicPercent }}%</span>
+                Limiter {{ micLimiterEnabled ? 'ON' : 'OFF' }}
+              </button>
+
+              <button
+                type="button"
+                class="audio-dash__pill"
+                :class="micBassBoostEnabled ? 'audio-dash__pill--on' : ''"
+                @click="micBassBoostEnabled = !micBassBoostEnabled"
+              >
+                Radiowy Bas {{ micBassBoostEnabled ? 'ON' : 'OFF' }}
+              </button>
+
+              <button
+                type="button"
+                class="audio-dash__pill audio-dash__pill--tip"
+                :class="micStudioModeEnabled ? 'audio-dash__pill--on' : ''"
+                :title="$t('audioDashboard.studioModeHint')"
+                @click="micStudioModeEnabled = !micStudioModeEnabled"
+              >
+                Tryb Studio {{ micStudioModeEnabled ? 'ON' : 'OFF' }}
+              </button>
+
+              <button
+                type="button"
+                class="audio-dash__pill"
+                :class="micMonitoringEnabled ? 'audio-dash__pill--on' : ''"
+                @click="micMonitoringEnabled = !micMonitoringEnabled"
+              >
+                Odsłuch {{ micMonitoringEnabled ? 'ON' : 'OFF' }}
+              </button>
+            </div>
+
+            <div class="audio-dash__group audio-dash__group--sub">
+              <p class="audio-dash__group-title">{{ $t('audioDashboard.voicePresets') }}</p>
+              <div class="audio-dash__pills audio-dash__pills--wrap">
+                <button
+                  v-for="preset in voicePresets"
+                  :key="preset.id"
+                  type="button"
+                  class="audio-dash__chip"
+                  :class="{ 'audio-dash__chip--active': activeVoicePreset === preset.id }"
+                  @click="selectVoicePreset(preset.id)"
+                >
+                  {{ preset.label }}
+                </button>
+              </div>
+            </div>
+
+            <div class="audio-dash__param-block">
+              <div class="audio-dash__row">
+                <span class="audio-dash__muted">{{ $t('audioDashboard.noiseGate') }}</span>
+                <span
+                  class="audio-dash__mono"
+                  :class="isAutoGate ? 'audio-dash__mono--ok' : 'audio-dash__mono--accent'"
+                >
+                  {{
+                    isAutoGate
+                      ? $t('audioDashboard.autoGate')
+                      : micInputThresholdDb.toFixed(1) + ' dB'
+                  }}
+                </span>
+              </div>
+              <input
+                v-model.number="micInputThresholdSliderPercent"
+                type="range"
+                min="0"
+                max="100"
+                step="0.5"
+                class="audio-dash__slider audio-dash__slider--monitor w-full"
+                :class="isAutoGate ? 'audio-dash__slider--system' : ''"
+              />
+              <p v-if="isAutoGate" class="audio-dash__fineprint">
+                {{ $t('audioDashboard.autoGateHint') }}
+              </p>
+            </div>
           </div>
-          <p class="text-[11px] text-gray-500 mb-2">
-            Dzwiek scisza sie automatycznie, gdy Gosc mowi (Audio Ducking).
-          </p>
+        </div>
+      </div>
+
+      <div class="audio-dash__block">
+        <div class="audio-dash__row">
+          <span class="audio-dash__muted">{{ $t('audioDashboard.mySystemAudio') }}</span>
+          <span class="audio-dash__mono audio-dash__mono--accent">{{ mySystemPercent }}%</span>
+        </div>
+
+        <div class="audio-dash__row audio-dash__row--tight">
           <input
-            v-model.number="guestMicPercent"
+            v-model.number="mySystemPercent"
             type="range"
             min="0"
             max="100"
             step="1"
-            class="pro-slider monitor w-full"
+            class="audio-dash__slider audio-dash__slider--system flex-1"
           />
+          <button
+            type="button"
+            class="audio-dash__icon-btn"
+            :class="
+              isMySystemMuted ? 'audio-dash__icon-btn--danger' : 'audio-dash__icon-btn--neutral'
+            "
+            :title="
+              isMySystemMuted ? $t('audioDashboard.unmuteSystem') : $t('audioDashboard.muteSystem')
+            "
+            @click="toggleMySystemMute()"
+          >
+            {{ isMySystemMuted ? '🔇' : '🔊' }}
+          </button>
         </div>
+      </div>
 
-        <div>
-          <div class="flex items-center justify-between mb-2">
-            <span class="text-xs text-gray-300">System Goscia</span>
-            <span class="text-xs font-mono text-fuchsia-300">{{ guestSystemPercent }}%</span>
-          </div>
-          <div class="flex items-center gap-3">
-            <input
-              v-model.number="guestSystemPercent"
-              type="range"
-              min="0"
-              max="100"
-              step="1"
-              class="pro-slider guest-system flex-1"
-            />
-            <button
-              type="button"
-              class="h-9 w-9 rounded-md border text-xs font-bold transition-colors"
-              :class="
-                isGuestSystemMuted
-                  ? 'bg-rose-900/30 border-rose-700 text-rose-300'
-                  : 'bg-[#202020] border-[#3f3f3f] text-gray-200 hover:border-fuchsia-500'
-              "
-              :title="isGuestSystemMuted ? 'Wlacz system Goscia' : 'Wycisz system Goscia'"
-              @click="toggleGuestSystemMute()"
-            >
-              {{ isGuestSystemMuted ? '🔇' : '🔊' }}
-            </button>
-          </div>
+      <hr class="audio-dash__rule" />
+      <h3 class="audio-dash__section-head">{{ $t('audioDashboard.sectionMonitor') }}</h3>
+
+      <div class="audio-dash__block">
+        <div class="audio-dash__row">
+          <span class="audio-dash__muted audio-dash__muted--inline">
+            {{ $t('audioDashboard.guestMic') }}
+            <span class="audio-dash__info" :title="$t('audioDashboard.duckingExplain')">i</span>
+          </span>
+          <span class="audio-dash__mono audio-dash__mono--accent">{{ guestMicPercent }}%</span>
         </div>
-      </article>
-    </div>
+        <p class="audio-dash__fineprint audio-dash__fineprint--mb">
+          {{ $t('audioDashboard.duckingExplain') }}
+        </p>
+        <input
+          v-model.number="guestMicPercent"
+          type="range"
+          min="0"
+          max="100"
+          step="1"
+          class="audio-dash__slider audio-dash__slider--monitor w-full"
+        />
+      </div>
 
-    <article class="mt-4 bg-[#161616] border border-[#333] rounded-lg p-4">
-      <button
-        type="button"
-        class="w-full flex items-center justify-between text-left"
-        @click="isAdvancedOpen = !isAdvancedOpen"
-      >
-        <h3 class="text-sm font-bold text-amber-300">⚙️ Zaawansowane Ustawienia Duckingu</h3>
-        <span class="text-xs text-amber-400">{{ isAdvancedOpen ? 'Ukryj' : 'Pokaz' }}</span>
-      </button>
-
-      <div v-if="isAdvancedOpen" class="mt-4 space-y-4">
-        <div class="rounded-lg border border-[#3a3a3a] bg-[#111] p-3">
-          <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
-            <p class="text-xs text-gray-300">
-              Presety Duckingu
-              <span class="text-gray-500">(szybkie profile reakcji na mowę)</span>
-            </p>
-            <button
-              type="button"
-              class="px-3 py-1.5 rounded border border-[#505050] text-[11px] text-gray-300 hover:border-amber-500 hover:text-amber-300 transition-colors"
-              @click="resetDuckingToDefault()"
-            >
-              Reset do domyslnego
-            </button>
-          </div>
-
-          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-2">
-            <button
-              v-for="preset in duckingPresets"
-              :key="preset.id"
-              type="button"
-              class="text-left rounded-md border px-3 py-2 transition-colors"
-              :class="
-                isPresetActive(preset)
-                  ? 'border-amber-500 bg-amber-500/10'
-                  : 'border-[#3d3d3d] bg-[#1b1b1b] hover:border-amber-600/70'
-              "
-              @click="applyDuckingPreset(preset)"
-            >
-              <p
-                class="text-xs font-semibold"
-                :class="isPresetActive(preset) ? 'text-amber-300' : 'text-gray-200'"
-              >
-                {{ preset.label }}
-              </p>
-              <p
-                class="mt-1 text-[11px]"
-                :class="isPresetActive(preset) ? 'text-amber-200/80' : 'text-gray-500'"
-              >
-                {{ preset.hint }}
-              </p>
-            </button>
-          </div>
-
-          <p class="mt-3 text-[11px] text-gray-500">
-            Aktywny preset:
-            <span class="text-amber-300 font-medium">{{
-              activeDuckingPreset?.label ?? 'Custom'
-            }}</span>
-          </p>
+      <div class="audio-dash__block">
+        <div class="audio-dash__row">
+          <span class="audio-dash__muted">{{ $t('audioDashboard.guestSystem') }}</span>
+          <span class="audio-dash__mono audio-dash__mono--accent">{{ guestSystemPercent }}%</span>
         </div>
+        <div class="audio-dash__row audio-dash__row--tight">
+          <input
+            v-model.number="guestSystemPercent"
+            type="range"
+            min="0"
+            max="100"
+            step="1"
+            class="audio-dash__slider audio-dash__slider--guest flex-1"
+          />
+          <button
+            type="button"
+            class="audio-dash__icon-btn"
+            :class="
+              isGuestSystemMuted ? 'audio-dash__icon-btn--danger' : 'audio-dash__icon-btn--neutral'
+            "
+            :title="
+              isGuestSystemMuted
+                ? $t('audioDashboard.unmuteGuestSystem')
+                : $t('audioDashboard.muteGuestSystem')
+            "
+            @click="toggleGuestSystemMute()"
+          >
+            {{ isGuestSystemMuted ? '🔇' : '🔊' }}
+          </button>
+        </div>
+      </div>
 
-        <div
-          class="grid grid-cols-1 lg:grid-cols-2 gap-4 rounded-lg border border-[#3a3a3a] bg-[#111] p-3"
+      <hr class="audio-dash__rule" />
+
+      <div class="audio-dash__advanced">
+        <button
+          type="button"
+          class="audio-dash__advanced-toggle"
+          @click="isAdvancedOpen = !isAdvancedOpen"
         >
-          <div class="space-y-2">
-            <div class="flex items-center justify-between">
-              <span class="text-xs text-gray-300">Sila wyciszenia (Ducking Level)</span>
-              <span class="text-xs font-mono text-amber-300">{{
-                sessionStore.audioDuckingLevel.toFixed(2)
-              }}</span>
-            </div>
-            <input
-              v-model.number="sessionStore.audioDuckingLevel"
-              class="pro-slider ducking w-full"
-              type="range"
-              min="0"
-              max="1"
-              step="0.01"
-            />
-          </div>
+          <h3 class="audio-dash__section-head audio-dash__section-head--toggle">
+            {{ $t('audioDashboard.advancedDucking') }}
+          </h3>
+          <span class="audio-dash__chev">{{ isAdvancedOpen ? '▲' : '▼' }}</span>
+        </button>
 
-          <div class="space-y-2">
-            <div class="flex items-center justify-between">
-              <span class="text-xs text-gray-300">Prog aktywacji (Threshold)</span>
-              <span class="text-xs font-mono text-amber-300">{{
-                sessionStore.audioSpeechThreshold.toFixed(3)
-              }}</span>
-            </div>
-            <input
-              v-model.number="sessionStore.audioSpeechThreshold"
-              class="pro-slider ducking w-full"
-              type="range"
-              min="0"
-              max="0.1"
-              step="0.001"
-            />
-          </div>
-
-          <div class="space-y-2">
-            <div class="flex items-center justify-between">
-              <span class="text-xs text-gray-300">Atak (Attack smoothing)</span>
-              <span class="text-xs font-mono text-amber-300"
-                >{{ sessionStore.audioGainSmoothing.toFixed(2) }} s</span
+        <div v-show="isAdvancedOpen" class="audio-dash__advanced-body">
+          <div class="audio-dash__group">
+            <div class="audio-dash__row audio-dash__row--wrap">
+              <p class="audio-dash__muted">
+                {{ $t('audioDashboard.duckingPresets') }}
+                <span class="audio-dash__fineprint audio-dash__fineprint--inline">{{
+                  $t('audioDashboard.duckingPresetsHint')
+                }}</span>
+              </p>
+              <button
+                type="button"
+                class="audio-dash__btn audio-dash__btn--ghost"
+                @click="resetDuckingToDefault()"
               >
+                {{ $t('audioDashboard.resetDucking') }}
+              </button>
             </div>
-            <input
-              v-model.number="sessionStore.audioGainSmoothing"
-              class="pro-slider ducking w-full"
-              type="range"
-              min="0.01"
-              max="0.5"
-              step="0.01"
-            />
+
+            <div class="audio-dash__duck-grid">
+              <button
+                v-for="preset in duckingPresets"
+                :key="preset.id"
+                type="button"
+                class="audio-dash__duck-card"
+                :class="{ 'audio-dash__duck-card--active': isPresetActive(preset) }"
+                @click="applyDuckingPreset(preset)"
+              >
+                <p class="audio-dash__duck-name">{{ preset.label }}</p>
+                <p class="audio-dash__duck-hint">{{ preset.hint }}</p>
+              </button>
+            </div>
+
+            <p class="audio-dash__fineprint">
+              {{ $t('audioDashboard.activePreset') }}
+              <span class="audio-dash__mono audio-dash__mono--accent">{{
+                activeDuckingPreset?.label ?? 'Custom'
+              }}</span>
+            </p>
           </div>
 
-          <div class="space-y-2">
-            <div class="flex items-center justify-between">
-              <span class="text-xs text-gray-300">Podtrzymanie (Hold Frames)</span>
-              <span class="text-xs font-mono text-amber-300"
-                >{{ sessionStore.audioHoldFrames }} klatek</span
-              >
+          <div class="audio-dash__param-stack">
+            <div class="audio-dash__param-block">
+              <div class="audio-dash__row">
+                <span class="audio-dash__muted">{{ $t('audioDashboard.duckingLevel') }}</span>
+                <span class="audio-dash__mono audio-dash__mono--accent">{{
+                  sessionStore.audioDuckingLevel.toFixed(2)
+                }}</span>
+              </div>
+              <input
+                v-model.number="sessionStore.audioDuckingLevel"
+                class="audio-dash__slider audio-dash__slider--ducking w-full"
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+              />
             </div>
-            <input
-              v-model.number="sessionStore.audioHoldFrames"
-              class="pro-slider ducking w-full"
-              type="range"
-              min="0"
-              max="30"
-              step="1"
-            />
+
+            <div class="audio-dash__param-block">
+              <div class="audio-dash__row">
+                <span class="audio-dash__muted">{{ $t('audioDashboard.duckingThreshold') }}</span>
+                <span class="audio-dash__mono audio-dash__mono--accent">{{
+                  sessionStore.audioSpeechThreshold.toFixed(3)
+                }}</span>
+              </div>
+              <input
+                v-model.number="sessionStore.audioSpeechThreshold"
+                class="audio-dash__slider audio-dash__slider--ducking w-full"
+                type="range"
+                min="0"
+                max="0.1"
+                step="0.001"
+              />
+            </div>
+
+            <div class="audio-dash__param-block">
+              <div class="audio-dash__row">
+                <span class="audio-dash__muted">{{ $t('audioDashboard.attackSmoothing') }}</span>
+                <span class="audio-dash__mono audio-dash__mono--accent"
+                  >{{ sessionStore.audioGainSmoothing.toFixed(2) }} s</span
+                >
+              </div>
+              <input
+                v-model.number="sessionStore.audioGainSmoothing"
+                class="audio-dash__slider audio-dash__slider--ducking w-full"
+                type="range"
+                min="0.01"
+                max="0.5"
+                step="0.01"
+              />
+            </div>
+
+            <div class="audio-dash__param-block">
+              <div class="audio-dash__row">
+                <span class="audio-dash__muted">{{ $t('audioDashboard.holdFrames') }}</span>
+                <span class="audio-dash__mono audio-dash__mono--accent"
+                  >{{ sessionStore.audioHoldFrames }} {{ $t('audioDashboard.framesUnit') }}</span
+                >
+              </div>
+              <input
+                v-model.number="sessionStore.audioHoldFrames"
+                class="audio-dash__slider audio-dash__slider--ducking w-full"
+                type="range"
+                min="0"
+                max="30"
+                step="1"
+              />
+            </div>
           </div>
         </div>
       </div>
-    </article>
-  </section>
+    </div>
+  </div>
 </template>
 
 <style scoped>
-.pro-slider {
+.audio-dash {
+  --ad-border: rgba(167, 73, 252, 0.38);
+  --ad-border-soft: rgba(167, 73, 252, 0.22);
+  --ad-surface: rgba(6, 0, 31, 0.55);
+  --ad-surface-deep: rgba(13, 0, 53, 0.5);
+  --ad-text: rgba(255, 255, 255, 0.92);
+  --ad-muted: rgba(255, 255, 255, 0.72);
+  --ad-accent: #c084fc;
+  --ad-lime: #d0f224;
+  --ad-warn: #fbbf24;
+}
+
+.audio-dash__flow {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.audio-dash__section-head {
+  margin: 20px 0 12px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--ad-text);
+}
+
+.audio-dash__section-head:first-child {
+  margin-top: 0;
+}
+
+.audio-dash__section-head--toggle {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.audio-dash__rule {
+  margin: 18px 0 0;
+  border: none;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.audio-dash__advanced {
+  padding-top: 2px;
+}
+
+.audio-dash__block + .audio-dash__block {
+  margin-top: 14px;
+}
+
+.audio-dash__label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ad-muted);
+  margin-bottom: 6px;
+}
+
+.audio-dash__select {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: var(--ad-surface-deep);
+  color: #f4f4f8;
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.audio-dash__select:focus-visible {
+  outline: 2px solid rgba(167, 73, 252, 0.75);
+  outline-offset: 2px;
+}
+
+.audio-dash__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.audio-dash__row--tight {
+  margin-bottom: 0;
+}
+
+.audio-dash__row--wrap {
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.audio-dash__muted {
+  font-size: 12px;
+  color: var(--ad-muted);
+}
+
+.audio-dash__muted--inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.audio-dash__mono {
+  font-size: 12px;
+  font-family: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace;
+  font-weight: 600;
+}
+
+.audio-dash__mono--accent {
+  color: var(--ad-accent);
+}
+
+.audio-dash__mono--warn {
+  color: var(--ad-warn);
+}
+
+.audio-dash__mono--ok {
+  color: #86efac;
+}
+
+.audio-dash__info {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(192, 132, 252, 0.55);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ad-accent);
+  cursor: help;
+}
+
+.audio-dash__stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.audio-dash__group {
+  margin-top: 6px;
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+.audio-dash__group--sub {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.audio-dash__group-title {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ad-text);
+}
+
+.audio-dash__param-stack {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.audio-dash__param-block {
+  margin: 0;
+}
+
+.audio-dash__pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.audio-dash__pills--wrap {
+  margin-top: 0;
+}
+
+.audio-dash__pill {
+  padding: 7px 12px;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--ad-muted);
+  font-size: 11px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease;
+}
+
+.audio-dash__pill:hover {
+  border-color: rgba(192, 132, 252, 0.45);
+  color: var(--ad-text);
+}
+
+.audio-dash__pill--on {
+  border-color: rgba(192, 132, 252, 0.75);
+  background: rgba(192, 132, 252, 0.18);
+  color: #f5e8ff;
+}
+
+.audio-dash__chip {
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(0, 0, 0, 0.2);
+  color: var(--ad-muted);
+  font-size: 11px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    color 0.18s ease;
+}
+
+.audio-dash__chip:hover {
+  border-color: rgba(192, 132, 252, 0.4);
+}
+
+.audio-dash__chip--active {
+  border-color: rgba(208, 242, 36, 0.55);
+  background: rgba(208, 242, 36, 0.14);
+  color: var(--ad-lime);
+}
+
+.audio-dash__icon-btn {
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    border-color 0.18s ease,
+    background 0.18s ease;
+}
+
+.audio-dash__icon-btn--neutral:hover {
+  border-color: rgba(192, 132, 252, 0.55);
+}
+
+.audio-dash__icon-btn--danger {
+  border-color: rgba(248, 113, 113, 0.45);
+  background: rgba(127, 29, 29, 0.25);
+}
+
+.audio-dash__btn {
+  padding: 8px 14px;
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease;
+}
+
+.audio-dash__btn--ghost {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--ad-muted);
+}
+
+.audio-dash__btn--ghost:hover {
+  border-color: rgba(192, 132, 252, 0.5);
+  color: var(--ad-text);
+}
+
+.audio-dash__advanced-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.audio-dash__advanced-toggle:hover .audio-dash__section-head--toggle {
+  color: var(--ad-accent);
+}
+
+.audio-dash__chev {
+  font-size: 11px;
+  color: var(--ad-accent);
+  flex-shrink: 0;
+}
+
+.audio-dash__advanced-body {
+  margin-top: 14px;
+  padding-top: 4px;
+}
+
+.audio-dash__duck-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+@media (min-width: 640px) {
+  .audio-dash__duck-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.audio-dash__duck-card {
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  font-family: inherit;
+  transition:
+    border-color 0.18s ease,
+    background 0.18s ease;
+}
+
+.audio-dash__duck-card:hover {
+  border-color: rgba(192, 132, 252, 0.45);
+}
+
+.audio-dash__duck-card--active {
+  border-color: rgba(192, 132, 252, 0.65);
+  background: rgba(192, 132, 252, 0.12);
+}
+
+.audio-dash__duck-name {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ad-text);
+}
+
+.audio-dash__duck-hint {
+  margin: 6px 0 0;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--ad-muted);
+}
+
+.audio-dash__fineprint {
+  margin: 6px 0 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.audio-dash__fineprint--mb {
+  margin-bottom: 8px;
+}
+
+.audio-dash__fineprint--inline {
+  margin: 0;
+  display: inline;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.audio-dash__meter {
+  width: 100%;
+}
+
+/* Sliders — kolorystyka jak w ustawieniach (fiolet + lime) */
+.audio-dash__slider {
   appearance: none;
+  flex: 1;
+  min-width: 0;
   height: 8px;
   border-radius: 999px;
-  background: linear-gradient(90deg, #1f2937 0%, #374151 100%);
-  border: 1px solid #3b3b3b;
+  background: linear-gradient(90deg, rgba(30, 10, 50, 0.9) 0%, rgba(50, 20, 80, 0.5) 100%);
+  border: 1px solid rgba(167, 73, 252, 0.25);
   outline: none;
 }
 
-.pro-slider::-webkit-slider-thumb {
+.audio-dash__slider::-webkit-slider-thumb {
   appearance: none;
   width: 16px;
   height: 16px;
   border-radius: 999px;
-  background: #60a5fa;
-  border: 2px solid #dbeafe;
-  box-shadow: 0 0 10px rgba(96, 165, 250, 0.4);
+  background: #c084fc;
+  border: 2px solid rgba(245, 230, 255, 0.95);
+  box-shadow: 0 0 10px rgba(192, 132, 252, 0.45);
   cursor: pointer;
-  transition: all 160ms ease;
+  transition: transform 0.15s ease;
 }
 
-.pro-slider.normal::-webkit-slider-thumb {
-  background: #60a5fa;
-  box-shadow: 0 0 10px rgba(96, 165, 250, 0.45);
+.audio-dash__slider::-webkit-slider-thumb:hover {
+  transform: scale(1.06);
 }
 
-.pro-slider.boost::-webkit-slider-thumb {
-  background: #f59e0b;
-  box-shadow: 0 0 10px rgba(245, 158, 11, 0.55);
+.audio-dash__slider--mic::-webkit-slider-thumb {
+  background: #c084fc;
+  box-shadow: 0 0 12px rgba(192, 132, 252, 0.5);
 }
 
-.pro-slider.boost {
-  background: linear-gradient(90deg, #3f3122 0%, #6b3f1d 100%);
+.audio-dash__slider--boost {
+  background: linear-gradient(90deg, rgba(60, 35, 15, 0.85) 0%, rgba(90, 45, 20, 0.55) 100%);
+  border-color: rgba(251, 191, 36, 0.35);
 }
 
-.pro-slider.system::-webkit-slider-thumb {
-  background: #34d399;
-  box-shadow: 0 0 10px rgba(52, 211, 153, 0.5);
+.audio-dash__slider--boost::-webkit-slider-thumb {
+  background: var(--ad-warn);
+  border-color: #fef3c7;
+  box-shadow: 0 0 12px rgba(251, 191, 36, 0.45);
 }
 
-.pro-slider.monitor::-webkit-slider-thumb {
-  background: #22d3ee;
-  box-shadow: 0 0 10px rgba(34, 211, 238, 0.5);
+.audio-dash__slider--system::-webkit-slider-thumb {
+  background: #d0f224;
+  border-color: #ecfccb;
+  box-shadow: 0 0 12px rgba(208, 242, 36, 0.35);
 }
 
-.pro-slider.guest-system::-webkit-slider-thumb {
-  background: #e879f9;
-  box-shadow: 0 0 10px rgba(232, 121, 249, 0.45);
+.audio-dash__slider--monitor::-webkit-slider-thumb {
+  background: #e9d5ff;
+  border-color: #faf5ff;
+  box-shadow: 0 0 10px rgba(233, 213, 255, 0.5);
 }
 
-.pro-slider.ducking::-webkit-slider-thumb {
-  background: #f59e0b;
-  box-shadow: 0 0 10px rgba(245, 158, 11, 0.45);
+.audio-dash__slider--guest::-webkit-slider-thumb {
+  background: #d8b4fe;
+  border-color: #f3e8ff;
+  box-shadow: 0 0 10px rgba(216, 180, 254, 0.45);
 }
 
-.pro-slider::-moz-range-thumb {
+.audio-dash__slider--ducking::-webkit-slider-thumb {
+  background: #d0f224;
+  border-color: rgba(208, 242, 36, 0.85);
+  box-shadow: 0 0 10px rgba(208, 242, 36, 0.35);
+}
+
+.audio-dash__slider::-moz-range-thumb {
   width: 16px;
   height: 16px;
-  border: 2px solid #dbeafe;
+  border: 2px solid rgba(245, 230, 255, 0.95);
   border-radius: 999px;
-  background: #60a5fa;
+  background: #c084fc;
   cursor: pointer;
 }
 
-.pro-slider::-moz-range-track {
+.audio-dash__slider::-moz-range-track {
   height: 8px;
   border-radius: 999px;
-  background: linear-gradient(90deg, #1f2937 0%, #374151 100%);
-  border: 1px solid #3b3b3b;
+  background: linear-gradient(90deg, rgba(30, 10, 50, 0.9) 0%, rgba(50, 20, 80, 0.5) 100%);
+  border: 1px solid rgba(167, 73, 252, 0.25);
 }
 
-.pro-slider.ducking::-moz-range-thumb {
-  background: #f59e0b;
+/* Jasny motyw (spójnie ze stroną ustawień) */
+:root[data-theme='light'] .audio-dash {
+  --ad-border: rgba(124, 58, 237, 0.35);
+  --ad-border-soft: rgba(124, 58, 237, 0.18);
+  --ad-surface: rgba(255, 255, 255, 0.88);
+  --ad-surface-deep: rgba(244, 244, 250, 0.98);
+  --ad-text: #111827;
+  --ad-muted: rgba(17, 24, 39, 0.68);
+  --ad-accent: #7c3aed;
+}
+
+:root[data-theme='light'] .audio-dash__select {
+  background: #fff;
+  color: #111827;
+  border-color: rgba(17, 24, 39, 0.15);
+}
+
+:root[data-theme='light'] .audio-dash__slider {
+  background: linear-gradient(90deg, rgba(237, 233, 254, 0.95) 0%, rgba(221, 214, 254, 0.65) 100%);
+  border-color: rgba(124, 58, 237, 0.2);
+}
+
+:root[data-theme='light'] .audio-dash__duck-card {
+  background: rgba(255, 255, 255, 0.75);
+  border-color: rgba(124, 58, 237, 0.15);
+}
+
+:root[data-theme='light'] .audio-dash__rule {
+  background: rgba(17, 24, 39, 0.1);
+}
+
+:root[data-theme='light'] .audio-dash__group--sub {
+  border-top-color: rgba(17, 24, 39, 0.08);
+}
+
+:root[data-theme='light'] .audio-dash__fineprint {
+  color: rgba(17, 24, 39, 0.55);
 }
 </style>

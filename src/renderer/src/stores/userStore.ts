@@ -131,7 +131,15 @@ export const useUserStore = defineStore('user', () => {
         return false
       }
 
-      const hasUser = await fetchCurrentUser()
+      let hasUser = false
+      for (let attempt = 0; attempt < 3; attempt++) {
+        hasUser = await fetchCurrentUser(true)
+        if (hasUser) break
+        await new Promise((r) => setTimeout(r, 200))
+      }
+      if (!hasUser) {
+        hasUser = await fetchCurrentUser(false)
+      }
       if (!hasUser) {
         errorMessage.value = 'Zalogowano, ale nie udalo sie pobrac profilu uzytkownika.'
       }

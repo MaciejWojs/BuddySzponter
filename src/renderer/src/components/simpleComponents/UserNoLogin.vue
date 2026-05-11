@@ -68,7 +68,7 @@ const { isAuthenticated } = storeToRefs(userStore)
 
 function goToLogin(): void {
   if (isAuthenticated.value) {
-    void router.push('/Menu')
+    void router.push('/')
     return
   }
   router.push('/login')
@@ -77,7 +77,7 @@ function goToLogin(): void {
 
 function goToRegister(): void {
   if (isAuthenticated.value) {
-    void router.push('/Menu')
+    void router.push('/')
     return
   }
   router.push('/register')

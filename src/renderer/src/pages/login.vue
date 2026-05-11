@@ -3,7 +3,7 @@ import { useRouter } from 'vue-router'
 import buddySzponterLogo from '@images/buddyszponterLogo.png'
 const router = useRouter()
 function goToMenu(): void {
-  void router.push('/Menu')
+  void router.push('/')
 }
 </script>
 

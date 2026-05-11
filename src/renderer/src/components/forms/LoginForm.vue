@@ -130,7 +130,7 @@ const handleLogin = handleSubmit(async (values) => {
   }
 
   toastSuccess('toast.loginSuccess')
-  await router.push('/Menu')
+  await router.replace('/')
 })
 
 function goToRegister(): void {

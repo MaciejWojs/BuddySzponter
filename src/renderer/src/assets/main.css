@@ -8,6 +8,7 @@ body {
 }
 @import '@fontsource-variable/plus-jakarta-sans';
 @import '@fontsource-variable/jetbrains-mono';
+@import './scrollbar-native-hide.css';
 @import './base.css';
 @import 'tailwindcss';
 @import '@nuxt/ui';

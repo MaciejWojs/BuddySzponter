@@ -1,0 +1,17 @@
+/**
+ * Ukrywa natywne paski przewijania (Chromium / Electron + Firefox).
+ * Kółko myszy, touchpad i programowe scrollTo nadal działają.
+ * Widoczny pasek: tylko tam, gdzie dodasz własny (np. settings).
+ */
+#app,
+#app * {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+#app *::-webkit-scrollbar,
+#app *::-webkit-scrollbar-corner {
+  display: none;
+  width: 0 !important;
+  height: 0 !important;
+}

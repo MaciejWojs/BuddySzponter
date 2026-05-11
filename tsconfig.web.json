@@ -22,6 +22,9 @@
       ],
       "@images/*": [
         "./src/renderer/src/assets/images/*"
+      ],
+      "@resources/*": [
+        "./resources/*"
       ]
     }
   }
