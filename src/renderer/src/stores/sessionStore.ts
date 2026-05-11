@@ -78,17 +78,19 @@ export const useSessionStore = defineStore('session', () => {
   )
 
   watch(
-    () => audioStore.includeMicrophone,
-    (isEnabled): void => {
-      webRtcStore.toggleTrackByHint('audio', 'speech', isEnabled)
-    }
+    () => [audioStore.microphoneMuted, webRtcStore.localStream] as const,
+    (): void => {
+      webRtcStore.toggleTrackByHint('audio', 'speech', !audioStore.microphoneMuted)
+    },
+    { immediate: true, deep: true }
   )
 
   watch(
-    () => audioStore.includeSystemAudio,
-    (isEnabled): void => {
-      webRtcStore.toggleTrackByHint('audio', 'music', isEnabled)
-    }
+    () => [audioStore.includeSystemAudio, webRtcStore.localStream] as const,
+    (): void => {
+      webRtcStore.toggleTrackByHint('audio', 'music', audioStore.includeSystemAudio)
+    },
+    { immediate: true, deep: true }
   )
 
   const handleRespond = async (accept: boolean): Promise<void> => {

@@ -5,8 +5,10 @@ import { microphoneService } from '@renderer/services/audio/in/micService' // Up
 
 export const useAudioSettingsStore = defineStore('audioSettings', () => {
   const includeSystemAudio = ref(true)
+  /** Czy w ogóle uruchamiamy tor mikrofonu w capture (graph + ścieżka); wyciszenie do peerów = `microphoneMuted`. */
   const includeMicrophone = ref(true)
-  const microphoneMuted = ref(false)
+  /** Domyślnie wyciszony po połączeniu; odsłuch lokalny (monitoring) działa niezależnie od tej flagi. */
+  const microphoneMuted = ref(true)
 
   const localSystemAudioVolume = ref<number>(1)
   const localMicrophoneVolume = ref<number>(1)
@@ -20,7 +22,6 @@ export const useAudioSettingsStore = defineStore('audioSettings', () => {
 
   const toggleMicrophone = (isMuted: boolean): void => {
     microphoneMuted.value = isMuted
-    includeMicrophone.value = !isMuted
   }
 
   const toggleSystemAudio = (isMuted: boolean): void => {
@@ -29,10 +30,6 @@ export const useAudioSettingsStore = defineStore('audioSettings', () => {
 
   watch(localSystemAudioVolume, (val): void => videoService.setSystemAudioVolume(val))
   watch(localMicrophoneVolume, (val): void => microphoneService.setVolume(val))
-
-  watch(microphoneMuted, (muted) => {
-    if (muted) includeMicrophone.value = false
-  })
 
   return {
     includeSystemAudio,

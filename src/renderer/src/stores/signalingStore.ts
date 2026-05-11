@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { useSocketStore } from './socketStore'
 import { useWebRtcStore } from './webRtcStore'
 import { useCaptureStore } from './captureStore'
+import { useAudioSettingsStore } from './audioSettingsStore'
 import { webRtcService } from '@renderer/composables/connection/webRTCService'
 import { WsWebRTCAnswer, WsWebRTCIceCandidate } from '@shared/schemas/ws'
 
@@ -13,6 +14,9 @@ export const useSignalingStore = defineStore('signaling', () => {
   let pendingIceCandidates: RTCIceCandidateInit[] = []
 
   const startConnectionAsHost = async (): Promise<void> => {
+    const audioStore = useAudioSettingsStore()
+    audioStore.microphoneMuted = true
+
     webRtcStore.setLocalPublishProfile('host')
     webRtcService.cleanup(true)
     webRtcService.initialize(true)
@@ -42,6 +46,8 @@ export const useSignalingStore = defineStore('signaling', () => {
 
   const createAnswerForRelay = async (offerSdp: string): Promise<string> => {
     const captureStore = useCaptureStore()
+    const audioStore = useAudioSettingsStore()
+    audioStore.microphoneMuted = true
 
     webRtcStore.setLocalPublishProfile('guest')
     webRtcService.cleanup(true)

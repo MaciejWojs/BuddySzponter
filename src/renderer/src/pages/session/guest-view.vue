@@ -21,7 +21,7 @@ const isVideoReady = ref(false)
 const chatVisible = ref(false)
 
 const state = ref({
-  microphoneMuted: false,
+  microphoneMuted: true,
   localMicrophoneVolume: 1,
   remoteSystemVolume: 1
 })

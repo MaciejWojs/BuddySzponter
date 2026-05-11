@@ -1,10 +1,20 @@
 export class SystemAudioService {
   async capture(): Promise<MediaStream | null> {
     try {
-      const stream = await navigator.mediaDevices.getDisplayMedia({
-        video: true,
-        audio: true
-      })
+      let stream: MediaStream
+      try {
+        stream = await navigator.mediaDevices.getDisplayMedia({
+          video: true,
+          audio: {
+            suppressLocalAudioPlayback: true
+          } as MediaTrackConstraints
+        })
+      } catch {
+        stream = await navigator.mediaDevices.getDisplayMedia({
+          video: true,
+          audio: true
+        })
+      }
 
       stream.getVideoTracks().forEach((t) => t.stop())
 
