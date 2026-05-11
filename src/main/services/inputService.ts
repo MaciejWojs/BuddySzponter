@@ -3,6 +3,8 @@ import { InputBridge, getCursorType } from '@maciejwojs/input-bridge'
 import { broadcastLockoutToWidget } from '../hostWidget'
 import { MonitorMetadata } from '@maciejwojs/screen-capture'
 
+const CLIPBOARD_TEXT_MAX_LENGTH = 262_144
+
 /* ================= TYPES & INTERFACES ================= */
 
 type InputType = 'move' | 'click' | 'key'
@@ -49,6 +51,14 @@ class InputController {
 
     const bridge = new InputBridge({ autoFlush: false })
     await bridge.init()
+    bridge.onClipboard((event) => {
+      if (event.type !== 'text') return
+      const text = typeof event.data === 'string' ? event.data : null
+      if (text === null) return
+      if (text.length > CLIPBOARD_TEXT_MAX_LENGTH) return
+      inputService.broadcastClipboardText(text)
+    })
+
     bridge.setLogger((...args) => {
       console.log('[InputBridge-CPP]', ...args)
     })
@@ -57,6 +67,11 @@ class InputController {
     this.bridge = bridge
 
     this.startFrameLoop()
+  }
+
+  setClipboardText(text: string): boolean {
+    if (!this.bridge) return false
+    return this.bridge.setClipboardText(text)
   }
 
   getSessionHandle(): string | null {
@@ -218,7 +233,7 @@ class InputController {
       y: m.y,
       width: m.width,
       height: m.height,
-      pipewireStream: Number(m.id),
+      pipewireStream: Number(m.id)
     }))
   }
 
@@ -245,7 +260,7 @@ class HostActivityTracker {
   constructor(
     private lockout: LockoutManager,
     private emit: (payload: { active: boolean; until: number }) => void
-  ) { }
+  ) {}
 
   start(): void {
     if (this.interval) return
@@ -353,10 +368,17 @@ export const inputService = {
     this.cursorRelayInterval = null
     this.lastRelayedCursorType = ''
   },
+
+  broadcastClipboardText(text: string): void {
+    for (const win of BrowserWindow.getAllWindows()) {
+      if (win.isDestroyed()) continue
+      win.webContents.send('clipboard:bridge-text-change', { text })
+    }
+  },
+
   setStartingX(x: number): void {
     this.startingX = x
   },
-
 
   registerHandlers(): void {
     if (this.handlersRegistered) return
@@ -401,9 +423,13 @@ export const inputService = {
 
     ipcMain.handle('input:move-absolute', async (_e, x: number, y: number) => {
       if (!Number.isFinite(x) || !Number.isFinite(y) || isLocked()) return
-      console.log(`[input:move-absolute] Monitor idx: ${this.monitorIndex}, received x=${x} y=${y} (raw, before round)`);
-      const newX = this.startingX + x;
-      console.log(`[input:move-absolute] Monitor idx: ${this.monitorIndex}, received x=${newX} y=${y} (raw, after calculation)`);
+      console.log(
+        `[input:move-absolute] Monitor idx: ${this.monitorIndex}, received x=${x} y=${y} (raw, before round)`
+      )
+      const newX = this.startingX + x
+      console.log(
+        `[input:move-absolute] Monitor idx: ${this.monitorIndex}, received x=${newX} y=${y} (raw, after calculation)`
+      )
       await this.controller.move(Math.round(newX), Math.round(y))
     })
 
@@ -457,6 +483,12 @@ export const inputService = {
 
     ipcMain.handle('input:cursor-p2p-relay-stop', () => {
       this.stopCursorP2PRelay()
+    })
+
+    ipcMain.handle('clipboard:set-text-from-sync', (_e, text: unknown) => {
+      if (typeof text !== 'string') return false
+      if (text.length > CLIPBOARD_TEXT_MAX_LENGTH) return false
+      return this.controller.setClipboardText(text)
     })
   }
 }
