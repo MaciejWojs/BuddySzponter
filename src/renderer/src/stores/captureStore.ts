@@ -151,6 +151,7 @@ export const useCaptureStore = defineStore('capture', () => {
 
       currentCaptureMode.value = 'guest-mic'
       await assignLocalStream(stream)
+      webRtcStore.toggleTrackByHint('audio', 'speech', !audioStore.microphoneMuted)
     } catch (err) {
       logStore.addLog('ERROR', `Błąd mikrofonu: ${err}`, 'api')
     }

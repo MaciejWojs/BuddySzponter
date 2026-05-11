@@ -10,6 +10,16 @@ export const useAudioSettingsStore = defineStore('audioSettings', () => {
   /** Domyślnie wyciszony po połączeniu; odsłuch lokalny (monitoring) działa niezależnie od tej flagi. */
   const microphoneMuted = ref(true)
 
+  /**
+   * Ostatni stan wyciszenia mikrofonu gościa (zgłoszony z okna gościa przez relay).
+   * Używany tylko na hoście do STATE_UPDATE → panel gościa; nie mylić z `microphoneMuted` (mikrofon hosta).
+   */
+  const guestRelayMicrophoneMuted = ref(true)
+
+  const setGuestRelayMicrophoneMuted = (muted: boolean): void => {
+    guestRelayMicrophoneMuted.value = muted
+  }
+
   const localSystemAudioVolume = ref<number>(1)
   const localMicrophoneVolume = ref<number>(1)
 
@@ -35,6 +45,8 @@ export const useAudioSettingsStore = defineStore('audioSettings', () => {
     includeSystemAudio,
     includeMicrophone,
     microphoneMuted,
+    guestRelayMicrophoneMuted,
+    setGuestRelayMicrophoneMuted,
     localSystemAudioVolume,
     localMicrophoneVolume,
     remoteMicVolume,

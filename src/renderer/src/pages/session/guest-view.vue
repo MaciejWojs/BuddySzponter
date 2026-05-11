@@ -5,6 +5,7 @@ import { useSignalingStore } from '@renderer/stores/signalingStore'
 import { useGuestSync } from '@renderer/composables/syncWindow/useGuestSync'
 import { webRtcService } from '@renderer/composables/connection/webRTCService'
 import { useWebRtcStore } from '@renderer/stores/webRtcStore'
+import { useAudioSettingsStore } from '@renderer/stores/audioSettingsStore'
 import { useHidChannel } from '@renderer/composables/channels/HidChannel'
 import { chatService, type ChatPayload } from '@renderer/services/chatService'
 import { completeRelayOutgoingFileTransfer } from '@renderer/composables/channels/FileTransferChannel'
@@ -15,6 +16,7 @@ import ChatPanel from '@renderer/components/chat/ChatPanel.vue'
 const signalingStore = useSignalingStore()
 const { sendCommand } = useGuestSync()
 const webRtcStore = useWebRtcStore()
+const audioStore = useAudioSettingsStore()
 const hidChannel = useHidChannel()
 
 const isVideoReady = ref(false)
@@ -35,7 +37,10 @@ const handleVideoReady = (width: number, height: number): void => {
 
 const handleMicToggle = (): void => {
   state.value.microphoneMuted = !state.value.microphoneMuted
-  sendCommand('COMMAND_TOGGLE_MIC', state.value.microphoneMuted)
+  const muted = state.value.microphoneMuted
+  audioStore.microphoneMuted = muted
+  webRtcStore.toggleTrackByHint('audio', 'speech', !muted)
+  sendCommand('COMMAND_TOGGLE_MIC', muted)
 }
 
 const handleMicVolumeChange = (value: number): void => {
@@ -85,6 +90,8 @@ onMounted(() => {
       state.value.microphoneMuted = payload.microphoneMuted
       state.value.localMicrophoneVolume = payload.localMicrophoneVolume
       state.value.remoteSystemVolume = payload.remoteSystemVolume
+      audioStore.microphoneMuted = payload.microphoneMuted
+      webRtcStore.toggleTrackByHint('audio', 'speech', !payload.microphoneMuted)
     } else if (type === 'RELAY_OFFER') {
       try {
         const answerStr = await signalingStore.createAnswerForRelay(payload)
