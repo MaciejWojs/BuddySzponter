@@ -12,6 +12,9 @@ import { useConnectionStore } from './stores/connectionStore'
 import { useGuestSync } from '@renderer/composables/syncWindow/useGuestSync'
 import { useWidgetSync } from './composables/syncWindow/useWidgetSync'
 import { useHostChatPortalSync } from '@renderer/composables/syncWindow/useHostChatPortalSync'
+import { useCaptureStore } from '@renderer/stores/captureStore'
+import { isVideoQualityPreset } from '@shared/schemas/appPreferences'
+import { applyDocumentTheme } from '@renderer/utils/themeDocument'
 
 const toaster = { position: 'top-left', duration: 3000, dismissible: true, max: 3, expand: false }
 
@@ -31,6 +34,19 @@ const isMainWindow =
   !isHostChatWindow
 
 if (isMainWindow) {
+  void (async (): Promise<void> => {
+    try {
+      const prefs = await window.api.app.getAppPreferences()
+      applyDocumentTheme(prefs.theme)
+      const captureStore = useCaptureStore()
+      if (isVideoQualityPreset(prefs.videoQualityPreset)) {
+        captureStore.activeVideoQuality = prefs.videoQualityPreset
+      }
+    } catch {
+      applyDocumentTheme('dark')
+    }
+  })()
+
   settingsStore.initSettings()
   socketStore.init()
   userStore.initSession()

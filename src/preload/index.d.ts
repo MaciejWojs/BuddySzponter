@@ -36,6 +36,7 @@ import {
   JoinConnectionRequestSchema
 } from '../shared/schemas/connection'
 import { UserInputSchema } from '@shared/schemas/user'
+import type { AppStoredPreferences } from '../shared/schemas/appPreferences'
 
 interface WsAccessListeners {
   onRequest: (data: WsRequestAccess) => void
@@ -142,6 +143,10 @@ declare global {
         setHostTrayMode: (active: boolean) => Promise<void>
         resizeToVideoRatio: (width: number, height: number) => Promise<void>
         resetAspectRatio: () => Promise<void>
+        getAppPreferences: () => Promise<AppStoredPreferences>
+        setAppPreferences: (prefs: Partial<AppStoredPreferences>) => Promise<void>
+        getOpenAtLogin: () => Promise<boolean>
+        setOpenAtLogin: (open: boolean) => Promise<void>
       }
       input: {
         moveAbsolute: (x: number, y: number) => Promise<void>

@@ -11,8 +11,9 @@ import { microphoneService } from '@renderer/services/audio/in/micService'
 import { screenCaptureService } from '@renderer/services/video/ScreenCaptureService'
 import { recordingService } from '@renderer/services/video/RecordingService'
 import { webRtcService } from '@renderer/composables/connection/webRTCService'
+import type { VideoQualityPreset } from '@shared/schemas/appPreferences'
 
-export type VideoQualityPreset = 'low' | 'medium' | 'high' | 'ultra'
+export type { VideoQualityPreset }
 
 export const useCaptureStore = defineStore('capture', () => {
   const webRtcStore = useWebRtcStore()

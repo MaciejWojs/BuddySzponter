@@ -13,8 +13,10 @@ export default defineConfig({
   renderer: {
     resolve: {
       alias: {
+        '@shared': resolve('src/shared'),
         '@renderer': resolve('src/renderer/src'),
         '@images': resolve('src/renderer/src/assets/images'),
+        '@resources': resolve('resources'),
         'vue-i18n': 'vue-i18n/dist/vue-i18n.runtime.esm-browser.prod.js'
       }
     },

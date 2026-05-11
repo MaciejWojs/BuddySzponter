@@ -5,9 +5,12 @@ import {
   ScreenCapture,
   FrameUpdate,
   MonitorUpdate,
-  MonitorMetadata
+  MonitorMetadata,
+  type WindowsBackend
 } from '@maciejwojs/screen-capture'
 import { inputService } from './inputService'
+import { localStore } from '../store/localStore'
+import { isCaptureBackendMode } from '../../shared/schemas/appPreferences'
 
 enum LogLevel {
   ERROR = 0,
@@ -156,6 +159,31 @@ export class ScreenService {
     })
   }
 
+  /**
+   * Windows: `forceBackend` z ustawień użytkownika (auto = domyślny wybór biblioteki).
+   */
+  private applyCaptureBackendFromPreferences(): void {
+    if (process.platform !== 'win32' || !this.capturer) return
+
+    const raw = localStore.get('captureBackend')
+    const mode = isCaptureBackendMode(raw) ? raw : 'auto'
+    if (mode === 'auto') {
+      this.log(LogLevel.DEBUG, '[ScreenService] captureBackend=auto (no forceBackend)')
+      return
+    }
+
+    try {
+      this.capturer.forceBackend(mode as WindowsBackend)
+      this.log(LogLevel.INFO, `[ScreenService] Forced Windows capture backend: ${mode}`)
+    } catch (e) {
+      this.log(
+        LogLevel.WARN,
+        `[ScreenService] forceBackend('${mode}') failed, continuing with default:`,
+        e
+      )
+    }
+  }
+
   // ------------------------------------------------------------------
   // Start / Stop z użyciem onFrame
   // ------------------------------------------------------------------
@@ -177,13 +205,10 @@ export class ScreenService {
       })
     }
 
-    // console.log('[ScreenService] Forcing backend to dxgi')
-    // this.capturer.forceBackend('gdi')
-    // this.capturer.forceBackend('dxgi')
+    this.applyCaptureBackendFromPreferences()
 
     this.currentMonitorIndex = 0
 
-    // this.capturer.Se
     // Uruchamiamy przechwytywanie i od razu rejestrujemy callback
     this.log(LogLevel.INFO, '[ScreenService] Calling capturer.start()')
     await this.capturer.start()

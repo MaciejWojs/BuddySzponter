@@ -6,7 +6,12 @@ import { handshake } from './utils/handshake'
 import { secureStore } from './store/secureStore'
 import { API_ROUTES } from './apiRoutes'
 import { appSettings } from './services/SettingsService'
-import { clearLocalStore } from './store/localStore'
+import { clearLocalStore, localStore } from './store/localStore'
+import {
+  isAppThemeMode,
+  isCaptureBackendMode,
+  isVideoQualityPreset
+} from '../shared/schemas/appPreferences'
 import { authService } from './services/AuthService'
 import { coreService } from './services/CoreService'
 import { userService } from './services/UserService'
@@ -87,8 +92,11 @@ function createWindow(): void {
 
   mainWindow.on('close', (event) => {
     if (!isQuitting) {
-      event.preventDefault()
-      hideWindowSafely(mainWindow)
+      const closeToTray = localStore.get('closeToTray')
+      if (closeToTray !== false) {
+        event.preventDefault()
+        hideWindowSafely(mainWindow)
+      }
     }
   })
 
@@ -213,6 +221,62 @@ if (!gotTheLock) {
 
     ipcMain.handle('hide-to-tray', () => {
       hideWindowSafely(mainWindow)
+    })
+
+    ipcMain.handle('app:get-preferences', () => ({
+      videoQualityPreset: localStore.get('videoQualityPreset') ?? 'high',
+      closeToTray: localStore.get('closeToTray') !== false,
+      theme: isAppThemeMode(localStore.get('theme')) ? localStore.get('theme') : 'dark'
+    }))
+
+    ipcMain.handle(
+      'app:set-preferences',
+      (
+        _event,
+        prefs: Partial<{
+          videoQualityPreset: string
+          closeToTray: boolean
+          theme: string
+          captureBackend: string
+        }>
+      ) => {
+        if (prefs.videoQualityPreset != null && isVideoQualityPreset(prefs.videoQualityPreset)) {
+          localStore.set('videoQualityPreset', prefs.videoQualityPreset)
+        }
+        if (typeof prefs.closeToTray === 'boolean') {
+          localStore.set('closeToTray', prefs.closeToTray)
+        }
+        if (prefs.theme != null && isAppThemeMode(prefs.theme)) {
+          localStore.set('theme', prefs.theme)
+        }
+        if (prefs.captureBackend != null && isCaptureBackendMode(prefs.captureBackend)) {
+          localStore.set('captureBackend', prefs.captureBackend)
+        }
+      }
+    )
+
+    ipcMain.handle('app:get-open-at-login', () => app.getLoginItemSettings().openAtLogin)
+
+    ipcMain.handle('app:set-open-at-login', (_event, open: boolean) => {
+      const enabled = Boolean(open)
+
+      if (process.platform === 'darwin') {
+        app.setLoginItemSettings({ openAtLogin: enabled })
+        return
+      }
+
+      // Windows / Linux: bez jawnej ścieżki i argumentów wpis autostartu często nie działa
+      if (process.platform === 'win32' || process.platform === 'linux') {
+        const args = app.isPackaged ? [] : process.argv[1] ? [process.argv[1]] : []
+        app.setLoginItemSettings({
+          openAtLogin: enabled,
+          path: process.execPath,
+          args
+        })
+        return
+      }
+
+      app.setLoginItemSettings({ openAtLogin: enabled })
     })
 
     ipcMain.handle('show-main-window', () => {

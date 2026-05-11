@@ -30,6 +30,7 @@ import {
   WsWebRTCReady
 } from '../shared/schemas/ws'
 import { LoginInput, RegisterInput } from '../shared/schemas/user'
+import type { AppStoredPreferences } from '../shared/schemas/appPreferences'
 
 const recorder = {
   saveFile: (buffer: ArrayBuffer) => ipcRenderer.invoke('save-file', buffer)
@@ -179,7 +180,18 @@ const api = {
     resetAspectRatio: () => ipcRenderer.invoke('app:reset-aspect-ratio'),
 
     setHostTrayMode: (active: boolean): Promise<void> =>
-      ipcRenderer.invoke('set-host-tray-mode', active)
+      ipcRenderer.invoke('set-host-tray-mode', active),
+
+    getAppPreferences: (): Promise<AppStoredPreferences> =>
+      ipcRenderer.invoke('app:get-preferences'),
+
+    setAppPreferences: (prefs: Partial<AppStoredPreferences>): Promise<void> =>
+      ipcRenderer.invoke('app:set-preferences', prefs),
+
+    getOpenAtLogin: (): Promise<boolean> => ipcRenderer.invoke('app:get-open-at-login'),
+
+    setOpenAtLogin: (open: boolean): Promise<void> =>
+      ipcRenderer.invoke('app:set-open-at-login', open)
   },
   input: {
     moveAbsolute: (x: number, y: number): Promise<void> =>
