@@ -31,6 +31,7 @@ export function useWidgetSync(): void {
           sysActive: sessionStore.localSystemAudioVolume > 0,
           guestMicActive: sessionStore.remoteMicVolume > 0,
           controlGranted: hidChannel.isControlGranted.value,
+          clipboardSyncEnabled: hidChannel.clipboardSyncEnabled.value,
           chatHasUnread: chatService.hasUnread.value
         }
       })
@@ -72,6 +73,10 @@ export function useWidgetSync(): void {
           } else {
             await hidChannel.grantControl()
           }
+          break
+        case 'TOGGLE_CLIPBOARD_SYNC':
+          if (!hidChannel.isControlGranted.value) break
+          hidChannel.setClipboardSyncEnabled(!hidChannel.clipboardSyncEnabled.value)
           break
         case 'END_SESSION':
           await socketStore.disconnect()
@@ -117,6 +122,7 @@ export function useWidgetSync(): void {
         () => sessionStore.localSystemAudioVolume,
         () => sessionStore.remoteMicVolume,
         () => hidChannel.isControlGranted.value,
+        () => hidChannel.clipboardSyncEnabled.value,
         () => chatService.hasUnread.value
       ],
       () => pushStateToWidget(),
