@@ -69,7 +69,8 @@ export const P2PMessageSchema = z.discriminatedUnion('type', [
       screenWidth: z.number().min(1),
       screenHeight: z.number().min(1),
       isControlGranted: z.boolean(),
-      cursorType: z.string().optional()
+      cursorType: z.string().optional(),
+      clipboardSyncEnabled: z.boolean().optional()
     })
   }),
 
@@ -84,6 +85,20 @@ export const P2PMessageSchema = z.discriminatedUnion('type', [
     type: z.literal('HID_CURSOR_SYNC'),
     payload: z.object({
       cursorType: z.string()
+    })
+  }),
+
+  z.object({
+    type: z.literal('CLIPBOARD_SYNC'),
+    payload: z.object({
+      enabled: z.boolean()
+    })
+  }),
+
+  z.object({
+    type: z.literal('CLIPBOARD_TEXT'),
+    payload: z.object({
+      text: z.string().max(262_144)
     })
   }),
 

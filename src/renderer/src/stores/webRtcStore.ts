@@ -66,13 +66,17 @@ export const useWebRtcStore = defineStore('webrtc', () => {
 
   if (window.api?.input?.onHostCursorSync) {
     window.api.input.onHostCursorSync((cursorType) => {
-      if (
-        localPublishProfile.value !== 'host' ||
-        rtcStatus.value !== 'connected'
-      ) {
+      if (localPublishProfile.value !== 'host' || rtcStatus.value !== 'connected') {
         return
       }
       hid.sendHostCursorSync(cursorType)
+    })
+  }
+
+  if (window.api?.clipboard?.onBridgeText) {
+    window.api.clipboard.onBridgeText((text) => {
+      if (rtcStatus.value !== 'connected') return
+      hid.sendClipboardText(text)
     })
   }
 
