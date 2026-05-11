@@ -29,7 +29,11 @@
       @delete="handleDelete"
     />
 
-    <ChatComposer :disabled="attachDisabled" @send="handleSend" @attach="handleAttach" />
+    <ChatComposer
+      :attach-disabled="attachDisabled"
+      @send="handleSend"
+      @attach="handleAttach"
+    />
   </section>
 </template>
 

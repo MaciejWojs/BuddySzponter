@@ -4,7 +4,6 @@
       <input
         v-model="draft"
         type="text"
-        :disabled="disabled"
         placeholder="Napisz wiadomość..."
         class="min-w-0 flex-1 border-none bg-transparent text-sm text-white placeholder:text-white/80 outline-none"
       />
@@ -18,7 +17,7 @@
 
       <button
         type="button"
-        :disabled="disabled"
+        :disabled="attachDisabled"
         class="inline-flex h-8 w-8 items-center justify-center rounded-full text-white transition hover:bg-white/20 disabled:opacity-40"
         title="Wyślij plik"
         @click="$emit('attach')"
@@ -59,10 +58,10 @@ import { ref } from 'vue'
 
 withDefaults(
   defineProps<{
-    disabled?: boolean
+    attachDisabled?: boolean
   }>(),
   {
-    disabled: false
+    attachDisabled: false
   }
 )
 

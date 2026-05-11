@@ -120,14 +120,35 @@ class InputController {
    * Na Linuxie brak — zostaje natychmiastowa ścieżka z `onClipboard` (Ctrl+C).
    */
   private tryInitClipboardFilesPasteSync(bridge: InputBridge): void {
+    if (
+      typeof bridge.onInput !== 'function' ||
+      typeof bridge.startInputDetection !== 'function'
+    ) {
+      console.log(
+        '[InputController] Brak API onInput/startInputDetection — pliki schowka przy zmianie (Ctrl+C).'
+      )
+      return
+    }
     try {
-      const started =
-        typeof bridge.startInputDetection === 'function' && bridge.startInputDetection()
-      if (!started) return
-      this.clipboardFilesSyncOnPasteOnly = true
       bridge.onInput((ev: InputEvent) => {
         this.handlePhysicalKeyForClipboardFiles(ev)
       })
+      const started = bridge.startInputDetection()
+      if (!started) {
+        console.warn(
+          '[InputController] startInputDetection zwrócił false — fallback na onClipboard files.'
+        )
+        try {
+          bridge.offInput()
+        } catch {
+          // ignore
+        }
+        return
+      }
+      this.clipboardFilesSyncOnPasteOnly = true
+      console.log(
+        '[InputController] startInputDetection OK — pliki schowka tylko po Ctrl+V.'
+      )
     } catch (e) {
       console.warn(
         '[InputController] startInputDetection niedostępny — pliki schowka nadal przy zmianie schowka (Ctrl+C).',
@@ -142,30 +163,67 @@ class InputController {
 
     const down = ev.down !== false
     const dc = ev.domCode
+    const kc = typeof ev.keyCode === 'number' ? ev.keyCode : -1
 
-    if (dc === 'ControlLeft' || dc === 'ControlRight') {
+    const isCtrl =
+      dc === 'ControlLeft' ||
+      dc === 'ControlRight' ||
+      kc === 0x11 ||
+      kc === 0xa2 ||
+      kc === 0xa3
+    if (isCtrl) {
       this.physicalCtrlDown = down
+      console.log('[InputController] Ctrl', down ? 'down' : 'up', { dc, kc })
       return
     }
-    if (dc === 'MetaLeft' || dc === 'MetaRight') {
+
+    const isMeta =
+      dc === 'MetaLeft' ||
+      dc === 'MetaRight' ||
+      dc === 'OSLeft' ||
+      dc === 'OSRight' ||
+      kc === 0x5b ||
+      kc === 0x5c
+    if (isMeta) {
       this.physicalMetaDown = down
+      console.log('[InputController] Meta', down ? 'down' : 'up', { dc, kc })
       return
+    }
+
+    const isV = dc === 'KeyV' || kc === 0x56 || kc === 86
+    if (isV) {
+      console.log('[InputController] V', down ? 'down' : 'up', {
+        dc,
+        kc,
+        ctrlDown: this.physicalCtrlDown,
+        metaDown: this.physicalMetaDown
+      })
     }
 
     if (!down) return
     if (!this.physicalCtrlDown && !this.physicalMetaDown) return
-
-    const isV =
-      dc === 'KeyV' ||
-      (typeof ev.keyCode === 'number' && (ev.keyCode === 0x56 || ev.keyCode === 86))
-
     if (!isV) return
 
     const b = this.bridge
     if (!b || typeof b.getClipboardFiles !== 'function') return
-    const raw = b.getClipboardFiles()
+
+    let raw: unknown = null
+    try {
+      raw = b.getClipboardFiles()
+    } catch (e) {
+      console.warn('[InputController] getClipboardFiles rzucił:', e)
+      return
+    }
     const paths = normalizeClipboardFilePaths(raw)
-    if (!paths) return
+    if (!paths) {
+      console.log(
+        '[InputController] Ctrl+V — schowek nie zawiera plików (getClipboardFiles=null).'
+      )
+      return
+    }
+    console.log(
+      `[InputController] Ctrl+V wykryty — broadcast plików schowka (${paths.length}).`
+    )
     inputService.broadcastClipboardFiles(paths)
   }
 

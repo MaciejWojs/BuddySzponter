@@ -1,6 +1,45 @@
 import { onMounted, onUnmounted, ref, watch, type Ref } from 'vue'
 import { chatService, type ChatMessage } from '@renderer/services/chatService'
 
+function toPlainMessages(list: readonly ChatMessage[]): ChatMessage[] {
+  const out: ChatMessage[] = []
+  for (const m of list) {
+    if (!m || typeof m !== 'object') continue
+    const plain: ChatMessage = {
+      id: String(m.id ?? ''),
+      text: String(m.text ?? ''),
+      sender: String(m.sender ?? ''),
+      authorId: String(m.authorId ?? ''),
+      createdAt: typeof m.createdAt === 'number' ? m.createdAt : Date.now()
+    }
+    if (typeof m.updatedAt === 'number') plain.updatedAt = m.updatedAt
+    if (m.fileTransfer && typeof m.fileTransfer === 'object') {
+      const filesRaw = Array.isArray(m.fileTransfer.files) ? m.fileTransfer.files : []
+      plain.fileTransfer = {
+        transferId: String(m.fileTransfer.transferId ?? ''),
+        files: filesRaw.map((f) => ({
+          name: String(f?.name ?? ''),
+          size: typeof f?.size === 'number' ? f.size : 0
+        }))
+      }
+    }
+    out.push(plain)
+  }
+  return out
+}
+
+function messagesFingerprint(list: readonly ChatMessage[]): string {
+  let acc = ''
+  for (const m of list) {
+    if (!m) continue
+    const ft = m.fileTransfer
+    acc +=
+      `${m.id}|${m.text}|${m.updatedAt ?? 0}|` +
+      `${ft?.transferId ?? ''}|${(ft?.files ?? []).map((f) => `${f.name}:${f.size}`).join(',')}\n`
+  }
+  return acc
+}
+
 const CHANNEL_NAME = 'host-chat-port'
 
 type Mode = 'main' | 'portal'
@@ -53,17 +92,27 @@ function initMainBridge(): void {
     channel = new BroadcastChannel(CHANNEL_NAME)
 
     const buildSyncPayload = (): SyncMessagesPayload => ({
-      messages: chatService.messages.value.map((msg) => ({ ...msg })),
+      messages: toPlainMessages(chatService.messages.value),
       localAuthorId: chatService.localAuthorId.value,
       localSenderName: chatService.localSenderName.value,
       hasUnread: chatService.hasUnread.value
     })
 
     const pushSync = (): void => {
+      if (!channel) return
+      const payload = buildSyncPayload()
       try {
-        channel?.postMessage({ type: 'SYNC_MESSAGES', payload: buildSyncPayload() })
+        channel.postMessage({ type: 'SYNC_MESSAGES', payload })
       } catch (e) {
         console.warn('[host-chat-port] SYNC_MESSAGES postMessage failed', e)
+        try {
+          channel.postMessage({
+            type: 'SYNC_MESSAGES',
+            payload: JSON.parse(JSON.stringify(payload))
+          })
+        } catch (e2) {
+          console.error('[host-chat-port] SYNC_MESSAGES fallback failed', e2)
+        }
       }
     }
 
@@ -102,14 +151,9 @@ function initMainBridge(): void {
       [
         () => chatService.messages.value.length,
         () => chatService.localSenderName.value,
+        () => chatService.localAuthorId.value,
         () => chatService.hasUnread.value,
-        () =>
-          chatService.messages.value
-            .map(
-              (m) =>
-                `${m.id}:${m.text}:${m.updatedAt ?? 0}:${m.fileTransfer?.transferId ?? ''}:${m.fileTransfer?.files.map((f) => f.name).join(',') ?? ''}`
-            )
-            .join('|')
+        () => messagesFingerprint(chatService.messages.value)
       ],
       () => pushSync()
     )

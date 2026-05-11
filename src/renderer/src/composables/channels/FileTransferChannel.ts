@@ -195,7 +195,8 @@ export async function completeRelayOutgoingFileTransfer(
   correlationId: unknown
 ): Promise<void> {
   const hid = useHidChannel()
-  if (!hid.isControlGranted.value || !paths.length) {
+  const needsControl = source === 'clipboard'
+  if ((needsControl && !hid.isControlGranted.value) || !paths.length) {
     try {
       const bc = new BroadcastChannel('guest-sync-channel')
       bc.postMessage({ type: 'RELAY_FILE_STARTED', correlationId, result: null })
@@ -223,8 +224,6 @@ export async function requestOutgoingFileTransferFromPaths(
   const hid = useHidChannel()
   if (options.useClipboardPolicy) {
     if (!hid.clipboardSyncEnabled.value || !hid.isControlGranted.value) return null
-  } else if (!hid.isControlGranted.value) {
-    return null
   }
 
   if (!paths.length || activeSend) return null
@@ -278,7 +277,16 @@ async function handleIncomingOffer(payload: {
   files: { name: string; size: number }[]
 }): Promise<void> {
   const hid = useHidChannel()
-  if (!hid.isControlGranted.value) return
+  if (payload.source === 'clipboard' && !hid.isControlGranted.value) {
+    webRtcService.sendData(
+      'file-transfer',
+      JSON.stringify({
+        type: 'FILE_REJECT',
+        payload: { transferId: payload.transferId, reason: 'no_control' }
+      })
+    )
+    return
+  }
   if (activeReceive || activeSend) return
 
   const baseDir = await ensureDownloadDir()
