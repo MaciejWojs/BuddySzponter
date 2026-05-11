@@ -104,6 +104,9 @@ export const useWebRtcStore = defineStore('webrtc', () => {
     rtcStatus.value = 'disconnected'
     webRtcService.cleanup()
     remoteStream.value = null
+    if (localPublishProfile.value === 'host') {
+      void window.api?.input?.releaseStuckKeyboardKeys?.().catch(() => {})
+    }
     localPublishProfile.value = 'host'
     chatService.clearMessages()
     hid.resetState()

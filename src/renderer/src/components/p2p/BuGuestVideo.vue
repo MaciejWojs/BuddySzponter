@@ -10,6 +10,7 @@
     @mousedown="handleMouseDown"
     @mouseup="handleMouseUp"
     @contextmenu.prevent
+    @blur="handleVideoBlur"
     @keydown.prevent="handleKeyDown"
     @keyup.prevent="handleKeyUp"
     @wheel.passive="false"
@@ -29,7 +30,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useWebRtcStore } from '@renderer/stores/webRtcStore'
 import { useHidChannel } from '@renderer/composables/channels/HidChannel'
 import VideoPlayer from '../p2p/VideoPlayer.vue'
@@ -161,25 +162,80 @@ const handleWheel = (event: WheelEvent): void => {
 
 /* ================= KEYBOARD ================= */
 
+/** Klawisze, dla których wysłano „down” do hosta — bez keyup przy utracie fokusu zostają „wciśnięte” na hoście. */
+const keysHeldDownRemote = new Set<string>()
+
+const releaseAllHeldKeysRemote = (): void => {
+  if (keysHeldDownRemote.size === 0) return
+  const codes = Array.from(keysHeldDownRemote)
+  keysHeldDownRemote.clear()
+  for (const code of codes) {
+    hidChannel.sendKeyboardKeyUpRemote(code)
+  }
+}
+
+const isDomModifierCode = (code: string): boolean =>
+  code === 'AltRight' ||
+  code === 'AltLeft' ||
+  code === 'ControlLeft' ||
+  code === 'ControlRight' ||
+  code === 'ShiftLeft' ||
+  code === 'ShiftRight' ||
+  code === 'MetaLeft' ||
+  code === 'MetaRight' ||
+  code === 'OSLeft' ||
+  code === 'OSRight'
+
 const handleKeyDown = (e: KeyboardEvent): void => {
   if (!hidChannel.isControlGranted.value) return
+  if (e.repeat && !isDomModifierCode(e.code)) return
+  keysHeldDownRemote.add(e.code)
   hidChannel.sendKeyboardEvent(e.code, 'd')
 }
 
 const handleKeyUp = (e: KeyboardEvent): void => {
   if (!hidChannel.isControlGranted.value) return
+  keysHeldDownRemote.delete(e.code)
   hidChannel.sendKeyboardEvent(e.code, 'u')
 }
+
+const handleVideoBlur = (): void => {
+  releaseAllHeldKeysRemote()
+}
+
+const handleWindowBlur = (): void => {
+  releaseAllHeldKeysRemote()
+}
+
+const handleVisibilityChange = (): void => {
+  if (document.visibilityState === 'hidden') {
+    releaseAllHeldKeysRemote()
+  }
+}
+
+watch(
+  () => hidChannel.isControlGranted.value,
+  (granted, wasGranted) => {
+    if (wasGranted && !granted) {
+      releaseAllHeldKeysRemote()
+    }
+  }
+)
 
 /* ================= LIFECYCLE ================= */
 
 onMounted(() => {
   window.addEventListener('mouseup', handleMouseUp)
+  window.addEventListener('blur', handleWindowBlur)
+  document.addEventListener('visibilitychange', handleVisibilityChange)
   videoCheckInterval = setInterval(checkVideoDimensions, 500)
 })
 
 onUnmounted(() => {
+  releaseAllHeldKeysRemote()
   window.removeEventListener('mouseup', handleMouseUp)
+  window.removeEventListener('blur', handleWindowBlur)
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
   if (videoCheckInterval) clearInterval(videoCheckInterval)
 })
 </script>

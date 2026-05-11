@@ -147,6 +147,7 @@ declare global {
         moveAbsolute: (x: number, y: number) => Promise<void>
         mouseAction: (button: string, action: string, x: number, y: number) => Promise<void>
         keyboardEvent: (keyCode: string, action: string) => Promise<void>
+        releaseStuckKeyboardKeys: () => Promise<void>
         getHostScreenSize: () => Promise<{ width: number; height: number }>
         scrollMouse: (deltaY: number) => Promise<void>
         getCursorType: () => Promise<string>

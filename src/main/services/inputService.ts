@@ -5,6 +5,20 @@ import { MonitorMetadata } from '@maciejwojs/screen-capture'
 
 const CLIPBOARD_TEXT_MAX_LENGTH = 262_144
 
+/** Kolejność pod Windows (AltGr = ControlLeft + AltRight) — najpierw para AltGr, potem reszta modyfikatorów. */
+const STUCK_MODIFIER_RELEASE_ORDER = [
+  'AltRight',
+  'ControlLeft',
+  'AltLeft',
+  'ControlRight',
+  'ShiftLeft',
+  'ShiftRight',
+  'MetaLeft',
+  'MetaRight',
+  'OSLeft',
+  'OSRight'
+] as const
+
 /* ================= TYPES & INTERFACES ================= */
 
 type InputType = 'move' | 'click' | 'key'
@@ -210,6 +224,18 @@ class InputController {
       type: 'key',
       payload: { code: domCode, down: action === 'd' },
       timestamp: Date.now()
+    })
+  }
+
+  /** Zwalnia typowe modyfikatory po utracie sesji / „zaciętych” keydown bez keyup (np. Alt+strzałki). */
+  releaseStuckModifierKeys(): void {
+    const base = Date.now()
+    STUCK_MODIFIER_RELEASE_ORDER.forEach((code, i) => {
+      this.queue.push({
+        type: 'key',
+        payload: { code, down: false },
+        timestamp: base + i * 3
+      })
     })
   }
 
@@ -451,8 +477,12 @@ export const inputService = {
     )
 
     ipcMain.handle('input:keyboard-event', async (_e, domCode: string, action: 'd' | 'u') => {
-      if (isLocked()) return
+      if (action !== 'u' && isLocked()) return
       await this.controller.key(domCode, action)
+    })
+
+    ipcMain.handle('input:keyboard-release-stuck-modifiers', () => {
+      this.controller.releaseStuckModifierKeys()
     })
 
     ipcMain.handle('input:toggle-optimization', () => {

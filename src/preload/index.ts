@@ -190,6 +190,8 @@ const api = {
 
     keyboardEvent: (keyCode: string, action: string): Promise<void> =>
       ipcRenderer.invoke('input:keyboard-event', keyCode, action),
+    releaseStuckKeyboardKeys: (): Promise<void> =>
+      ipcRenderer.invoke('input:keyboard-release-stuck-modifiers'),
     scrollMouse: (deltaY: number): Promise<void> =>
       ipcRenderer.invoke('input:scroll-mouse', deltaY),
     getHostScreenSize: (): Promise<{ width: number; height: number }> =>

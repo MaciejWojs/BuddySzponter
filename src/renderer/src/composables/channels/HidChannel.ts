@@ -33,6 +33,8 @@ export interface HidChannelApi {
     py: number
   ) => void
   sendKeyboardEvent: (keyCode: string, action: 'd' | 'u') => void
+  /** Wysyła wyłącznie keyup do hosta (np. po utracie fokusu) — nie wymaga aktywnej kontroli po stronie gościa. */
+  sendKeyboardKeyUpRemote: (keyCode: string) => void
   sendMouseScroll: (deltaY: number) => void
   setClipboardSyncEnabled: (enabled: boolean) => void
   sendClipboardText: (text: string) => void
@@ -127,10 +129,14 @@ messageRouter.subscribe('hid-control', (msg: P2PMessage) => {
       )
       break
 
-    case 'KEYBOARD_EVENT':
-      if (localRole.value !== 'host' || !isControlGranted.value) return
-      void window.api.input.keyboardEvent(msg.payload.keyCode, msg.payload.action)
+    case 'KEYBOARD_EVENT': {
+      if (localRole.value !== 'host') return
+      const raw = msg.payload.action as string
+      const act: 'd' | 'u' = raw === 'up' || raw === 'u' ? 'u' : 'd'
+      if (act === 'd' && !isControlGranted.value) return
+      void window.api.input.keyboardEvent(msg.payload.keyCode, act)
       break
+    }
 
     case 'MOUSE_SCROLL':
       if (localRole.value !== 'host' || !isControlGranted.value) return
@@ -223,6 +229,7 @@ export function useHidChannel(): HidChannelApi {
           payload: { isControlGranted: false }
         })
       )
+      void window.api?.input?.releaseStuckKeyboardKeys?.().catch(() => {})
     }
   }
 
@@ -275,6 +282,17 @@ export function useHidChannel(): HidChannelApi {
       JSON.stringify({
         type: 'KEYBOARD_EVENT',
         payload: { keyCode, action }
+      })
+    )
+  }
+
+  const sendKeyboardKeyUpRemote = (keyCode: string): void => {
+    if (localRole.value !== 'guest') return
+    webRtcService.sendData(
+      'hid-control',
+      JSON.stringify({
+        type: 'KEYBOARD_EVENT',
+        payload: { keyCode, action: 'u' }
       })
     )
   }
@@ -332,6 +350,7 @@ export function useHidChannel(): HidChannelApi {
     sendMouseFromVideo,
     sendMouseAction,
     sendKeyboardEvent,
+    sendKeyboardKeyUpRemote,
     sendMouseScroll,
     setClipboardSyncEnabled,
     sendClipboardText,
