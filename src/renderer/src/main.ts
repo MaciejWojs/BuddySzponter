@@ -15,7 +15,7 @@ import { useUserStore } from '@renderer/stores/userStore'
 
 const router = createRouter({
   history: createWebHashHistory(),
-  routes: [{ path: '/', redirect: '/api-test' }, ...routes]
+  routes
 })
 
 const pinia = createPinia()
@@ -27,7 +27,7 @@ router.beforeEach(async (to) => {
   const isAuthPage = normalizedPath === '/login' || normalizedPath === '/register'
 
   if (userStore.isAuthenticated && isAuthPage) {
-    return '/Menu'
+    return '/'
   }
 
   return true

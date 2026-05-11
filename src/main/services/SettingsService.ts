@@ -150,6 +150,10 @@ export class AppSettingsService {
     ipcMain.handle('settings:setHostPassword', (_event, password: string) => {
       this.setHostPassword(password)
     })
+
+    ipcMain.handle('settings:getDeviceName', () => {
+      return this.getDeviceName()
+    })
   }
 }
 

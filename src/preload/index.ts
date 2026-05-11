@@ -50,6 +50,7 @@ const api = {
       ipcRenderer.invoke('settings:setLanguage', lang),
     getTranslation: (): Promise<Translation> => ipcRenderer.invoke('settings:getTranslation'),
     getHardwareId: (): Promise<string> => ipcRenderer.invoke('settings:getHardwareId'),
+    getDeviceName: (): Promise<string> => ipcRenderer.invoke('settings:getDeviceName'),
     getHostPassword: (): Promise<string> => ipcRenderer.invoke('settings:getHostPassword'),
     setHostPassword: (password: string): Promise<void> =>
       ipcRenderer.invoke('settings:setHostPassword', password)
@@ -164,6 +165,13 @@ const api = {
     quitApp: (): Promise<void> => ipcRenderer.invoke('quit-app'),
     showHostWidget: (): Promise<void> => ipcRenderer.invoke('show-host-widget'),
     hideHostWidget: (): Promise<void> => ipcRenderer.invoke('hide-host-widget'),
+    setHostWidgetMode: (mode: 'normal' | 'compact' | 'hidden' | 'peek'): Promise<void> =>
+      ipcRenderer.invoke('set-host-widget-mode', mode),
+    moveHostWidget: (x: number, y: number): void => ipcRenderer.send('move-host-widget', { x, y }),
+    showHostChatWindow: (): Promise<boolean> => ipcRenderer.invoke('show-host-chat-window'),
+    hideHostChatWindow: (): Promise<void> => ipcRenderer.invoke('hide-host-chat-window'),
+    moveHostChatWindow: (x: number, y: number): void =>
+      ipcRenderer.send('move-host-chat-window', { x, y }),
     openGuestWindow: (sessionId: string) => ipcRenderer.invoke('app:open-guest-window', sessionId),
     closeGuestWindow: () => ipcRenderer.invoke('app:close-guest-window'),
     resizeToVideoRatio: (width: number, height: number) =>
@@ -304,7 +312,10 @@ try {
       if (!released) {
         released = true
         try {
-          data.importedSharedTexture.release()
+          const result = data.importedSharedTexture.release() as unknown as Promise<void> | void
+          if (result && typeof result.catch === 'function') {
+            result.catch(() => {})
+          }
         } catch {
           // ignorujemy błędy zwalniania tekstury
         }

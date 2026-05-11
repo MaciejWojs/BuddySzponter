@@ -71,6 +71,7 @@ declare global {
         setLanguage: (lang: AppLanguage) => Promise<boolean>
         getTranslation: () => Promise<Translation>
         getHardwareId: () => Promise<string>
+        getDeviceName: () => Promise<string>
         getHostPassword: () => Promise<string>
         setHostPassword: (password: string) => Promise<void>
       }
@@ -131,6 +132,11 @@ declare global {
         hideToTray: () => Promise<void>
         showHostWidget: () => Promise<void>
         hideHostWidget: () => Promise<void>
+        setHostWidgetMode: (mode: 'normal' | 'compact' | 'hidden' | 'peek') => Promise<void>
+        moveHostWidget: (x: number, y: number) => void
+        showHostChatWindow: () => Promise<boolean>
+        hideHostChatWindow: () => Promise<void>
+        moveHostChatWindow: (x: number, y: number) => void
         openGuestWindow: (sessionId: string) => Promise<void>
         closeGuestWindow: () => Promise<void>
         setHostTrayMode: (active: boolean) => Promise<void>

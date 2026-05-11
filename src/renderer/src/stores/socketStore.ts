@@ -148,6 +148,9 @@ export const useSocketStore = defineStore('socket', () => {
       onRequest: (data) => {
         incomingRequest.value = data
         console.log('[SocketStore] Otrzymano żądanie dostępu:', data)
+        if (window.api?.app?.showApp) {
+          window.api.app.showApp().catch(() => {})
+        }
       },
       onAccepted: (data) => {
         console.log('[SocketStore] Żądanie dostępu zaakceptowane:', data)
