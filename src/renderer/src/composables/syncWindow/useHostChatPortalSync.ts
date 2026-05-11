@@ -60,7 +60,11 @@ function initMainBridge(): void {
     })
 
     const pushSync = (): void => {
-      channel?.postMessage({ type: 'SYNC_MESSAGES', payload: buildSyncPayload() })
+      try {
+        channel?.postMessage({ type: 'SYNC_MESSAGES', payload: buildSyncPayload() })
+      } catch (e) {
+        console.warn('[host-chat-port] SYNC_MESSAGES postMessage failed', e)
+      }
     }
 
     channel.onmessage = (event: MessageEvent<PortalChannelMessage>) => {
@@ -132,9 +136,11 @@ function initPortal(): HostChatPortalState {
     channel.onmessage = (event: MessageEvent<PortalChannelMessage>) => {
       if (event.data.type !== 'SYNC_MESSAGES') return
       const data = event.data.payload as SyncMessagesPayload
-      messages.value = data.messages
-      localAuthorId.value = data.localAuthorId
-      localSenderName.value = data.localSenderName
+      messages.value = Array.isArray(data?.messages) ? data.messages : []
+      localAuthorId.value =
+        typeof data?.localAuthorId === 'string' ? data.localAuthorId : ''
+      localSenderName.value =
+        typeof data?.localSenderName === 'string' ? data.localSenderName : ''
     }
 
     post({ type: 'REQUEST_STATE' })

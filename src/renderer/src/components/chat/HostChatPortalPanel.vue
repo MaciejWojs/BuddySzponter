@@ -64,13 +64,12 @@ const openActionsId = ref<string | null>(null)
 
 const messagesListRef = ref<ChatMessagesListExpose | null>(null)
 
-watch(
-  () => props.messages,
-  () => {
-    void scrollToBottom()
-  },
-  { deep: true }
-)
+const messagesScrollKey = (): string =>
+  `${props.messages.length}|${props.messages.map((m) => `${m.id}:${m.updatedAt ?? 0}:${m.fileTransfer?.transferId ?? ''}`).join(';')}`
+
+watch(messagesScrollKey, () => {
+  void scrollToBottom()
+})
 
 const scrollToBottom = async (): Promise<void> => {
   await nextTick()

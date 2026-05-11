@@ -1,5 +1,5 @@
 import { ipcMain, screen, BrowserWindow, app } from 'electron'
-import { InputBridge, getCursorType } from '@maciejwojs/input-bridge'
+import { InputBridge, getCursorType, type InputEvent } from '@maciejwojs/input-bridge'
 import { broadcastLockoutToWidget } from '../hostWidget'
 import { MonitorMetadata } from '@maciejwojs/screen-capture'
 
@@ -67,6 +67,11 @@ class InputController {
   private bridge: InputBridge | null = null
   private isOptimizationEnabled = false
 
+  /** Windows: pliki wysyłamy dopiero po Ctrl+V (getClipboardFiles), nie przy samym skopiowaniu. */
+  private clipboardFilesSyncOnPasteOnly = false
+  private physicalCtrlDown = false
+  private physicalMetaDown = false
+
   private queue: QueuedInput[] = []
   private frameLoop: NodeJS.Timeout | null = null
 
@@ -90,9 +95,14 @@ class InputController {
       if (event.type === 'files') {
         const paths = normalizeClipboardFilePaths(event.data)
         if (!paths) return
+        if (this.clipboardFilesSyncOnPasteOnly) {
+          return
+        }
         inputService.broadcastClipboardFiles(paths)
       }
     })
+
+    this.tryInitClipboardFilesPasteSync(bridge)
 
     bridge.setLogger((...args) => {
       console.log('[InputBridge-CPP]', ...args)
@@ -102,6 +112,61 @@ class InputController {
     this.bridge = bridge
 
     this.startFrameLoop()
+  }
+
+  /**
+   * Na Windows `startInputDetection` + `onInput` pozwala wykryć fizyczne Ctrl+V
+   * i wtedy odczytać ścieżki przez `getClipboardFiles()` (synchro P2P dopiero tu).
+   * Na Linuxie brak — zostaje natychmiastowa ścieżka z `onClipboard` (Ctrl+C).
+   */
+  private tryInitClipboardFilesPasteSync(bridge: InputBridge): void {
+    try {
+      const started =
+        typeof bridge.startInputDetection === 'function' && bridge.startInputDetection()
+      if (!started) return
+      this.clipboardFilesSyncOnPasteOnly = true
+      bridge.onInput((ev: InputEvent) => {
+        this.handlePhysicalKeyForClipboardFiles(ev)
+      })
+    } catch (e) {
+      console.warn(
+        '[InputController] startInputDetection niedostępny — pliki schowka nadal przy zmianie schowka (Ctrl+C).',
+        e
+      )
+      this.clipboardFilesSyncOnPasteOnly = false
+    }
+  }
+
+  private handlePhysicalKeyForClipboardFiles(ev: InputEvent): void {
+    if (ev.type !== 'key_press') return
+
+    const down = ev.down !== false
+    const dc = ev.domCode
+
+    if (dc === 'ControlLeft' || dc === 'ControlRight') {
+      this.physicalCtrlDown = down
+      return
+    }
+    if (dc === 'MetaLeft' || dc === 'MetaRight') {
+      this.physicalMetaDown = down
+      return
+    }
+
+    if (!down) return
+    if (!this.physicalCtrlDown && !this.physicalMetaDown) return
+
+    const isV =
+      dc === 'KeyV' ||
+      (typeof ev.keyCode === 'number' && (ev.keyCode === 0x56 || ev.keyCode === 86))
+
+    if (!isV) return
+
+    const b = this.bridge
+    if (!b || typeof b.getClipboardFiles !== 'function') return
+    const raw = b.getClipboardFiles()
+    const paths = normalizeClipboardFilePaths(raw)
+    if (!paths) return
+    inputService.broadcastClipboardFiles(paths)
   }
 
   setClipboardText(text: string): boolean {
@@ -207,6 +272,14 @@ class InputController {
     if (this.frameLoop) {
       clearInterval(this.frameLoop)
       this.frameLoop = null
+    }
+    if (this.bridge && this.clipboardFilesSyncOnPasteOnly) {
+      try {
+        this.bridge.stopInputDetection()
+      } catch {
+        // ignore
+      }
+      this.clipboardFilesSyncOnPasteOnly = false
     }
   }
 
