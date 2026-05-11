@@ -196,8 +196,7 @@ const api = {
       ipcRenderer.invoke('input:get-host-screen-size'),
 
     getCursorType: (): Promise<string> => ipcRenderer.invoke('input:get-cursor-type'),
-    startCursorP2PRelay: (): Promise<void> =>
-      ipcRenderer.invoke('input:cursor-p2p-relay-start'),
+    startCursorP2PRelay: (): Promise<void> => ipcRenderer.invoke('input:cursor-p2p-relay-start'),
     stopCursorP2PRelay: (): Promise<void> => ipcRenderer.invoke('input:cursor-p2p-relay-stop'),
     onHostCursorSync: (callback: (cursorType: string) => void) => {
       const listener = (_: unknown, payload: { cursorType: string }): void => {
@@ -206,6 +205,19 @@ const api = {
       ipcRenderer.on('input:host-cursor-sync', listener)
       return () => {
         ipcRenderer.removeListener('input:host-cursor-sync', listener)
+      }
+    }
+  },
+  clipboard: {
+    setSyncText: (text: string): Promise<boolean> =>
+      ipcRenderer.invoke('clipboard:set-text-from-sync', text),
+    onBridgeText: (callback: (text: string) => void) => {
+      const listener = (_: unknown, payload: { text: string }): void => {
+        if (typeof payload?.text === 'string') callback(payload.text)
+      }
+      ipcRenderer.on('clipboard:bridge-text-change', listener)
+      return () => {
+        ipcRenderer.removeListener('clipboard:bridge-text-change', listener)
       }
     }
   },

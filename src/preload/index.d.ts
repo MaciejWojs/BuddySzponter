@@ -154,6 +154,10 @@ declare global {
         stopCursorP2PRelay: () => Promise<void>
         onHostCursorSync: (callback: (cursorType: string) => void) => () => void
       }
+      clipboard: {
+        setSyncText: (text: string) => Promise<boolean>
+        onBridgeText: (callback: (text: string) => void) => () => void
+      }
       events: {
         onToggleMic: (callback: () => void) => void
         onStopSession: (callback: () => void) => void
