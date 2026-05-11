@@ -68,7 +68,8 @@ export const P2PMessageSchema = z.discriminatedUnion('type', [
     payload: z.object({
       screenWidth: z.number().min(1),
       screenHeight: z.number().min(1),
-      isControlGranted: z.boolean()
+      isControlGranted: z.boolean(),
+      cursorType: z.string().optional()
     })
   }),
 
@@ -76,6 +77,13 @@ export const P2PMessageSchema = z.discriminatedUnion('type', [
     type: z.literal('HID_PERMISSION_UPDATE'),
     payload: z.object({
       isControlGranted: z.boolean()
+    })
+  }),
+
+  z.object({
+    type: z.literal('HID_CURSOR_SYNC'),
+    payload: z.object({
+      cursorType: z.string()
     })
   }),
 

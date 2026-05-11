@@ -17,11 +17,13 @@ export interface HidChannelApi {
   remoteMouse: Ref<MousePosition>
   isControlGranted: Ref<boolean>
   remoteScreenSize: Ref<ScreenSize>
+  remoteHostCursorType: Ref<string>
   localRole: Ref<'host' | 'guest'>
   setLocalRole: (role: 'host' | 'guest') => void
   grantControl: () => void
   revokeControl: () => void
   sendHandshake: () => void
+  sendHostCursorSync: (cursorType: string) => void
   sendMouseFromVideo: (percentX: number, percentY: number) => void
   sendMouseAction: (
     button: 'l' | 'r' | 'm',
@@ -40,6 +42,7 @@ export interface HidChannelApi {
 const remoteMouse = ref<MousePosition>({ x: 0, y: 0 })
 const isControlGranted = ref<boolean>(false)
 const remoteScreenSize = ref<ScreenSize>({ width: 1920, height: 1080 })
+const remoteHostCursorType = ref<string>('default')
 const localRole = ref<'host' | 'guest'>('guest')
 
 let lastSentX = -1
@@ -56,6 +59,9 @@ messageRouter.subscribe('hid-control', (msg: P2PMessage) => {
       remoteScreenSize.value = { width: msg.payload.screenWidth, height: msg.payload.screenHeight }
       if (localRole.value !== 'host') {
         isControlGranted.value = msg.payload.isControlGranted
+        if (msg.payload.cursorType) {
+          remoteHostCursorType.value = msg.payload.cursorType
+        }
 
         if (window.api?.app?.resizeToVideoRatio) {
           window.api.app
@@ -68,6 +74,12 @@ messageRouter.subscribe('hid-control', (msg: P2PMessage) => {
     case 'HID_PERMISSION_UPDATE':
       if (localRole.value !== 'host') {
         isControlGranted.value = msg.payload.isControlGranted
+      }
+      break
+
+    case 'HID_CURSOR_SYNC':
+      if (localRole.value !== 'host') {
+        remoteHostCursorType.value = msg.payload.cursorType || 'default'
       }
       break
 
@@ -107,6 +119,7 @@ export function useHidChannel(): HidChannelApi {
     remoteMouse.value = { x: 0, y: 0 }
     isControlGranted.value = false
     remoteScreenSize.value = { width: 1920, height: 1080 }
+    remoteHostCursorType.value = 'default'
     lastSentX = -1
     lastSentY = -1
     lastSentAt = 0
@@ -119,6 +132,7 @@ export function useHidChannel(): HidChannelApi {
   const sendHandshake = async (): Promise<void> => {
     let screenWidth = 1920
     let screenHeight = 1080
+    let cursorType = 'default'
 
     if (localRole.value === 'host' && window.api?.input?.getHostScreenSize) {
       try {
@@ -132,14 +146,34 @@ export function useHidChannel(): HidChannelApi {
       }
     }
 
+    if (localRole.value === 'host' && window.api?.input?.getCursorType) {
+      try {
+        cursorType = (await window.api.input.getCursorType()) || 'default'
+      } catch (e) {
+        console.warn('[HID] Błąd pobierania kursora hosta:', e)
+      }
+    }
+
     const payload = {
       screenWidth,
       screenHeight,
-      isControlGranted: isControlGranted.value
+      isControlGranted: isControlGranted.value,
+      cursorType
     }
 
     console.log('[HID] Wysyłam Handshake:', payload)
     webRtcService.sendData('hid-control', JSON.stringify({ type: 'HID_HANDSHAKE', payload }))
+  }
+
+  const sendHostCursorSync = (cursorType: string): void => {
+    if (localRole.value !== 'host') return
+    webRtcService.sendData(
+      'hid-control',
+      JSON.stringify({
+        type: 'HID_CURSOR_SYNC',
+        payload: { cursorType: cursorType || 'default' }
+      })
+    )
   }
 
   const grantControl = (): void => {
@@ -228,11 +262,13 @@ export function useHidChannel(): HidChannelApi {
     remoteMouse,
     isControlGranted,
     remoteScreenSize,
+    remoteHostCursorType,
     localRole,
     setLocalRole,
     grantControl,
     revokeControl,
     sendHandshake,
+    sendHostCursorSync,
     sendMouseFromVideo,
     sendMouseAction,
     sendKeyboardEvent,

@@ -58,7 +58,22 @@ export const useWebRtcStore = defineStore('webrtc', () => {
     if (localPublishProfile.value === 'host') {
       console.log('[WebRtcStore] Połączenie otwarte, wysyłam HID Handshake...')
       hid.sendHandshake()
+      window.api?.input?.startCursorP2PRelay?.().catch((e) => {
+        console.warn('[WebRtcStore] Nie udało się uruchomić relayu kursora:', e)
+      })
     }
+  }
+
+  if (window.api?.input?.onHostCursorSync) {
+    window.api.input.onHostCursorSync((cursorType) => {
+      if (
+        localPublishProfile.value !== 'host' ||
+        rtcStatus.value !== 'connected'
+      ) {
+        return
+      }
+      hid.sendHostCursorSync(cursorType)
+    })
   }
 
   // --- ACTIONS ---
@@ -87,6 +102,8 @@ export const useWebRtcStore = defineStore('webrtc', () => {
     remoteStream.value = null
     localPublishProfile.value = 'host'
     chatService.clearMessages()
+    hid.resetState()
+    window.api?.input?.stopCursorP2PRelay?.().catch(() => {})
   }
 
   const disconnect = async (): Promise<void> => {

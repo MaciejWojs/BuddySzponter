@@ -193,7 +193,21 @@ const api = {
     scrollMouse: (deltaY: number): Promise<void> =>
       ipcRenderer.invoke('input:scroll-mouse', deltaY),
     getHostScreenSize: (): Promise<{ width: number; height: number }> =>
-      ipcRenderer.invoke('input:get-host-screen-size')
+      ipcRenderer.invoke('input:get-host-screen-size'),
+
+    getCursorType: (): Promise<string> => ipcRenderer.invoke('input:get-cursor-type'),
+    startCursorP2PRelay: (): Promise<void> =>
+      ipcRenderer.invoke('input:cursor-p2p-relay-start'),
+    stopCursorP2PRelay: (): Promise<void> => ipcRenderer.invoke('input:cursor-p2p-relay-stop'),
+    onHostCursorSync: (callback: (cursorType: string) => void) => {
+      const listener = (_: unknown, payload: { cursorType: string }): void => {
+        callback(payload?.cursorType ?? 'default')
+      }
+      ipcRenderer.on('input:host-cursor-sync', listener)
+      return () => {
+        ipcRenderer.removeListener('input:host-cursor-sync', listener)
+      }
+    }
   },
 
   events: {
