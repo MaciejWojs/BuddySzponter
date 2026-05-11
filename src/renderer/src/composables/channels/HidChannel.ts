@@ -38,6 +38,7 @@ export interface HidChannelApi {
   sendMouseScroll: (deltaY: number) => void
   setClipboardSyncEnabled: (enabled: boolean) => void
   sendClipboardText: (text: string) => void
+  sendClipboardFiles: (paths: string[]) => void
   resetState: () => void
 }
 
@@ -51,12 +52,30 @@ const remoteHostCursorType = ref<string>('default')
 const localRole = ref<'host' | 'guest'>('guest')
 const clipboardSyncEnabled = ref<boolean>(false)
 let lastClipboardReceivedFromPeer: string | null = null
+let lastClipboardFilesReceivedFingerprint: string | null = null
 
 let lastSentX = -1
 let lastSentY = -1
 let lastSentAt = 0
 const SEND_INTERVAL_MS = 16
 const CLIPBOARD_TEXT_MAX_LENGTH = 262_144
+const CLIPBOARD_FILES_MAX = 64
+const CLIPBOARD_FILE_PATH_MAX = 4096
+
+function clipboardFilesSyncFingerprint(paths: string[]): string {
+  return JSON.stringify([...paths].sort())
+}
+
+function normalizeClipboardPathsForSend(paths: unknown[]): string[] | null {
+  const out: string[] = []
+  for (const item of paths) {
+    if (typeof item !== 'string' || item.length === 0) continue
+    if (item.length > CLIPBOARD_FILE_PATH_MAX) continue
+    out.push(item)
+    if (out.length >= CLIPBOARD_FILES_MAX) break
+  }
+  return out.length > 0 ? out : null
+}
 
 // ==========================================
 // 2. JEDNORAZOWY NASŁUCH (Event Bus)
@@ -113,6 +132,19 @@ messageRouter.subscribe('hid-control', (msg: P2PMessage) => {
       break
     }
 
+    case 'CLIPBOARD_FILES': {
+      if (!isControlGranted.value || !clipboardSyncEnabled.value) break
+      const paths = msg.payload.paths
+      if (!Array.isArray(paths) || paths.length === 0) break
+      const normalized = normalizeClipboardPathsForSend(paths as unknown[])
+      if (!normalized) break
+      lastClipboardFilesReceivedFingerprint = clipboardFilesSyncFingerprint(normalized)
+      window.api?.clipboard?.setSyncFiles?.(normalized).catch(() => {
+        // ignorujemy błędy ustawiania schowka
+      })
+      break
+    }
+
     case 'MOUSE_MOVE':
       if (localRole.value !== 'host' || !isControlGranted.value) return
       remoteMouse.value = { x: msg.payload.x, y: msg.payload.y }
@@ -156,6 +188,7 @@ export function useHidChannel(): HidChannelApi {
     remoteHostCursorType.value = 'default'
     clipboardSyncEnabled.value = false
     lastClipboardReceivedFromPeer = null
+    lastClipboardFilesReceivedFingerprint = null
     lastSentX = -1
     lastSentY = -1
     lastSentAt = 0
@@ -335,6 +368,21 @@ export function useHidChannel(): HidChannelApi {
     )
   }
 
+  const sendClipboardFiles = (paths: string[]): void => {
+    if (!isControlGranted.value || !clipboardSyncEnabled.value) return
+    const normalized = normalizeClipboardPathsForSend(paths)
+    if (!normalized) return
+    const fp = clipboardFilesSyncFingerprint(normalized)
+    if (fp === lastClipboardFilesReceivedFingerprint) return
+    webRtcService.sendData(
+      'hid-control',
+      JSON.stringify({
+        type: 'CLIPBOARD_FILES',
+        payload: { paths: normalized }
+      })
+    )
+  }
+
   return {
     remoteMouse,
     isControlGranted,
@@ -354,6 +402,7 @@ export function useHidChannel(): HidChannelApi {
     sendMouseScroll,
     setClipboardSyncEnabled,
     sendClipboardText,
+    sendClipboardFiles,
     resetState
   }
 }

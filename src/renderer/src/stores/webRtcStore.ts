@@ -80,6 +80,13 @@ export const useWebRtcStore = defineStore('webrtc', () => {
     })
   }
 
+  if (window.api?.clipboard?.onBridgeFiles) {
+    window.api.clipboard.onBridgeFiles((paths) => {
+      if (rtcStatus.value !== 'connected') return
+      hid.sendClipboardFiles(paths)
+    })
+  }
+
   // --- ACTIONS ---
 
   const publishLocalStream = async (stream: MediaStream): Promise<void> => {

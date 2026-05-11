@@ -213,6 +213,8 @@ const api = {
   clipboard: {
     setSyncText: (text: string): Promise<boolean> =>
       ipcRenderer.invoke('clipboard:set-text-from-sync', text),
+    setSyncFiles: (paths: string[]): Promise<boolean> =>
+      ipcRenderer.invoke('clipboard:set-files-from-sync', paths),
     onBridgeText: (callback: (text: string) => void) => {
       const listener = (_: unknown, payload: { text: string }): void => {
         if (typeof payload?.text === 'string') callback(payload.text)
@@ -220,6 +222,15 @@ const api = {
       ipcRenderer.on('clipboard:bridge-text-change', listener)
       return () => {
         ipcRenderer.removeListener('clipboard:bridge-text-change', listener)
+      }
+    },
+    onBridgeFiles: (callback: (paths: string[]) => void) => {
+      const listener = (_: unknown, payload: { paths: string[] }): void => {
+        if (Array.isArray(payload?.paths)) callback(payload.paths)
+      }
+      ipcRenderer.on('clipboard:bridge-files-change', listener)
+      return () => {
+        ipcRenderer.removeListener('clipboard:bridge-files-change', listener)
       }
     }
   },

@@ -103,6 +103,13 @@ export const P2PMessageSchema = z.discriminatedUnion('type', [
   }),
 
   z.object({
+    type: z.literal('CLIPBOARD_FILES'),
+    payload: z.object({
+      paths: z.array(z.string().max(4096)).min(1).max(64)
+    })
+  }),
+
+  z.object({
     type: z.literal('CONTROL'),
     payload: z.object({
       action: z.enum(['PAUSE_VIDEO', 'RESUME_VIDEO', 'LOWER_QUALITY'])

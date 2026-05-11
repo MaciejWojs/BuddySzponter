@@ -4,6 +4,20 @@ import { broadcastLockoutToWidget } from '../hostWidget'
 import { MonitorMetadata } from '@maciejwojs/screen-capture'
 
 const CLIPBOARD_TEXT_MAX_LENGTH = 262_144
+const CLIPBOARD_FILES_MAX = 64
+const CLIPBOARD_FILE_PATH_MAX = 4096
+
+function normalizeClipboardFilePaths(data: unknown): string[] | null {
+  if (!Array.isArray(data)) return null
+  const out: string[] = []
+  for (const item of data) {
+    if (typeof item !== 'string' || item.length === 0) continue
+    if (item.length > CLIPBOARD_FILE_PATH_MAX) continue
+    out.push(item)
+    if (out.length >= CLIPBOARD_FILES_MAX) break
+  }
+  return out.length > 0 ? out : null
+}
 
 /** Kolejność pod Windows (AltGr = ControlLeft + AltRight) — najpierw para AltGr, potem reszta modyfikatorów. */
 const STUCK_MODIFIER_RELEASE_ORDER = [
@@ -66,11 +80,18 @@ class InputController {
     const bridge = new InputBridge({ autoFlush: false })
     await bridge.init()
     bridge.onClipboard((event) => {
-      if (event.type !== 'text') return
-      const text = typeof event.data === 'string' ? event.data : null
-      if (text === null) return
-      if (text.length > CLIPBOARD_TEXT_MAX_LENGTH) return
-      inputService.broadcastClipboardText(text)
+      if (event.type === 'text') {
+        const text = typeof event.data === 'string' ? event.data : null
+        if (text === null) return
+        if (text.length > CLIPBOARD_TEXT_MAX_LENGTH) return
+        inputService.broadcastClipboardText(text)
+        return
+      }
+      if (event.type === 'files') {
+        const paths = normalizeClipboardFilePaths(event.data)
+        if (!paths) return
+        inputService.broadcastClipboardFiles(paths)
+      }
     })
 
     bridge.setLogger((...args) => {
@@ -86,6 +107,11 @@ class InputController {
   setClipboardText(text: string): boolean {
     if (!this.bridge) return false
     return this.bridge.setClipboardText(text)
+  }
+
+  setClipboardFiles(filePaths: string[]): boolean {
+    if (!this.bridge) return false
+    return this.bridge.setClipboardFiles(filePaths)
   }
 
   getSessionHandle(): string | null {
@@ -402,6 +428,13 @@ export const inputService = {
     }
   },
 
+  broadcastClipboardFiles(paths: string[]): void {
+    for (const win of BrowserWindow.getAllWindows()) {
+      if (win.isDestroyed()) continue
+      win.webContents.send('clipboard:bridge-files-change', { paths })
+    }
+  },
+
   setStartingX(x: number): void {
     this.startingX = x
   },
@@ -519,6 +552,12 @@ export const inputService = {
       if (typeof text !== 'string') return false
       if (text.length > CLIPBOARD_TEXT_MAX_LENGTH) return false
       return this.controller.setClipboardText(text)
+    })
+
+    ipcMain.handle('clipboard:set-files-from-sync', (_e, paths: unknown) => {
+      const normalized = normalizeClipboardFilePaths(paths)
+      if (!normalized) return false
+      return this.controller.setClipboardFiles(normalized)
     })
   }
 }

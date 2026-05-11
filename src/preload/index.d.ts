@@ -157,7 +157,9 @@ declare global {
       }
       clipboard: {
         setSyncText: (text: string) => Promise<boolean>
+        setSyncFiles: (paths: string[]) => Promise<boolean>
         onBridgeText: (callback: (text: string) => void) => () => void
+        onBridgeFiles: (callback: (paths: string[]) => void) => () => void
       }
       events: {
         onToggleMic: (callback: () => void) => void
