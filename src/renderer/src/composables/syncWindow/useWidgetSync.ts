@@ -36,10 +36,16 @@ export function useWidgetSync(): void {
           guestMicActive: sessionStore.remoteMicVolume > 0,
           controlGranted: hidChannel.isControlGranted.value,
           clipboardSyncEnabled: hidChannel.clipboardSyncEnabled.value,
-          chatHasUnread: chatService.hasUnread.value
+          chatHasUnread: chatService.hasUnread.value,
+          guestName: chatService.localSenderName.value || ''
         }
       })
     }
+
+    chatService
+      .refreshLocalSenderName()
+      .then(() => pushStateToWidget())
+      .catch(() => {})
 
     const pushStateToGuestAndTray = (): void => {
       if (!guestChannel) return
@@ -135,7 +141,8 @@ export function useWidgetSync(): void {
         () => sessionStore.remoteMicVolume,
         () => hidChannel.isControlGranted.value,
         () => hidChannel.clipboardSyncEnabled.value,
-        () => chatService.hasUnread.value
+        () => chatService.hasUnread.value,
+        () => chatService.localSenderName.value
       ],
       () => pushStateToWidget(),
       { deep: true }

@@ -3,6 +3,7 @@
     <HostWidgetNormal
       v-if="widgetMode === 'normal'"
       :state="state"
+      :guest-name="guestName"
       @send-command="sendCommand"
       @go-to-next-monitor="goToNextMonitor"
       @set-widget-mode="setWidgetMode"
@@ -22,6 +23,8 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 
+const guestName = ref<string>('')
+
 const state = ref({
   micActive: true,
   sysActive: true,
@@ -40,7 +43,9 @@ onMounted(() => {
 
   syncChannel.onmessage = (event) => {
     if (event.data.type === 'STATE_UPDATE') {
-      state.value = { ...state.value, ...event.data.payload }
+      const { guestName: name, ...rest } = event.data.payload ?? {}
+      if (name !== undefined) guestName.value = name
+      state.value = { ...state.value, ...rest }
     }
   }
 

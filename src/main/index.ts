@@ -16,6 +16,7 @@ import { wsService } from './services/ws/WsService'
 
 // --- ODBLOKOWANE: Importy hostWidget ---
 import { closeHostWidget, createHostWidget } from './hostWidget'
+import { createHostWidgetPopup, hideHostWidgetPopup } from './hostWidgetPopup'
 import {
   createHostChatWindow,
   hideHostChatWindow,
@@ -178,12 +179,14 @@ if (!gotTheLock) {
     // --- IPC MAIN HANDLERY DLA WIDGETU ---
     ipcMain.handle('show-host-widget', () => {
       createHostWidget()
+      createHostWidgetPopup()
       hideWindowSafely(mainWindow)
     })
 
     ipcMain.handle('hide-host-widget', () => {
       closeHostWidget()
       hideHostChatWindow()
+      hideHostWidgetPopup()
       showWindowSafely(mainWindow)
     })
 
