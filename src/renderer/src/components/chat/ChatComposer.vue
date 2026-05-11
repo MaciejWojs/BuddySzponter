@@ -18,6 +18,23 @@
 
       <button
         type="button"
+        :disabled="disabled"
+        class="inline-flex h-8 w-8 items-center justify-center rounded-full text-white transition hover:bg-white/20 disabled:opacity-40"
+        title="Wyślij plik"
+        @click="$emit('attach')"
+      >
+        <svg viewBox="0 0 24 24" fill="none" class="h-5 w-5" aria-hidden="true">
+          <path
+            d="M9 11V5.5C9 3.57 10.57 2 12.5 2S16 3.57 16 5.5V15c0 1.38-1.12 2.5-2.5 2.5S11 16.38 11 15V8"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+          />
+        </svg>
+      </button>
+
+      <button
+        type="button"
         class="inline-flex h-8 w-8 items-center justify-center rounded-full text-white transition hover:bg-white/20"
         @click="$emit('emojiClick')"
       >
@@ -51,6 +68,7 @@ withDefaults(
 
 const emit = defineEmits<{
   send: [text: string]
+  attach: []
   emojiClick: []
 }>()
 

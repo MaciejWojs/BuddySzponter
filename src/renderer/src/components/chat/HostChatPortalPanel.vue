@@ -29,12 +29,12 @@
       @delete="handleDelete"
     />
 
-    <ChatComposer @send="handleSend" />
+    <ChatComposer :disabled="attachDisabled" @send="handleSend" @attach="handleAttach" />
   </section>
 </template>
 
 <script setup lang="ts">
-import { nextTick, ref, watch, type Ref } from 'vue'
+import { computed, nextTick, ref, watch, type Ref } from 'vue'
 import type { ChatMessage } from '@renderer/services/chatService'
 import ChatComposer from '@renderer/components/chat/ChatComposer.vue'
 import ChatMessagesList from '@renderer/components/chat/ChatMessagesList.vue'
@@ -47,9 +47,12 @@ const props = defineProps<{
   messages: ChatMessage[]
   localAuthorId: string
   onSendText: (text: string) => void
+  onSendFiles: (paths: string[]) => void
   onEditMessage: (id: string, text: string) => void
   onDeleteMessage: (id: string) => void
 }>()
+
+const attachDisabled = computed(() => !window.api?.fileTransfer?.pickFiles)
 
 defineEmits<{
   close: []
@@ -97,6 +100,13 @@ const toggleActions = (id: string): void => {
 
 const handleSend = (text: string): void => {
   props.onSendText(text)
+}
+
+const handleAttach = async (): Promise<void> => {
+  if (attachDisabled.value) return
+  const paths = await window.api.fileTransfer.pickFiles()
+  if (!paths?.length) return
+  props.onSendFiles(paths)
 }
 
 const saveEdit = (id: string): void => {

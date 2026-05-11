@@ -235,6 +235,27 @@ const api = {
     }
   },
 
+  fileTransfer: {
+    pickDirectory: (): Promise<string | null> => ipcRenderer.invoke('file-transfer:pick-directory'),
+    pickFiles: (): Promise<string[]> => ipcRenderer.invoke('file-transfer:pick-files'),
+    registerSendPaths: (paths: string[]): Promise<boolean> =>
+      ipcRenderer.invoke('file-transfer:register-send-paths', paths),
+    clearSendPaths: (paths?: string[]): Promise<void> =>
+      ipcRenderer.invoke('file-transfer:clear-send-paths', paths ?? null),
+    statFiles: (paths: string[]): Promise<{ path: string; name: string; size: number }[]> =>
+      ipcRenderer.invoke('file-transfer:stat-files', paths),
+    readChunk: (path: string, offset: number, length: number): Promise<ArrayBuffer | null> =>
+      ipcRenderer.invoke('file-transfer:read-chunk', { path, offset, length }),
+    createEmptyFiles: (outputPaths: string[]): Promise<boolean> =>
+      ipcRenderer.invoke('file-transfer:create-empty-files', outputPaths),
+    registerReceive: (transferId: string, outputPaths: string[]): Promise<boolean> =>
+      ipcRenderer.invoke('file-transfer:register-receive', { transferId, outputPaths }),
+    appendChunk: (transferId: string, fileIndex: number, data: ArrayBuffer): Promise<boolean> =>
+      ipcRenderer.invoke('file-transfer:append-chunk', { transferId, fileIndex, data }),
+    unregisterReceive: (transferId: string): Promise<void> =>
+      ipcRenderer.invoke('file-transfer:unregister-receive', transferId)
+  },
+
   events: {
     onToggleMic: (callback: () => void) => {
       ipcRenderer.on('tray-toggle-mic', callback)

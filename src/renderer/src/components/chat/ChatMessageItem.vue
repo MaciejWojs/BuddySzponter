@@ -4,13 +4,31 @@
 
     <div class="relative max-w-[80%]">
       <ChatMessageBubble
-        v-if="!isEditing"
+        v-if="!isEditing && !message.fileTransfer"
         :text="message.text"
         :incoming="!isOwn"
         :show-edited="Boolean(message.updatedAt)"
         :clickable="isOwn"
         @click="$emit('toggleActions', message.id)"
       />
+
+      <div
+        v-else-if="!isEditing && message.fileTransfer"
+        class="rounded-xl px-4 py-2 text-base shadow-sm transition"
+        :class="[
+          incoming ? 'bg-black text-white' : 'bg-[#f1f1f3] text-[#111111]',
+          isOwn ? 'cursor-pointer hover:brightness-95' : ''
+        ]"
+        @click="onFileBoxClick"
+      >
+        <div class="text-xs font-semibold uppercase tracking-wide opacity-80">Pliki</div>
+        <ul class="m-0 mt-1 list-none space-y-1 p-0">
+          <li v-for="(f, idx) in message.fileTransfer.files" :key="idx" class="text-sm break-all">
+            {{ f.name }}
+            <span class="opacity-70">· {{ formatBytes(f.size) }}</span>
+          </li>
+        </ul>
+      </div>
 
       <form
         v-else
@@ -31,6 +49,7 @@
 
       <ChatMessageActionsMenu
         :visible="isOwn && isActionsOpen && !isEditing"
+        :hide-edit="Boolean(message.fileTransfer)"
         @edit="$emit('startEdit', { id: message.id, text: message.text })"
         @delete="$emit('delete', message.id)"
       />
@@ -39,12 +58,13 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { ChatMessage } from '@renderer/services/chatService'
 import ChatMessageActionsMenu from '@renderer/components/chat/ChatMessageActionsMenu.vue'
 import ChatMessageBubble from '@renderer/components/chat/ChatMessageBubble.vue'
 import ChatSenderLabel from '@renderer/components/chat/ChatSenderLabel.vue'
 
-defineProps<{
+const props = defineProps<{
   message: ChatMessage
   isOwn: boolean
   showSenderLabel: boolean
@@ -53,7 +73,9 @@ defineProps<{
   editingText: string
 }>()
 
-defineEmits<{
+const incoming = computed(() => !props.isOwn)
+
+const emit = defineEmits<{
   toggleActions: [id: string]
   startEdit: [payload: { id: string; text: string }]
   updateEditingText: [value: string]
@@ -61,4 +83,14 @@ defineEmits<{
   cancelEdit: []
   delete: [id: string]
 }>()
+
+const onFileBoxClick = (): void => {
+  if (props.isOwn) emit('toggleActions', props.message.id)
+}
+
+function formatBytes(n: number): string {
+  if (n < 1024) return `${n} B`
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`
+  return `${(n / (1024 * 1024)).toFixed(1)} MB`
+}
 </script>

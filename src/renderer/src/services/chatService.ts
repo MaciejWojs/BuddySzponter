@@ -1,11 +1,13 @@
 import { computed, ref, watch, type ComputedRef } from 'vue'
 import type { P2PMessage } from '@renderer/schemas/p2pProtocol'
 import { useUserStore } from '@renderer/stores/userStore'
+import { requestOutgoingFileTransferFromPaths } from '@renderer/composables/channels/FileTransferChannel'
 
 export type ChatPayload = Extract<P2PMessage, { type: 'CHAT' }>['payload']
 type ChatCreatePayload = Extract<ChatPayload, { op: 'create' }>
 type ChatEditPayload = Extract<ChatPayload, { op: 'edit' }>
 type ChatDeletePayload = Extract<ChatPayload, { op: 'delete' }>
+type ChatFilePayload = Extract<ChatPayload, { op: 'file' }>
 
 export interface ChatMessage {
   id: string
@@ -14,6 +16,10 @@ export interface ChatMessage {
   authorId: string
   createdAt: number
   updatedAt?: number
+  fileTransfer?: {
+    transferId: string
+    files: { name: string; size: number }[]
+  }
 }
 
 type ChatTransportSender = (payload: ChatPayload) => void
@@ -72,6 +78,28 @@ const applyDelete = (payload: ChatDeletePayload): void => {
   messages.value = messages.value.filter((message) => message.id !== payload.id)
 }
 
+const applyFile = (payload: ChatFilePayload): void => {
+  const exists = messages.value.some((message) => message.id === payload.id)
+  if (exists) return
+
+  const summary =
+    payload.files.length === 1
+      ? payload.files[0]!.name
+      : `${payload.files.length} plików: ${payload.files.map((f) => f.name).join(', ')}`
+
+  messages.value.push({
+    id: payload.id,
+    text: summary,
+    sender: payload.sender,
+    authorId: payload.authorId,
+    createdAt: payload.at,
+    fileTransfer: {
+      transferId: payload.transferId,
+      files: payload.files
+    }
+  })
+}
+
 const applyPayload = (payload: ChatPayload): void => {
   switch (payload.op) {
     case 'create':
@@ -82,6 +110,9 @@ const applyPayload = (payload: ChatPayload): void => {
       break
     case 'delete':
       applyDelete(payload)
+      break
+    case 'file':
+      applyFile(payload)
       break
   }
 }
@@ -185,6 +216,42 @@ const isOwnMessage = (message: ChatMessage): boolean => {
   return message.authorId === localAuthorId.value
 }
 
+const sendFilesWithPaths = async (paths: string[]): Promise<void> => {
+  if (!paths.length) return
+  initSenderSync()
+
+  let sender = localSenderName.value || FALLBACK_SENDER_NAME
+  try {
+    sender = await Promise.race([
+      ensureSenderName(),
+      new Promise<string>((resolve) => {
+        setTimeout(() => resolve(sender), 800)
+      })
+    ])
+  } catch {
+    sender = localSenderName.value || FALLBACK_SENDER_NAME
+  }
+
+  const meta = await requestOutgoingFileTransferFromPaths(paths, {
+    source: 'chat',
+    useClipboardPolicy: false
+  })
+  if (!meta) return
+
+  const payload: ChatFilePayload = {
+    op: 'file',
+    id: crypto.randomUUID(),
+    transferId: meta.transferId,
+    files: meta.files,
+    sender,
+    authorId: localAuthorId.value,
+    at: Date.now()
+  }
+
+  applyFile(payload)
+  sendTransport(payload)
+}
+
 const sendMessage = async (text: string): Promise<void> => {
   const normalizedText = text.trim()
   if (!normalizedText) return
@@ -220,7 +287,7 @@ const editMessage = async (id: string, text: string): Promise<boolean> => {
 
   await ensureSenderName()
   const targetMessage = messages.value.find((message) => message.id === id)
-  if (!targetMessage || !isOwnMessage(targetMessage)) {
+  if (!targetMessage || !isOwnMessage(targetMessage) || targetMessage.fileTransfer) {
     return false
   }
 
@@ -266,6 +333,7 @@ export const chatService = {
   markConversationRead,
   isOwnMessage,
   sendMessage,
+  sendFilesWithPaths,
   editMessage,
   deleteMessage
 }

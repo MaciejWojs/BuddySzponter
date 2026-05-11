@@ -7,6 +7,7 @@ import { webRtcService } from '@renderer/composables/connection/webRTCService'
 import { useWebRtcStore } from '@renderer/stores/webRtcStore'
 import { useHidChannel } from '@renderer/composables/channels/HidChannel'
 import { chatService, type ChatPayload } from '@renderer/services/chatService'
+import { completeRelayOutgoingFileTransfer } from '@renderer/composables/channels/FileTransferChannel'
 import GuestFloatingPanel from '@renderer/components/session/guest/GuestFloatingPanel.vue'
 import GuestControlsToolbar from '@renderer/components/session/guest/GuestControlsToolbar.vue'
 import ChatPanel from '@renderer/components/chat/ChatPanel.vue'
@@ -98,6 +99,11 @@ onMounted(() => {
         'chat-channel',
         JSON.stringify({ type: 'CHAT', payload: payload as ChatPayload })
       )
+    } else if (type === 'RELAY_FILE_OUTGOING') {
+      const paths = Array.isArray(event.data.paths) ? (event.data.paths as string[]) : []
+      const source = (event.data.source as 'clipboard' | 'chat' | 'manual') ?? 'chat'
+      const correlationId = event.data.correlationId
+      void completeRelayOutgoingFileTransfer(paths, source, correlationId)
     }
   }
 

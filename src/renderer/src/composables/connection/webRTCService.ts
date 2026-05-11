@@ -14,7 +14,12 @@ interface CustomRTCStreamStats {
   codecId?: string
 }
 
-export type DataChannelLabel = 'chat-channel' | 'hid-control' | 'system-events' | 'metrics'
+export type DataChannelLabel =
+  | 'chat-channel'
+  | 'hid-control'
+  | 'system-events'
+  | 'metrics'
+  | 'file-transfer'
 export type ConnectionMetrics = {
   rttMs: number | null
   cpuLoadPct: number | null
@@ -46,6 +51,7 @@ export class WebRTCService {
   public hidControlChannel: RTCDataChannel | null = null
   public systemEventsChannel: RTCDataChannel | null = null
   public metricsChannel: RTCDataChannel | null = null
+  public fileTransferChannel: RTCDataChannel | null = null
 
   // Recording
   private recorder: MediaRecorder | null = null
@@ -58,7 +64,7 @@ export class WebRTCService {
   public onIceCandidateGenerated?: (candidate: RTCIceCandidate) => void
   public onIceGatheringStateChange?: (state: RTCIceGatheringState) => void
   public onDataChannelOpened?: () => void
-  public onMessageReceived?: (data: string, channelLabel: string) => void
+  public onMessageReceived?: (data: string | ArrayBuffer, channelLabel: string) => void
   public onRemoteStreamReceived?: (stream: MediaStream) => void
 
   private isIntentionallyClosing = false
@@ -333,12 +339,24 @@ export class WebRTCService {
     }
 
     channel.onmessage = (e): void => {
-      if (this.onMessageReceived) this.onMessageReceived(e.data, channel.label)
+      if (!this.onMessageReceived) return
+      const raw = e.data
+      if (typeof raw === 'string' || raw instanceof ArrayBuffer) {
+        this.onMessageReceived(raw, channel.label)
+        return
+      }
+      if (raw instanceof Blob) {
+        void raw.arrayBuffer().then((buf) => {
+          this.onMessageReceived?.(buf, channel.label)
+        })
+        return
+      }
     }
     if (channel.label === 'chat-channel') this.chatChannel = channel
     else if (channel.label === 'hid-control') this.hidControlChannel = channel
     else if (channel.label === 'system-events') this.systemEventsChannel = channel
     else if (channel.label === 'metrics') this.metricsChannel = channel
+    else if (channel.label === 'file-transfer') this.fileTransferChannel = channel
   }
 
   /**
@@ -396,6 +414,7 @@ export class WebRTCService {
       this.setupChannel(this.peerConnection.createDataChannel('system-events', { ordered: true }))
       this.setupChannel(this.peerConnection.createDataChannel('chat-channel', { ordered: true }))
       this.setupChannel(this.peerConnection.createDataChannel('metrics', { ordered: false }))
+      this.setupChannel(this.peerConnection.createDataChannel('file-transfer', { ordered: true }))
     }
 
     const offer = await this.peerConnection.createOffer()
@@ -498,15 +517,22 @@ export class WebRTCService {
     return this.remoteTrackRoleByTrackId.get(trackId) ?? null
   }
 
-  public sendData(channelLabel: DataChannelLabel, message: string): void {
+  public sendData(channelLabel: DataChannelLabel, message: string | ArrayBuffer | Blob): void {
     let channel: RTCDataChannel | null = null
     if (channelLabel === 'chat-channel') channel = this.chatChannel
     else if (channelLabel === 'hid-control') channel = this.hidControlChannel
     else if (channelLabel === 'system-events') channel = this.systemEventsChannel
     else if (channelLabel === 'metrics') channel = this.metricsChannel
+    else if (channelLabel === 'file-transfer') channel = this.fileTransferChannel
 
     if (channel && channel.readyState === 'open') {
-      channel.send(message)
+      if (typeof message === 'string') {
+        channel.send(message)
+      } else if (message instanceof Blob) {
+        channel.send(message)
+      } else {
+        channel.send(message as ArrayBuffer)
+      }
     }
   }
 
@@ -652,6 +678,7 @@ export class WebRTCService {
     this.hidControlChannel = null
     this.systemEventsChannel = null
     this.metricsChannel = null
+    this.fileTransferChannel = null
     this.videoTransceiver = null
     this.micTransceiver = null
     this.systemTransceiver = null

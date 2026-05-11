@@ -23,6 +23,22 @@ export const P2PMessageSchema = z.discriminatedUnion('type', [
         op: z.literal('delete'),
         id: z.string().min(1),
         at: z.number().int()
+      }),
+      z.object({
+        op: z.literal('file'),
+        id: z.string().min(1),
+        transferId: z.string().min(1),
+        files: z
+          .array(
+            z.object({
+              name: z.string().min(1),
+              size: z.number().int().nonnegative()
+            })
+          )
+          .min(1),
+        sender: z.string().min(1),
+        authorId: z.string().min(1),
+        at: z.number().int()
       })
     ])
   }),

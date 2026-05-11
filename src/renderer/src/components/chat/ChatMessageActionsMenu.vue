@@ -11,6 +11,7 @@
       usuń
     </button>
     <button
+      v-if="!hideEdit"
       type="button"
       class="block w-full px-5 py-2 text-center text-sm transition hover:bg-white/10"
       @click="$emit('edit')"
@@ -21,9 +22,13 @@
 </template>
 
 <script setup lang="ts">
-defineProps<{
-  visible: boolean
-}>()
+withDefaults(
+  defineProps<{
+    visible: boolean
+    hideEdit?: boolean
+  }>(),
+  { hideEdit: false }
+)
 
 defineEmits<{
   delete: []

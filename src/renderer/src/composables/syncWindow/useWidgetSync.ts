@@ -5,6 +5,10 @@ import { useSocketStore } from '@renderer/stores/socketStore'
 import { useWebRtcStore } from '@renderer/stores/webRtcStore'
 import { useConnectionStore } from '@renderer/stores/connectionStore'
 import { chatService, type ChatPayload } from '@renderer/services/chatService'
+import {
+  resolveRelayFileStarted,
+  type OutgoingFileOfferMeta
+} from '@renderer/composables/channels/FileTransferChannel'
 
 type WidgetMode = 'normal' | 'compact' | 'hidden' | 'peek'
 
@@ -112,6 +116,14 @@ export function useWidgetSync(): void {
         case 'RELAY_CHAT':
           chatService.ingestChatPayload(payload as ChatPayload)
           break
+        case 'RELAY_FILE_STARTED': {
+          const data = event.data as {
+            correlationId?: unknown
+            result?: OutgoingFileOfferMeta | null
+          }
+          resolveRelayFileStarted(data.correlationId, data.result ?? null)
+          break
+        }
       }
     }
 

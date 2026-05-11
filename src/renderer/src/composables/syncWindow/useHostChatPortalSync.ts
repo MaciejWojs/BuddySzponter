@@ -17,6 +17,7 @@ interface PortalChannelMessage {
     | 'REQUEST_STATE'
     | 'SYNC_MESSAGES'
     | 'ACTION_SEND_TEXT'
+    | 'ACTION_SEND_FILES'
     | 'ACTION_EDIT'
     | 'ACTION_DELETE'
     | 'ACTION_MARK_READ'
@@ -28,6 +29,7 @@ export interface HostChatPortalState {
   localAuthorId: Ref<string>
   localSenderName: Ref<string>
   sendText: (text: string) => void
+  sendFiles: (paths: string[]) => void
   editMessage: (id: string, text: string) => void
   deleteMessage: (id: string) => void
   markConversationRead: () => void
@@ -71,6 +73,13 @@ function initMainBridge(): void {
         case 'ACTION_SEND_TEXT':
           void chatService.sendMessage(payload as string)
           break
+        case 'ACTION_SEND_FILES': {
+          const paths = (payload as { paths?: string[] })?.paths
+          if (Array.isArray(paths) && paths.length) {
+            void chatService.sendFilesWithPaths(paths)
+          }
+          break
+        }
         case 'ACTION_EDIT': {
           const data = payload as { id: string; text: string }
           void chatService.editMessage(data.id, data.text)
@@ -91,7 +100,12 @@ function initMainBridge(): void {
         () => chatService.localSenderName.value,
         () => chatService.hasUnread.value,
         () =>
-          chatService.messages.value.map((m) => `${m.id}:${m.text}:${m.updatedAt ?? 0}`).join('|')
+          chatService.messages.value
+            .map(
+              (m) =>
+                `${m.id}:${m.text}:${m.updatedAt ?? 0}:${m.fileTransfer?.transferId ?? ''}:${m.fileTransfer?.files.map((f) => f.name).join(',') ?? ''}`
+            )
+            .join('|')
       ],
       () => pushSync()
     )
@@ -135,6 +149,7 @@ function initPortal(): HostChatPortalState {
     localAuthorId,
     localSenderName,
     sendText: (text: string) => post({ type: 'ACTION_SEND_TEXT', payload: text }),
+    sendFiles: (paths: string[]) => post({ type: 'ACTION_SEND_FILES', payload: { paths } }),
     editMessage: (id: string, text: string) => post({ type: 'ACTION_EDIT', payload: { id, text } }),
     deleteMessage: (id: string) => post({ type: 'ACTION_DELETE', payload: id }),
     markConversationRead: () => post({ type: 'ACTION_MARK_READ' })

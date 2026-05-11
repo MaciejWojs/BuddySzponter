@@ -3,7 +3,7 @@
     class="flex h-full min-h-0 flex-col rounded-2xl border border-[#8c67c6] bg-[#6d4ea8] shadow-[0_16px_36px_rgba(0,0,0,0.35)]"
     :class="panelClass"
   >
-    <ChatHeader @close="$emit('close')" />
+    <ChatHeader @close="$emit('close')" @set-download-folder="handleSetDownloadFolder" />
 
     <ChatMessagesList
       ref="messagesListRef"
@@ -20,14 +20,17 @@
       @delete="handleDelete"
     />
 
-    <ChatComposer @send="handleSend" />
+    <ChatComposer :disabled="attachDisabled" @send="handleSend" @attach="handleAttachFiles" />
   </section>
 </template>
 
 <script setup lang="ts">
-import { nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useChatChannel } from '@renderer/composables/channels/ChatChannel'
+import { setPreferredDownloadDirectory } from '@renderer/composables/channels/FileTransferChannel'
 import { chatService } from '@renderer/services/chatService'
+import { useWebRtcStore } from '@renderer/stores/webRtcStore'
+import { useHidChannel } from '@renderer/composables/channels/HidChannel'
 import ChatComposer from '@renderer/components/chat/ChatComposer.vue'
 import ChatHeader from '@renderer/components/chat/ChatHeader.vue'
 import ChatMessagesList from '@renderer/components/chat/ChatMessagesList.vue'
@@ -50,6 +53,16 @@ defineEmits<{
 }>()
 
 useChatChannel()
+
+const webRtcStore = useWebRtcStore()
+const hid = useHidChannel()
+
+const attachDisabled = computed(
+  () =>
+    webRtcStore.rtcStatus !== 'connected' ||
+    !hid.isControlGranted.value ||
+    !window.api?.fileTransfer?.pickFiles
+)
 
 const chatMessages = chatService.messages
 const localAuthorId = chatService.localAuthorId
@@ -98,6 +111,17 @@ const toggleActions = (id: string): void => {
 
 const handleSend = async (text: string): Promise<void> => {
   await chatService.sendMessage(text)
+}
+
+const handleAttachFiles = async (): Promise<void> => {
+  if (attachDisabled.value) return
+  const paths = await window.api.fileTransfer.pickFiles()
+  if (!paths?.length) return
+  await chatService.sendFilesWithPaths(paths)
+}
+
+const handleSetDownloadFolder = async (): Promise<void> => {
+  await setPreferredDownloadDirectory()
 }
 
 const saveEdit = async (id: string): Promise<void> => {

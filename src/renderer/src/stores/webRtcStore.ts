@@ -9,6 +9,12 @@ import {
 import { messageRouter } from '@renderer/composables/webrtc/MessageRouter'
 import { useHidChannel } from '@renderer/composables/channels/HidChannel'
 import '@renderer/composables/channels/ChatChannel'
+import {
+  dispatchFileTransferBinary,
+  dispatchFileTransferControl,
+  resetFileTransferState,
+  startOutgoingFileTransfer
+} from '@renderer/composables/channels/FileTransferChannel'
 import { chatService } from '@renderer/services/chatService'
 import { useSocketStore } from './socketStore'
 
@@ -25,7 +31,20 @@ export const useWebRtcStore = defineStore('webrtc', () => {
     return localPublishProfile.value === 'guest' ? guestTrackPolicy : hostTrackPolicy
   }
 
-  webRtcService.onMessageReceived = (data: string, channelLabel: string): void => {
+  webRtcService.onMessageReceived = (data: string | ArrayBuffer, channelLabel: string): void => {
+    if (channelLabel === 'file-transfer') {
+      if (typeof data === 'string') {
+        dispatchFileTransferControl(data)
+      } else {
+        void dispatchFileTransferBinary(data)
+      }
+      return
+    }
+
+    if (typeof data !== 'string') {
+      return
+    }
+
     if (channelLabel === 'system-events') {
       try {
         const parsed = JSON.parse(data)
@@ -83,7 +102,7 @@ export const useWebRtcStore = defineStore('webrtc', () => {
   if (window.api?.clipboard?.onBridgeFiles) {
     window.api.clipboard.onBridgeFiles((paths) => {
       if (rtcStatus.value !== 'connected') return
-      hid.sendClipboardFiles(paths)
+      void startOutgoingFileTransfer(paths, 'clipboard')
     })
   }
 
@@ -109,6 +128,7 @@ export const useWebRtcStore = defineStore('webrtc', () => {
 
   const forceDisconnect = (): void => {
     rtcStatus.value = 'disconnected'
+    resetFileTransferState()
     webRtcService.cleanup()
     remoteStream.value = null
     if (localPublishProfile.value === 'host') {
