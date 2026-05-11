@@ -190,14 +190,15 @@ const api = {
 
     keyboardEvent: (keyCode: string, action: string): Promise<void> =>
       ipcRenderer.invoke('input:keyboard-event', keyCode, action),
+    releaseStuckKeyboardKeys: (): Promise<void> =>
+      ipcRenderer.invoke('input:keyboard-release-stuck-modifiers'),
     scrollMouse: (deltaY: number): Promise<void> =>
       ipcRenderer.invoke('input:scroll-mouse', deltaY),
     getHostScreenSize: (): Promise<{ width: number; height: number }> =>
       ipcRenderer.invoke('input:get-host-screen-size'),
 
     getCursorType: (): Promise<string> => ipcRenderer.invoke('input:get-cursor-type'),
-    startCursorP2PRelay: (): Promise<void> =>
-      ipcRenderer.invoke('input:cursor-p2p-relay-start'),
+    startCursorP2PRelay: (): Promise<void> => ipcRenderer.invoke('input:cursor-p2p-relay-start'),
     stopCursorP2PRelay: (): Promise<void> => ipcRenderer.invoke('input:cursor-p2p-relay-stop'),
     onHostCursorSync: (callback: (cursorType: string) => void) => {
       const listener = (_: unknown, payload: { cursorType: string }): void => {
@@ -208,6 +209,52 @@ const api = {
         ipcRenderer.removeListener('input:host-cursor-sync', listener)
       }
     }
+  },
+  clipboard: {
+    setSyncText: (text: string): Promise<boolean> =>
+      ipcRenderer.invoke('clipboard:set-text-from-sync', text),
+    setSyncFiles: (paths: string[]): Promise<boolean> =>
+      ipcRenderer.invoke('clipboard:set-files-from-sync', paths),
+    onBridgeText: (callback: (text: string) => void) => {
+      const listener = (_: unknown, payload: { text: string }): void => {
+        if (typeof payload?.text === 'string') callback(payload.text)
+      }
+      ipcRenderer.on('clipboard:bridge-text-change', listener)
+      return () => {
+        ipcRenderer.removeListener('clipboard:bridge-text-change', listener)
+      }
+    },
+    onBridgeFiles: (callback: (paths: string[]) => void) => {
+      const listener = (_: unknown, payload: { paths: string[] }): void => {
+        if (Array.isArray(payload?.paths)) callback(payload.paths)
+      }
+      ipcRenderer.on('clipboard:bridge-files-change', listener)
+      return () => {
+        ipcRenderer.removeListener('clipboard:bridge-files-change', listener)
+      }
+    }
+  },
+
+  fileTransfer: {
+    getDownloadsPath: (): Promise<string> => ipcRenderer.invoke('file-transfer:get-downloads-path'),
+    pickDirectory: (): Promise<string | null> => ipcRenderer.invoke('file-transfer:pick-directory'),
+    pickFiles: (): Promise<string[]> => ipcRenderer.invoke('file-transfer:pick-files'),
+    registerSendPaths: (paths: string[]): Promise<boolean> =>
+      ipcRenderer.invoke('file-transfer:register-send-paths', paths),
+    clearSendPaths: (paths?: string[]): Promise<void> =>
+      ipcRenderer.invoke('file-transfer:clear-send-paths', paths ?? null),
+    statFiles: (paths: string[]): Promise<{ path: string; name: string; size: number }[]> =>
+      ipcRenderer.invoke('file-transfer:stat-files', paths),
+    readChunk: (path: string, offset: number, length: number): Promise<ArrayBuffer | null> =>
+      ipcRenderer.invoke('file-transfer:read-chunk', { path, offset, length }),
+    createEmptyFiles: (outputPaths: string[]): Promise<boolean> =>
+      ipcRenderer.invoke('file-transfer:create-empty-files', outputPaths),
+    registerReceive: (transferId: string, outputPaths: string[]): Promise<boolean> =>
+      ipcRenderer.invoke('file-transfer:register-receive', { transferId, outputPaths }),
+    appendChunk: (transferId: string, fileIndex: number, data: ArrayBuffer): Promise<boolean> =>
+      ipcRenderer.invoke('file-transfer:append-chunk', { transferId, fileIndex, data }),
+    unregisterReceive: (transferId: string): Promise<void> =>
+      ipcRenderer.invoke('file-transfer:unregister-receive', transferId)
   },
 
   events: {

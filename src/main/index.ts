@@ -23,6 +23,7 @@ import {
   showHostChatWindow
 } from './hostChatWindow'
 import { inputService } from './services/inputService'
+import { registerFileTransferHandlers } from './services/fileTransferService'
 import { closeGuestWindow, createGuestWindow, registerGuestWindowHandlers } from './guestWindow'
 import trayIconDefault from '../../resources/tray/default.png?asset'
 import { trayService } from './services/trayService'
@@ -171,6 +172,8 @@ if (!gotTheLock) {
     } catch (error) {
       console.error('Error registering host widget handlers:', error)
     }
+
+    registerFileTransferHandlers()
 
     // --- IPC MAIN HANDLERY DLA WIDGETU ---
     ipcMain.handle('show-host-widget', () => {

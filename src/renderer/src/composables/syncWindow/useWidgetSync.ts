@@ -5,6 +5,10 @@ import { useSocketStore } from '@renderer/stores/socketStore'
 import { useWebRtcStore } from '@renderer/stores/webRtcStore'
 import { useConnectionStore } from '@renderer/stores/connectionStore'
 import { chatService, type ChatPayload } from '@renderer/services/chatService'
+import {
+  resolveRelayFileStarted,
+  type OutgoingFileOfferMeta
+} from '@renderer/composables/channels/FileTransferChannel'
 
 type WidgetMode = 'normal' | 'compact' | 'hidden' | 'peek'
 
@@ -31,6 +35,7 @@ export function useWidgetSync(): void {
           sysActive: sessionStore.localSystemAudioVolume > 0,
           guestMicActive: sessionStore.remoteMicVolume > 0,
           controlGranted: hidChannel.isControlGranted.value,
+          clipboardSyncEnabled: hidChannel.clipboardSyncEnabled.value,
           chatHasUnread: chatService.hasUnread.value
         }
       })
@@ -73,6 +78,10 @@ export function useWidgetSync(): void {
             await hidChannel.grantControl()
           }
           break
+        case 'TOGGLE_CLIPBOARD_SYNC':
+          if (!hidChannel.isControlGranted.value) break
+          hidChannel.setClipboardSyncEnabled(!hidChannel.clipboardSyncEnabled.value)
+          break
         case 'END_SESSION':
           await socketStore.disconnect()
           window.api?.app?.hideHostWidget().catch(() => {})
@@ -107,6 +116,14 @@ export function useWidgetSync(): void {
         case 'RELAY_CHAT':
           chatService.ingestChatPayload(payload as ChatPayload)
           break
+        case 'RELAY_FILE_STARTED': {
+          const data = event.data as {
+            correlationId?: unknown
+            result?: OutgoingFileOfferMeta | null
+          }
+          resolveRelayFileStarted(data.correlationId, data.result ?? null)
+          break
+        }
       }
     }
 
@@ -117,6 +134,7 @@ export function useWidgetSync(): void {
         () => sessionStore.localSystemAudioVolume,
         () => sessionStore.remoteMicVolume,
         () => hidChannel.isControlGranted.value,
+        () => hidChannel.clipboardSyncEnabled.value,
         () => chatService.hasUnread.value
       ],
       () => pushStateToWidget(),

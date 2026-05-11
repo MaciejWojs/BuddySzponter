@@ -89,6 +89,21 @@
     "joinButton": "Join",
     "timeToJoin": "Time left:"
   },
+  "menuNav": {
+    "settingsTitle": "Settings",
+    "settingsLead": "Interface language.",
+    "devicesTitle": "Devices",
+    "devicesLead": "Microphone used by the app.",
+    "microphoneLabel": "Microphone",
+    "refreshMics": "Refresh list",
+    "noMics": "No microphones detected"
+  },
+  "settingsPage": {
+    "downloadPathLabel": "P2P file download folder",
+    "downloadPathHint": "Defaults to the system Downloads folder. The path is kept for this window session.",
+    "pickFolder": "Choose folder…",
+    "save": "Save"
+  },
   "alert": {
     "success": "Success",
     "error": "Error",

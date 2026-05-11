@@ -16,8 +16,8 @@
 
     <ChatMessagesList
       ref="messagesListRef"
-      :messages="messages"
-      :local-author-id="localAuthorId"
+      :messages="props.messages"
+      :local-author-id="props.localAuthorId"
       :editing-message-id="editingMessageId"
       :editing-text="editingText"
       :open-actions-id="openActionsId"
@@ -29,12 +29,16 @@
       @delete="handleDelete"
     />
 
-    <ChatComposer @send="handleSend" />
+    <ChatComposer
+      :attach-disabled="attachDisabled"
+      @send="handleSend"
+      @attach="handleAttach"
+    />
   </section>
 </template>
 
 <script setup lang="ts">
-import { nextTick, ref, watch, type Ref } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import type { ChatMessage } from '@renderer/services/chatService'
 import ChatComposer from '@renderer/components/chat/ChatComposer.vue'
 import ChatMessagesList from '@renderer/components/chat/ChatMessagesList.vue'
@@ -47,9 +51,12 @@ const props = defineProps<{
   messages: ChatMessage[]
   localAuthorId: string
   onSendText: (text: string) => void
+  onSendFiles: (paths: string[]) => void
   onEditMessage: (id: string, text: string) => void
   onDeleteMessage: (id: string) => void
 }>()
+
+const attachDisabled = computed(() => !window.api?.fileTransfer?.pickFiles)
 
 defineEmits<{
   close: []
@@ -61,15 +68,12 @@ const openActionsId = ref<string | null>(null)
 
 const messagesListRef = ref<ChatMessagesListExpose | null>(null)
 
-const messagesRef = ref(props.messages) as Ref<ChatMessage[]>
+const messagesScrollKey = (): string =>
+  `${props.messages.length}|${props.messages.map((m) => `${m.id}:${m.updatedAt ?? 0}:${m.fileTransfer?.transferId ?? ''}`).join(';')}`
 
-watch(
-  () => props.messages,
-  (next) => {
-    messagesRef.value = next
-    void scrollToBottom()
-  }
-)
+watch(messagesScrollKey, () => {
+  void scrollToBottom()
+})
 
 const scrollToBottom = async (): Promise<void> => {
   await nextTick()
@@ -97,6 +101,13 @@ const toggleActions = (id: string): void => {
 
 const handleSend = (text: string): void => {
   props.onSendText(text)
+}
+
+const handleAttach = async (): Promise<void> => {
+  if (attachDisabled.value) return
+  const paths = await window.api.fileTransfer.pickFiles()
+  if (!paths?.length) return
+  props.onSendFiles(paths)
 }
 
 const saveEdit = (id: string): void => {

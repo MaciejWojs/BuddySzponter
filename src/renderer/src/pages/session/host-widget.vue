@@ -27,6 +27,7 @@ const state = ref({
   sysActive: true,
   guestMicActive: true,
   controlGranted: false,
+  clipboardSyncEnabled: false,
   chatHasUnread: false
 })
 

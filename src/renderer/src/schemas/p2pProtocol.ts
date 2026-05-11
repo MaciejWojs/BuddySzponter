@@ -23,6 +23,22 @@ export const P2PMessageSchema = z.discriminatedUnion('type', [
         op: z.literal('delete'),
         id: z.string().min(1),
         at: z.number().int()
+      }),
+      z.object({
+        op: z.literal('file'),
+        id: z.string().min(1),
+        transferId: z.string().min(1),
+        files: z
+          .array(
+            z.object({
+              name: z.string().min(1),
+              size: z.number().int().nonnegative()
+            })
+          )
+          .min(1),
+        sender: z.string().min(1),
+        authorId: z.string().min(1),
+        at: z.number().int()
       })
     ])
   }),
@@ -69,7 +85,8 @@ export const P2PMessageSchema = z.discriminatedUnion('type', [
       screenWidth: z.number().min(1),
       screenHeight: z.number().min(1),
       isControlGranted: z.boolean(),
-      cursorType: z.string().optional()
+      cursorType: z.string().optional(),
+      clipboardSyncEnabled: z.boolean().optional()
     })
   }),
 
@@ -84,6 +101,27 @@ export const P2PMessageSchema = z.discriminatedUnion('type', [
     type: z.literal('HID_CURSOR_SYNC'),
     payload: z.object({
       cursorType: z.string()
+    })
+  }),
+
+  z.object({
+    type: z.literal('CLIPBOARD_SYNC'),
+    payload: z.object({
+      enabled: z.boolean()
+    })
+  }),
+
+  z.object({
+    type: z.literal('CLIPBOARD_TEXT'),
+    payload: z.object({
+      text: z.string().max(262_144)
+    })
+  }),
+
+  z.object({
+    type: z.literal('CLIPBOARD_FILES'),
+    payload: z.object({
+      paths: z.array(z.string().max(4096)).min(1).max(64)
     })
   }),
 

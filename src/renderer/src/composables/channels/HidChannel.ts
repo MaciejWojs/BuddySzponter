@@ -19,6 +19,7 @@ export interface HidChannelApi {
   remoteScreenSize: Ref<ScreenSize>
   remoteHostCursorType: Ref<string>
   localRole: Ref<'host' | 'guest'>
+  clipboardSyncEnabled: Ref<boolean>
   setLocalRole: (role: 'host' | 'guest') => void
   grantControl: () => void
   revokeControl: () => void
@@ -32,7 +33,12 @@ export interface HidChannelApi {
     py: number
   ) => void
   sendKeyboardEvent: (keyCode: string, action: 'd' | 'u') => void
+  /** Wysyła wyłącznie keyup do hosta (np. po utracie fokusu) — nie wymaga aktywnej kontroli po stronie gościa. */
+  sendKeyboardKeyUpRemote: (keyCode: string) => void
   sendMouseScroll: (deltaY: number) => void
+  setClipboardSyncEnabled: (enabled: boolean) => void
+  sendClipboardText: (text: string) => void
+  sendClipboardFiles: (paths: string[]) => void
   resetState: () => void
 }
 
@@ -44,11 +50,14 @@ const isControlGranted = ref<boolean>(false)
 const remoteScreenSize = ref<ScreenSize>({ width: 1920, height: 1080 })
 const remoteHostCursorType = ref<string>('default')
 const localRole = ref<'host' | 'guest'>('guest')
+const clipboardSyncEnabled = ref<boolean>(false)
+let lastClipboardReceivedFromPeer: string | null = null
 
 let lastSentX = -1
 let lastSentY = -1
 let lastSentAt = 0
 const SEND_INTERVAL_MS = 16
+const CLIPBOARD_TEXT_MAX_LENGTH = 262_144
 
 // ==========================================
 // 2. JEDNORAZOWY NASŁUCH (Event Bus)
@@ -62,6 +71,10 @@ messageRouter.subscribe('hid-control', (msg: P2PMessage) => {
         if (msg.payload.cursorType) {
           remoteHostCursorType.value = msg.payload.cursorType
         }
+        if (typeof msg.payload.clipboardSyncEnabled === 'boolean') {
+          clipboardSyncEnabled.value =
+            msg.payload.clipboardSyncEnabled && msg.payload.isControlGranted
+        }
 
         if (window.api?.app?.resizeToVideoRatio) {
           window.api.app
@@ -74,6 +87,9 @@ messageRouter.subscribe('hid-control', (msg: P2PMessage) => {
     case 'HID_PERMISSION_UPDATE':
       if (localRole.value !== 'host') {
         isControlGranted.value = msg.payload.isControlGranted
+        if (!msg.payload.isControlGranted) {
+          clipboardSyncEnabled.value = false
+        }
       }
       break
 
@@ -82,6 +98,26 @@ messageRouter.subscribe('hid-control', (msg: P2PMessage) => {
         remoteHostCursorType.value = msg.payload.cursorType || 'default'
       }
       break
+
+    case 'CLIPBOARD_SYNC':
+      clipboardSyncEnabled.value = msg.payload.enabled && isControlGranted.value
+      break
+
+    case 'CLIPBOARD_TEXT': {
+      if (!isControlGranted.value || !clipboardSyncEnabled.value) break
+      const text = msg.payload.text
+      if (typeof text !== 'string' || text.length > CLIPBOARD_TEXT_MAX_LENGTH) break
+      lastClipboardReceivedFromPeer = text
+      window.api?.clipboard?.setSyncText?.(text).catch(() => {
+        // ignorujemy błędy ustawiania schowka
+      })
+      break
+    }
+
+    case 'CLIPBOARD_FILES': {
+      // Zdeprecjonowane: ścieżki zdalne nie przenoszą plików. Transfer odbywa się kanałem file-transfer (P2P).
+      break
+    }
 
     case 'MOUSE_MOVE':
       if (localRole.value !== 'host' || !isControlGranted.value) return
@@ -99,10 +135,14 @@ messageRouter.subscribe('hid-control', (msg: P2PMessage) => {
       )
       break
 
-    case 'KEYBOARD_EVENT':
-      if (localRole.value !== 'host' || !isControlGranted.value) return
-      void window.api.input.keyboardEvent(msg.payload.keyCode, msg.payload.action)
+    case 'KEYBOARD_EVENT': {
+      if (localRole.value !== 'host') return
+      const raw = msg.payload.action as string
+      const act: 'd' | 'u' = raw === 'up' || raw === 'u' ? 'u' : 'd'
+      if (act === 'd' && !isControlGranted.value) return
+      void window.api.input.keyboardEvent(msg.payload.keyCode, act)
       break
+    }
 
     case 'MOUSE_SCROLL':
       if (localRole.value !== 'host' || !isControlGranted.value) return
@@ -120,6 +160,8 @@ export function useHidChannel(): HidChannelApi {
     isControlGranted.value = false
     remoteScreenSize.value = { width: 1920, height: 1080 }
     remoteHostCursorType.value = 'default'
+    clipboardSyncEnabled.value = false
+    lastClipboardReceivedFromPeer = null
     lastSentX = -1
     lastSentY = -1
     lastSentAt = 0
@@ -158,7 +200,8 @@ export function useHidChannel(): HidChannelApi {
       screenWidth,
       screenHeight,
       isControlGranted: isControlGranted.value,
-      cursorType
+      cursorType,
+      clipboardSyncEnabled: clipboardSyncEnabled.value
     }
 
     console.log('[HID] Wysyłam Handshake:', payload)
@@ -183,6 +226,7 @@ export function useHidChannel(): HidChannelApi {
 
   const revokeControl = (): void => {
     isControlGranted.value = false
+    clipboardSyncEnabled.value = false
     if (localRole.value === 'host') {
       webRtcService.sendData(
         'hid-control',
@@ -191,6 +235,7 @@ export function useHidChannel(): HidChannelApi {
           payload: { isControlGranted: false }
         })
       )
+      void window.api?.input?.releaseStuckKeyboardKeys?.().catch(() => {})
     }
   }
 
@@ -247,6 +292,17 @@ export function useHidChannel(): HidChannelApi {
     )
   }
 
+  const sendKeyboardKeyUpRemote = (keyCode: string): void => {
+    if (localRole.value !== 'guest') return
+    webRtcService.sendData(
+      'hid-control',
+      JSON.stringify({
+        type: 'KEYBOARD_EVENT',
+        payload: { keyCode, action: 'u' }
+      })
+    )
+  }
+
   const sendMouseScroll = (deltaY: number): void => {
     if (localRole.value !== 'guest' || !isControlGranted.value) return
     webRtcService.sendData(
@@ -258,12 +314,45 @@ export function useHidChannel(): HidChannelApi {
     )
   }
 
+  const setClipboardSyncEnabled = (enabled: boolean): void => {
+    const next = enabled && isControlGranted.value
+    if (clipboardSyncEnabled.value === next) return
+    clipboardSyncEnabled.value = next
+    webRtcService.sendData(
+      'hid-control',
+      JSON.stringify({
+        type: 'CLIPBOARD_SYNC',
+        payload: { enabled: next }
+      })
+    )
+  }
+
+  const sendClipboardText = (text: string): void => {
+    if (!isControlGranted.value || !clipboardSyncEnabled.value) return
+    if (typeof text !== 'string' || text.length === 0) return
+    if (text.length > CLIPBOARD_TEXT_MAX_LENGTH) return
+    if (text === lastClipboardReceivedFromPeer) return
+    webRtcService.sendData(
+      'hid-control',
+      JSON.stringify({
+        type: 'CLIPBOARD_TEXT',
+        payload: { text }
+      })
+    )
+  }
+
+  const sendClipboardFiles = (paths: string[]): void => {
+    void paths
+    // Zdeprecjonowane: pliki ze schowka wysyła webRtcStore → startOutgoingFileTransfer (DataChannel file-transfer).
+  }
+
   return {
     remoteMouse,
     isControlGranted,
     remoteScreenSize,
     remoteHostCursorType,
     localRole,
+    clipboardSyncEnabled,
     setLocalRole,
     grantControl,
     revokeControl,
@@ -272,7 +361,11 @@ export function useHidChannel(): HidChannelApi {
     sendMouseFromVideo,
     sendMouseAction,
     sendKeyboardEvent,
+    sendKeyboardKeyUpRemote,
     sendMouseScroll,
+    setClipboardSyncEnabled,
+    sendClipboardText,
+    sendClipboardFiles,
     resetState
   }
 }

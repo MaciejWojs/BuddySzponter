@@ -60,6 +60,21 @@
     "joinButton": "Unirse",
     "timeToJoin": "Tiempo restante:"
   },
+  "menuNav": {
+    "settingsTitle": "Ajustes",
+    "settingsLead": "Idioma de la interfaz.",
+    "devicesTitle": "Dispositivos",
+    "devicesLead": "Micrófono usado por la aplicación.",
+    "microphoneLabel": "Micrófono",
+    "refreshMics": "Actualizar lista",
+    "noMics": "No se detectaron micrófonos"
+  },
+  "settingsPage": {
+    "downloadPathLabel": "Carpeta de descargas P2P",
+    "downloadPathHint": "Por defecto se usa la carpeta de descargas del sistema. La ruta se guarda para esta ventana.",
+    "pickFolder": "Elegir carpeta…",
+    "save": "Guardar"
+  },
   "alert": {
     "success": "Éxito",
     "error": "Error",

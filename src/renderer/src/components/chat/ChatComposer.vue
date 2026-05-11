@@ -4,7 +4,6 @@
       <input
         v-model="draft"
         type="text"
-        :disabled="disabled"
         placeholder="Napisz wiadomość..."
         class="min-w-0 flex-1 border-none bg-transparent text-sm text-white placeholder:text-white/80 outline-none"
       />
@@ -14,6 +13,23 @@
         class="rounded-full bg-white/20 px-3 py-1 text-xs font-semibold text-white transition hover:bg-white/30"
       >
         Wyślij
+      </button>
+
+      <button
+        type="button"
+        :disabled="attachDisabled"
+        class="inline-flex h-8 w-8 items-center justify-center rounded-full text-white transition hover:bg-white/20 disabled:opacity-40"
+        title="Wyślij plik"
+        @click="$emit('attach')"
+      >
+        <svg viewBox="0 0 24 24" fill="none" class="h-5 w-5" aria-hidden="true">
+          <path
+            d="M9 11V5.5C9 3.57 10.57 2 12.5 2S16 3.57 16 5.5V15c0 1.38-1.12 2.5-2.5 2.5S11 16.38 11 15V8"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+          />
+        </svg>
       </button>
 
       <button
@@ -42,15 +58,16 @@ import { ref } from 'vue'
 
 withDefaults(
   defineProps<{
-    disabled?: boolean
+    attachDisabled?: boolean
   }>(),
   {
-    disabled: false
+    attachDisabled: false
   }
 )
 
 const emit = defineEmits<{
   send: [text: string]
+  attach: []
   emojiClick: []
 }>()
 

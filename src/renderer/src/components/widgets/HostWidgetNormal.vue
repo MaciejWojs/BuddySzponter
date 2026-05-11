@@ -93,6 +93,28 @@
       </button>
 
       <button
+        class="flex items-center justify-center w-10 h-10 rounded-lg transition-all border group"
+        :class="[
+          !state.controlGranted
+            ? 'bg-[#202020] border-[#333] text-gray-600 cursor-not-allowed opacity-60'
+            : state.clipboardSyncEnabled
+              ? 'bg-sky-500/10 border-sky-500/40 text-sky-300 shadow-[0_0_10px_rgba(14,165,233,0.15)]'
+              : 'bg-[#2a2a2a] border-[#444] text-gray-200 hover:border-sky-500'
+        ]"
+        :title="
+          !state.controlGranted
+            ? 'Synchronizacja schowka wymaga oddania kontroli'
+            : state.clipboardSyncEnabled
+              ? 'Wyłącz synchronizację schowka'
+              : 'Włącz synchronizację schowka'
+        "
+        :disabled="!state.controlGranted"
+        @click="$emit('sendCommand', 'TOGGLE_CLIPBOARD_SYNC')"
+      >
+        <span class="text-lg group-active:scale-90 transition-transform">📋</span>
+      </button>
+
+      <button
         class="flex items-center justify-center px-3 h-10 ml-2 rounded-lg transition-all bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs tracking-wider border border-rose-500 shadow-[0_0_10px_rgba(225,29,72,0.3)] active:scale-95"
         @click="$emit('sendCommand', 'END_SESSION')"
       >
@@ -149,6 +171,7 @@ defineProps<{
     sysActive: boolean
     guestMicActive: boolean
     controlGranted: boolean
+    clipboardSyncEnabled: boolean
     chatHasUnread: boolean
   }
 }>()

@@ -4,6 +4,7 @@
       :messages="state.messages.value"
       :local-author-id="state.localAuthorId.value"
       :on-send-text="state.sendText"
+      :on-send-files="state.sendFiles"
       :on-edit-message="state.editMessage"
       :on-delete-message="state.deleteMessage"
       @close="closeWindow"

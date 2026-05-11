@@ -1,7 +1,37 @@
 import { ipcMain, screen, BrowserWindow, app } from 'electron'
-import { InputBridge, getCursorType } from '@maciejwojs/input-bridge'
+import { InputBridge, getCursorType, type InputEvent } from '@maciejwojs/input-bridge'
 import { broadcastLockoutToWidget } from '../hostWidget'
 import { MonitorMetadata } from '@maciejwojs/screen-capture'
+
+const CLIPBOARD_TEXT_MAX_LENGTH = 262_144
+const CLIPBOARD_FILES_MAX = 64
+const CLIPBOARD_FILE_PATH_MAX = 4096
+
+function normalizeClipboardFilePaths(data: unknown): string[] | null {
+  if (!Array.isArray(data)) return null
+  const out: string[] = []
+  for (const item of data) {
+    if (typeof item !== 'string' || item.length === 0) continue
+    if (item.length > CLIPBOARD_FILE_PATH_MAX) continue
+    out.push(item)
+    if (out.length >= CLIPBOARD_FILES_MAX) break
+  }
+  return out.length > 0 ? out : null
+}
+
+/** Kolejność pod Windows (AltGr = ControlLeft + AltRight) — najpierw para AltGr, potem reszta modyfikatorów. */
+const STUCK_MODIFIER_RELEASE_ORDER = [
+  'AltRight',
+  'ControlLeft',
+  'AltLeft',
+  'ControlRight',
+  'ShiftLeft',
+  'ShiftRight',
+  'MetaLeft',
+  'MetaRight',
+  'OSLeft',
+  'OSRight'
+] as const
 
 /* ================= TYPES & INTERFACES ================= */
 
@@ -37,6 +67,11 @@ class InputController {
   private bridge: InputBridge | null = null
   private isOptimizationEnabled = false
 
+  /** Windows: pliki wysyłamy dopiero po Ctrl+V (getClipboardFiles), nie przy samym skopiowaniu. */
+  private clipboardFilesSyncOnPasteOnly = false
+  private physicalCtrlDown = false
+  private physicalMetaDown = false
+
   private queue: QueuedInput[] = []
   private frameLoop: NodeJS.Timeout | null = null
 
@@ -49,6 +84,26 @@ class InputController {
 
     const bridge = new InputBridge({ autoFlush: false })
     await bridge.init()
+    bridge.onClipboard((event) => {
+      if (event.type === 'text') {
+        const text = typeof event.data === 'string' ? event.data : null
+        if (text === null) return
+        if (text.length > CLIPBOARD_TEXT_MAX_LENGTH) return
+        inputService.broadcastClipboardText(text)
+        return
+      }
+      if (event.type === 'files') {
+        const paths = normalizeClipboardFilePaths(event.data)
+        if (!paths) return
+        if (this.clipboardFilesSyncOnPasteOnly) {
+          return
+        }
+        inputService.broadcastClipboardFiles(paths)
+      }
+    })
+
+    this.tryInitClipboardFilesPasteSync(bridge)
+
     bridge.setLogger((...args) => {
       console.log('[InputBridge-CPP]', ...args)
     })
@@ -57,6 +112,129 @@ class InputController {
     this.bridge = bridge
 
     this.startFrameLoop()
+  }
+
+  /**
+   * Na Windows `startInputDetection` + `onInput` pozwala wykryć fizyczne Ctrl+V
+   * i wtedy odczytać ścieżki przez `getClipboardFiles()` (synchro P2P dopiero tu).
+   * Na Linuxie brak — zostaje natychmiastowa ścieżka z `onClipboard` (Ctrl+C).
+   */
+  private tryInitClipboardFilesPasteSync(bridge: InputBridge): void {
+    if (
+      typeof bridge.onInput !== 'function' ||
+      typeof bridge.startInputDetection !== 'function'
+    ) {
+      console.log(
+        '[InputController] Brak API onInput/startInputDetection — pliki schowka przy zmianie (Ctrl+C).'
+      )
+      return
+    }
+    try {
+      bridge.onInput((ev: InputEvent) => {
+        this.handlePhysicalKeyForClipboardFiles(ev)
+      })
+      const started = bridge.startInputDetection()
+      if (!started) {
+        console.warn(
+          '[InputController] startInputDetection zwrócił false — fallback na onClipboard files.'
+        )
+        try {
+          bridge.offInput()
+        } catch {
+          // ignore
+        }
+        return
+      }
+      this.clipboardFilesSyncOnPasteOnly = true
+      console.log(
+        '[InputController] startInputDetection OK — pliki schowka tylko po Ctrl+V.'
+      )
+    } catch (e) {
+      console.warn(
+        '[InputController] startInputDetection niedostępny — pliki schowka nadal przy zmianie schowka (Ctrl+C).',
+        e
+      )
+      this.clipboardFilesSyncOnPasteOnly = false
+    }
+  }
+
+  private handlePhysicalKeyForClipboardFiles(ev: InputEvent): void {
+    if (ev.type !== 'key_press') return
+
+    const down = ev.down !== false
+    const dc = ev.domCode
+    const kc = typeof ev.keyCode === 'number' ? ev.keyCode : -1
+
+    const isCtrl =
+      dc === 'ControlLeft' ||
+      dc === 'ControlRight' ||
+      kc === 0x11 ||
+      kc === 0xa2 ||
+      kc === 0xa3
+    if (isCtrl) {
+      this.physicalCtrlDown = down
+      console.log('[InputController] Ctrl', down ? 'down' : 'up', { dc, kc })
+      return
+    }
+
+    const isMeta =
+      dc === 'MetaLeft' ||
+      dc === 'MetaRight' ||
+      dc === 'OSLeft' ||
+      dc === 'OSRight' ||
+      kc === 0x5b ||
+      kc === 0x5c
+    if (isMeta) {
+      this.physicalMetaDown = down
+      console.log('[InputController] Meta', down ? 'down' : 'up', { dc, kc })
+      return
+    }
+
+    const isV = dc === 'KeyV' || kc === 0x56 || kc === 86
+    if (isV) {
+      console.log('[InputController] V', down ? 'down' : 'up', {
+        dc,
+        kc,
+        ctrlDown: this.physicalCtrlDown,
+        metaDown: this.physicalMetaDown
+      })
+    }
+
+    if (!down) return
+    if (!this.physicalCtrlDown && !this.physicalMetaDown) return
+    if (!isV) return
+
+    const b = this.bridge
+    if (!b || typeof b.getClipboardFiles !== 'function') return
+
+    let raw: unknown = null
+    try {
+      raw = b.getClipboardFiles()
+    } catch (e) {
+      console.warn('[InputController] getClipboardFiles rzucił:', e)
+      return
+    }
+    const paths = normalizeClipboardFilePaths(raw)
+    if (!paths) {
+      console.log(
+        '[InputController] Ctrl+V — schowek nie zawiera plików (getClipboardFiles=null).'
+      )
+      return
+    }
+    console.log(
+      `[InputController] Ctrl+V wykryty — broadcast plików schowka (${paths.length}).`
+    )
+    inputService.broadcastClipboardFiles(paths)
+  }
+
+  setClipboardText(text: string): boolean {
+    if (!this.bridge) return false
+    return this.bridge.setClipboardText(text)
+  }
+
+  setClipboardFiles(filePaths: string[]): boolean {
+    if (!this.bridge) return false
+    return this.bridge.setClipboardFiles(filePaths)
   }
 
   getSessionHandle(): string | null {
@@ -153,6 +331,14 @@ class InputController {
       clearInterval(this.frameLoop)
       this.frameLoop = null
     }
+    if (this.bridge && this.clipboardFilesSyncOnPasteOnly) {
+      try {
+        this.bridge.stopInputDetection()
+      } catch {
+        // ignore
+      }
+      this.clipboardFilesSyncOnPasteOnly = false
+    }
   }
 
   // --- API ---
@@ -198,6 +384,18 @@ class InputController {
     })
   }
 
+  /** Zwalnia typowe modyfikatory po utracie sesji / „zaciętych” keydown bez keyup (np. Alt+strzałki). */
+  releaseStuckModifierKeys(): void {
+    const base = Date.now()
+    STUCK_MODIFIER_RELEASE_ORDER.forEach((code, i) => {
+      this.queue.push({
+        type: 'key',
+        payload: { code, down: false },
+        timestamp: base + i * 3
+      })
+    })
+  }
+
   setCurrentMonitor(index: number, width: number, height: number): boolean {
     if (!this.bridge) return false
     return this.bridge.setCurrentMonitor(index, width, height)
@@ -218,7 +416,7 @@ class InputController {
       y: m.y,
       width: m.width,
       height: m.height,
-      pipewireStream: Number(m.id),
+      pipewireStream: Number(m.id)
     }))
   }
 
@@ -245,7 +443,7 @@ class HostActivityTracker {
   constructor(
     private lockout: LockoutManager,
     private emit: (payload: { active: boolean; until: number }) => void
-  ) { }
+  ) {}
 
   start(): void {
     if (this.interval) return
@@ -353,10 +551,24 @@ export const inputService = {
     this.cursorRelayInterval = null
     this.lastRelayedCursorType = ''
   },
+
+  broadcastClipboardText(text: string): void {
+    for (const win of BrowserWindow.getAllWindows()) {
+      if (win.isDestroyed()) continue
+      win.webContents.send('clipboard:bridge-text-change', { text })
+    }
+  },
+
+  broadcastClipboardFiles(paths: string[]): void {
+    for (const win of BrowserWindow.getAllWindows()) {
+      if (win.isDestroyed()) continue
+      win.webContents.send('clipboard:bridge-files-change', { paths })
+    }
+  },
+
   setStartingX(x: number): void {
     this.startingX = x
   },
-
 
   registerHandlers(): void {
     if (this.handlersRegistered) return
@@ -401,9 +613,13 @@ export const inputService = {
 
     ipcMain.handle('input:move-absolute', async (_e, x: number, y: number) => {
       if (!Number.isFinite(x) || !Number.isFinite(y) || isLocked()) return
-      console.log(`[input:move-absolute] Monitor idx: ${this.monitorIndex}, received x=${x} y=${y} (raw, before round)`);
-      const newX = this.startingX + x;
-      console.log(`[input:move-absolute] Monitor idx: ${this.monitorIndex}, received x=${newX} y=${y} (raw, after calculation)`);
+      console.log(
+        `[input:move-absolute] Monitor idx: ${this.monitorIndex}, received x=${x} y=${y} (raw, before round)`
+      )
+      const newX = this.startingX + x
+      console.log(
+        `[input:move-absolute] Monitor idx: ${this.monitorIndex}, received x=${newX} y=${y} (raw, after calculation)`
+      )
       await this.controller.move(Math.round(newX), Math.round(y))
     })
 
@@ -425,8 +641,12 @@ export const inputService = {
     )
 
     ipcMain.handle('input:keyboard-event', async (_e, domCode: string, action: 'd' | 'u') => {
-      if (isLocked()) return
+      if (action !== 'u' && isLocked()) return
       await this.controller.key(domCode, action)
+    })
+
+    ipcMain.handle('input:keyboard-release-stuck-modifiers', () => {
+      this.controller.releaseStuckModifierKeys()
     })
 
     ipcMain.handle('input:toggle-optimization', () => {
@@ -457,6 +677,18 @@ export const inputService = {
 
     ipcMain.handle('input:cursor-p2p-relay-stop', () => {
       this.stopCursorP2PRelay()
+    })
+
+    ipcMain.handle('clipboard:set-text-from-sync', (_e, text: unknown) => {
+      if (typeof text !== 'string') return false
+      if (text.length > CLIPBOARD_TEXT_MAX_LENGTH) return false
+      return this.controller.setClipboardText(text)
+    })
+
+    ipcMain.handle('clipboard:set-files-from-sync', (_e, paths: unknown) => {
+      const normalized = normalizeClipboardFilePaths(paths)
+      if (!normalized) return false
+      return this.controller.setClipboardFiles(normalized)
     })
   }
 }

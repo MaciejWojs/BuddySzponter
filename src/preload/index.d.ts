@@ -147,12 +147,32 @@ declare global {
         moveAbsolute: (x: number, y: number) => Promise<void>
         mouseAction: (button: string, action: string, x: number, y: number) => Promise<void>
         keyboardEvent: (keyCode: string, action: string) => Promise<void>
+        releaseStuckKeyboardKeys: () => Promise<void>
         getHostScreenSize: () => Promise<{ width: number; height: number }>
         scrollMouse: (deltaY: number) => Promise<void>
         getCursorType: () => Promise<string>
         startCursorP2PRelay: () => Promise<void>
         stopCursorP2PRelay: () => Promise<void>
         onHostCursorSync: (callback: (cursorType: string) => void) => () => void
+      }
+      clipboard: {
+        setSyncText: (text: string) => Promise<boolean>
+        setSyncFiles: (paths: string[]) => Promise<boolean>
+        onBridgeText: (callback: (text: string) => void) => () => void
+        onBridgeFiles: (callback: (paths: string[]) => void) => () => void
+      }
+      fileTransfer: {
+        getDownloadsPath: () => Promise<string>
+        pickDirectory: () => Promise<string | null>
+        pickFiles: () => Promise<string[]>
+        registerSendPaths: (paths: string[]) => Promise<boolean>
+        clearSendPaths: (paths?: string[]) => Promise<void>
+        statFiles: (paths: string[]) => Promise<{ path: string; name: string; size: number }[]>
+        readChunk: (path: string, offset: number, length: number) => Promise<ArrayBuffer | null>
+        createEmptyFiles: (outputPaths: string[]) => Promise<boolean>
+        registerReceive: (transferId: string, outputPaths: string[]) => Promise<boolean>
+        appendChunk: (transferId: string, fileIndex: number, data: ArrayBuffer) => Promise<boolean>
+        unregisterReceive: (transferId: string) => Promise<void>
       }
       events: {
         onToggleMic: (callback: () => void) => void

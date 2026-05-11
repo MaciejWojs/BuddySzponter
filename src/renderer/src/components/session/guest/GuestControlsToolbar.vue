@@ -20,6 +20,12 @@
       @toggle="$emit('toggleChat')"
     />
 
+    <GuestClipboardSyncButton
+      :enabled="clipboardSyncEnabled"
+      :control-granted="controlGranted"
+      @toggle="$emit('toggleClipboardSync')"
+    />
+
     <GuestDisconnectButton @disconnect="$emit('disconnect')" />
   </div>
 </template>
@@ -28,6 +34,7 @@
 import GuestMicMuteButton from '@renderer/components/session/guest/GuestMicMuteButton.vue'
 import GuestVolumeSlider from '@renderer/components/session/guest/GuestVolumeSlider.vue'
 import GuestChatToggleButton from '@renderer/components/session/guest/GuestChatToggleButton.vue'
+import GuestClipboardSyncButton from '@renderer/components/session/guest/GuestClipboardSyncButton.vue'
 import GuestDisconnectButton from '@renderer/components/session/guest/GuestDisconnectButton.vue'
 
 defineProps<{
@@ -36,6 +43,8 @@ defineProps<{
   remoteSystemVolume: number
   chatVisible: boolean
   chatHasUnread: boolean
+  controlGranted: boolean
+  clipboardSyncEnabled: boolean
 }>()
 
 defineEmits<{
@@ -43,6 +52,7 @@ defineEmits<{
   updateMicVolume: [value: number]
   updateSysVolume: [value: number]
   toggleChat: []
+  toggleClipboardSync: []
   disconnect: []
 }>()
 </script>
