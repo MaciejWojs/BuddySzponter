@@ -62,9 +62,9 @@ export const useSessionStore = defineStore('session', () => {
       logStore.addLog('WS_ACK_RECEIVED', 'Handshake zakończony!', 'socket')
 
       if (!captureStore.isCapturing) {
-        connectionStore.isHost
-          ? await captureStore.startHostCapture()
-          : await captureStore.startGuestCapture()
+        if (connectionStore.isHost) {
+          await captureStore.startHostCapture()
+        }
       }
 
       if (
@@ -77,16 +77,10 @@ export const useSessionStore = defineStore('session', () => {
     }
   )
 
-  const hasLocalAudioTrack = (hint: 'speech' | 'music'): boolean => {
-    return !!webRtcStore.localStream?.getAudioTracks().some((t) => t.contentHint === hint)
-  }
-
   watch(
     () => audioStore.includeMicrophone,
     (isEnabled): void => {
       webRtcStore.toggleTrackByHint('audio', 'speech', isEnabled)
-      if (!isEnabled || connectionStore.isHost || !socketStore.isAcknowledged) return
-      if (!hasLocalAudioTrack('speech')) void captureStore.startGuestCapture()
     }
   )
 

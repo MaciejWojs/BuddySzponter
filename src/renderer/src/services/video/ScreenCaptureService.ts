@@ -106,6 +106,22 @@ export class ScreenCaptureService {
     }
   }
 
+  public async nextMonitor(): Promise<void> {
+    if (window.screenCapture && typeof window.screenCapture.nextMonitor === 'function') {
+      await window.screenCapture.nextMonitor()
+
+      // Czyszczenie starej zalegającej klatki, żeby przy zmianie nie mignęła na ułamek sekundy
+      if (this.pendingFrame) {
+        try {
+          this.pendingFrame.close()
+        } catch {
+          // ignore
+        }
+        this.pendingFrame = null
+      }
+    }
+  }
+
   private normalizeFrameTimestamp(frameData: VideoFrame): VideoFrame {
     if (typeof frameData.timestamp === 'number' && frameData.timestamp > 0) {
       return frameData

@@ -49,7 +49,11 @@ const api = {
     setLanguage: (lang: AppLanguage): Promise<boolean> =>
       ipcRenderer.invoke('settings:setLanguage', lang),
     getTranslation: (): Promise<Translation> => ipcRenderer.invoke('settings:getTranslation'),
-    getHardwareId: (): Promise<string> => ipcRenderer.invoke('settings:getHardwareId')
+    getHardwareId: (): Promise<string> => ipcRenderer.invoke('settings:getHardwareId'),
+    getDeviceName: (): Promise<string> => ipcRenderer.invoke('settings:getDeviceName'),
+    getHostPassword: (): Promise<string> => ipcRenderer.invoke('settings:getHostPassword'),
+    setHostPassword: (password: string): Promise<void> =>
+      ipcRenderer.invoke('settings:setHostPassword', password)
   },
   core: {
     getLocale: (lang: AppLanguage): Promise<GetLocaleResponse> =>
@@ -161,6 +165,15 @@ const api = {
     quitApp: (): Promise<void> => ipcRenderer.invoke('quit-app'),
     showHostWidget: (): Promise<void> => ipcRenderer.invoke('show-host-widget'),
     hideHostWidget: (): Promise<void> => ipcRenderer.invoke('hide-host-widget'),
+    setHostWidgetMode: (mode: 'normal' | 'compact' | 'hidden' | 'peek'): Promise<void> =>
+      ipcRenderer.invoke('set-host-widget-mode', mode),
+    moveHostWidget: (x: number, y: number): void => ipcRenderer.send('move-host-widget', { x, y }),
+    showHostChatWindow: (): Promise<boolean> => ipcRenderer.invoke('show-host-chat-window'),
+    hideHostChatWindow: (): Promise<void> => ipcRenderer.invoke('hide-host-chat-window'),
+    moveHostChatWindow: (x: number, y: number): void =>
+      ipcRenderer.send('move-host-chat-window', { x, y }),
+    openGuestWindow: (sessionId: string) => ipcRenderer.invoke('app:open-guest-window', sessionId),
+    closeGuestWindow: () => ipcRenderer.invoke('app:close-guest-window'),
     resizeToVideoRatio: (width: number, height: number) =>
       ipcRenderer.invoke('app:resize-to-video-ratio', width, height),
     resetAspectRatio: () => ipcRenderer.invoke('app:reset-aspect-ratio'),
@@ -180,7 +193,21 @@ const api = {
     scrollMouse: (deltaY: number): Promise<void> =>
       ipcRenderer.invoke('input:scroll-mouse', deltaY),
     getHostScreenSize: (): Promise<{ width: number; height: number }> =>
-      ipcRenderer.invoke('input:get-host-screen-size')
+      ipcRenderer.invoke('input:get-host-screen-size'),
+
+    getCursorType: (): Promise<string> => ipcRenderer.invoke('input:get-cursor-type'),
+    startCursorP2PRelay: (): Promise<void> =>
+      ipcRenderer.invoke('input:cursor-p2p-relay-start'),
+    stopCursorP2PRelay: (): Promise<void> => ipcRenderer.invoke('input:cursor-p2p-relay-stop'),
+    onHostCursorSync: (callback: (cursorType: string) => void) => {
+      const listener = (_: unknown, payload: { cursorType: string }): void => {
+        callback(payload?.cursorType ?? 'default')
+      }
+      ipcRenderer.on('input:host-cursor-sync', listener)
+      return () => {
+        ipcRenderer.removeListener('input:host-cursor-sync', listener)
+      }
+    }
   },
 
   events: {
@@ -197,6 +224,9 @@ const api = {
       ipcRenderer.removeAllListeners('tray-stop-session')
       ipcRenderer.removeAllListeners('host-session-ended')
     }
+  },
+  desktop: {
+    getSources: () => ipcRenderer.invoke('desktop:get-sources')
   }
 }
 
@@ -296,7 +326,10 @@ try {
       if (!released) {
         released = true
         try {
-          data.importedSharedTexture.release()
+          const result = data.importedSharedTexture.release() as unknown as Promise<void> | void
+          if (result && typeof result.catch === 'function') {
+            result.catch(() => {})
+          }
         } catch {
           // ignorujemy błędy zwalniania tekstury
         }
@@ -387,6 +420,8 @@ if (process.contextIsolated) {
     contextBridge.exposeInMainWorld('capture', {
       start: () => ipcRenderer.invoke('capture:start'),
       stop: () => ipcRenderer.invoke('capture:stop'),
+      nextMonitor: () => ipcRenderer.invoke('capture:next-monitor'),
+      getMonitorState: () => ipcRenderer.invoke('capture:get-monitor-state'),
       getFps: () => ipcRenderer.invoke('capture:getFps'),
       subscribeStream: (onFrame: (frame: VideoFrame) => void) => {
         const cleanupSubscription = addFrameConsumer(onFrame)
@@ -415,6 +450,7 @@ if (process.contextIsolated) {
         ipcRenderer.postMessage('capture:stop-stream', null)
         void ipcRenderer.invoke('capture:stop')
       },
+      nextMonitor: () => ipcRenderer.invoke('capture:next-monitor'),
       registerReceiver: () => {
         registerSharedTextureReceiver()
       },

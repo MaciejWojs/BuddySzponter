@@ -1,6 +1,7 @@
 import { ipcMain, screen, BrowserWindow, app } from 'electron'
-import { InputBridge } from '@maciejwojs/input-bridge'
+import { InputBridge, getCursorType } from '@maciejwojs/input-bridge'
 import { broadcastLockoutToWidget } from '../hostWidget'
+import { MonitorMetadata } from '@maciejwojs/screen-capture'
 
 /* ================= TYPES & INTERFACES ================= */
 
@@ -8,8 +9,7 @@ type InputType = 'move' | 'click' | 'key'
 
 interface QueuedInput {
   type: InputType
-  priority: number
-  payload: any /// TODO: make this more specific per type
+  payload: any
   timestamp: number
 }
 
@@ -42,18 +42,29 @@ class InputController {
 
   private targetScroll = 0
   private currentScroll = 0
+  private isProcessingFrame = false
 
   async init(): Promise<void> {
     if (this.bridge) return
 
     const bridge = new InputBridge({ autoFlush: false })
     await bridge.init()
+    bridge.setLogger((...args) => {
+      console.log('[InputBridge-CPP]', ...args)
+    })
 
-    // this.isOptimizationEnabled = bridge.toggleOptimization()
     bridge.optimizeMouseMovesAbsolute(2)
     this.bridge = bridge
 
     this.startFrameLoop()
+  }
+
+  getSessionHandle(): string | null {
+    return this.bridge?.getPortalSessionHandle() || null
+  }
+
+  getRemotePipewireFd(): number | null {
+    return this.bridge?.openPipeWireRemoteFd() || null
   }
 
   private startFrameLoop(): void {
@@ -62,50 +73,78 @@ class InputController {
     }, 10)
   }
 
-  private processFrame(): void {
-    if (!this.bridge) return
+  private async processFrame(): Promise<void> {
+    if (!this.bridge || this.isProcessingFrame) return
+    this.isProcessingFrame = true
 
-    let needsFlush = false
+    try {
+      let needsFlush = false
 
-    if (this.queue.length > 0) {
-      this.queue.sort((a, b) => a.priority - b.priority || a.timestamp - b.timestamp)
+      const now = Date.now()
+      const readyItems = this.queue.filter((item) => item.timestamp <= now)
 
-      const lastMove = [...this.queue].reverse().find((i) => i.type === 'move')
-      const filteredQueue = this.queue.filter((i) => i.type !== 'move' || i === lastMove)
+      if (readyItems.length > 0) {
+        this.queue = this.queue.filter((item) => item.timestamp > now)
 
-      for (const item of filteredQueue) {
-        if (item.type === 'move') {
-          const { x, y } = item.payload
-          this.bridge.moveMouseAbsolute(x, y)
-          needsFlush = true
-        } else if (item.type === 'click') {
-          this.bridge.mouseClick(item.payload.btn, item.payload.down)
-          needsFlush = true
-        } else if (item.type === 'key') {
-          this.bridge.keyPressDOM(item.payload.code, item.payload.down)
-          needsFlush = true
+        readyItems.sort((a, b) => a.timestamp - b.timestamp)
+
+        for (const item of readyItems) {
+          try {
+            if (item.type === 'move') {
+              const { x, y } = item.payload
+
+              await this.bridge.moveMouseAbsolute(x, y)
+              // await this.bridge.moveMouseRelative(x, y)
+
+              // Mamy globalny offset z monitorIndex
+              const monitors = this.bridge.getMonitors()
+              const targetMonitor =
+                monitors.find((m) => m.index === inputService.monitorIndex) ||
+                monitors.find((m) => m.primary) ||
+                monitors[0]
+
+              if (targetMonitor) {
+                inputService.tracker?.updateInjection(targetMonitor.x + x, targetMonitor.y + y)
+              } else {
+                inputService.tracker?.updateInjection(x, y)
+              }
+              needsFlush = true
+            } else if (item.type === 'click') {
+              await this.bridge.mouseClick(item.payload.btn, item.payload.down)
+              this.bridge.flush()
+              needsFlush = false
+            } else if (item.type === 'key') {
+              await this.bridge.keyPressDOM(item.payload.code, item.payload.down)
+              this.bridge.flush()
+              needsFlush = false
+            }
+          } catch (e) {
+            console.error('[InputController] Zignorowano błąd polecenia z systemu:', e)
+          }
         }
       }
 
-      this.queue = []
-    }
+      const scrollDiff = this.targetScroll - this.currentScroll
+      if (Math.abs(scrollDiff) > 0.1) {
+        const step = scrollDiff * 0.3
+        this.currentScroll += step
 
-    const scrollDiff = this.targetScroll - this.currentScroll
-    if (Math.abs(scrollDiff) > 0.1) {
-      const step = scrollDiff * 0.3
-      this.currentScroll += step
-
-      const roundedStep = Math.round(step)
-      if (roundedStep !== 0) {
-        this.bridge.scrollMouse?.(roundedStep)
-        needsFlush = true
+        const roundedStep = Math.round(step)
+        if (roundedStep !== 0) {
+          if (this.bridge.scrollMouse) {
+            await this.bridge.scrollMouse(roundedStep)
+            needsFlush = true
+          }
+        }
+      } else {
+        this.currentScroll = this.targetScroll
       }
-    } else {
-      this.currentScroll = this.targetScroll
-    }
 
-    if (needsFlush) {
-      this.bridge.flush()
+      if (needsFlush) {
+        this.bridge.flush()
+      }
+    } finally {
+      this.isProcessingFrame = false
     }
   }
 
@@ -117,11 +156,9 @@ class InputController {
   }
 
   // --- API ---
-
   async move(targetX: number, targetY: number): Promise<void> {
     this.queue.push({
       type: 'move',
-      priority: 1,
       payload: { x: targetX, y: targetY },
       timestamp: Date.now()
     })
@@ -129,41 +166,24 @@ class InputController {
 
   async click(button: number): Promise<void> {
     const now = Date.now()
-    this.queue.push({
-      type: 'click',
-      priority: 0,
-      payload: { btn: button, down: true },
-      timestamp: now
-    })
-    this.queue.push({
-      type: 'click',
-      priority: 0,
-      payload: { btn: button, down: false },
-      timestamp: now + 1
-    })
+    this.queue.push({ type: 'click', payload: { btn: button, down: true }, timestamp: now })
+    this.queue.push({ type: 'click', payload: { btn: button, down: false }, timestamp: now + 30 })
   }
 
   async doubleClick(button: number): Promise<void> {
-    await this.click(button)
-    await this.click(button)
+    const now = Date.now()
+    this.queue.push({ type: 'click', payload: { btn: button, down: true }, timestamp: now })
+    this.queue.push({ type: 'click', payload: { btn: button, down: false }, timestamp: now + 30 })
+    this.queue.push({ type: 'click', payload: { btn: button, down: true }, timestamp: now + 60 })
+    this.queue.push({ type: 'click', payload: { btn: button, down: false }, timestamp: now + 90 })
   }
 
   async mouseDown(button: number): Promise<void> {
-    this.queue.push({
-      type: 'click',
-      priority: 0,
-      payload: { btn: button, down: true },
-      timestamp: Date.now()
-    })
+    this.queue.push({ type: 'click', payload: { btn: button, down: true }, timestamp: Date.now() })
   }
 
   async mouseUp(button: number): Promise<void> {
-    this.queue.push({
-      type: 'click',
-      priority: 0,
-      payload: { btn: button, down: false },
-      timestamp: Date.now()
-    })
+    this.queue.push({ type: 'click', payload: { btn: button, down: false }, timestamp: Date.now() })
   }
 
   async scrollMouse(deltaY: number): Promise<void> {
@@ -173,10 +193,33 @@ class InputController {
   async key(domCode: string, action: 'd' | 'u'): Promise<void> {
     this.queue.push({
       type: 'key',
-      priority: 0,
       payload: { code: domCode, down: action === 'd' },
       timestamp: Date.now()
     })
+  }
+
+  setCurrentMonitor(index: number, width: number, height: number): boolean {
+    if (!this.bridge) return false
+    return this.bridge.setCurrentMonitor(index, width, height)
+  }
+
+  setMonitors(monitors: MonitorMetadata[]): void {
+    if (!this.bridge) return
+    this.bridge.setMonitors(monitors)
+  }
+
+  getMonitors() {
+    if (!this.bridge) return []
+    return this.bridge.getMonitors().map((m) => ({
+      id: m.id,
+      name: m.name,
+      index: m.index,
+      x: m.x,
+      y: m.y,
+      width: m.width,
+      height: m.height,
+      pipewireStream: Number(m.id),
+    }))
   }
 
   toggleOptimization(): boolean {
@@ -194,17 +237,15 @@ class InputController {
 
 class HostActivityTracker {
   private interval: NodeJS.Timeout | null = null
-
   private lastX = -1
   private lastY = -1
   private lastInjectedAt = 0
-
   private isCurrentlyLockedOut = false
 
   constructor(
     private lockout: LockoutManager,
     private emit: (payload: { active: boolean; until: number }) => void
-  ) {}
+  ) { }
 
   start(): void {
     if (this.interval) return
@@ -235,17 +276,11 @@ class HostActivityTracker {
 
         if (!this.isCurrentlyLockedOut) {
           this.isCurrentlyLockedOut = true
-          this.emit({
-            active: true,
-            until: this.lockout.getUntil()
-          })
+          this.emit({ active: true, until: this.lockout.getUntil() })
         }
       } else if (this.isCurrentlyLockedOut && !this.lockout.isLockedOut()) {
         this.isCurrentlyLockedOut = false
-        this.emit({
-          active: false,
-          until: 0
-        })
+        this.emit({ active: false, until: 0 })
       }
     }, 50)
   }
@@ -272,6 +307,11 @@ export const inputService = {
   tracker: null as HostActivityTracker | null,
   mainWindow: null as BrowserWindow | null,
   handlersRegistered: false,
+  monitorIndex: 0,
+  startingX: 0,
+
+  cursorRelayInterval: null as NodeJS.Timeout | null,
+  lastRelayedCursorType: '',
 
   async init(mainWindow: BrowserWindow): Promise<void> {
     this.mainWindow = mainWindow
@@ -290,8 +330,33 @@ export const inputService = {
     app.on('before-quit', () => {
       this.tracker?.stop()
       this.controller.stop()
+      this.stopCursorP2PRelay()
     })
   },
+
+  startCursorP2PRelay(): void {
+    if (this.cursorRelayInterval) return
+
+    this.lastRelayedCursorType = ''
+    this.cursorRelayInterval = setInterval(() => {
+      const cursorType = getCursorType()
+      if (cursorType === this.lastRelayedCursorType) return
+
+      this.lastRelayedCursorType = cursorType
+      this.mainWindow?.webContents.send('input:host-cursor-sync', { cursorType })
+    }, 150)
+  },
+
+  stopCursorP2PRelay(): void {
+    if (!this.cursorRelayInterval) return
+    clearInterval(this.cursorRelayInterval)
+    this.cursorRelayInterval = null
+    this.lastRelayedCursorType = ''
+  },
+  setStartingX(x: number): void {
+    this.startingX = x
+  },
+
 
   registerHandlers(): void {
     if (this.handlersRegistered) return
@@ -300,7 +365,23 @@ export const inputService = {
     const isLocked = (): boolean => this.lockout.isLockedOut()
 
     ipcMain.handle('input:get-host-screen-size', async () => {
-      const display = screen.getPrimaryDisplay()
+      const monitors = this.controller.getMonitors()
+      const targetMonitor =
+        monitors.find((m) => m.index === this.monitorIndex) ||
+        // monitors.find((m) => m.primary) ||
+        monitors[0]
+
+      let display = screen.getPrimaryDisplay()
+      if (targetMonitor) {
+        const foundDisplay = screen
+          .getAllDisplays()
+          .find(
+            (d) =>
+              Math.abs(d.bounds.x - targetMonitor.x) < 5 &&
+              Math.abs(d.bounds.y - targetMonitor.y) < 5
+          )
+        if (foundDisplay) display = foundDisplay
+      }
 
       const logicalWidth = display.size.width
       const logicalHeight = display.size.height
@@ -320,33 +401,26 @@ export const inputService = {
 
     ipcMain.handle('input:move-absolute', async (_e, x: number, y: number) => {
       if (!Number.isFinite(x) || !Number.isFinite(y) || isLocked()) return
-
-      const tx = Math.round(x)
-      const ty = Math.round(y)
-
-      await this.controller.move(tx, ty)
-      this.tracker?.updateInjection(tx, ty)
+      console.log(`[input:move-absolute] Monitor idx: ${this.monitorIndex}, received x=${x} y=${y} (raw, before round)`);
+      const newX = this.startingX + x;
+      console.log(`[input:move-absolute] Monitor idx: ${this.monitorIndex}, received x=${newX} y=${y} (raw, after calculation)`);
+      await this.controller.move(Math.round(newX), Math.round(y))
     })
 
     ipcMain.handle(
       'input:mouse-action',
       async (_e, btn: 'l' | 'm' | 'r', act: 'c' | 'dc' | 'd' | 'u', x: number, y: number) => {
-        if (isLocked()) return
+        if (!Number.isFinite(x) || !Number.isFinite(y) || isLocked()) return
 
         const map: Record<string, number> = { l: 0, m: 2, r: 1 }
         if (typeof map[btn] !== 'number') return
 
-        const tx = Math.round(x)
-        const ty = Math.round(y)
-
-        await this.controller.move(tx, ty)
+        await this.controller.move(Math.round(x), Math.round(y))
 
         if (act === 'c') await this.controller.click(map[btn])
         else if (act === 'dc') await this.controller.doubleClick(map[btn])
         else if (act === 'd') await this.controller.mouseDown(map[btn])
         else if (act === 'u') await this.controller.mouseUp(map[btn])
-
-        this.tracker?.updateInjection(tx, ty)
       }
     )
 
@@ -364,8 +438,25 @@ export const inputService = {
     })
 
     ipcMain.handle('input:scroll-mouse', async (_e, deltaY: number) => {
-      if (isLocked()) return
+      if (!Number.isFinite(deltaY) || isLocked()) return
       await this.controller.scrollMouse(deltaY)
+    })
+
+    ipcMain.handle('input:get-cursor-type', () => {
+      try {
+        return getCursorType()
+      } catch (e) {
+        console.warn('[InputService] Nie udało się odczytać kursora:', e)
+        return 'default'
+      }
+    })
+
+    ipcMain.handle('input:cursor-p2p-relay-start', () => {
+      this.startCursorP2PRelay()
+    })
+
+    ipcMain.handle('input:cursor-p2p-relay-stop', () => {
+      this.stopCursorP2PRelay()
     })
   }
 }

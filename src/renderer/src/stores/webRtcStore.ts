@@ -1,6 +1,6 @@
 // renderer/src/stores/webRtcStore.ts
 import { defineStore } from 'pinia'
-import { ref, shallowRef } from 'vue'
+import { ref, shallowRef, triggerRef } from 'vue'
 import {
   guestTrackPolicy,
   hostTrackPolicy,
@@ -8,6 +8,9 @@ import {
 } from '@renderer/composables/connection/webRTCService'
 import { messageRouter } from '@renderer/composables/webrtc/MessageRouter'
 import { useHidChannel } from '@renderer/composables/channels/HidChannel'
+import '@renderer/composables/channels/ChatChannel'
+import { chatService } from '@renderer/services/chatService'
+import { useSocketStore } from './socketStore'
 
 export const useWebRtcStore = defineStore('webrtc', () => {
   // --- STAN POŁĄCZENIA ---
@@ -23,6 +26,25 @@ export const useWebRtcStore = defineStore('webrtc', () => {
   }
 
   webRtcService.onMessageReceived = (data: string, channelLabel: string): void => {
+    if (channelLabel === 'system-events') {
+      try {
+        const parsed = JSON.parse(data)
+        if (parsed.type === 'DISCONNECT') {
+          console.log('[WebRtcStore] Otrzymano sygnał DISCONNECT (P2P)')
+          if (localPublishProfile.value === 'guest') {
+            const relay = new BroadcastChannel('guest-sync-channel')
+            relay.postMessage({ type: 'COMMAND_DISCONNECT' })
+            relay.close()
+          } else {
+            const socketStore = useSocketStore()
+            socketStore.disconnect(true)
+          }
+          return
+        }
+      } catch (e) {
+        console.warn('[WebRtcStore] Błąd parsowania system-events:', e)
+      }
+    }
     messageRouter.route(channelLabel, data)
   }
 
@@ -36,13 +58,29 @@ export const useWebRtcStore = defineStore('webrtc', () => {
     if (localPublishProfile.value === 'host') {
       console.log('[WebRtcStore] Połączenie otwarte, wysyłam HID Handshake...')
       hid.sendHandshake()
+      window.api?.input?.startCursorP2PRelay?.().catch((e) => {
+        console.warn('[WebRtcStore] Nie udało się uruchomić relayu kursora:', e)
+      })
     }
+  }
+
+  if (window.api?.input?.onHostCursorSync) {
+    window.api.input.onHostCursorSync((cursorType) => {
+      if (
+        localPublishProfile.value !== 'host' ||
+        rtcStatus.value !== 'connected'
+      ) {
+        return
+      }
+      hid.sendHostCursorSync(cursorType)
+    })
   }
 
   // --- ACTIONS ---
 
   const publishLocalStream = async (stream: MediaStream): Promise<void> => {
-    localStream.value = stream
+    localStream.value = new MediaStream(stream.getTracks())
+    triggerRef(localStream)
     if (rtcStatus.value === 'disconnected') return
     webRtcService.publishLocalStream(stream, getCurrentTrackPolicy())
   }
@@ -53,13 +91,8 @@ export const useWebRtcStore = defineStore('webrtc', () => {
       webRtcService.publishLocalStream(localStream.value, getCurrentTrackPolicy())
     }
 
-    if (rtcStatus.value === 'connected') {
-      if (localStream.value) {
-        webRtcService.publishLocalStream(localStream.value, getCurrentTrackPolicy())
-      }
-      if (profile === 'host') {
-        hid.sendHandshake()
-      }
+    if (rtcStatus.value === 'connected' && profile === 'host') {
+      hid.sendHandshake()
     }
   }
 
@@ -68,12 +101,21 @@ export const useWebRtcStore = defineStore('webrtc', () => {
     webRtcService.cleanup()
     remoteStream.value = null
     localPublishProfile.value = 'host'
+    chatService.clearMessages()
+    hid.resetState()
+    window.api?.input?.stopCursorP2PRelay?.().catch(() => {})
   }
 
   const disconnect = async (): Promise<void> => {
     if (rtcStatus.value === 'disconnected') return
 
-    webRtcService.sendData('system-events', JSON.stringify({ type: 'DISCONNECT', payload: {} }))
+    try {
+      webRtcService.sendData('system-events', JSON.stringify({ type: 'DISCONNECT', payload: {} }))
+    } catch (e) {
+      console.warn('[WebRtcStore] Nie udało się wysłać sygnału DISCONNECT (kanał zamknięty?):', e)
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 50))
 
     forceDisconnect()
   }
@@ -99,6 +141,8 @@ export const useWebRtcStore = defineStore('webrtc', () => {
         if (t) t.enabled = isEnabled
       }
     }
+
+    triggerRef(localStream)
   }
 
   return {
@@ -107,7 +151,6 @@ export const useWebRtcStore = defineStore('webrtc', () => {
     remoteStream,
     localPublishProfile,
 
-    // Eksport metod
     getCurrentTrackPolicy,
     publishLocalStream,
     setLocalPublishProfile,

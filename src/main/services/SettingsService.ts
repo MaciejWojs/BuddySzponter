@@ -1,6 +1,7 @@
 import { createHash } from 'crypto'
 import os from 'os'
 import { localStore, translationStore } from '../store/localStore'
+import { secureStore } from '../store/secureStore'
 import { ipcMain } from 'electron'
 import { AppLanguage, Translation } from '../../shared/schemas/langSchemas'
 import fallbackTranslations from '../../shared/locales/en.json'
@@ -63,6 +64,16 @@ export class AppSettingsService {
     console.log(`[AppSettingsService] Language successfully changed to: '${lang}'`)
 
     return true
+  }
+
+  // --- HOST PASSWORD MANAGEMENT ---
+
+  public getHostPassword(): string {
+    return secureStore.getSecure('hostPassword') || ''
+  }
+
+  public setHostPassword(password: string): void {
+    secureStore.setSecure('hostPassword', password)
   }
 
   // --- HARDWARE ID MANAGEMENT ---
@@ -130,6 +141,18 @@ export class AppSettingsService {
 
     ipcMain.handle('settings:setLanguage', (_event, lang: AppLanguage) => {
       return this.setLanguage(lang)
+    })
+
+    ipcMain.handle('settings:getHostPassword', () => {
+      return this.getHostPassword()
+    })
+
+    ipcMain.handle('settings:setHostPassword', (_event, password: string) => {
+      this.setHostPassword(password)
+    })
+
+    ipcMain.handle('settings:getDeviceName', () => {
+      return this.getDeviceName()
     })
   }
 }

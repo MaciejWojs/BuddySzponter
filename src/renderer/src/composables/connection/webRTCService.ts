@@ -56,6 +56,7 @@ export class WebRTCService {
   public onConnectionFailed?: () => void
   public onConnectionClosed?: () => void
   public onIceCandidateGenerated?: (candidate: RTCIceCandidate) => void
+  public onIceGatheringStateChange?: (state: RTCIceGatheringState) => void
   public onDataChannelOpened?: () => void
   public onMessageReceived?: (data: string, channelLabel: string) => void
   public onRemoteStreamReceived?: (stream: MediaStream) => void
@@ -90,14 +91,16 @@ export class WebRTCService {
     const serverPass = import.meta.env.VITE_ICE_SERVER_PASS || '1234'
 
     const config: RTCConfiguration = {
-      iceServers: []
+      iceServers: [],
+      iceTransportPolicy: 'all', // wymuszamy zbieranie wszystkich kandydatów
+      iceCandidatePoolSize: 1 // wstępne zbieranie
     }
 
     if (server) {
       config.iceServers!.push(
-        { urls: `turns:${server}:5349`, username: serverUser, credential: serverPass },
-        { urls: `stun:${server}:3478` },
-        { urls: `turn:${server}:3478`, username: serverUser, credential: serverPass }
+        { urls: `turn:${server}:3478?transport=udp`, username: serverUser, credential: serverPass },
+        { urls: `turn:${server}:3478?transport=tcp`, username: serverUser, credential: serverPass },
+        { urls: `turns:${server}:5349`, username: serverUser, credential: serverPass }
       )
     } else {
       config.iceServers!.push({ urls: 'stun:stun.l.google.com:19302' })
@@ -130,6 +133,13 @@ export class WebRTCService {
 
     this.peerConnection.onicecandidate = (e): void => {
       if (e.candidate && this.onIceCandidateGenerated) this.onIceCandidateGenerated(e.candidate)
+    }
+
+    this.peerConnection.onicegatheringstatechange = (): void => {
+      const state = this.peerConnection?.iceGatheringState || 'new'
+      if (this.onIceGatheringStateChange) {
+        this.onIceGatheringStateChange(state)
+      }
     }
 
     this.peerConnection.ondatachannel = (e): void => this.setupChannel(e.channel)
@@ -310,9 +320,18 @@ export class WebRTCService {
   }
 
   private setupChannel(channel: RTCDataChannel): void {
-    channel.onopen = (): void => {
-      if (channel.label === 'system-events' && this.onDataChannelOpened) this.onDataChannelOpened()
+    const handleOpen = (): void => {
+      if (channel.label === 'system-events' && this.onDataChannelOpened) {
+        this.onDataChannelOpened()
+      }
     }
+
+    if (channel.readyState === 'open') {
+      handleOpen()
+    } else {
+      channel.onopen = handleOpen
+    }
+
     channel.onmessage = (e): void => {
       if (this.onMessageReceived) this.onMessageReceived(e.data, channel.label)
     }
@@ -322,18 +341,79 @@ export class WebRTCService {
     else if (channel.label === 'metrics') this.metricsChannel = channel
   }
 
-  public async createOffer(): Promise<RTCSessionDescriptionInit> {
+  /**
+   * Czeka na zakończenie zbierania kandydatów ICE.
+   * Zwraca finalny SDP po zakończeniu (lub timeout).
+   */
+  private async waitForIceGatheringComplete(): Promise<void> {
+    const pc = this.peerConnection
+    if (!pc) return
+
+    // Jeśli zbieranie już zakończone, kończymy od razu
+    if (pc.iceGatheringState === 'complete') return
+
+    return new Promise<void>((resolve) => {
+      const timeout = 3000 // 3 sekundy zapasu
+      let settled = false
+
+      const onStateChange = (): void => {
+        if (settled) return
+        const state = pc.iceGatheringState
+        if (state === 'complete') {
+          settled = true
+          pc.removeEventListener('icegatheringstatechange', onStateChange)
+          resolve()
+        }
+      }
+
+      pc.addEventListener('icegatheringstatechange', onStateChange)
+
+      setTimeout(() => {
+        if (!settled) {
+          settled = true
+          pc.removeEventListener('icegatheringstatechange', onStateChange)
+          console.warn(
+            '[WebRTCService] ICE gathering timeout, kończymy z obecnym stanem:',
+            pc.iceGatheringState
+          )
+          resolve()
+        }
+      }, timeout)
+    })
+  }
+
+  /**
+   * Tworzy ofertę z wymuszeniem zakończenia zbierania ICE.
+   * Zwraca finalny opis sesji ze wszystkimi kandydatami.
+   */
+  public async createOfferWithGathering(): Promise<RTCSessionDescriptionInit> {
+    if (!this.peerConnection) throw new Error('peerConnection not initialized')
+
     if (!this.systemEventsChannel) {
       this.setupChannel(
-        this.peerConnection!.createDataChannel('hid-control', { ordered: true, maxRetransmits: 0 })
+        this.peerConnection.createDataChannel('hid-control', { ordered: true, maxRetransmits: 0 })
       )
-      this.setupChannel(this.peerConnection!.createDataChannel('system-events', { ordered: true }))
-      this.setupChannel(this.peerConnection!.createDataChannel('chat-channel', { ordered: true }))
-      this.setupChannel(this.peerConnection!.createDataChannel('metrics', { ordered: false }))
+      this.setupChannel(this.peerConnection.createDataChannel('system-events', { ordered: true }))
+      this.setupChannel(this.peerConnection.createDataChannel('chat-channel', { ordered: true }))
+      this.setupChannel(this.peerConnection.createDataChannel('metrics', { ordered: false }))
     }
-    const offer = await this.peerConnection!.createOffer()
-    await this.peerConnection!.setLocalDescription(offer)
-    return offer
+
+    const offer = await this.peerConnection.createOffer()
+    await this.peerConnection.setLocalDescription(offer)
+
+    await this.waitForIceGatheringComplete()
+
+    // po zakończeniu zbierania lokalny opis zawiera już wszystkich kandydatów
+    const finalOffer = this.peerConnection.localDescription
+    if (!finalOffer) throw new Error('No local description after gathering')
+    return finalOffer
+  }
+
+  /**
+   * Zachowujemy starą metodę dla kompatybilności – generuje ofertę natychmiast (trickle ICE).
+   */
+  public async createOffer(): Promise<RTCSessionDescriptionInit> {
+    return this.createOfferWithGathering()
   }
 
   public async handleOfferAndCreateAnswer(
@@ -355,10 +435,15 @@ export class WebRTCService {
 
     if (localStream) this.publishLocalStream(localStream, policy)
 
-    await this.flushIceQueue()
     const answer = await this.peerConnection!.createAnswer()
     await this.peerConnection!.setLocalDescription(answer)
-    return answer
+
+    await this.waitForIceGatheringComplete()
+    const finalAnswer = this.peerConnection!.localDescription
+    if (!finalAnswer) throw new Error('No local description after gathering')
+
+    await this.flushIceQueue()
+    return finalAnswer
   }
 
   public async handleAnswer(answer: RTCSessionDescriptionInit): Promise<void> {
@@ -371,13 +456,41 @@ export class WebRTCService {
       this.iceCandidateQueue.push(candidate)
       return
     }
-    await this.peerConnection.addIceCandidate(new RTCIceCandidate(candidate))
+    try {
+      await this.peerConnection.addIceCandidate(new RTCIceCandidate(candidate))
+    } catch (e) {
+      console.warn('[WebRTCService] Błąd podczas addIceCandidate:', e)
+    }
   }
 
   private async flushIceQueue(): Promise<void> {
     while (this.iceCandidateQueue.length > 0) {
       const cand = this.iceCandidateQueue.shift()
-      if (cand) await this.peerConnection?.addIceCandidate(new RTCIceCandidate(cand))
+      if (cand) {
+        try {
+          await this.peerConnection?.addIceCandidate(new RTCIceCandidate(cand))
+        } catch (e) {
+          console.warn('[WebRTCService] Błąd w flushIceQueue:', e)
+        }
+      }
+    }
+  }
+
+  /**
+   * Wymusza restart ICE (ponowne zebranie kandydatów).
+   */
+  public async forceIceRestart(): Promise<void> {
+    if (!this.peerConnection) return
+    const pc = this.peerConnection
+
+    // Jeśli jesteśmy stroną oferującą, utwórz nową ofertę z restartem
+    if (pc.signalingState === 'stable' || pc.signalingState === 'have-local-offer') {
+      const offer = await pc.createOffer({ iceRestart: true })
+      await pc.setLocalDescription(offer)
+      await this.waitForIceGatheringComplete()
+      // Zewnętrzny kod może pobrać finalną ofertę z pc.localDescription
+    } else {
+      console.warn('Nie można wymusić restartu ICE w bieżącym stanie:', pc.signalingState)
     }
   }
 
@@ -520,7 +633,7 @@ export class WebRTCService {
     }
   }
 
-  public cleanup(): void {
+  public cleanup(preserveIceQueue: boolean = false): void {
     const currentPeerConnection = this.peerConnection
 
     this.isIntentionallyClosing = true
@@ -532,7 +645,9 @@ export class WebRTCService {
     currentPeerConnection?.close()
 
     this.peerConnection = null
-    this.iceCandidateQueue = []
+    if (!preserveIceQueue) {
+      this.iceCandidateQueue = []
+    }
     this.chatChannel = null
     this.hidControlChannel = null
     this.systemEventsChannel = null

@@ -71,6 +71,9 @@ declare global {
         setLanguage: (lang: AppLanguage) => Promise<boolean>
         getTranslation: () => Promise<Translation>
         getHardwareId: () => Promise<string>
+        getDeviceName: () => Promise<string>
+        getHostPassword: () => Promise<string>
+        setHostPassword: (password: string) => Promise<void>
       }
       core: {
         getLocale: (lang: AppLanguage) => Promise<GetLocaleResponse>
@@ -129,6 +132,13 @@ declare global {
         hideToTray: () => Promise<void>
         showHostWidget: () => Promise<void>
         hideHostWidget: () => Promise<void>
+        setHostWidgetMode: (mode: 'normal' | 'compact' | 'hidden' | 'peek') => Promise<void>
+        moveHostWidget: (x: number, y: number) => void
+        showHostChatWindow: () => Promise<boolean>
+        hideHostChatWindow: () => Promise<void>
+        moveHostChatWindow: (x: number, y: number) => void
+        openGuestWindow: (sessionId: string) => Promise<void>
+        closeGuestWindow: () => Promise<void>
         setHostTrayMode: (active: boolean) => Promise<void>
         resizeToVideoRatio: (width: number, height: number) => Promise<void>
         resetAspectRatio: () => Promise<void>
@@ -139,6 +149,10 @@ declare global {
         keyboardEvent: (keyCode: string, action: string) => Promise<void>
         getHostScreenSize: () => Promise<{ width: number; height: number }>
         scrollMouse: (deltaY: number) => Promise<void>
+        getCursorType: () => Promise<string>
+        startCursorP2PRelay: () => Promise<void>
+        stopCursorP2PRelay: () => Promise<void>
+        onHostCursorSync: (callback: (cursorType: string) => void) => () => void
       }
       events: {
         onToggleMic: (callback: () => void) => void
@@ -149,12 +163,15 @@ declare global {
     capture: {
       start: () => Promise<void>
       stop: () => Promise<void>
+      nextMonitor: () => Promise<void>
+      getMonitorState: () => Promise<{ count: number; currentIndex: number }>
       getFps(): Promise<number | null>
       subscribeStream: (onFrame: (frame: VideoFrame) => void) => () => void
     }
     screenCapture: {
       requestStream: () => void
       stopStream: () => void
+      nextMonitor: () => Promise<void>
       registerReceiver: () => void
       onFrameReceived: (callback: (frameData: VideoFrame) => void) => () => void
       shouldUseCpu: () => Promise<boolean>

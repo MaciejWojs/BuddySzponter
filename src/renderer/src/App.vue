@@ -1,19 +1,20 @@
 <script setup lang="ts">
-import { computed, onUnmounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, onMounted, onUnmounted, watch } from 'vue'
+
 import { useSettingsStore } from '@renderer/stores/settingsStore'
 import { useUserStore } from './stores/userStore'
 import { useSocketStore } from '@renderer/stores/socketStore'
 import { useDeviceStore } from './stores/deviceStore'
 import { useAudioMixer } from './services/audio/out/useAudioMixer'
-import WidgetControlListener from '@renderer/components/p2p/WidgetControlListener.vue'
 import { useWebRtcStore } from './stores/webRtcStore'
 import { useConnectionStore } from './stores/connectionStore'
-import { useWidgetBridge } from '@renderer/composables/useWidgetSync'
+
+import { useGuestSync } from '@renderer/composables/syncWindow/useGuestSync'
+import { useWidgetSync } from './composables/syncWindow/useWidgetSync'
+import { useHostChatPortalSync } from '@renderer/composables/syncWindow/useHostChatPortalSync'
 
 const toaster = { position: 'top-left', duration: 3000, dismissible: true, max: 3, expand: false }
 
-const router = useRouter()
 const webRtcStore = useWebRtcStore()
 const connectionStore = useConnectionStore()
 const settingsStore = useSettingsStore()
@@ -21,16 +22,39 @@ const socketStore = useSocketStore()
 const userStore = useUserStore()
 const deviceStore = useDeviceStore()
 
-settingsStore.initSettings()
-socketStore.init()
-userStore.initSession()
-deviceStore.refreshMicrophones()
-useAudioMixer()
-useWidgetBridge()
+// Ustawienia i stan inicjalizujemy w zależności od typu okna
+const isHostChatWindow = window.location.hash.includes('host-chat')
+const isMainWindow =
+  !window.location.hash.includes('guest') &&
+  !window.location.hash.includes('widget') &&
+  !window.location.hash.includes('tray-menu') &&
+  !isHostChatWindow
+
+if (isMainWindow) {
+  settingsStore.initSettings()
+  socketStore.init()
+  userStore.initSession()
+  deviceStore.refreshMicrophones()
+  useAudioMixer()
+  useWidgetSync()
+  useHostChatPortalSync('main')
+} else if (window.location.hash.includes('guest')) {
+  useGuestSync()
+} else if (isHostChatWindow) {
+  useHostChatPortalSync('portal')
+}
+
+onMounted(() => {
+  if (isMainWindow) {
+    // Opóźnienie zapobiegające wywołaniu API, zanim userStore zdąży zainicjować token (unikamy "Connection token missing")
+    setTimeout(async () => {
+      await connectionStore.restoreDefaultHost()
+    }, 1000)
+  }
+})
 
 const isRtcConnected = computed(() => webRtcStore.rtcStatus === 'connected')
 const isHostConnected = computed(() => connectionStore.isHost && isRtcConnected.value)
-const isGuestConnected = computed(() => !connectionStore.isHost && isRtcConnected.value)
 
 const syncWindowMode = async (hostActive: boolean): Promise<void> => {
   try {
@@ -44,37 +68,19 @@ const syncWindowMode = async (hostActive: boolean): Promise<void> => {
   }
 }
 
-watch(
-  isHostConnected,
-  (hostActive) => {
-    void syncWindowMode(hostActive)
-  },
-  { immediate: true }
-)
+if (isMainWindow) {
+  watch(
+    isHostConnected,
+    (hostActive) => {
+      void syncWindowMode(hostActive)
+    },
+    { immediate: true }
+  )
 
-onUnmounted(() => {
-  window.api.app.hideHostWidget().catch(() => {})
-})
-
-const previousRoute = ref('/api-test')
-
-watch(
-  isGuestConnected,
-  (connected) => {
-    if (connected) {
-      if (!router.currentRoute.value.path.includes('/session/guest-view')) {
-        previousRoute.value = router.currentRoute.value.fullPath
-      }
-
-      router.push('/session/guest-view')
-    } else {
-      if (router.currentRoute.value.path.includes('/session/guest-view')) {
-        router.push(previousRoute.value)
-      }
-    }
-  },
-  { immediate: true }
-)
+  onUnmounted(() => {
+    window.api.app.hideHostWidget().catch(() => {})
+  })
+}
 </script>
 
 <template>

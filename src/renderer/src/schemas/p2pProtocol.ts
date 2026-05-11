@@ -4,10 +4,27 @@ import { z } from 'zod'
 export const P2PMessageSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('CHAT'),
-    payload: z.object({
-      text: z.string().min(1),
-      sender: z.string()
-    })
+    payload: z.discriminatedUnion('op', [
+      z.object({
+        op: z.literal('create'),
+        id: z.string().min(1),
+        text: z.string().min(1),
+        sender: z.string().min(1),
+        authorId: z.string().min(1),
+        at: z.number().int()
+      }),
+      z.object({
+        op: z.literal('edit'),
+        id: z.string().min(1),
+        text: z.string().min(1),
+        at: z.number().int()
+      }),
+      z.object({
+        op: z.literal('delete'),
+        id: z.string().min(1),
+        at: z.number().int()
+      })
+    ])
   }),
 
   z.object({
@@ -51,7 +68,8 @@ export const P2PMessageSchema = z.discriminatedUnion('type', [
     payload: z.object({
       screenWidth: z.number().min(1),
       screenHeight: z.number().min(1),
-      isControlGranted: z.boolean()
+      isControlGranted: z.boolean(),
+      cursorType: z.string().optional()
     })
   }),
 
@@ -59,6 +77,13 @@ export const P2PMessageSchema = z.discriminatedUnion('type', [
     type: z.literal('HID_PERMISSION_UPDATE'),
     payload: z.object({
       isControlGranted: z.boolean()
+    })
+  }),
+
+  z.object({
+    type: z.literal('HID_CURSOR_SYNC'),
+    payload: z.object({
+      cursorType: z.string()
     })
   }),
 
