@@ -60,6 +60,15 @@
     "joinButton": "Unirse",
     "timeToJoin": "Tiempo restante:"
   },
+  "menuNav": {
+    "settingsTitle": "Ajustes",
+    "settingsLead": "Idioma de la interfaz.",
+    "devicesTitle": "Dispositivos",
+    "devicesLead": "Micrófono usado por la aplicación.",
+    "microphoneLabel": "Micrófono",
+    "refreshMics": "Actualizar lista",
+    "noMics": "No se detectaron micrófonos"
+  },
   "alert": {
     "success": "Éxito",
     "error": "Error",

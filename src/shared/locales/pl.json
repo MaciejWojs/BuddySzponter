@@ -77,6 +77,15 @@
     "joinButton": "Dołącz",
     "timeToJoin": "Pozostały czas:"
   },
+  "menuNav": {
+    "settingsTitle": "Ustawienia",
+    "settingsLead": "Język interfejsu.",
+    "devicesTitle": "Urządzenia",
+    "devicesLead": "Mikrofon używany w aplikacji.",
+    "microphoneLabel": "Mikrofon",
+    "refreshMics": "Odśwież listę",
+    "noMics": "Brak wykrytych mikrofonów"
+  },
   "alert": {
     "success": "Sukces",
     "error": "Błąd",

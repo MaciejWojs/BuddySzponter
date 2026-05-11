@@ -89,6 +89,15 @@
     "joinButton": "Join",
     "timeToJoin": "Time left:"
   },
+  "menuNav": {
+    "settingsTitle": "Settings",
+    "settingsLead": "Interface language.",
+    "devicesTitle": "Devices",
+    "devicesLead": "Microphone used by the app.",
+    "microphoneLabel": "Microphone",
+    "refreshMics": "Refresh list",
+    "noMics": "No microphones detected"
+  },
   "alert": {
     "success": "Success",
     "error": "Error",
