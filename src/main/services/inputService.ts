@@ -1,6 +1,7 @@
 import { ipcMain, screen, BrowserWindow, app } from 'electron'
 import { InputBridge } from '@maciejwojs/input-bridge'
 import { broadcastLockoutToWidget } from '../hostWidget'
+import { MonitorMetadata } from '@maciejwojs/screen-capture'
 
 /* ================= TYPES & INTERFACES ================= */
 
@@ -48,11 +49,22 @@ class InputController {
 
     const bridge = new InputBridge({ autoFlush: false })
     await bridge.init()
+    bridge.setLogger((...args) => {
+      console.log('[InputBridge-CPP]', ...args)
+    })
 
     bridge.optimizeMouseMovesAbsolute(2)
     this.bridge = bridge
 
     this.startFrameLoop()
+  }
+
+  getSessionHandle(): string | null {
+    return this.bridge?.getPortalSessionHandle() || null
+  }
+
+  getRemotePipewireFd(): number | null {
+    return this.bridge?.openPipeWireRemoteFd() || null
   }
 
   private startFrameLoop(): void {
@@ -82,6 +94,7 @@ class InputController {
               const { x, y } = item.payload
 
               await this.bridge.moveMouseAbsolute(x, y)
+              // await this.bridge.moveMouseRelative(x, y)
 
               // Mamy globalny offset z monitorIndex
               const monitors = this.bridge.getMonitors()
@@ -185,14 +198,28 @@ class InputController {
     })
   }
 
-  setCurrentMonitor(index: number): boolean {
+  setCurrentMonitor(index: number, width: number, height: number): boolean {
     if (!this.bridge) return false
-    return this.bridge.setCurrentMonitor(index)
+    return this.bridge.setCurrentMonitor(index, width, height)
+  }
+
+  setMonitors(monitors: MonitorMetadata[]): void {
+    if (!this.bridge) return
+    this.bridge.setMonitors(monitors)
   }
 
   getMonitors() {
     if (!this.bridge) return []
-    return this.bridge.getMonitors()
+    return this.bridge.getMonitors().map((m) => ({
+      id: m.id,
+      name: m.name,
+      index: m.index,
+      x: m.x,
+      y: m.y,
+      width: m.width,
+      height: m.height,
+      pipewireStream: Number(m.id),
+    }))
   }
 
   toggleOptimization(): boolean {
@@ -218,7 +245,7 @@ class HostActivityTracker {
   constructor(
     private lockout: LockoutManager,
     private emit: (payload: { active: boolean; until: number }) => void
-  ) {}
+  ) { }
 
   start(): void {
     if (this.interval) return
@@ -281,6 +308,7 @@ export const inputService = {
   mainWindow: null as BrowserWindow | null,
   handlersRegistered: false,
   monitorIndex: 0,
+  startingX: 0,
 
   async init(mainWindow: BrowserWindow): Promise<void> {
     this.mainWindow = mainWindow
@@ -302,6 +330,11 @@ export const inputService = {
     })
   },
 
+  setStartingX(x: number): void {
+    this.startingX = x
+  },
+
+
   registerHandlers(): void {
     if (this.handlersRegistered) return
     this.handlersRegistered = true
@@ -312,7 +345,7 @@ export const inputService = {
       const monitors = this.controller.getMonitors()
       const targetMonitor =
         monitors.find((m) => m.index === this.monitorIndex) ||
-        monitors.find((m) => m.primary) ||
+        // monitors.find((m) => m.primary) ||
         monitors[0]
 
       let display = screen.getPrimaryDisplay()
@@ -345,7 +378,10 @@ export const inputService = {
 
     ipcMain.handle('input:move-absolute', async (_e, x: number, y: number) => {
       if (!Number.isFinite(x) || !Number.isFinite(y) || isLocked()) return
-      await this.controller.move(Math.round(x), Math.round(y))
+      console.log(`[input:move-absolute] Monitor idx: ${this.monitorIndex}, received x=${x} y=${y} (raw, before round)`);
+      const newX = this.startingX + x;
+      console.log(`[input:move-absolute] Monitor idx: ${this.monitorIndex}, received x=${newX} y=${y} (raw, after calculation)`);
+      await this.controller.move(Math.round(newX), Math.round(y))
     })
 
     ipcMain.handle(

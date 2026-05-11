@@ -63,7 +63,7 @@ export function createHostWidget(): void {
       return false
     })
   }
-
+  /* eslint-disable  @typescript-eslint/no-explicit-any */
   hostWidgetWindow.on('minimize' as any, (event: Electron.Event) => {
     event.preventDefault()
 
