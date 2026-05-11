@@ -1,6 +1,24 @@
 <template>
   <!-- Sekcja widoku komponentu UserNoLogin: definiuje strukturę renderowaną w interfejsie użytkownika. -->
   <div class="user-container" @mouseenter="menuOpen = true" @mouseleave="menuOpen = false">
+    <div
+      v-if="isUpdateRequired"
+      class="update-required-overlay"
+      role="alertdialog"
+      aria-modal="true"
+    >
+      <div class="update-required-card">
+        <h2>{{ t('updateRequired.title') }}</h2>
+        <p>
+          {{ t('updateRequired.description') }}
+        </p>
+        <p class="status-line">{{ t('updateRequired.statusLine') }}: {{ versionStatus }}</p>
+        <button type="button" class="retry-button" @click="retryVersionCheck">
+          {{ t('updateRequired.retry') }}
+        </button>
+      </div>
+    </div>
+
     <div :class="['dropdown-bg', { 'is-open': menuOpen }]" />
 
     <div class="user-content">
@@ -47,7 +65,7 @@
 
 <script setup lang="ts">
 // Sekcja logiki komponentu UserNoLogin: zarządza danymi, zdarzeniami i zachowaniem widoku.
-import { ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useSettingsStore } from '@renderer/stores/settingsStore'
@@ -64,7 +82,17 @@ const settingsStore = useSettingsStore()
 const userStore = useUserStore()
 const { supportedVersions } = storeToRefs(settingsStore)
 const { isAuthenticated } = storeToRefs(userStore)
+const isUpdateRequired = computed(() => settingsStore.isUpdateRequired)
+const versionStatus = computed(() => settingsStore.versionStatus)
 // const displayName = computed(() => currentUser.value?.nickname || t('userMenu.guest'))
+
+onMounted(() => {
+  void settingsStore.checkVersionStatus()
+})
+
+async function retryVersionCheck(): Promise<void> {
+  await settingsStore.checkVersionStatus()
+}
 
 function goToLogin(): void {
   if (isAuthenticated.value) {
@@ -129,6 +157,55 @@ async function handleVersionStatus(): Promise<void> {
 </script>
 
 <style scoped>
+.update-required-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(10, 10, 18, 0.6);
+  backdrop-filter: blur(6px);
+}
+
+.update-required-card {
+  width: min(560px, 100%);
+  border-radius: 16px;
+  padding: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(24, 24, 34, 0.96);
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.35);
+  text-align: center;
+}
+
+.update-required-card h2 {
+  margin: 0 0 12px;
+  font-size: 1.5rem;
+}
+
+.update-required-card p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.status-line {
+  margin-top: 14px;
+  opacity: 0.8;
+  font-size: 0.95rem;
+}
+
+.retry-button {
+  margin-top: 16px;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-weight: 600;
+  cursor: pointer;
+  color: #111827;
+  background: #d0f224;
+}
+
 .version-modal-overlay {
   position: fixed;
   top: 0;

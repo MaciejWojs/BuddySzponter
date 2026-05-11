@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
-import buddySzponterLogo from '@images/buddyszponterLogo.png'
+import buddySzponterLogo from '@images/szpontlogo.png'
 const router = useRouter()
 function goToMenu(): void {
   void router.push('/Menu')

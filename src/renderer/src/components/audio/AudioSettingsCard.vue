@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
-import { useSessionStore } from '@renderer/stores/sessionStore'
-import { microphoneService } from '@renderer/services/audio/in/micService'
+import { useWebRtcStore } from '@renderer/stores/webRtcStore'
+import { SessionStore } from '@renderer/stores/sessionStore'
+import { microphoneService } from '@renderer/services/micService'
 import SelectMicrophoneL from './smart/SelectMicrophoneL.vue'
 import MicrophoneVolumeL from './smart/MicrophoneVolumeL.vue'
 import VUMeterL from './smart/VUMeterL.vue'
 import MicrophoneEffectsL from './smart/MicrophoneEffectsL.vue'
 import MySystemAudioL from './smart/MySystemAudioL.vue'
-import LocalMixerL from './smart/LocalMixerL.vue'
 import AdvancedDuckingL from './smart/AdvancedDuckingL.vue'
 
 interface VoicePresetOption {
@@ -16,7 +16,8 @@ interface VoicePresetOption {
   label: string
 }
 
-const sessionStore = useSessionStore()
+const webRtcStore = useWebRtcStore()
+const sessionStore = SessionStore()
 const { selectedMicrophoneDeviceId } = storeToRefs(sessionStore)
 
 const isMyMicMuted = ref(false)
@@ -120,122 +121,60 @@ watch(micStudioModeEnabled, (enabled) => {
 </script>
 
 <template>
-  <section class="bg-[#1e1e1e] border border-[#333] rounded-lg p-5 shadow-xl">
-    <header class="mb-4">
-      <h2 class="text-lg font-bold text-white">Audio Dashboard</h2>
-      <p class="text-xs text-gray-400">Zaawansowany panel dzwieku WebRTC</p>
-    </header>
+  <div class="audio-settings-card">
+    <SelectMicrophoneL />
 
-    <div class="grid grid-cols-1 gap-4">
-      <article class="bg-[#161616] border border-[#333] rounded-lg p-4">
-        <div class="flex items-center justify-between mb-3">
-          <h3 class="text-sm font-bold text-blue-300">🎙️ Moje Audio (Wysylane w siec)</h3>
-        </div>
+    <MicrophoneVolumeL @mute-state-change="handleMicMuteStateChange" />
 
-        <SelectMicrophoneL />
+    <VUMeterL
+      class="w-full"
+      context-mode="auto-mic"
+      :enabled="sessionStore.includeMicrophone && !isMyMicMuted"
+      :is-capturing="sessionStore.isCapturing"
+      :device-id="selectedMicrophoneDeviceId || undefined"
+      :volume="webRtcStore.localMicrophoneVolume"
+      :input-threshold-linear="dbToLinear(micInputThresholdDb)"
+      :limiter-threshold-db="limiterThresholdDb"
+    />
 
-        <div class="mb-4">
-          <div class="flex flex-col gap-3">
-            <MicrophoneVolumeL @mute-state-change="handleMicMuteStateChange" />
+    <MicrophoneEffectsL
+      v-model:mic-limiter-enabled="micLimiterEnabled"
+      v-model:mic-bass-boost-enabled="micBassBoostEnabled"
+      v-model:mic-studio-mode-enabled="micStudioModeEnabled"
+      v-model:mic-monitoring-enabled="micMonitoringEnabled"
+      v-model:active-voice-preset="activeVoicePreset"
+      v-model:mic-input-threshold-db="micInputThresholdDb"
+      :voice-presets="voicePresets"
+      :limiter-threshold-db="limiterThresholdDb"
+    />
 
-            <VUMeterL
-              class="w-full"
-              context-mode="auto-mic"
-              :enabled="sessionStore.includeMicrophone && !isMyMicMuted"
-              :is-capturing="sessionStore.isCapturing"
-              :device-id="selectedMicrophoneDeviceId || undefined"
-              :volume="sessionStore.localMicrophoneVolume"
-              :input-threshold-linear="dbToLinear(micInputThresholdDb)"
-              :limiter-threshold-db="limiterThresholdDb"
-            />
+    <MySystemAudioL />
 
-            <MicrophoneEffectsL
-              v-model:mic-limiter-enabled="micLimiterEnabled"
-              v-model:mic-bass-boost-enabled="micBassBoostEnabled"
-              v-model:mic-studio-mode-enabled="micStudioModeEnabled"
-              v-model:mic-monitoring-enabled="micMonitoringEnabled"
-              v-model:active-voice-preset="activeVoicePreset"
-              v-model:mic-input-threshold-db="micInputThresholdDb"
-              :voice-presets="voicePresets"
-              :limiter-threshold-db="limiterThresholdDb"
-            />
-          </div>
-        </div>
-
-        <MySystemAudioL />
-      </article>
-
-      <LocalMixerL />
-    </div>
-
-    <AdvancedDuckingL />
-  </section>
+    <AdvancedDuckingL compact />
+  </div>
 </template>
 
 <style scoped>
-.pro-slider {
-  appearance: none;
-  height: 8px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, #1f2937 0%, #374151 100%);
-  border: 1px solid #3b3b3b;
-  outline: none;
+.audio-settings-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
-.pro-slider::-webkit-slider-thumb {
-  appearance: none;
-  width: 16px;
-  height: 16px;
-  border-radius: 999px;
-  background: #60a5fa;
-  border: 2px solid #dbeafe;
-  box-shadow: 0 0 10px rgba(96, 165, 250, 0.4);
-  cursor: pointer;
-  transition: all 160ms ease;
+.audio-settings-card :deep(.mb-4) {
+  margin-bottom: 0;
 }
 
-.pro-slider.normal::-webkit-slider-thumb {
-  background: #60a5fa;
-  box-shadow: 0 0 10px rgba(96, 165, 250, 0.45);
+.audio-settings-card :deep(.text-xs) {
+  font-size: 11px;
 }
 
-.pro-slider.boost::-webkit-slider-thumb {
-  background: #f59e0b;
-  box-shadow: 0 0 10px rgba(245, 158, 11, 0.55);
+.audio-settings-card :deep(.h-9.w-9) {
+  height: 34px;
+  width: 34px;
 }
 
-.pro-slider.boost {
-  background: linear-gradient(90deg, #3f3122 0%, #6b3f1d 100%);
-}
-
-.pro-slider.system::-webkit-slider-thumb {
-  background: #34d399;
-  box-shadow: 0 0 10px rgba(52, 211, 153, 0.5);
-}
-
-.pro-slider.monitor::-webkit-slider-thumb {
-  background: #22d3ee;
-  box-shadow: 0 0 10px rgba(34, 211, 238, 0.5);
-}
-
-.pro-slider.guest-system::-webkit-slider-thumb {
-  background: #e879f9;
-  box-shadow: 0 0 10px rgba(232, 121, 249, 0.45);
-}
-
-.pro-slider::-moz-range-thumb {
-  width: 16px;
-  height: 16px;
-  border: 2px solid #dbeafe;
-  border-radius: 999px;
-  background: #60a5fa;
-  cursor: pointer;
-}
-
-.pro-slider::-moz-range-track {
-  height: 8px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, #1f2937 0%, #374151 100%);
-  border: 1px solid #3b3b3b;
+.audio-settings-card :deep(article.mt-4) {
+  margin-top: 0;
 }
 </style>
