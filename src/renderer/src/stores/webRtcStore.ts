@@ -168,12 +168,28 @@ export const useWebRtcStore = defineStore('webrtc', () => {
 
     if (targetTrack) {
       targetTrack.enabled = isEnabled
-    } else if (kind === 'audio') {
+    } else if (kind === 'audio' && tracks.length > 0) {
+      const isLikelyDesktopLoopback = (t: MediaStreamTrack): boolean => {
+        const s = t.getSettings() as MediaTrackSettings & { displaySurface?: string }
+        if (
+          s.displaySurface === 'monitor' ||
+          s.displaySurface === 'window' ||
+          s.displaySurface === 'browser'
+        )
+          return true
+        const label = (t.label || '').toLowerCase()
+        return (
+          label.includes('loopback') ||
+          label.includes('what u hear') ||
+          label.includes('stereo mix')
+        )
+      }
       if (contentHint === 'speech') {
-        const t = tracks.find((t) => t.getSettings().channelCount === 1) || tracks[0]
+        const t = tracks.find((tr) => !isLikelyDesktopLoopback(tr)) ?? tracks[0] ?? null
         if (t) t.enabled = isEnabled
       } else if (contentHint === 'music') {
-        const t = tracks.find((t) => t.getSettings().channelCount === 2) || tracks[1]
+        const t =
+          tracks.find((tr) => isLikelyDesktopLoopback(tr)) ?? tracks[tracks.length - 1] ?? null
         if (t) t.enabled = isEnabled
       }
     }

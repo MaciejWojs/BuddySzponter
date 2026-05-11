@@ -5,17 +5,23 @@ const props = withDefaults(
   defineProps<{
     stream: MediaStream | null
     placeholderText?: string
+    /** true = brak odsłuchu z elementu video (np. podgląd lokalnego strumienia). Gość: false, żeby słyszeć hosta. */
+    mutedPlayback?: boolean
   }>(),
   {
-    placeholderText: 'Brak strumienia.'
+    placeholderText: 'Brak strumienia.',
+    mutedPlayback: false
   }
 )
 
 const videoRef = ref<HTMLVideoElement | null>(null)
 
 watchEffect(() => {
-  if (!videoRef.value) return
-  videoRef.value.srcObject = props.stream
+  const el = videoRef.value
+  if (!el) return
+  el.muted = props.mutedPlayback
+  el.srcObject = props.stream
+  void el.play().catch(() => {})
 })
 </script>
 
@@ -45,7 +51,7 @@ watchEffect(() => {
       ref="videoRef"
       autoplay
       playsinline
-      muted
+      :muted="mutedPlayback"
       class="w-full h-full object-contain absolute inset-0 transition-opacity duration-500"
       :class="stream ? 'opacity-100' : 'opacity-0'"
       @loadedmetadata="$emit('loadedmetadata', $event)"

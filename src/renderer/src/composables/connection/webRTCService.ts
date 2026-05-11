@@ -232,38 +232,54 @@ export class WebRTCService {
     const audioTracks = stream.getAudioTracks()
     const videoTrack = policy.allowVideo ? stream.getVideoTracks()[0] || null : null
 
-    const hintedMic = audioTracks.find((t) => t.contentHint === 'speech') || null
-    const hintedSys = audioTracks.find((t) => t.contentHint === 'music') || null
-    const monoTrack = audioTracks.find((t) => t.getSettings().channelCount === 1) || null
-    const stereoTrack = audioTracks.find((t) => t.getSettings().channelCount === 2) || null
+    const isLikelyDesktopLoopback = (t: MediaStreamTrack): boolean => {
+      const s = t.getSettings() as MediaTrackSettings & { displaySurface?: string }
+      if (
+        s.displaySurface === 'monitor' ||
+        s.displaySurface === 'window' ||
+        s.displaySurface === 'browser'
+      )
+        return true
+      const label = (t.label || '').toLowerCase()
+      return (
+        label.includes('loopback') || label.includes('what u hear') || label.includes('stereo mix')
+      )
+    }
 
     let micTrack: MediaStreamTrack | null = policy.allowMicrophoneAudio
-      ? (hintedMic ?? monoTrack ?? null)
+      ? audioTracks.find((t) => t.contentHint === 'speech') || null
       : null
     let sysTrack: MediaStreamTrack | null = policy.allowSystemAudio
-      ? (hintedSys ?? stereoTrack ?? null)
+      ? audioTracks.find((t) => t.contentHint === 'music') || null
       : null
 
-    if (policy.allowMicrophoneAudio && !policy.allowSystemAudio && !micTrack) {
-      micTrack = audioTracks[0] || null
+    if (policy.allowMicrophoneAudio && !micTrack) {
+      if (!policy.allowSystemAudio) {
+        micTrack = audioTracks[0] || null
+      } else {
+        const pool = audioTracks.filter((t) => t.id !== sysTrack?.id)
+        micTrack =
+          pool.find((t) => !isLikelyDesktopLoopback(t)) ?? pool[0] ?? audioTracks[0] ?? null
+      }
     }
 
-    if (policy.allowSystemAudio && !policy.allowMicrophoneAudio && !sysTrack) {
-      sysTrack = audioTracks[0] || null
+    if (policy.allowSystemAudio && !sysTrack) {
+      if (!policy.allowMicrophoneAudio) {
+        sysTrack = audioTracks[0] || null
+      } else {
+        const pool = audioTracks.filter((t) => t.id !== micTrack?.id)
+        sysTrack = pool.find((t) => isLikelyDesktopLoopback(t)) ?? pool[0] ?? audioTracks[1] ?? null
+      }
     }
 
-    if (policy.allowMicrophoneAudio && policy.allowSystemAudio) {
-      if (!micTrack && !sysTrack && audioTracks.length === 1) {
-        micTrack = audioTracks[0]
-      }
-
-      if (!micTrack && audioTracks.length > 0) {
-        micTrack = audioTracks[0]
-      }
-
-      if (!sysTrack) {
-        sysTrack = audioTracks.find((t) => t.id !== micTrack?.id) || null
-      }
+    if (
+      micTrack &&
+      sysTrack &&
+      micTrack.id === sysTrack.id &&
+      policy.allowMicrophoneAudio &&
+      policy.allowSystemAudio
+    ) {
+      sysTrack = audioTracks.find((t) => t.id !== micTrack.id) ?? null
     }
 
     if (videoTrack) videoTrack.contentHint = 'detail'

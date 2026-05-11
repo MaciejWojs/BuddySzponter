@@ -1,5 +1,6 @@
 import { onMounted, onUnmounted, watch } from 'vue'
 import { useSessionStore } from '@renderer/stores/sessionStore'
+import { useAudioSettingsStore } from '@renderer/stores/audioSettingsStore'
 import { useHidChannel } from '@renderer/composables/channels/HidChannel'
 import { useSocketStore } from '@renderer/stores/socketStore'
 import { useWebRtcStore } from '@renderer/stores/webRtcStore'
@@ -18,6 +19,7 @@ export function useWidgetSync(): void {
 
   onMounted(() => {
     const sessionStore = useSessionStore()
+    const audioStore = useAudioSettingsStore()
     const socketStore = useSocketStore()
     const hidChannel = useHidChannel()
     const webRtcStore = useWebRtcStore()
@@ -33,7 +35,7 @@ export function useWidgetSync(): void {
         payload: {
           micActive: !sessionStore.microphoneMuted && sessionStore.localMicrophoneVolume > 0,
           sysActive: sessionStore.localSystemAudioVolume > 0,
-          guestMicActive: sessionStore.remoteMicVolume > 0,
+          guestMicActive: sessionStore.remoteMicVolume > 0 && !audioStore.guestRelayMicrophoneMuted,
           controlGranted: hidChannel.isControlGranted.value,
           clipboardSyncEnabled: hidChannel.clipboardSyncEnabled.value,
           chatHasUnread: chatService.hasUnread.value
@@ -46,7 +48,7 @@ export function useWidgetSync(): void {
       guestChannel.postMessage({
         type: 'STATE_UPDATE',
         payload: {
-          microphoneMuted: sessionStore.microphoneMuted,
+          microphoneMuted: audioStore.guestRelayMicrophoneMuted,
           localMicrophoneVolume: sessionStore.localMicrophoneVolume,
           remoteSystemVolume: sessionStore.remoteSystemVolume,
           rtcStatus: webRtcStore.rtcStatus,
@@ -105,7 +107,7 @@ export function useWidgetSync(): void {
           socketStore.disconnect()
           break
         case 'COMMAND_TOGGLE_MIC':
-          sessionStore.toggleMicrophone(payload as boolean)
+          audioStore.setGuestRelayMicrophoneMuted(Boolean(payload))
           break
         case 'COMMAND_SET_MIC_VOL':
           sessionStore.localMicrophoneVolume = payload as number
@@ -143,7 +145,7 @@ export function useWidgetSync(): void {
 
     watch(
       () => [
-        sessionStore.microphoneMuted,
+        audioStore.guestRelayMicrophoneMuted,
         sessionStore.localMicrophoneVolume,
         sessionStore.remoteSystemVolume,
         webRtcStore.rtcStatus,
@@ -151,6 +153,15 @@ export function useWidgetSync(): void {
       ],
       () => pushStateToGuestAndTray(),
       { deep: true }
+    )
+
+    watch(
+      () => webRtcStore.rtcStatus,
+      (status) => {
+        if (status === 'disconnected') {
+          audioStore.setGuestRelayMicrophoneMuted(true)
+        }
+      }
     )
   })
 

@@ -361,7 +361,7 @@ watch(micStudioModeEnabled, (enabled) => {
           <VUMeter
             class="audio-dash__meter"
             context-mode="auto-mic"
-            :enabled="sessionStore.includeMicrophone && !isMyMicMuted"
+            :enabled="sessionStore.includeMicrophone"
             :is-capturing="sessionStore.isCapturing"
             :device-id="selectedMicrophoneDeviceId || undefined"
             :volume="sessionStore.localMicrophoneVolume"

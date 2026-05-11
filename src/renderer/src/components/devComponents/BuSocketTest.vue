@@ -209,6 +209,7 @@ onUnmounted(() => {
         <VideoPlayer
           v-if="sessionStore.isCapturing"
           :stream="webRtcStore.localStream"
+          muted-playback
           placeholder-text="Brak strumienia. Uruchom przechwytywanie przed akceptacją gościa."
         />
         <div

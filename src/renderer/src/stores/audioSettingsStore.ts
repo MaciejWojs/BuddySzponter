@@ -5,8 +5,20 @@ import { microphoneService } from '@renderer/services/audio/in/micService' // Up
 
 export const useAudioSettingsStore = defineStore('audioSettings', () => {
   const includeSystemAudio = ref(true)
+  /** Czy w ogóle uruchamiamy tor mikrofonu w capture (graph + ścieżka); wyciszenie do peerów = `microphoneMuted`. */
   const includeMicrophone = ref(true)
-  const microphoneMuted = ref(false)
+  /** Domyślnie wyciszony po połączeniu; odsłuch lokalny (monitoring) działa niezależnie od tej flagi. */
+  const microphoneMuted = ref(true)
+
+  /**
+   * Ostatni stan wyciszenia mikrofonu gościa (zgłoszony z okna gościa przez relay).
+   * Używany tylko na hoście do STATE_UPDATE → panel gościa; nie mylić z `microphoneMuted` (mikrofon hosta).
+   */
+  const guestRelayMicrophoneMuted = ref(true)
+
+  const setGuestRelayMicrophoneMuted = (muted: boolean): void => {
+    guestRelayMicrophoneMuted.value = muted
+  }
 
   const localSystemAudioVolume = ref<number>(1)
   const localMicrophoneVolume = ref<number>(1)
@@ -20,7 +32,6 @@ export const useAudioSettingsStore = defineStore('audioSettings', () => {
 
   const toggleMicrophone = (isMuted: boolean): void => {
     microphoneMuted.value = isMuted
-    includeMicrophone.value = !isMuted
   }
 
   const toggleSystemAudio = (isMuted: boolean): void => {
@@ -30,14 +41,12 @@ export const useAudioSettingsStore = defineStore('audioSettings', () => {
   watch(localSystemAudioVolume, (val): void => videoService.setSystemAudioVolume(val))
   watch(localMicrophoneVolume, (val): void => microphoneService.setVolume(val))
 
-  watch(microphoneMuted, (muted) => {
-    if (muted) includeMicrophone.value = false
-  })
-
   return {
     includeSystemAudio,
     includeMicrophone,
     microphoneMuted,
+    guestRelayMicrophoneMuted,
+    setGuestRelayMicrophoneMuted,
     localSystemAudioVolume,
     localMicrophoneVolume,
     remoteMicVolume,

@@ -14,10 +14,6 @@ const resolveRemoteAudioRole = (
     return track.contentHint
   }
 
-  const channelCount = track.getSettings().channelCount
-  if (channelCount === 1) return 'speech'
-  if (channelCount === 2) return 'music'
-
   return null
 }
 

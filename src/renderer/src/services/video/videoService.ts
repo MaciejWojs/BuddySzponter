@@ -33,24 +33,35 @@ class VideoService {
     externalVideoTrack.contentHint = 'detail'
     this.activeStream.addTrack(externalVideoTrack)
 
+    /** Mikrofon przed dźwiękiem systemu — stabilna kolejność ścieżek i bezpieczniejsze fallbacki w WebRTC. */
+    if (options.externalMicTrack) {
+      this.activeStream.addTrack(options.externalMicTrack)
+    }
+
     const wantsSystemAudio = options.includeSystemAudio ?? true
     if (wantsSystemAudio) {
       const vol = options.systemAudioVolume ?? 1
       await this.addSystemAudioTrack(vol)
     }
 
-    if (options.externalMicTrack) {
-      this.activeStream.addTrack(options.externalMicTrack)
-    }
-
     return this.activeStream
   }
   private async addSystemAudioTrack(volume: number): Promise<void> {
     try {
-      const systemStream = await navigator.mediaDevices.getDisplayMedia({
-        video: true,
-        audio: true
-      })
+      let systemStream: MediaStream
+      try {
+        systemStream = await navigator.mediaDevices.getDisplayMedia({
+          video: true,
+          audio: {
+            suppressLocalAudioPlayback: true
+          } as MediaTrackConstraints
+        })
+      } catch {
+        systemStream = await navigator.mediaDevices.getDisplayMedia({
+          video: true,
+          audio: true
+        })
+      }
 
       this.allStreamsToCleanUp.push(systemStream)
 
