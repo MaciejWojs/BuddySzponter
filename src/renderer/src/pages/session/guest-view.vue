@@ -5,6 +5,7 @@ import { useSignalingStore } from '@renderer/stores/signalingStore'
 import { useGuestSync } from '@renderer/composables/syncWindow/useGuestSync'
 import { webRtcService } from '@renderer/composables/connection/webRTCService'
 import { useWebRtcStore } from '@renderer/stores/webRtcStore'
+import { useHidChannel } from '@renderer/composables/channels/HidChannel'
 import { chatService, type ChatPayload } from '@renderer/services/chatService'
 import GuestFloatingPanel from '@renderer/components/session/guest/GuestFloatingPanel.vue'
 import GuestControlsToolbar from '@renderer/components/session/guest/GuestControlsToolbar.vue'
@@ -13,6 +14,7 @@ import ChatPanel from '@renderer/components/chat/ChatPanel.vue'
 const signalingStore = useSignalingStore()
 const { sendCommand } = useGuestSync()
 const webRtcStore = useWebRtcStore()
+const hidChannel = useHidChannel()
 
 const isVideoReady = ref(false)
 const chatVisible = ref(false)
@@ -48,6 +50,11 @@ const handleSysVolumeChange = (value: number): void => {
 const handleDisconnect = async (): Promise<void> => {
   await webRtcStore.disconnect()
   sendCommand('COMMAND_DISCONNECT')
+}
+
+const handleToggleClipboardSync = (): void => {
+  if (!hidChannel.isControlGranted.value) return
+  hidChannel.setClipboardSyncEnabled(!hidChannel.clipboardSyncEnabled.value)
 }
 
 const toggleChat = (): void => {
@@ -130,10 +137,13 @@ onUnmounted(() => {
           :remote-system-volume="state.remoteSystemVolume"
           :chat-visible="chatVisible"
           :chat-has-unread="chatService.hasUnread.value"
+          :control-granted="hidChannel.isControlGranted.value"
+          :clipboard-sync-enabled="hidChannel.clipboardSyncEnabled.value"
           @toggle-mic="handleMicToggle"
           @update-mic-volume="handleMicVolumeChange"
           @update-sys-volume="handleSysVolumeChange"
           @toggle-chat="toggleChat"
+          @toggle-clipboard-sync="handleToggleClipboardSync"
           @disconnect="handleDisconnect"
         />
       </GuestFloatingPanel>
