@@ -16,8 +16,8 @@
 
     <ChatMessagesList
       ref="messagesListRef"
-      :messages="messages"
-      :local-author-id="localAuthorId"
+      :messages="props.messages"
+      :local-author-id="props.localAuthorId"
       :editing-message-id="editingMessageId"
       :editing-text="editingText"
       :open-actions-id="openActionsId"
@@ -34,7 +34,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref, watch, type Ref } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import type { ChatMessage } from '@renderer/services/chatService'
 import ChatComposer from '@renderer/components/chat/ChatComposer.vue'
 import ChatMessagesList from '@renderer/components/chat/ChatMessagesList.vue'
@@ -64,14 +64,12 @@ const openActionsId = ref<string | null>(null)
 
 const messagesListRef = ref<ChatMessagesListExpose | null>(null)
 
-const messagesRef = ref(props.messages) as Ref<ChatMessage[]>
-
 watch(
   () => props.messages,
-  (next) => {
-    messagesRef.value = next
+  () => {
     void scrollToBottom()
-  }
+  },
+  { deep: true }
 )
 
 const scrollToBottom = async (): Promise<void> => {

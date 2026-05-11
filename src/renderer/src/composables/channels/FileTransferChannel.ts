@@ -16,11 +16,31 @@ type FileSource = 'clipboard' | 'chat' | 'manual'
 
 type ActiveReceive = {
   transferId: string
+  source: FileSource
   files: { name: string; size: number }[]
   outputPaths: string[]
   currentFileIndex: number
   nextChunkIndex: number
   bytesInCurrentFile: number
+}
+
+function normalizePathsFingerprint(paths: string[]): string {
+  return JSON.stringify([...paths].map((p) => p.replace(/\\/g, '/').toLowerCase()).sort())
+}
+
+let lastReceiveClipboardPublishFingerprint = ''
+let lastReceiveClipboardPublishAt = 0
+
+function markPathsAsJustPublishedToClipboard(paths: string[]): void {
+  lastReceiveClipboardPublishFingerprint = normalizePathsFingerprint(paths)
+  lastReceiveClipboardPublishAt = Date.now()
+}
+
+/** Zapobiega ponownemu FILE_OFFER po programowym ustawieniu schowka po odbiorze plików ze schowka. */
+export function shouldIgnoreOutgoingClipboardPaths(paths: string[]): boolean {
+  if (!paths.length || !lastReceiveClipboardPublishFingerprint) return false
+  if (Date.now() - lastReceiveClipboardPublishAt > 8000) return false
+  return normalizePathsFingerprint(paths) === lastReceiveClipboardPublishFingerprint
 }
 
 type ActiveSend = {
@@ -111,6 +131,8 @@ export function resetFileTransferState(): void {
   relayPending.clear()
   activeReceive = null
   activeSend = null
+  lastReceiveClipboardPublishFingerprint = ''
+  lastReceiveClipboardPublishAt = 0
 }
 
 export function resolveRelayFileStarted(
@@ -305,6 +327,7 @@ async function handleIncomingOffer(payload: {
 
   activeReceive = {
     transferId: payload.transferId,
+    source: payload.source,
     files: payload.files,
     outputPaths,
     currentFileIndex: 0,
@@ -439,8 +462,13 @@ export async function dispatchFileTransferBinary(buf: ArrayBuffer): Promise<void
     recv.nextChunkIndex = 0
     recv.bytesInCurrentFile = 0
     if (recv.currentFileIndex >= recv.files.length) {
+      const pathsForClipboard = recv.source === 'clipboard' ? [...recv.outputPaths] : null
       void window.api.fileTransfer.unregisterReceive(recv.transferId)
       activeReceive = null
+      if (pathsForClipboard?.length) {
+        markPathsAsJustPublishedToClipboard(pathsForClipboard)
+        void window.api?.clipboard?.setSyncFiles?.(pathsForClipboard)?.catch(() => undefined)
+      }
     }
   }
 }

@@ -13,6 +13,7 @@ import {
   dispatchFileTransferBinary,
   dispatchFileTransferControl,
   resetFileTransferState,
+  shouldIgnoreOutgoingClipboardPaths,
   startOutgoingFileTransfer
 } from '@renderer/composables/channels/FileTransferChannel'
 import { chatService } from '@renderer/services/chatService'
@@ -102,6 +103,7 @@ export const useWebRtcStore = defineStore('webrtc', () => {
   if (window.api?.clipboard?.onBridgeFiles) {
     window.api.clipboard.onBridgeFiles((paths) => {
       if (rtcStatus.value !== 'connected') return
+      if (shouldIgnoreOutgoingClipboardPaths(paths)) return
       void startOutgoingFileTransfer(paths, 'clipboard')
     })
   }
