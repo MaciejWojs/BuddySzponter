@@ -18,7 +18,10 @@ const socketStore = useSocketStore()
         <GuestForm />
       </article>
 
-      <article class="menu-column">
+      <article
+        class="menu-column"
+        :class="{ 'menu-column--incoming': socketStore.incomingRequest }"
+      >
         <WidgetWrapper>
           <div
             v-if="!socketStore.incomingRequest"
@@ -40,7 +43,7 @@ const socketStore = useSocketStore()
 .menu-home-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(300px, 1fr));
-  align-items: start;
+  align-items: stretch;
   justify-content: center;
   gap: 120px;
   width: 100%;
@@ -54,6 +57,11 @@ const socketStore = useSocketStore()
   flex-direction: column;
   align-items: center;
   text-align: center;
+}
+
+/* Wąska kolumna „Host” rozciąga się do wysokości bloku Join session — widget jest wyśrodkowany pionowo obok formularza */
+.menu-column--incoming {
+  justify-content: center;
 }
 
 .menu-column h2 {
