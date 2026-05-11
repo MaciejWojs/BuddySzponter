@@ -1,4 +1,4 @@
-import { ipcMain, dialog, BrowserWindow, type OpenDialogOptions } from 'electron'
+import { app, ipcMain, dialog, BrowserWindow, type OpenDialogOptions } from 'electron'
 import { promises as fs } from 'fs'
 import path from 'path'
 
@@ -16,6 +16,10 @@ function normalizePath(p: string): string {
 }
 
 export function registerFileTransferHandlers(): void {
+  ipcMain.handle('file-transfer:get-downloads-path', () => {
+    return path.normalize(app.getPath('downloads'))
+  })
+
   ipcMain.handle('file-transfer:pick-directory', async (event) => {
     const win = BrowserWindow.fromWebContents(event.sender)
     const opts: OpenDialogOptions = { properties: ['openDirectory', 'createDirectory'] }

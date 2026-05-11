@@ -162,6 +162,7 @@ declare global {
         onBridgeFiles: (callback: (paths: string[]) => void) => () => void
       }
       fileTransfer: {
+        getDownloadsPath: () => Promise<string>
         pickDirectory: () => Promise<string | null>
         pickFiles: () => Promise<string[]>
         registerSendPaths: (paths: string[]) => Promise<boolean>

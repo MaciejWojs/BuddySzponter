@@ -73,11 +73,34 @@ async function waitBuffered(channel: RTCDataChannel): Promise<void> {
 
 async function ensureDownloadDir(): Promise<string | null> {
   let dir = getDownloadDir()
-  if (!dir && window.api?.fileTransfer?.pickDirectory) {
+  if (dir) return dir
+
+  if (window.api?.fileTransfer?.getDownloadsPath) {
+    try {
+      const d = await window.api.fileTransfer.getDownloadsPath()
+      if (d) {
+        setDownloadDir(d)
+        return getDownloadDir()
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  if (window.api?.fileTransfer?.pickDirectory) {
     dir = await window.api.fileTransfer.pickDirectory()
     if (dir) setDownloadDir(dir)
   }
-  return dir
+  return getDownloadDir()
+}
+
+export function getFileTransferDownloadDirectory(): string | null {
+  return getDownloadDir()
+}
+
+export function setFileTransferDownloadDirectory(dir: string): void {
+  const t = dir.trim()
+  if (t) setDownloadDir(t)
 }
 
 export function resetFileTransferState(): void {
@@ -424,8 +447,11 @@ export async function dispatchFileTransferBinary(buf: ArrayBuffer): Promise<void
 
 export async function setPreferredDownloadDirectory(): Promise<string | null> {
   const dir = await window.api?.fileTransfer?.pickDirectory?.()
-  if (dir) setDownloadDir(dir)
-  return dir ?? null
+  if (dir) {
+    setDownloadDir(dir)
+    return dir
+  }
+  return null
 }
 
 export async function startOutgoingChatFiles(

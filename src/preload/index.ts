@@ -236,6 +236,7 @@ const api = {
   },
 
   fileTransfer: {
+    getDownloadsPath: (): Promise<string> => ipcRenderer.invoke('file-transfer:get-downloads-path'),
     pickDirectory: (): Promise<string | null> => ipcRenderer.invoke('file-transfer:pick-directory'),
     pickFiles: (): Promise<string[]> => ipcRenderer.invoke('file-transfer:pick-files'),
     registerSendPaths: (paths: string[]): Promise<boolean> =>
