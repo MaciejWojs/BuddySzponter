@@ -93,9 +93,29 @@ export const useSessionStore = defineStore('session', () => {
     { immediate: true, deep: true }
   )
 
+  const CAPTURE_START_TIMEOUT_MS = 8000
+
+  const startHostCaptureWithTimeout = async (): Promise<void> => {
+    let timeoutId: ReturnType<typeof setTimeout> | null = null
+    const timeoutPromise = new Promise<void>((_, reject) => {
+      timeoutId = setTimeout(() => {
+        reject(new Error(`startHostCapture timeout (${CAPTURE_START_TIMEOUT_MS}ms)`))
+      }, CAPTURE_START_TIMEOUT_MS)
+    })
+
+    try {
+      await Promise.race([captureStore.startHostCapture(), timeoutPromise])
+    } catch (e) {
+      console.error('[SessionStore] Capture nie wystartowało:', e)
+      logStore.addLog('CAPTURE_TIMEOUT', `Capture nie wystartowało: ${String(e)}`, 'api')
+    } finally {
+      if (timeoutId !== null) clearTimeout(timeoutId)
+    }
+  }
+
   const handleRespond = async (accept: boolean): Promise<void> => {
     logStore.addLog('WS_SENDING_RESPONSE', `Odpowiedź: ${accept}`, 'socket')
-    if (accept) await captureStore.startHostCapture()
+    if (accept) await startHostCaptureWithTimeout()
     await socketStore.respondToRequest(accept)
   }
 

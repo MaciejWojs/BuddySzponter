@@ -46,6 +46,10 @@ let isQuitting = false
 export function quitApp(): void {
   isQuitting = true
   app.quit()
+  // Some auxiliary windows prevent close() by design; force process exit as a fallback.
+  setTimeout(() => {
+    app.exit(0)
+  }, 800)
 }
 
 export let previousBounds: Electron.Rectangle | null = null
@@ -84,7 +88,7 @@ function createWindow(): void {
     height: 670,
     show: false,
     autoHideMenuBar: true,
-    ...(process.platform === 'linux' ? { icon } : {}),
+    icon,
     webPreferences: {
       autoplayPolicy: 'no-user-gesture-required',
       preload: join(__dirname, '../preload/index.js'),
@@ -136,7 +140,7 @@ if (!gotTheLock) {
   }
 
   app.whenReady().then(async () => {
-    electronApp.setAppUserModelId('com.electron')
+    electronApp.setAppUserModelId('com.buddyszponter.app')
 
     app.commandLine.appendSwitch('disable-renderer-backgrounding')
     app.commandLine.appendSwitch('disable-background-timer-throttling')
@@ -318,14 +322,26 @@ if (!gotTheLock) {
     //   fs.writeFileSync(filePath, Buffer.from(buffer))
     // })
 
-    session.defaultSession.setDisplayMediaRequestHandler(
-      (_request, callback) => {
-        desktopCapturer.getSources({ types: ['screen'] }).then((sources) => {
+    // Uwaga: `useSystemPicker: true` w produkcji potrafi powodować zawieszenie
+    // `getDisplayMedia` na Windowsie (picker nie pojawia się, Promise nie resolvuje),
+    // co blokuje cały `startHostCapture` i w efekcie akceptację sesji.
+    // Używamy własnego callbacku, który deterministycznie zwraca pierwszy ekran.
+    session.defaultSession.setDisplayMediaRequestHandler((_request, callback) => {
+      desktopCapturer
+        .getSources({ types: ['screen'] })
+        .then((sources) => {
+          if (!sources || sources.length === 0) {
+            console.warn('[DisplayMedia] Brak źródeł ekranu, anulowanie żądania.')
+            callback({})
+            return
+          }
           callback({ video: sources[0], audio: 'loopback' })
         })
-      },
-      { useSystemPicker: true }
-    )
+        .catch((err) => {
+          console.error('[DisplayMedia] Błąd pobierania źródeł:', err)
+          callback({})
+        })
+    })
 
     app.on('activate', function () {
       if (BrowserWindow.getAllWindows().length === 0) createWindow()

@@ -1,6 +1,7 @@
 import { BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
+import icon from '../../resources/icon.png?asset'
 
 /** Placeholder URL — tylko ładuje bundle widoku; przy `open-guest-window` okno przeładuje się na prawdziwy `sessionId`. */
 export const GUEST_PREWARM_SESSION_ID = '__buddy_prewarm__'
@@ -60,6 +61,7 @@ export function createGuestWindow(
     height: 720,
     minWidth: 640,
     minHeight: 480,
+    icon,
     show: false,
     autoHideMenuBar: true,
     backgroundColor: '#000000',

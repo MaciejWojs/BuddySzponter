@@ -1,6 +1,7 @@
 import { BrowserWindow, screen, ipcMain } from 'electron'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
+import icon from '../../resources/icon.png?asset'
 
 let hostWidgetWindow: BrowserWindow | null = null
 let isModeHandlerRegistered = false
@@ -28,6 +29,7 @@ export function createHostWidget(mode: HostWidgetCreateMode = 'visible'): void {
     height: WIDGET_HEIGHT,
     x: Math.round(width / 2 - WIDGET_WIDTH / 2),
     y: 20,
+    icon,
     show: false,
     frame: false,
     transparent: true,

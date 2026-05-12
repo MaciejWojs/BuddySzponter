@@ -1,6 +1,7 @@
 import { BrowserWindow, screen, ipcMain } from 'electron'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
+import icon from '../../resources/icon.png?asset'
 
 let hostChatWindow: BrowserWindow | null = null
 let isMoveHandlerRegistered = false
@@ -28,6 +29,7 @@ export function createHostChatWindow(mode: HostChatCreateMode = 'visible'): void
     height: WINDOW_HEIGHT,
     x: Math.round(width - WINDOW_WIDTH - 40),
     y: Math.round(height - WINDOW_HEIGHT - 40),
+    icon,
     show: false,
     frame: false,
     transparent: true,

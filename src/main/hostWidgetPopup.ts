@@ -1,6 +1,7 @@
 import { BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
+import icon from '../../resources/icon.png?asset'
 
 let popupWindow: BrowserWindow | null = null
 let isHandlerRegistered = false
@@ -16,6 +17,7 @@ export function createHostWidgetPopup(): void {
     height: POPUP_HEIGHT,
     x: 0,
     y: 0,
+    icon,
     show: false,
     frame: false,
     transparent: true,
