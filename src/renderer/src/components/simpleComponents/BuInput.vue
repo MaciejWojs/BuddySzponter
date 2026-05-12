@@ -67,6 +67,11 @@ const props = defineProps({
   copyPopoverDuration: {
     type: Number,
     default: 1200
+  },
+  /** When set (non-empty), click-to-copy uses this instead of modelValue. */
+  copyClipboardText: {
+    type: String,
+    default: ''
   }
 })
 
@@ -109,7 +114,8 @@ function onBlur(event: FocusEvent): void {
 async function onClick(): Promise<void> {
   if (!props.copyOnClick || props.disabled) return
 
-  const text = props.modelValue
+  const override = props.copyClipboardText?.trim() ? props.copyClipboardText : ''
+  const text = override || props.modelValue
   if (!text) return
 
   try {
@@ -166,6 +172,10 @@ function onPopoverOpenChange(value: boolean): void {
         :value="props.modelValue"
         :readonly="props.readonly"
         :disabled="props.disabled"
+        class="bu-input-field"
+        :class="{
+          'bu-input-readonly-copy': props.readonly && props.copyOnClick && !props.disabled
+        }"
         :style="inputStyle"
         @input="onInput"
         @click="onClick"
@@ -262,8 +272,11 @@ input:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
-input[readonly] {
+input.bu-input-field[readonly] {
   cursor: default;
+}
+input.bu-input-field[readonly].bu-input-readonly-copy {
+  cursor: copy;
 }
 .copy-popover-content {
   font-family: 'Plus Jakarta Sans', sans-serif;

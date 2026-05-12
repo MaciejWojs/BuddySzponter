@@ -7,8 +7,14 @@ import { useForm } from 'vee-validate'
 import { toTypedSchema } from '@vee-validate/zod'
 import { useDebounceFn } from '@vueuse/core'
 import * as z from 'zod'
+import { parseHostSessionShareClipboard } from '@renderer/utils/parseHostSessionShareClipboard'
+import { useAppToast } from '@renderer/composables/useAppToast'
+import { useGuestFixedSessionToast } from '@renderer/composables/guestFixedSessionToast'
+import { translatedGuestJoinFailureMessage } from '@renderer/utils/guestJoinFailureMessage'
 
 const { t } = useI18n()
+const { error: toastError } = useAppToast()
+const { showGuestFixedSessionToast } = useGuestFixedSessionToast()
 const connectionStore = useConnectionStore()
 const socketStore = useSocketStore()
 
@@ -50,7 +56,8 @@ const [sessionPassword, sessionPasswordAttrs] = defineField('sessionPassword', {
 
 const show = ref(false)
 const isApiLoading = ref(false)
-const rejectMessage = ref<string | null>(null)
+
+const clipboardShareOffer = ref<{ codeFormatted: string; password: string } | null>(null)
 
 watch(sessionCode, (value) => {
   const charsOnly = (value ?? '').replace(/[^a-zA-Z0-9]/g, '').slice(0, 8)
@@ -86,7 +93,6 @@ const onSubmit = handleSubmit(async () => {
   const rawPassword = sessionPassword.value ?? ''
 
   isApiLoading.value = true
-  rejectMessage.value = null
 
   try {
     const res = await connectionStore.joinGuestConnection({
@@ -95,12 +101,12 @@ const onSubmit = handleSubmit(async () => {
     })
 
     if (res && !res.success) {
-      rejectMessage.value = res.message || 'Odmowa dostępu. Błędny kod lub hasło.'
-      setFieldError('sessionCode', rejectMessage.value)
+      const msg = translatedGuestJoinFailureMessage(res.message, t)
+      showGuestFixedSessionToast(msg)
     }
   } catch (error) {
     console.error('Błąd połączenia:', error)
-    rejectMessage.value = 'Krytyczny błąd połączenia z serwerem.'
+    showGuestFixedSessionToast(t('guestForm.joinErrorCritical'))
   } finally {
     isApiLoading.value = false
   }
@@ -110,7 +116,7 @@ watch(
   () => socketStore.isConnected,
   (connected, wasConnected) => {
     if (wasConnected && !connected && connectionStore.connectionCode) {
-      rejectMessage.value = 'Połączenie zostało zerwane.'
+      showGuestFixedSessionToast(t('guestForm.joinErrorDisconnected'))
     }
   }
 )
@@ -137,15 +143,75 @@ function onSessionCodeKeydown(event: KeyboardEvent): void {
   event.preventDefault()
 }
 
-function onSessionCodePaste(event: ClipboardEvent): void {
+function tryHandleSharePaste(pastedText: string, event: ClipboardEvent): boolean {
+  const parsed = parseHostSessionShareClipboard(pastedText)
+  if (!parsed) return false
+
   event.preventDefault()
+  const codeFormatted = parsed.codeRaw.replace(/(.{4})(?=.)/g, '$1 ')
+  clipboardShareOffer.value = {
+    codeFormatted,
+    password: parsed.password
+  }
+  return true
+}
+
+function onSessionCodePaste(event: ClipboardEvent): void {
   const pastedText = event.clipboardData?.getData('text') ?? ''
-  const charsOnly = pastedText.replace(/[^a-zA-Z0-9]/g, '')
+  if (tryHandleSharePaste(pastedText, event)) return
+
+  event.preventDefault()
+  const charsOnly = pastedText.replace(/[^a-zA-Z0-9]/g, '').slice(0, 8)
   if (!charsOnly) return
 
-  const currentChars = (sessionCode.value ?? '').replace(/[^a-zA-Z0-9]/g, '')
-  const nextChars = `${currentChars}${charsOnly}`.slice(0, 8)
-  sessionCode.value = nextChars.replace(/(.{4})(?=.)/g, '$1 ')
+  sessionCode.value = charsOnly.replace(/(.{4})(?=.)/g, '$1 ')
+  validateSessionCodeDebounced()
+}
+
+function onPasswordPaste(event: ClipboardEvent): void {
+  const pastedText = event.clipboardData?.getData('text') ?? ''
+  if (tryHandleSharePaste(pastedText, event)) return
+
+  event.preventDefault()
+  sessionPassword.value = pastedText.trim()
+  validateSessionPasswordDebounced()
+}
+
+function applyClipboardShare(): void {
+  const offer = clipboardShareOffer.value
+  if (!offer) return
+
+  sessionCode.value = offer.codeFormatted
+  sessionPassword.value = offer.password
+  clipboardShareOffer.value = null
+  void validateField('sessionCode')
+  void validateField('sessionPassword')
+}
+
+function cancelClipboardShare(): void {
+  clipboardShareOffer.value = null
+}
+
+async function onPasteFromClipboardButton(): Promise<void> {
+  let text = ''
+  try {
+    text = await navigator.clipboard.readText()
+  } catch {
+    toastError('guestForm.clipboardReadFailedTitle', 'guestForm.clipboardReadFailedDescription')
+    return
+  }
+
+  const parsed = parseHostSessionShareClipboard(text)
+  if (parsed) {
+    sessionCode.value = parsed.codeRaw.replace(/(.{4})(?=.)/g, '$1 ')
+    sessionPassword.value = parsed.password
+    clipboardShareOffer.value = null
+    void validateField('sessionCode')
+    void validateField('sessionPassword')
+    return
+  }
+
+  showGuestFixedSessionToast(t('guestForm.clipboardFormatNotRecognized'))
 }
 
 function onSessionCodeBlur(): void {
@@ -159,10 +225,22 @@ function onPasswordBlur(): void {
 
 <template>
   <form @submit.prevent="onSubmit">
+    <div class="w-full max-w-[320px] mx-auto mb-3 flex justify-center">
+      <UButton
+        type="button"
+        icon="i-lucide-clipboard-paste"
+        color="neutral"
+        variant="outline"
+        size="sm"
+        :disabled="isConnecting || isApiLoading"
+        @click="onPasteFromClipboardButton"
+      >
+        {{ t('guestForm.pasteFromClipboard') }}
+      </UButton>
+    </div>
+
     <div
-      v-if="
-        (connectionStore.connectionCode || isApiLoading || rejectMessage) && !connectionStore.isHost
-      "
+      v-if="(connectionStore.connectionCode || isApiLoading) && !connectionStore.isHost"
       class="w-full mb-6 text-center max-w-[320px] mx-auto transition-all"
     >
       <div
@@ -187,12 +265,22 @@ function onPasswordBlur(): void {
       >
         <p class="text-xs text-gray-400 font-bold m-0">Weryfikacja kodu i hasła...</p>
       </div>
+    </div>
 
-      <div
-        v-else-if="rejectMessage"
-        class="p-3 bg-rose-500/10 border border-rose-500/30 rounded-lg"
-      >
-        <p class="text-xs text-rose-400 font-bold m-0">{{ rejectMessage }}</p>
+    <div
+      v-if="clipboardShareOffer && !isConnecting && !isApiLoading"
+      class="w-full mb-4 max-w-[320px] mx-auto p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg flex flex-col gap-2"
+    >
+      <p class="text-xs text-amber-200 font-medium m-0 text-center">
+        {{ t('guestForm.clipboardShareDetected') }}
+      </p>
+      <div class="flex flex-wrap gap-2 justify-center">
+        <UButton color="primary" size="sm" @click="applyClipboardShare">
+          {{ t('guestForm.applyClipboardShare') }}
+        </UButton>
+        <UButton color="neutral" variant="soft" size="sm" @click="cancelClipboardShare">
+          {{ t('guestForm.clipboardShareCancel') }}
+        </UButton>
       </div>
     </div>
 
@@ -207,7 +295,6 @@ function onPasswordBlur(): void {
         font-family="mono"
         font-size="20px"
         maxlength="9"
-        class="uppercase"
         @keydown="onSessionCodeKeydown"
         @paste="onSessionCodePaste"
         @blur="onSessionCodeBlur"
@@ -226,6 +313,7 @@ function onPasswordBlur(): void {
         text-align="left"
         font-family="mono"
         font-size="20px"
+        @paste="onPasswordPaste"
         @blur="onPasswordBlur"
       >
         <template #suffix>

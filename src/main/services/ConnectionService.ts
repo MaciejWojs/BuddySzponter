@@ -5,6 +5,7 @@ import { wsService } from './ws/WsService'
 import { createConnection } from '../handlers/connection/create'
 import { joinConnection } from '../handlers/connection/join'
 import { CreateConnectionResponse, JoinConnectionResponse } from '../../shared/schemas/ipc'
+import { JOIN_WS_AFTER_JOIN_MESSAGE } from '../../shared/constants/joinFailureMessages'
 
 export class ConnectionService {
   private constructor() {
@@ -48,7 +49,7 @@ export class ConnectionService {
         const wsResult = await wsService.initConnection(response.data.token)
 
         if (!wsResult.success) {
-          return { success: false, message: 'Błąd połączenia WebSocket po dołączeniu.' }
+          return { success: false, message: JOIN_WS_AFTER_JOIN_MESSAGE }
         }
 
         wsService.requestAccess(response.data.connectionUUID)

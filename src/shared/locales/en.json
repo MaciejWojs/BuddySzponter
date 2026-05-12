@@ -79,7 +79,8 @@
     "description": "Enter the session code to transfer control of your device to another user.",
     "sessionCode": "Session code",
     "sessionPassword": "Session password",
-    "timeToJoin": "Time left:"
+    "timeToJoin": "Time left:",
+    "copySessionSharePopover": "Copied session code and password"
   },
   "guestForm": {
     "title": "Join session",
@@ -87,7 +88,25 @@
     "sessionCode": "Session code",
     "sessionPassword": "Session password",
     "joinButton": "Join",
-    "timeToJoin": "Time left:"
+    "timeToJoin": "Time left:",
+    "clipboardShareDetected": "Session code and password from host clipboard detected.",
+    "applyClipboardShare": "Fill in fields",
+    "clipboardShareCancel": "Cancel",
+    "pasteFromClipboard": "Paste from clipboard",
+    "clipboardReadFailedTitle": "Could not read clipboard",
+    "clipboardReadFailedDescription": "The system blocked clipboard access. Try again or paste into the fields (Ctrl+V).",
+    "clipboardFormatNotRecognized": "Format not recognized",
+    "joinErrorInvalidResponse": "The server returned an invalid response.",
+    "joinErrorHandlerCatch": "Could not join the connection. Please try again.",
+    "joinErrorWsAfterJoin": "WebSocket error after joining the session.",
+    "joinErrorIncorrectPassword": "Incorrect session password.",
+    "joinErrorIncorrectSessionCode": "Incorrect session code.",
+    "joinErrorFailedConnection": "Could not reach the server.",
+    "joinErrorNetwork": "Network error — check your connection.",
+    "joinErrorGeneric": "Could not join the session.",
+    "joinErrorCritical": "A critical error occurred while contacting the server.",
+    "joinErrorDisconnected": "The session connection was lost.",
+    "joinErrorUnknownWithDetail": "Could not join: {detail}"
   },
   "menuNav": {
     "settingsTitle": "Settings",

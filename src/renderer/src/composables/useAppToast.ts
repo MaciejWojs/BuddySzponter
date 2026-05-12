@@ -17,17 +17,15 @@ export function useAppToast(): {
 
   const baseUi = {
     root: [
-      'relative',
       'backdrop-blur-xl',
-      'bg-[#18102c]/62',
+      'bg-[#18102c]/92',
       'border border-[#ffffff]/10',
       'rounded-xl',
       'shadow-[0_4px_14px_-10px_rgba(62,42,120,0.34)]',
       'text-white',
       'px-4 py-2.5',
-      'overflow-hidden',
       'min-w-[220px]',
-      'max-w-[64vw]',
+      'max-w-[min(420px,92vw)]',
       'before:absolute before:top-1.5 before:left-3.5 before:right-3.5 before:h-px before:rounded-full before:bg-white/22',
       'after:absolute after:bottom-1.5 after:left-3.5 after:right-3.5 after:h-px after:rounded-full after:bg-white/22'
     ].join(' '),
