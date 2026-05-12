@@ -322,14 +322,26 @@ if (!gotTheLock) {
     //   fs.writeFileSync(filePath, Buffer.from(buffer))
     // })
 
-    session.defaultSession.setDisplayMediaRequestHandler(
-      (_request, callback) => {
-        desktopCapturer.getSources({ types: ['screen'] }).then((sources) => {
+    // Uwaga: `useSystemPicker: true` w produkcji potrafi powodować zawieszenie
+    // `getDisplayMedia` na Windowsie (picker nie pojawia się, Promise nie resolvuje),
+    // co blokuje cały `startHostCapture` i w efekcie akceptację sesji.
+    // Używamy własnego callbacku, który deterministycznie zwraca pierwszy ekran.
+    session.defaultSession.setDisplayMediaRequestHandler((_request, callback) => {
+      desktopCapturer
+        .getSources({ types: ['screen'] })
+        .then((sources) => {
+          if (!sources || sources.length === 0) {
+            console.warn('[DisplayMedia] Brak źródeł ekranu, anulowanie żądania.')
+            callback({})
+            return
+          }
           callback({ video: sources[0], audio: 'loopback' })
         })
-      },
-      { useSystemPicker: true }
-    )
+        .catch((err) => {
+          console.error('[DisplayMedia] Błąd pobierania źródeł:', err)
+          callback({})
+        })
+    })
 
     app.on('activate', function () {
       if (BrowserWindow.getAllWindows().length === 0) createWindow()
