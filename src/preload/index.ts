@@ -176,6 +176,10 @@ const api = {
     moveHostWidget: (x: number, y: number): void => ipcRenderer.send('move-host-widget', { x, y }),
     showHostChatWindow: (): Promise<boolean> => ipcRenderer.invoke('show-host-chat-window'),
     hideHostChatWindow: (): Promise<void> => ipcRenderer.invoke('hide-host-chat-window'),
+    prewarmHostChatWindow: (): Promise<void> => ipcRenderer.invoke('prewarm-host-chat-window'),
+    prewarmGuestWindow: (): Promise<void> => ipcRenderer.invoke('prewarm-guest-window'),
+    prewarmHostWidgetWindow: (): Promise<void> => ipcRenderer.invoke('prewarm-host-widget-window'),
+    prewarmHostWidgetPopup: (): Promise<void> => ipcRenderer.invoke('prewarm-host-widget-popup'),
     moveHostChatWindow: (x: number, y: number): void =>
       ipcRenderer.send('move-host-chat-window', { x, y }),
     openGuestWindow: (sessionId: string) => ipcRenderer.invoke('app:open-guest-window', sessionId),

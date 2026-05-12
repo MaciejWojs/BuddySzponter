@@ -5,9 +5,15 @@ import { is } from '@electron-toolkit/utils'
 let hostWidgetWindow: BrowserWindow | null = null
 let isModeHandlerRegistered = false
 
-export function createHostWidget(): void {
+export type HostWidgetCreateMode = 'visible' | 'hidden'
+
+export function createHostWidget(mode: HostWidgetCreateMode = 'visible'): void {
+  const startHidden = mode === 'hidden'
+
   if (hostWidgetWindow && !hostWidgetWindow.isDestroyed()) {
-    hostWidgetWindow.showInactive()
+    if (!startHidden) {
+      hostWidgetWindow.showInactive()
+    }
     return
   }
 
@@ -75,8 +81,10 @@ export function createHostWidget(): void {
     event.preventDefault()
   })
 
-  hostWidgetWindow.on('ready-to-show', () => {
-    hostWidgetWindow?.showInactive()
+  hostWidgetWindow.once('ready-to-show', () => {
+    if (!startHidden) {
+      hostWidgetWindow?.showInactive()
+    }
   })
 
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
@@ -102,6 +110,13 @@ export function createHostWidget(): void {
     })
     isModeHandlerRegistered = true
   }
+}
+
+export function prewarmHostWidget(): void {
+  if (hostWidgetWindow && !hostWidgetWindow.isDestroyed()) {
+    return
+  }
+  createHostWidget('hidden')
 }
 
 export function showHostWidget(): void {

@@ -140,6 +140,10 @@ declare global {
         moveHostWidget: (x: number, y: number) => void
         showHostChatWindow: () => Promise<boolean>
         hideHostChatWindow: () => Promise<void>
+        prewarmHostChatWindow: () => Promise<void>
+        prewarmGuestWindow: () => Promise<void>
+        prewarmHostWidgetWindow: () => Promise<void>
+        prewarmHostWidgetPopup: () => Promise<void>
         moveHostChatWindow: (x: number, y: number) => void
         openGuestWindow: (sessionId: string) => Promise<void>
         closeGuestWindow: () => Promise<void>

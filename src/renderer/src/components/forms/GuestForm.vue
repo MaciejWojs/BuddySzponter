@@ -57,8 +57,6 @@ const [sessionPassword, sessionPasswordAttrs] = defineField('sessionPassword', {
 const show = ref(false)
 const isApiLoading = ref(false)
 
-const clipboardShareOffer = ref<{ codeFormatted: string; password: string } | null>(null)
-
 watch(sessionCode, (value) => {
   const charsOnly = (value ?? '').replace(/[^a-zA-Z0-9]/g, '').slice(0, 8)
 
@@ -143,22 +141,22 @@ function onSessionCodeKeydown(event: KeyboardEvent): void {
   event.preventDefault()
 }
 
-function tryHandleSharePaste(pastedText: string, event: ClipboardEvent): boolean {
+/** Wklejony blok „session code / password” (format hosta) → od razu oba pola, bez potwierdzania. */
+function tryApplySharePaste(pastedText: string, event: ClipboardEvent): boolean {
   const parsed = parseHostSessionShareClipboard(pastedText)
   if (!parsed) return false
 
   event.preventDefault()
-  const codeFormatted = parsed.codeRaw.replace(/(.{4})(?=.)/g, '$1 ')
-  clipboardShareOffer.value = {
-    codeFormatted,
-    password: parsed.password
-  }
+  sessionCode.value = parsed.codeRaw.replace(/(.{4})(?=.)/g, '$1 ')
+  sessionPassword.value = parsed.password
+  void validateField('sessionCode')
+  void validateField('sessionPassword')
   return true
 }
 
 function onSessionCodePaste(event: ClipboardEvent): void {
   const pastedText = event.clipboardData?.getData('text') ?? ''
-  if (tryHandleSharePaste(pastedText, event)) return
+  if (tryApplySharePaste(pastedText, event)) return
 
   event.preventDefault()
   const charsOnly = pastedText.replace(/[^a-zA-Z0-9]/g, '').slice(0, 8)
@@ -170,26 +168,11 @@ function onSessionCodePaste(event: ClipboardEvent): void {
 
 function onPasswordPaste(event: ClipboardEvent): void {
   const pastedText = event.clipboardData?.getData('text') ?? ''
-  if (tryHandleSharePaste(pastedText, event)) return
+  if (tryApplySharePaste(pastedText, event)) return
 
   event.preventDefault()
   sessionPassword.value = pastedText.trim()
   validateSessionPasswordDebounced()
-}
-
-function applyClipboardShare(): void {
-  const offer = clipboardShareOffer.value
-  if (!offer) return
-
-  sessionCode.value = offer.codeFormatted
-  sessionPassword.value = offer.password
-  clipboardShareOffer.value = null
-  void validateField('sessionCode')
-  void validateField('sessionPassword')
-}
-
-function cancelClipboardShare(): void {
-  clipboardShareOffer.value = null
 }
 
 async function onPasteFromClipboardButton(): Promise<void> {
@@ -205,7 +188,6 @@ async function onPasteFromClipboardButton(): Promise<void> {
   if (parsed) {
     sessionCode.value = parsed.codeRaw.replace(/(.{4})(?=.)/g, '$1 ')
     sessionPassword.value = parsed.password
-    clipboardShareOffer.value = null
     void validateField('sessionCode')
     void validateField('sessionPassword')
     return
@@ -264,23 +246,6 @@ function onPasswordBlur(): void {
         class="p-3 bg-gray-500/10 border border-gray-500/30 rounded-lg animate-pulse"
       >
         <p class="text-xs text-gray-400 font-bold m-0">Weryfikacja kodu i hasła...</p>
-      </div>
-    </div>
-
-    <div
-      v-if="clipboardShareOffer && !isConnecting && !isApiLoading"
-      class="w-full mb-4 max-w-[320px] mx-auto p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg flex flex-col gap-2"
-    >
-      <p class="text-xs text-amber-200 font-medium m-0 text-center">
-        {{ t('guestForm.clipboardShareDetected') }}
-      </p>
-      <div class="flex flex-wrap gap-2 justify-center">
-        <UButton color="primary" size="sm" @click="applyClipboardShare">
-          {{ t('guestForm.applyClipboardShare') }}
-        </UButton>
-        <UButton color="neutral" variant="soft" size="sm" @click="cancelClipboardShare">
-          {{ t('guestForm.clipboardShareCancel') }}
-        </UButton>
       </div>
     </div>
 

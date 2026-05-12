@@ -20,17 +20,23 @@ import { screenService } from './services/screenService'
 import { wsService } from './services/ws/WsService'
 
 // --- ODBLOKOWANE: Importy hostWidget ---
-import { closeHostWidget, createHostWidget } from './hostWidget'
+import { closeHostWidget, createHostWidget, prewarmHostWidget } from './hostWidget'
 import { createHostWidgetPopup, hideHostWidgetPopup } from './hostWidgetPopup'
 import {
   createHostChatWindow,
   hideHostChatWindow,
   isHostChatWindowVisible,
+  prewarmHostChatWindow,
   showHostChatWindow
 } from './hostChatWindow'
 import { inputService } from './services/inputService'
 import { registerFileTransferHandlers } from './services/fileTransferService'
-import { closeGuestWindow, createGuestWindow, registerGuestWindowHandlers } from './guestWindow'
+import {
+  closeGuestWindow,
+  createGuestWindow,
+  prewarmGuestWindow,
+  registerGuestWindowHandlers
+} from './guestWindow'
 import trayIconDefault from '../../resources/tray/default.png?asset'
 import { trayService } from './services/trayService'
 
@@ -210,6 +216,22 @@ if (!gotTheLock) {
 
     ipcMain.handle('hide-host-chat-window', () => {
       hideHostChatWindow()
+    })
+
+    ipcMain.handle('prewarm-host-chat-window', () => {
+      prewarmHostChatWindow()
+    })
+
+    ipcMain.handle('prewarm-guest-window', () => {
+      prewarmGuestWindow()
+    })
+
+    ipcMain.handle('prewarm-host-widget-window', () => {
+      prewarmHostWidget()
+    })
+
+    ipcMain.handle('prewarm-host-widget-popup', () => {
+      createHostWidgetPopup()
     })
 
     ipcMain.handle('app:open-guest-window', (_, sessionId: string) => {
