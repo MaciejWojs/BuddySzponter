@@ -134,6 +134,9 @@ declare global {
         showHostWidget: () => Promise<void>
         hideHostWidget: () => Promise<void>
         setHostWidgetMode: (mode: 'normal' | 'compact' | 'hidden' | 'peek') => Promise<void>
+        setHostWidgetHeight: (height: number) => Promise<void>
+        showHostWidgetPopup: (x: number, y: number) => Promise<void>
+        hideHostWidgetPopup: () => Promise<void>
         moveHostWidget: (x: number, y: number) => void
         showHostChatWindow: () => Promise<boolean>
         hideHostChatWindow: () => Promise<void>
