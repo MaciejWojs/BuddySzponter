@@ -16,6 +16,8 @@ export const APP_ERRORS = {
   },
   CONNECTION: {
     FAILED: { success: false as const, message: 'Failed to establish connection' },
-    INVALID_RESPONSE: { success: false as const, message: 'Invalid response from server' }
+    INVALID_RESPONSE: { success: false as const, message: 'Invalid response from server' },
+    INCORRECT_PASSWORD: { success: false as const, message: 'Incorrect password' },
+    INCORRECT_CODE: { success: false as const, message: 'Invalid connection code' }
   }
 } as const

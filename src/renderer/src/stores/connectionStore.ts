@@ -162,21 +162,33 @@ export const useConnectionStore = defineStore('connection', () => {
   const joinGuestConnection = async (
     data: JoinConnectionRequestSchema
   ): Promise<JoinConnectionResponse | undefined> => {
-    if (getSocketStore().isConnected) {
-      await clearConnection(false)
+    let joinedSuccessfully = false
+    try {
+      if (getSocketStore().isConnected) {
+        await clearConnection(false)
+      }
+
+      stopAutoRefresh()
+
+      const response = await connectionService.joinConnection(data.connectionCode, data.password)
+
+      if (response?.success) {
+        joinedSuccessfully = true
+        isHost.value = false
+
+        connectionCode.value = data.connectionCode
+      }
+
+      return response
+    } finally {
+      if (!joinedSuccessfully) {
+        try {
+          await restoreDefaultHost()
+        } catch (e) {
+          console.error('[ConnectionStore] Nie udało się odtworzyć sesji hosta po nieudanym join:', e)
+        }
+      }
     }
-
-    stopAutoRefresh()
-
-    const response = await connectionService.joinConnection(data.connectionCode, data.password)
-
-    if (response?.success) {
-      isHost.value = false
-
-      connectionCode.value = data.connectionCode
-    }
-
-    return response
   }
 
   const clearConnection = async (restoreHost = false): Promise<void> => {

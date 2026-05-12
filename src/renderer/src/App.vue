@@ -15,8 +15,17 @@ import { useHostChatPortalSync } from '@renderer/composables/syncWindow/useHostC
 import { useCaptureStore } from '@renderer/stores/captureStore'
 import { isVideoQualityPreset } from '@shared/schemas/appPreferences'
 import { applyDocumentTheme } from '@renderer/utils/themeDocument'
+import GuestFixedSessionToast from '@renderer/components/toasts/GuestFixedSessionToast.vue'
 
-const toaster = { position: 'top-left', duration: 3000, dismissible: true, max: 3, expand: false }
+/** Viewport w portalu do body; wysoki z-index żeby był nad UserIcon / dropdownami (do ~2000). */
+const toaster = {
+  position: 'bottom-right' as const,
+  duration: 5000,
+  dismissible: true,
+  max: 5,
+  expand: true,
+  class: 'pointer-events-auto !z-[22000]'
+}
 
 const webRtcStore = useWebRtcStore()
 const connectionStore = useConnectionStore()
@@ -101,6 +110,7 @@ if (isMainWindow) {
 
 <template>
   <UApp :toaster="toaster">
+    <GuestFixedSessionToast />
     <WidgetControlListener>
       <router-view />
     </WidgetControlListener>

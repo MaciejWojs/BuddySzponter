@@ -25,7 +25,25 @@ function hasRequiredPasswordCharacters(value: string): boolean {
   return hasLowercase(value) && hasUppercase(value) && hasDigit(value) && hasSpecialCharacter(value)
 }
 
-const sessionCode = computed(() => connectionStore.connectionCode)
+const sessionCodeRaw = computed(() =>
+  connectionStore.connectionCode.replace(/\s/g, '').slice(0, 8)
+)
+
+const displaySessionCode = computed(() => {
+  const alnum = sessionCodeRaw.value
+  if (!alnum.length) return ''
+  const first = alnum.slice(0, 4)
+  const second = alnum.slice(4, 8).toLowerCase()
+  if (!second.length) return first
+  return `${first} ${second}`
+})
+
+const shareClipboardText = computed(() => {
+  const code = connectionStore.connectionCode.replace(/\s/g, '')
+  const pwd = connectionStore.connectionPassword ?? ''
+  if (!code) return ''
+  return `session code: ${code}\npassword: ${pwd}`
+})
 
 // Używamy draftu z store, a nie bezpośredniego czystopisu
 const sessionPassword = computed({
@@ -186,13 +204,15 @@ function revertNewPassword(): void {
     <div id="sessionCode" class="flex flex-col items-center">
       <h3>{{ $t('hostForm.sessionCode') }}</h3>
       <BuInput
-        v-model="sessionCode"
+        :model-value="displaySessionCode"
         :readonly="true"
         text-align="center"
         font-family="mono"
         font-size="20px"
         :copy-on-click="true"
         :show-copy-popover="true"
+        :copy-clipboard-text="shareClipboardText"
+        :copy-popover-text="t('hostForm.copySessionSharePopover')"
         :placeholder="connectionStore.isHost ? '' : 'Łączenie z serwerem...'"
       />
     </div>
@@ -211,8 +231,6 @@ function revertNewPassword(): void {
         text-align="left"
         font-family="mono"
         font-size="20px"
-        :copy-on-click="true"
-        :show-copy-popover="true"
         @blur="onPasswordBlur"
       >
         <template #suffix>
