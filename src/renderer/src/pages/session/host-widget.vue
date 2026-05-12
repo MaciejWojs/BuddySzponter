@@ -32,10 +32,13 @@ const state = ref({
   controlGranted: false,
   clipboardSyncEnabled: false,
   chatHasUnread: false,
-  chatVisible: false
+  chatVisible: false,
+  currentMonitorIndex: 0,
+  monitorCount: 0
 })
 
 let syncChannel: BroadcastChannel | null = null
+let monitorStateRetryTimer: ReturnType<typeof setInterval> | null = null
 
 const widgetMode = ref<'normal' | 'compact' | 'hidden' | 'peek'>('normal')
 
@@ -51,20 +54,48 @@ onMounted(() => {
   }
 
   syncChannel.postMessage({ type: 'REQUEST_STATE' })
+  void refreshMonitorState()
+  monitorStateRetryTimer = setInterval(() => {
+    if (state.value.monitorCount > 0) {
+      if (monitorStateRetryTimer) {
+        clearInterval(monitorStateRetryTimer)
+        monitorStateRetryTimer = null
+      }
+      return
+    }
+    void refreshMonitorState()
+  }, 800)
 })
 
 onUnmounted(() => {
   if (syncChannel) syncChannel.close()
+  if (monitorStateRetryTimer) {
+    clearInterval(monitorStateRetryTimer)
+    monitorStateRetryTimer = null
+  }
 })
+
+const refreshMonitorState = async (): Promise<void> => {
+  if (typeof window.capture?.getMonitorState !== 'function') return
+  const monitorState = await window.capture.getMonitorState().catch(() => null)
+  if (!monitorState) return
+
+  const count = Number(monitorState.count ?? 0)
+  const currentIndex = Number(monitorState.currentIndex ?? 0)
+  state.value.monitorCount = Number.isFinite(count) ? Math.max(0, count) : 0
+  state.value.currentMonitorIndex = Number.isFinite(currentIndex) ? Math.max(0, currentIndex) : 0
+}
 
 const goToNextMonitor = async (): Promise<void> => {
   if (typeof window.screenCapture?.nextMonitor === 'function') {
     await window.screenCapture.nextMonitor()
+    await refreshMonitorState()
     return
   }
 
   if (typeof window.capture?.nextMonitor === 'function') {
     await window.capture.nextMonitor()
+    await refreshMonitorState()
     return
   }
 

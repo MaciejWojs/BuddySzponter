@@ -7,6 +7,7 @@ import { webRtcService } from '@renderer/composables/connection/webRTCService'
 import { useWebRtcStore } from '@renderer/stores/webRtcStore'
 import { useAudioSettingsStore } from '@renderer/stores/audioSettingsStore'
 import { useHidChannel } from '@renderer/composables/channels/HidChannel'
+import { useRemoteAudioTracks } from '@renderer/composables/audio/useRemoteAudioTracks'
 import { chatService, type ChatPayload } from '@renderer/services/chatService'
 import { completeRelayOutgoingFileTransfer } from '@renderer/composables/channels/FileTransferChannel'
 import GuestControlsToolbar from '@renderer/components/session/guest/GuestControlsToolbar.vue'
@@ -18,6 +19,7 @@ const { sendCommand } = useGuestSync()
 const webRtcStore = useWebRtcStore()
 const audioStore = useAudioSettingsStore()
 const hidChannel = useHidChannel()
+const { micTrack: remoteMicTrack, systemTrack: remoteSystemTrack } = useRemoteAudioTracks()
 
 const isVideoReady = ref(false)
 const chatVisible = ref(false)
@@ -57,11 +59,17 @@ const handleGuestMicVolumeChange = (value: number): void => {
 
 const handleMicVolumeChange = (value: number): void => {
   state.value.localMicrophoneVolume = value
+  if (remoteMicTrack.value) {
+    remoteMicTrack.value.enabled = value > 0
+  }
   sendCommand('COMMAND_SET_MIC_VOL', value)
 }
 
 const handleSysVolumeChange = (value: number): void => {
   state.value.remoteSystemVolume = value
+  if (remoteSystemTrack.value) {
+    remoteSystemTrack.value.enabled = value > 0
+  }
   sendCommand('COMMAND_SET_SYS_VOL', value)
 }
 
@@ -105,6 +113,12 @@ onMounted(() => {
       if (payload.hostName) state.value.hostName = payload.hostName
       audioStore.microphoneMuted = payload.microphoneMuted
       webRtcStore.toggleTrackByHint('audio', 'speech', !payload.microphoneMuted)
+      if (remoteMicTrack.value) {
+        remoteMicTrack.value.enabled = state.value.localMicrophoneVolume > 0
+      }
+      if (remoteSystemTrack.value) {
+        remoteSystemTrack.value.enabled = state.value.remoteSystemVolume > 0
+      }
     } else if (type === 'RELAY_OFFER') {
       try {
         const answerStr = await signalingStore.createAnswerForRelay(payload)
@@ -131,6 +145,19 @@ onMounted(() => {
     localRelay?.postMessage({ type: 'RELAY_ICE', payload: candidate.toJSON() })
   }
 })
+
+watch(
+  () => [remoteMicTrack.value, remoteSystemTrack.value] as const,
+  () => {
+    if (remoteMicTrack.value) {
+      remoteMicTrack.value.enabled = state.value.localMicrophoneVolume > 0
+    }
+    if (remoteSystemTrack.value) {
+      remoteSystemTrack.value.enabled = state.value.remoteSystemVolume > 0
+    }
+  },
+  { immediate: true }
+)
 
 onUnmounted(() => {
   if (localRelay) localRelay.close()

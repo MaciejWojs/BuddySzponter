@@ -213,7 +213,7 @@
       </button>
 
       <button
-        class="flex items-center justify-center w-9 h-9 rounded-lg transition-all group text-violet-500 hover:text-violet-300"
+        class="relative flex items-center justify-center w-9 h-9 rounded-lg transition-all group text-violet-500 hover:text-violet-300"
         title="Następny monitor"
         @click="$emit('goToNextMonitor')"
       >
@@ -228,6 +228,13 @@
           <line x1="8" y1="21" x2="16" y2="21" />
           <line x1="12" y1="17" x2="12" y2="21" />
         </svg>
+        <span
+          v-if="state.monitorCount > 0"
+          class="absolute pb-1 inset-0 flex items-center justify-center text-[8px] leading-none font-semibold tabular-nums text-violet-300 drop-shadow-[0_0_6px_rgba(139,92,246,0.75)] pointer-events-none"
+          :title="`Monitor ${state.currentMonitorIndex + 1} z ${state.monitorCount}`"
+        >
+          {{ state.currentMonitorIndex + 1 }}/{{ state.monitorCount }}
+        </span>
       </button>
 
       <!-- Divider -->
@@ -296,6 +303,8 @@ const props = defineProps<{
     clipboardSyncEnabled: boolean
     chatHasUnread: boolean
     chatVisible?: boolean
+    currentMonitorIndex: number
+    monitorCount: number
   }
 }>()
 
