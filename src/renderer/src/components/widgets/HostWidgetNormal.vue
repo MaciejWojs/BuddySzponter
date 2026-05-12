@@ -8,19 +8,17 @@
       <!-- Mic -->
       <button
         ref="micBtn"
-        class="flex items-center justify-center w-9 h-9 rounded-lg transition-all group"
-        :class="
-          state.micActive
-            ? 'text-violet-400 hover:text-violet-200'
-            : 'text-rose-400 hover:text-rose-300'
+        class="flex items-center justify-center w-8 h-8 rounded-lg transition-all group"
+        :class="state.micActive ? toolbarButtonStyles.active : toolbarButtonStyles.inactive"
+        :title="
+          state.micActive ? 'Wycisz swój mikrofon (przytrzymaj = głośność)' : 'Włącz swój mikrofon'
         "
-        :title="state.micActive ? 'Wycisz swój mikrofon' : 'Włącz mikrofon'"
         @mousedown="startHold('mic', micBtn)"
         @mouseup="onButtonUp('mic', 'TOGGLE_MIC')"
         @mouseleave="cancelHold"
       >
         <svg
-          class="w-[18px] h-[18px] group-active:scale-90 transition-transform"
+          class="w-[16px] h-[16px] group-active:scale-90 transition-transform"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -36,6 +34,7 @@
             stroke-linejoin="round"
             d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"
           />
+          <line v-if="!state.micActive" x1="1" y1="1" x2="23" y2="23" stroke-linecap="round" />
         </svg>
       </button>
 
@@ -43,11 +42,7 @@
       <button
         ref="sysBtn"
         class="flex items-center justify-center w-9 h-9 rounded-lg transition-all group"
-        :class="
-          state.sysActive
-            ? 'text-violet-400 hover:text-violet-200'
-            : 'text-rose-400 hover:text-rose-300'
-        "
+        :class="state.sysActive ? toolbarButtonStyles.active : toolbarButtonStyles.inactive"
         :title="state.sysActive ? 'Wycisz dźwięk systemu' : 'Udostępniaj dźwięk systemu'"
         @mousedown="startHold('sys', sysBtn)"
         @mouseup="onButtonUp('sys', 'TOGGLE_SYSTEM')"
@@ -72,11 +67,7 @@
       <!-- Chat -->
       <button
         class="relative flex items-center justify-center w-9 h-9 rounded-lg transition-all group"
-        :class="
-          state.chatHasUnread
-            ? 'text-violet-300 hover:text-violet-100'
-            : 'text-violet-500 hover:text-violet-300'
-        "
+        :class="chatButtonClass"
         :title="state.chatHasUnread ? 'Czat — nowe wiadomości' : 'Otwórz czat'"
         @click="$emit('toggleChat')"
       >
@@ -103,11 +94,7 @@
       <button
         ref="guestMicBtn"
         class="flex items-center justify-center w-9 h-9 rounded-lg transition-all group"
-        :class="
-          state.guestMicActive
-            ? 'text-violet-400 hover:text-violet-200'
-            : 'text-[#3a3a4a] hover:text-violet-500'
-        "
+        :class="state.guestMicActive ? toolbarButtonStyles.active : toolbarButtonStyles.inactive"
         :title="state.guestMicActive ? 'Wycisz mikrofon gościa' : 'Odwiesz mikrofon gościa'"
         @mousedown="startHold('guestMic', guestMicBtn)"
         @mouseup="onButtonUp('guestMic', 'TOGGLE_GUEST_MIC')"
@@ -131,35 +118,7 @@
             stroke-linejoin="round"
             d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"
           />
-        </svg>
-      </button>
-
-      <!-- Guest system audio -->
-      <button
-        ref="guestSysBtn"
-        class="flex items-center justify-center w-9 h-9 rounded-lg transition-all group text-violet-500 hover:text-violet-300"
-        title="Głośność dźwięku gościa"
-        @mousedown="startHold('guestSys', guestSysBtn)"
-        @mouseup="onButtonUp('guestSys', null)"
-        @mouseleave="cancelHold"
-      >
-        <svg
-          class="w-[18px] h-[18px] group-active:scale-90 transition-transform"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          stroke-width="1.75"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            d="M11 5L6 9H2v6h4l5 4V5zM15.54 8.46a5 5 0 0 1 0 7.07"
-          />
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            d="M17 21v-2a2 2 0 0 0-2-2h-1M16 3.13a4 4 0 0 1 0 7.75"
-          />
+          <line v-if="!state.guestMicActive" x1="1" y1="1" x2="23" y2="23" stroke-linecap="round" />
         </svg>
       </button>
     </div>
@@ -168,8 +127,28 @@
     <div class="w-px h-5 bg-[#252525] mx-2 shrink-0" style="-webkit-app-region: drag"></div>
 
     <!-- Guest name -->
-    <div class="flex-1 flex items-center justify-center" style="-webkit-app-region: drag">
-      <span class="text-sm font-medium text-violet-400 tracking-wide">{{ guestName }}</span>
+    <div
+      class="flex-1 flex items-center justify-center relative h-8 overflow-hidden"
+      style="-webkit-app-region: no-drag"
+      @mouseenter="onNameAreaEnter"
+      @mouseleave="onNameAreaLeave"
+    >
+      <span
+        ref="guestNameEl"
+        class="absolute inset-0 flex items-center justify-center text-sm font-medium text-violet-400 tracking-wide px-2 truncate"
+      >
+        {{ guestName }}
+      </span>
+      <button
+        ref="disconnectBubbleEl"
+        :class="disconnectBubbleStyles"
+        style="-webkit-app-region: no-drag"
+        title="Rozłącz sesję"
+        @pointerdown.stop
+        @click.stop="$emit('sendCommand', 'END_SESSION')"
+      >
+        Rozłącz
+      </button>
     </div>
 
     <!-- Divider -->
@@ -179,11 +158,7 @@
     <div class="flex items-center gap-0.5" style="-webkit-app-region: no-drag">
       <button
         class="flex items-center justify-center w-9 h-9 rounded-lg transition-all group"
-        :class="
-          state.controlGranted
-            ? 'text-violet-300 hover:text-violet-100'
-            : 'text-violet-500 hover:text-violet-300'
-        "
+        :class="state.controlGranted ? toolbarButtonStyles.active : toolbarButtonStyles.inactive"
         :title="
           state.controlGranted
             ? 'Zabierz kontrolę myszy/klawiatury'
@@ -206,10 +181,10 @@
         class="flex items-center justify-center w-9 h-9 rounded-lg transition-all group"
         :class="[
           !state.controlGranted
-            ? 'text-[#2a2a3a] cursor-not-allowed'
+            ? toolbarButtonStyles.disabled
             : state.clipboardSyncEnabled
-              ? 'text-violet-300 hover:text-violet-100'
-              : 'text-violet-500 hover:text-violet-300'
+              ? toolbarButtonStyles.unread
+              : toolbarButtonStyles.inactive
         ]"
         :title="
           !state.controlGranted
@@ -302,9 +277,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
+import gsap from 'gsap'
+import {
+  disconnectBubbleStyles,
+  toolbarButtonStyles
+} from '@renderer/components/session/controls/buttonStyles'
 
-type PopupKey = 'mic' | 'sys' | 'guestMic' | 'guestSys'
+type PopupKey = 'mic' | 'sys' | 'guestMic'
 
 const props = defineProps<{
   guestName?: string
@@ -315,6 +295,7 @@ const props = defineProps<{
     controlGranted: boolean
     clipboardSyncEnabled: boolean
     chatHasUnread: boolean
+    chatVisible?: boolean
   }
 }>()
 
@@ -328,9 +309,16 @@ const emit = defineEmits<{
 const micBtn = ref<HTMLElement | null>(null)
 const sysBtn = ref<HTMLElement | null>(null)
 const guestMicBtn = ref<HTMLElement | null>(null)
-const guestSysBtn = ref<HTMLElement | null>(null)
+const guestNameEl = ref<HTMLElement | null>(null)
+const disconnectBubbleEl = ref<HTMLElement | null>(null)
 
-const volumes = ref<Record<PopupKey, number>>({ mic: 80, sys: 80, guestMic: 80, guestSys: 80 })
+const chatButtonClass = computed(() => {
+  if (props.state.chatHasUnread) return toolbarButtonStyles.unread
+  if (props.state.chatVisible) return toolbarButtonStyles.active
+  return toolbarButtonStyles.inactive
+})
+
+const volumes = ref<Record<PopupKey, number>>({ mic: 80, sys: 80, guestMic: 80 })
 
 let holdTimer: ReturnType<typeof setTimeout> | null = null
 let holdFired = false
@@ -339,9 +327,74 @@ let popupChannel: BroadcastChannel | null = null
 const activeStateMap = (): Record<PopupKey, boolean> => ({
   mic: props.state.micActive,
   sys: props.state.sysActive,
-  guestMic: props.state.guestMicActive,
-  guestSys: true
+  guestMic: props.state.guestMicActive
 })
+
+let nameAreaTl: gsap.core.Timeline | null = null
+const reducedMotion =
+  typeof window !== 'undefined' &&
+  window.matchMedia &&
+  window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+function ensureNameAreaTimeline(): gsap.core.Timeline | null {
+  if (nameAreaTl) return nameAreaTl
+  if (!guestNameEl.value || !disconnectBubbleEl.value) return null
+  nameAreaTl = gsap
+    .timeline({ paused: true, defaults: { ease: 'power2.out' } })
+    .to(
+      guestNameEl.value,
+      {
+        duration: 0.2,
+        scale: 0.72,
+        opacity: 0,
+        transformOrigin: 'center center'
+      },
+      0
+    )
+    .to(
+      disconnectBubbleEl.value,
+      {
+        duration: 0.22,
+        scale: 1,
+        opacity: 1,
+        ease: 'back.out(1.6)'
+      },
+      0
+    )
+  return nameAreaTl
+}
+
+function onNameAreaEnter(): void {
+  if (!guestNameEl.value || !disconnectBubbleEl.value) return
+  if (reducedMotion) {
+    guestNameEl.value.style.opacity = '0'
+    guestNameEl.value.style.transform = 'scale(0.72)'
+    disconnectBubbleEl.value.style.opacity = '1'
+    disconnectBubbleEl.value.style.transform = 'translate(-50%, -50%) scale(1)'
+    disconnectBubbleEl.value.style.pointerEvents = 'auto'
+    return
+  }
+  const timeline = ensureNameAreaTimeline()
+  if (!timeline) return
+  disconnectBubbleEl.value.style.pointerEvents = 'auto'
+  timeline.play()
+}
+
+function onNameAreaLeave(): void {
+  if (!guestNameEl.value || !disconnectBubbleEl.value) return
+  if (reducedMotion) {
+    guestNameEl.value.style.opacity = '1'
+    guestNameEl.value.style.transform = 'scale(1)'
+    disconnectBubbleEl.value.style.opacity = '0'
+    disconnectBubbleEl.value.style.transform = 'translate(-50%, -50%) scale(0)'
+    disconnectBubbleEl.value.style.pointerEvents = 'none'
+    return
+  }
+  const timeline = ensureNameAreaTimeline()
+  if (!timeline) return
+  timeline.reverse()
+  disconnectBubbleEl.value.style.pointerEvents = 'none'
+}
 
 function startHold(key: PopupKey, btnRef: HTMLElement | null): void {
   holdFired = false
@@ -395,8 +448,7 @@ onMounted(() => {
       const commandMap: Record<PopupKey, string> = {
         mic: 'SET_MIC_VOLUME',
         sys: 'SET_SYS_VOLUME',
-        guestMic: 'SET_GUEST_MIC_VOLUME',
-        guestSys: 'SET_GUEST_SYS_VOLUME'
+        guestMic: 'SET_GUEST_MIC_VOLUME'
       }
       emit('sendCommand', commandMap[key], event.data.volume)
     }
@@ -405,9 +457,15 @@ onMounted(() => {
       // popup window just (re)loaded — nothing to do unless a popup was open
     }
   }
+
+  if (disconnectBubbleEl.value && !reducedMotion) {
+    gsap.set(disconnectBubbleEl.value, { scale: 0, opacity: 0 })
+  }
 })
 
 onUnmounted(() => {
+  nameAreaTl?.kill()
+  nameAreaTl = null
   popupChannel?.close()
   popupChannel = null
 })

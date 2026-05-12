@@ -49,11 +49,7 @@
         <!-- Chat -->
         <button
           class="relative flex items-center justify-center w-8 h-8 rounded-lg transition-all group"
-          :class="
-            chatHasUnread
-              ? 'text-violet-300 hover:text-violet-100'
-              : 'text-violet-500 hover:text-violet-300'
-          "
+          :class="chatButtonClass"
           :title="chatHasUnread ? 'Czat — nowe wiadomości' : 'Otwórz czat'"
           @click="$emit('toggleChat')"
         >
@@ -86,11 +82,7 @@
         <button
           ref="remoteMicBtn"
           class="relative flex items-center justify-center w-8 h-8 rounded-lg transition-all group"
-          :class="
-            remoteMicActive
-              ? 'text-violet-400 hover:text-violet-200'
-              : 'text-rose-400 hover:text-rose-300'
-          "
+          :class="remoteMicActive ? toolbarButtonStyles.active : toolbarButtonStyles.inactive"
           :title="
             remoteMicActive
               ? 'Wycisz mikrofon hosta (przytrzymaj = głośność)'
@@ -127,11 +119,7 @@
         <button
           ref="remoteSysBtn"
           class="relative flex items-center justify-center w-8 h-8 rounded-lg transition-all group"
-          :class="
-            remoteSysActive
-              ? 'text-violet-400 hover:text-violet-200'
-              : 'text-rose-400 hover:text-rose-300'
-          "
+          :class="remoteSysActive ? toolbarButtonStyles.active : toolbarButtonStyles.inactive"
           :title="
             remoteSysActive
               ? 'Wycisz dźwięk systemu hosta (przytrzymaj = głośność)'
@@ -159,11 +147,27 @@
         </button>
 
         <!-- Host name -->
-        <span
-          class="flex-1 text-center text-sm font-medium text-violet-400 tracking-wide truncate px-2"
+        <div
+          class="relative flex-1 h-8 overflow-hidden"
+          @mouseenter="onNameAreaEnter"
+          @mouseleave="onNameAreaLeave"
         >
-          {{ hostName || '—' }}
-        </span>
+          <span
+            ref="hostNameEl"
+            class="absolute inset-0 flex items-center justify-center text-sm font-medium text-violet-400 tracking-wide truncate px-2 origin-center"
+          >
+            {{ hostName || '—' }}
+          </span>
+          <button
+            ref="disconnectBubbleEl"
+            :class="disconnectBubbleStyles"
+            title="Rozłącz sesję"
+            @pointerdown.stop
+            @click.stop="$emit('disconnect')"
+          >
+            Rozłącz
+          </button>
+        </div>
       </div>
 
       <!-- Divider -->
@@ -425,7 +429,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, onBeforeUnmount } from 'vue'
+import { computed, ref, watch, onBeforeUnmount, onMounted } from 'vue'
+import gsap from 'gsap'
+import {
+  disconnectBubbleStyles,
+  toolbarButtonStyles
+} from '@renderer/components/session/controls/buttonStyles'
 
 type PopoverKey = 'guestMic' | 'remoteMic' | 'remoteSys'
 
@@ -463,6 +472,11 @@ const remoteSysActive = computed(() => props.remoteSystemVolume > 0)
 
 const toggleRemoteMic = (): void => emit('updateMicVolume', remoteMicActive.value ? 0 : 1)
 const toggleRemoteSys = (): void => emit('updateSysVolume', remoteSysActive.value ? 0 : 1)
+const chatButtonClass = computed(() => {
+  if (props.chatHasUnread) return toolbarButtonStyles.unread
+  if (props.chatVisible) return toolbarButtonStyles.active
+  return toolbarButtonStyles.inactive
+})
 
 // --- Volume sliders (0-100 scale for the slider, 0-1 for the emit) ---
 const volumes = ref({ guestMic: 80, remoteMic: 80, remoteSys: 80 })
@@ -561,12 +575,86 @@ function holdUp(key: PopoverKey, toggleFn: () => void): void {
 
 // --- Drag ---
 const rootEl = ref<HTMLElement | null>(null)
+const hostNameEl = ref<HTMLElement | null>(null)
+const disconnectBubbleEl = ref<HTMLElement | null>(null)
 const x = ref(props.initialX)
 const y = ref(props.initialY)
 
 let dragOffsetX = 0
 let dragOffsetY = 0
 let activePointerId: number | null = null
+let nameAreaTl: gsap.core.Timeline | null = null
+
+const reducedMotion =
+  typeof window !== 'undefined' &&
+  window.matchMedia &&
+  window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+function ensureNameAreaTimeline(): gsap.core.Timeline | null {
+  if (nameAreaTl) return nameAreaTl
+  if (!hostNameEl.value || !disconnectBubbleEl.value) return null
+  nameAreaTl = gsap
+    .timeline({ paused: true, defaults: { ease: 'power2.out' } })
+    .to(
+      hostNameEl.value,
+      {
+        duration: 0.2,
+        scale: 0.72,
+        opacity: 0,
+        transformOrigin: 'center center'
+      },
+      0
+    )
+    .to(
+      disconnectBubbleEl.value,
+      {
+        duration: 0.22,
+        opacity: 1,
+        scale: 1,
+        ease: 'back.out(1.6)'
+      },
+      0
+    )
+  return nameAreaTl
+}
+
+function onNameAreaEnter(): void {
+  if (!hostNameEl.value || !disconnectBubbleEl.value) return
+  if (reducedMotion) {
+    hostNameEl.value.style.opacity = '0'
+    hostNameEl.value.style.transform = 'scale(0.72)'
+    disconnectBubbleEl.value.style.opacity = '1'
+    disconnectBubbleEl.value.style.transform = 'translate(-50%, -50%) scale(1)'
+    disconnectBubbleEl.value.style.pointerEvents = 'auto'
+    return
+  }
+  const timeline = ensureNameAreaTimeline()
+  if (!timeline) return
+  disconnectBubbleEl.value.style.pointerEvents = 'auto'
+  timeline.play()
+}
+
+function onNameAreaLeave(): void {
+  if (!hostNameEl.value || !disconnectBubbleEl.value) return
+  if (reducedMotion) {
+    hostNameEl.value.style.opacity = '1'
+    hostNameEl.value.style.transform = 'scale(1)'
+    disconnectBubbleEl.value.style.opacity = '0'
+    disconnectBubbleEl.value.style.transform = 'translate(-50%, -50%) scale(0)'
+    disconnectBubbleEl.value.style.pointerEvents = 'none'
+    return
+  }
+  const timeline = ensureNameAreaTimeline()
+  if (!timeline) return
+  timeline.reverse()
+  disconnectBubbleEl.value.style.pointerEvents = 'none'
+}
+
+onMounted(() => {
+  if (disconnectBubbleEl.value && !reducedMotion) {
+    gsap.set(disconnectBubbleEl.value, { scale: 0, opacity: 0 })
+  }
+})
 
 const startDrag = (event: PointerEvent): void => {
   const target = event.currentTarget as HTMLElement
@@ -607,6 +695,8 @@ const onPointerUp = (event: PointerEvent): void => {
 onBeforeUnmount(() => {
   holdCancel()
   cancelLeave()
+  nameAreaTl?.kill()
+  nameAreaTl = null
   if (rootEl.value && activePointerId !== null) {
     rootEl.value.removeEventListener('pointermove', onPointerMove)
     rootEl.value.removeEventListener('pointerup', onPointerUp)

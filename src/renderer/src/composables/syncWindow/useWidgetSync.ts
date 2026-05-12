@@ -35,7 +35,8 @@ export function useWidgetSync(): void {
         payload: {
           micActive: !sessionStore.microphoneMuted && sessionStore.localMicrophoneVolume > 0,
           sysActive: sessionStore.localSystemAudioVolume > 0,
-          guestMicActive: sessionStore.remoteMicVolume > 0 && !audioStore.guestRelayMicrophoneMuted,
+          // Host widget button should reflect host-side guest mic routing toggle.
+          guestMicActive: sessionStore.remoteMicVolume > 0,
           controlGranted: hidChannel.isControlGranted.value,
           clipboardSyncEnabled: hidChannel.clipboardSyncEnabled.value,
           chatHasUnread: chatService.hasUnread.value,
@@ -142,6 +143,7 @@ export function useWidgetSync(): void {
         () => sessionStore.localMicrophoneVolume,
         () => sessionStore.localSystemAudioVolume,
         () => sessionStore.remoteMicVolume,
+        () => audioStore.guestRelayMicrophoneMuted,
         () => hidChannel.isControlGranted.value,
         () => hidChannel.clipboardSyncEnabled.value,
         () => chatService.hasUnread.value,

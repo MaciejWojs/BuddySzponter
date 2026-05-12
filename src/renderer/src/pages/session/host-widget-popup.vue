@@ -62,7 +62,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 
-type PopupKey = 'mic' | 'sys' | 'guestMic' | 'guestSys'
+type PopupKey = 'mic' | 'sys' | 'guestMic'
 
 const popupKey = ref<PopupKey | null>(null)
 const isActive = ref(true)
@@ -101,18 +101,6 @@ const iconPaths: Record<PopupKey, Array<Record<string, string>>> = {
       'stroke-linecap': 'round',
       'stroke-linejoin': 'round',
       d: 'M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75'
-    }
-  ],
-  guestSys: [
-    {
-      'stroke-linecap': 'round',
-      'stroke-linejoin': 'round',
-      d: 'M11 5L6 9H2v6h4l5 4V5zM15.54 8.46a5 5 0 0 1 0 7.07'
-    },
-    {
-      'stroke-linecap': 'round',
-      'stroke-linejoin': 'round',
-      d: 'M17 21v-2a2 2 0 0 0-2-2h-1M16 3.13a4 4 0 0 1 0 7.75'
     }
   ]
 }

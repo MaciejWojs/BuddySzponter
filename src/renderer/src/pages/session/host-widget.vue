@@ -31,7 +31,8 @@ const state = ref({
   guestMicActive: true,
   controlGranted: false,
   clipboardSyncEnabled: false,
-  chatHasUnread: false
+  chatHasUnread: false,
+  chatVisible: false
 })
 
 let syncChannel: BroadcastChannel | null = null
@@ -81,7 +82,10 @@ const setWidgetMode = (mode: 'normal' | 'compact' | 'hidden' | 'peek'): void => 
 
 const toggleChat = async (): Promise<void> => {
   if (window.api?.app?.showHostChatWindow) {
-    await window.api.app.showHostChatWindow().catch(() => undefined)
+    const isVisible = await window.api.app.showHostChatWindow().catch(() => undefined)
+    if (typeof isVisible === 'boolean') {
+      state.value.chatVisible = isVisible
+    }
   }
 }
 

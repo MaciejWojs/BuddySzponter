@@ -1,7 +1,7 @@
 import { app, shell, BrowserWindow, ipcMain, session, desktopCapturer } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
-import icon from '../../resources/icon.png?asset'
+import icon from '../../resources/Icon.svg?asset'
 import { handshake } from './utils/handshake'
 import { secureStore } from './store/secureStore'
 import { API_ROUTES } from './apiRoutes'
