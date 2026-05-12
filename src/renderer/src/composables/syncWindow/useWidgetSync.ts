@@ -58,7 +58,8 @@ export function useWidgetSync(): void {
           localMicrophoneVolume: sessionStore.localMicrophoneVolume,
           remoteSystemVolume: sessionStore.remoteSystemVolume,
           rtcStatus: webRtcStore.rtcStatus,
-          connectionCode: connectionStore.connectionCode
+          connectionCode: connectionStore.connectionCode,
+          hostName: chatService.localSenderName.value || ''
         }
       })
     }
@@ -156,7 +157,8 @@ export function useWidgetSync(): void {
         sessionStore.localMicrophoneVolume,
         sessionStore.remoteSystemVolume,
         webRtcStore.rtcStatus,
-        connectionStore.connectionCode
+        connectionStore.connectionCode,
+        chatService.localSenderName.value
       ],
       () => pushStateToGuestAndTray(),
       { deep: true }
