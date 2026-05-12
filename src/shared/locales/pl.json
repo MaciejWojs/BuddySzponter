@@ -387,5 +387,18 @@
       "pictures": "Obrazy",
       "music": "Muzyka"
     }
+  },
+  "boot": {
+    "loading": "Uruchamianie…",
+    "loadingSettings": "Ładowanie ustawień i wersji…",
+    "loadingSocket": "Inicjalizacja połączenia…",
+    "loadingSession": "Przywracanie sesji…",
+    "loadingDevices": "Wykrywanie urządzeń audio…",
+    "preparingViews": "Przygotowywanie widoków…",
+    "preparingChatWindow": "Przygotowywanie okna czatu…",
+    "preparingGuestWindow": "Przygotowywanie okna gościa…",
+    "preparingHostWidget": "Przygotowywanie widgetu hosta…",
+    "preparingHostWidgetPopup": "Przygotowywanie menu widgetu…",
+    "checkingUpdates": "Sprawdzanie aktualizacji…"
   }
 }

@@ -251,5 +251,18 @@
     "errorGeneric": "An unexpected error occurred.",
     "networkError": "Network/server connection error.",
     "copied": "Copied to clipboard!"
+  },
+  "boot": {
+    "loading": "Starting…",
+    "loadingSettings": "Loading settings and version…",
+    "loadingSocket": "Initializing connection…",
+    "loadingSession": "Restoring session…",
+    "loadingDevices": "Detecting audio devices…",
+    "preparingViews": "Preparing views…",
+    "preparingChatWindow": "Preparing chat window…",
+    "preparingGuestWindow": "Preparing guest window…",
+    "preparingHostWidget": "Preparing host widget…",
+    "preparingHostWidgetPopup": "Preparing widget menu…",
+    "checkingUpdates": "Checking for updates…"
   }
 }

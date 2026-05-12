@@ -1,13 +1,11 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, watch } from 'vue'
+import { storeToRefs } from 'pinia'
 
-import { useSettingsStore } from '@renderer/stores/settingsStore'
-import { useUserStore } from './stores/userStore'
-import { useSocketStore } from '@renderer/stores/socketStore'
-import { useDeviceStore } from './stores/deviceStore'
 import { useAudioMixer } from './services/audio/out/useAudioMixer'
 import { useWebRtcStore } from './stores/webRtcStore'
 import { useConnectionStore } from './stores/connectionStore'
+import { useBootStore } from '@renderer/stores/bootStore'
 
 import { useGuestSync } from '@renderer/composables/syncWindow/useGuestSync'
 import { useWidgetSync } from './composables/syncWindow/useWidgetSync'
@@ -16,6 +14,7 @@ import { useCaptureStore } from '@renderer/stores/captureStore'
 import { isVideoQualityPreset } from '@shared/schemas/appPreferences'
 import { applyDocumentTheme } from '@renderer/utils/themeDocument'
 import GuestFixedSessionToast from '@renderer/components/toasts/GuestFixedSessionToast.vue'
+import AppBootOverlay from '@renderer/components/AppBootOverlay.vue'
 
 /** Viewport w portalu do body; wysoki z-index żeby był nad UserIcon / dropdownami (do ~2000). */
 const toaster = {
@@ -29,10 +28,8 @@ const toaster = {
 
 const webRtcStore = useWebRtcStore()
 const connectionStore = useConnectionStore()
-const settingsStore = useSettingsStore()
-const socketStore = useSocketStore()
-const userStore = useUserStore()
-const deviceStore = useDeviceStore()
+const bootStore = useBootStore()
+const { isBootComplete } = storeToRefs(bootStore)
 
 // Ustawienia i stan inicjalizujemy w zależności od typu okna
 const isHostChatWindow = window.location.hash.includes('host-chat')
@@ -56,10 +53,6 @@ if (isMainWindow) {
     }
   })()
 
-  settingsStore.initSettings()
-  socketStore.init()
-  userStore.initSession()
-  deviceStore.refreshMicrophones()
   useAudioMixer()
   useWidgetSync()
   useHostChatPortalSync('main')
@@ -70,12 +63,16 @@ if (isMainWindow) {
 }
 
 onMounted(() => {
-  if (isMainWindow) {
+  if (!isMainWindow) {
+    return
+  }
+  void (async (): Promise<void> => {
+    await bootStore.runMainWindowBoot()
     // Opóźnienie zapobiegające wywołaniu API, zanim userStore zdąży zainicjować token (unikamy "Connection token missing")
     setTimeout(async () => {
       await connectionStore.restoreDefaultHost()
     }, 1000)
-  }
+  })()
 })
 
 const isRtcConnected = computed(() => webRtcStore.rtcStatus === 'connected')
@@ -110,6 +107,7 @@ if (isMainWindow) {
 
 <template>
   <UApp :toaster="toaster">
+    <AppBootOverlay v-if="isMainWindow && !isBootComplete" />
     <GuestFixedSessionToast />
     <WidgetControlListener>
       <router-view />
