@@ -1,7 +1,7 @@
 import { app, shell, BrowserWindow, ipcMain, session, desktopCapturer } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
-import icon from '../../resources/Icon.svg?asset'
+import icon from '../../resources/icon.png?asset'
 import { handshake } from './utils/handshake'
 import { secureStore } from './store/secureStore'
 import { API_ROUTES } from './apiRoutes'
@@ -46,6 +46,10 @@ let isQuitting = false
 export function quitApp(): void {
   isQuitting = true
   app.quit()
+  // Some auxiliary windows prevent close() by design; force process exit as a fallback.
+  setTimeout(() => {
+    app.exit(0)
+  }, 800)
 }
 
 export let previousBounds: Electron.Rectangle | null = null
@@ -84,7 +88,7 @@ function createWindow(): void {
     height: 670,
     show: false,
     autoHideMenuBar: true,
-    ...(process.platform === 'linux' ? { icon } : {}),
+    icon,
     webPreferences: {
       autoplayPolicy: 'no-user-gesture-required',
       preload: join(__dirname, '../preload/index.js'),
@@ -136,7 +140,7 @@ if (!gotTheLock) {
   }
 
   app.whenReady().then(async () => {
-    electronApp.setAppUserModelId('com.electron')
+    electronApp.setAppUserModelId('com.buddyszponter.app')
 
     app.commandLine.appendSwitch('disable-renderer-backgrounding')
     app.commandLine.appendSwitch('disable-background-timer-throttling')
