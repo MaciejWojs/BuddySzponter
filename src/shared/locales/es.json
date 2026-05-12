@@ -79,6 +79,11 @@
     "joinErrorDisconnected": "Se perdió la conexión con la sesión.",
     "joinErrorUnknownWithDetail": "No se pudo unir: {detail}"
   },
+  "hostConnecting": {
+    "title": "Conectando…",
+    "hint": "Estableciendo conexión entre pares. La sesión finalizará automáticamente tras un minuto o si falla la conexión.",
+    "disconnect": "Desconectar"
+  },
   "menuNav": {
     "settingsTitle": "Ajustes",
     "settingsLead": "Idioma de la interfaz.",

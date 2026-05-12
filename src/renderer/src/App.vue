@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, watch } from 'vue'
 import { storeToRefs } from 'pinia'
+import { useRouter } from 'vue-router'
 
 import { useAudioMixer } from './services/audio/out/useAudioMixer'
 import { useWebRtcStore } from './stores/webRtcStore'
@@ -91,6 +92,25 @@ const syncWindowMode = async (hostActive: boolean): Promise<void> => {
 }
 
 if (isMainWindow) {
+  const router = useRouter()
+  const hostConnectingPath = '/session/host-connecting'
+
+  /** `beforeEach` nie odpala się przy samej zmianie stanu WebRTC — trzeba zsynchronizować trasę. */
+  watch(
+    () => connectionStore.isHost && webRtcStore.rtcStatus === 'connecting',
+    (isHostConnecting) => {
+      const path = router.currentRoute.value.path.toLowerCase()
+      if (isHostConnecting) {
+        if (path !== hostConnectingPath) {
+          void router.replace(hostConnectingPath)
+        }
+      } else if (path === hostConnectingPath) {
+        void router.replace('/')
+      }
+    },
+    { flush: 'post', immediate: true }
+  )
+
   watch(
     isHostConnected,
     (hostActive) => {

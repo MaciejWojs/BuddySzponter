@@ -96,6 +96,11 @@
     "joinErrorDisconnected": "Połączenie z sesją zostało zerwane.",
     "joinErrorUnknownWithDetail": "Nie udało się dołączyć: {detail}"
   },
+  "hostConnecting": {
+    "title": "Trwa łączenie…",
+    "hint": "Nawiązywane jest połączenie peer-to-peer. Po niepowodzeniu lub po upływie minuty sesja zostanie zakończona automatycznie.",
+    "disconnect": "Rozłącz"
+  },
   "menuNav": {
     "settingsTitle": "Ustawienia",
     "settingsLead": "Język interfejsu.",

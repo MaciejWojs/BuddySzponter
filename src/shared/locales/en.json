@@ -108,6 +108,11 @@
     "joinErrorDisconnected": "The session connection was lost.",
     "joinErrorUnknownWithDetail": "Could not join: {detail}"
   },
+  "hostConnecting": {
+    "title": "Connecting…",
+    "hint": "Establishing a peer-to-peer connection. The session will end automatically after one minute or if the connection fails.",
+    "disconnect": "Disconnect"
+  },
   "menuNav": {
     "settingsTitle": "Settings",
     "settingsLead": "Interface language.",
