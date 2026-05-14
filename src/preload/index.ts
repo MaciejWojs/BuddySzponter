@@ -236,6 +236,11 @@ const api = {
       ipcRenderer.invoke('clipboard:set-text-from-sync', text),
     setSyncFiles: (paths: string[]): Promise<boolean> =>
       ipcRenderer.invoke('clipboard:set-files-from-sync', paths),
+    setSyncFilesRemote: (
+      files: { fileName: string; data: Buffer | Uint8Array }[]
+    ): Promise<boolean> => ipcRenderer.invoke('clipboard:set-files-remote-from-sync', files),
+    getSyncFilesRemote: (): Promise<string[] | null> =>
+      ipcRenderer.invoke('clipboard:get-files-remote-from-sync'),
     onBridgeText: (callback: (text: string) => void) => {
       const listener = (_: unknown, payload: { text: string }): void => {
         if (typeof payload?.text === 'string') callback(payload.text)

@@ -1,5 +1,5 @@
 import { ipcMain, screen, BrowserWindow, app } from 'electron'
-import { InputBridge, getCursorType, type InputEvent } from '@maciejwojs/input-bridge'
+import { InputBridge, getCursorType, type InputEvent, type ClipboardRemoteFile } from '@maciejwojs/input-bridge'
 import { broadcastLockoutToWidget } from '../hostWidget'
 import { MonitorMetadata } from '@maciejwojs/screen-capture'
 
@@ -200,6 +200,20 @@ class InputController {
     return this.bridge.setClipboardFiles(filePaths)
   }
 
+  setClipboardFilesRemote(files: ClipboardRemoteFile[]): boolean {
+    if (!this.bridge) return false
+    return this.bridge.setClipboardFilesRemote(files)
+  }
+
+  getClipboardFilesRemote(): string[] | null {
+    if (!this.bridge) return null
+    try {
+      return this.bridge.getClipboardFilesRemote()
+    } catch {
+      return null
+    }
+  }
+
   getSessionHandle(): string | null {
     return this.bridge?.getPortalSessionHandle() || null
   }
@@ -369,7 +383,7 @@ class InputController {
     this.bridge.setMonitors(monitors)
   }
 
-  getMonitors() {
+  getMonitors(): MonitorMetadata[] {
     if (!this.bridge) return []
     return this.bridge.getMonitors().map((m) => ({
       id: m.id,
@@ -652,6 +666,37 @@ export const inputService = {
       const normalized = normalizeClipboardFilePaths(paths)
       if (!normalized) return false
       return this.controller.setClipboardFiles(normalized)
+    })
+
+    ipcMain.handle('clipboard:set-files-remote-from-sync', (_e, files: unknown) => {
+      if (!Array.isArray(files)) return false
+      try {
+        const normalizedFiles: ClipboardRemoteFile[] = []
+        for (const item of files) {
+          if (
+            typeof item === 'object' &&
+            item !== null &&
+            typeof item.fileName === 'string' &&
+            (item.data instanceof Buffer || item.data instanceof Uint8Array)
+          ) {
+            const file: ClipboardRemoteFile = {
+              fileName: item.fileName,
+              data: item.data
+            }
+            normalizedFiles.push(file)
+            if (normalizedFiles.length >= CLIPBOARD_FILES_MAX) break
+          }
+        }
+        if (normalizedFiles.length === 0) return false
+        return this.controller.setClipboardFilesRemote(normalizedFiles)
+      } catch (e) {
+        console.error('[InputService] Błąd przy ustawianiu remote clipboard files:', e)
+        return false
+      }
+    })
+
+    ipcMain.handle('clipboard:get-files-remote-from-sync', () => {
+      return this.controller.getClipboardFilesRemote()
     })
   }
 }
