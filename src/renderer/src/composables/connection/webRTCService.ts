@@ -354,6 +354,12 @@ export class WebRTCService {
       channel.onopen = handleOpen
     }
 
+    // Domyślnie część przeglądarek podaje binaria jako Blob → async arrayBuffer()
+    // miesza kolejność względem stringów (JSON). Wymuszamy ArrayBuffer.
+    if (channel.label === 'file-transfer') {
+      channel.binaryType = 'arraybuffer'
+    }
+
     channel.onmessage = (e): void => {
       if (!this.onMessageReceived) return
       const raw = e.data

@@ -7,6 +7,8 @@ const CLIPBOARD_TEXT_MAX_LENGTH = 262_144
 const CLIPBOARD_FILES_MAX = 64
 const CLIPBOARD_FILE_PATH_MAX = 4096
 
+const CLIPBOARD_P2P_LOG = '[ClipboardP2P]'
+
 function normalizeClipboardFilePaths(data: unknown): string[] | null {
   if (!Array.isArray(data)) return null
   const out: string[] = []
@@ -94,10 +96,13 @@ class InputController {
       }
       if (event.type === 'files') {
         const paths = normalizeClipboardFilePaths(event.data)
-        if (!paths) return
-        if (this.clipboardFilesSyncOnPasteOnly) {
+        if (!paths) {
+          console.info(CLIPBOARD_P2P_LOG, 'onClipboard(files): no valid paths')
           return
         }
+        console.info(CLIPBOARD_P2P_LOG, 'onClipboard(files) → broadcast', {
+          count: paths.length
+        })
         inputService.broadcastClipboardFiles(paths)
       }
     })
@@ -137,6 +142,7 @@ class InputController {
         return
       }
       this.clipboardFilesSyncOnPasteOnly = true
+      console.info(CLIPBOARD_P2P_LOG, 'Windows paste-only clipboard files sync enabled')
     } catch {
       this.clipboardFilesSyncOnPasteOnly = false
     }
@@ -185,8 +191,10 @@ class InputController {
     }
     const paths = normalizeClipboardFilePaths(raw)
     if (!paths) {
+      console.info(CLIPBOARD_P2P_LOG, 'Ctrl+V paste: getClipboardFiles returned no paths')
       return
     }
+    console.info(CLIPBOARD_P2P_LOG, 'Ctrl+V paste → broadcastClipboardFiles', { count: paths.length })
     inputService.broadcastClipboardFiles(paths)
   }
 
@@ -537,6 +545,7 @@ export const inputService = {
   },
 
   broadcastClipboardFiles(paths: string[]): void {
+    console.info(CLIPBOARD_P2P_LOG, 'broadcastClipboardFiles to windows', { count: paths.length })
     for (const win of BrowserWindow.getAllWindows()) {
       if (win.isDestroyed()) continue
       win.webContents.send('clipboard:bridge-files-change', { paths })
@@ -590,13 +599,13 @@ export const inputService = {
 
     ipcMain.handle('input:move-absolute', async (_e, x: number, y: number) => {
       if (!Number.isFinite(x) || !Number.isFinite(y) || isLocked()) return
-      console.log(
-        `[input:move-absolute] Monitor idx: ${this.monitorIndex}, received x=${x} y=${y} (raw, before round)`
-      )
+      // console.log(
+      //   `[input:move-absolute] Monitor idx: ${this.monitorIndex}, received x=${x} y=${y} (raw, before round)`
+      // )
       const newX = this.startingX + x
-      console.log(
-        `[input:move-absolute] Monitor idx: ${this.monitorIndex}, received x=${newX} y=${y} (raw, after calculation)`
-      )
+      // console.log(
+      //   `[input:move-absolute] Monitor idx: ${this.monitorIndex}, received x=${newX} y=${y} (raw, after calculation)`
+      // )
       await this.controller.move(Math.round(newX), Math.round(y))
     })
 
@@ -688,7 +697,13 @@ export const inputService = {
           }
         }
         if (normalizedFiles.length === 0) return false
-        return this.controller.setClipboardFilesRemote(normalizedFiles)
+        const ok = this.controller.setClipboardFilesRemote(normalizedFiles)
+        console.info(CLIPBOARD_P2P_LOG, 'clipboard:set-files-remote-from-sync', {
+          ok,
+          fileCount: normalizedFiles.length,
+          sizes: normalizedFiles.map((f) => ({ name: f.fileName, bytes: f.data.length }))
+        })
+        return ok
       } catch (e) {
         console.error('[InputService] Błąd przy ustawianiu remote clipboard files:', e)
         return false

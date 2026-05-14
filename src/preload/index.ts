@@ -252,7 +252,14 @@ const api = {
     },
     onBridgeFiles: (callback: (paths: string[]) => void) => {
       const listener = (_: unknown, payload: { paths: string[] }): void => {
-        if (Array.isArray(payload?.paths)) callback(payload.paths)
+        if (Array.isArray(payload?.paths)) {
+          console.info('[ClipboardP2P]', 'IPC clipboard:bridge-files-change', {
+            count: payload.paths.length
+          })
+          callback(payload.paths)
+        } else {
+          console.warn('[ClipboardP2P]', 'IPC clipboard:bridge-files-change invalid payload', payload)
+        }
       }
       ipcRenderer.on('clipboard:bridge-files-change', listener)
       return () => {
