@@ -24,6 +24,11 @@ type ActiveReceive = {
   currentFileIndex: number
   nextChunkIndex: number
   bytesInCurrentFile: number
+  /**
+   * Clipboard source na Windows przez `setSyncFilesRemote` (COM IDataObject) bywa nietrwałe
+   * (często "działa tylko raz"). Dla stabilności wymuszamy zapis na dysk → `setSyncFiles` (CF_HDROP).
+   */
+  clipboardStorage?: 'remote' | 'disk'
   /** Składowanie chunków bieżącego pliku (tylko source === 'clipboard'). */
   clipboardCurrentChunks?: Uint8Array[]
   /** Ukończone pliki przed `setSyncFilesRemote` (tylko clipboard). */
@@ -54,7 +59,12 @@ let clipboardBridgeEchoMuteUntil = 0
 
 export function beginClipboardBridgeEchoMute(ms = 5000): void {
   clipboardBridgeEchoMuteUntil = Date.now() + ms
-  console.info(LOG, 'echo mute until', new Date(clipboardBridgeEchoMuteUntil).toISOString(), `(${ms}ms)`)
+  console.info(
+    LOG,
+    'echo mute until',
+    new Date(clipboardBridgeEchoMuteUntil).toISOString(),
+    `(${ms}ms)`
+  )
 }
 
 export function shouldIgnoreClipboardBridgeFilesEcho(): boolean {
@@ -376,31 +386,41 @@ async function handleIncomingOffer(payload: {
 
   // Dla clipboard: odbiór chunków w RAM → setSyncFilesRemote (bez plików na dysku)
   if (payload.source === 'clipboard') {
-    activeReceive = {
-      transferId: payload.transferId,
-      source: payload.source,
-      files: payload.files,
-      outputPaths: [],
-      currentFileIndex: 0,
-      nextChunkIndex: 0,
-      bytesInCurrentFile: 0,
-      clipboardCurrentChunks: [],
-      clipboardDoneFiles: []
+    const useDiskClipboardOnWindows =
+      typeof navigator !== 'undefined' && navigator.platform?.includes('Win')
+
+    // On Windows omijamy `setSyncFilesRemote` (remote clipboard via IDataObject)
+    // i idziemy w stabilny wariant CF_HDROP: zapis na dysk → `setSyncFiles`.
+    if (!useDiskClipboardOnWindows) {
+      activeReceive = {
+        transferId: payload.transferId,
+        source: payload.source,
+        files: payload.files,
+        outputPaths: [],
+        currentFileIndex: 0,
+        nextChunkIndex: 0,
+        bytesInCurrentFile: 0,
+        clipboardStorage: 'remote',
+        clipboardCurrentChunks: [],
+        clipboardDoneFiles: []
+      }
+
+      console.info(LOG, 'clipboard receive → FILE_ACCEPT', {
+        transferId: payload.transferId,
+        files: payload.files
+      })
+
+      webRtcService.sendData(
+        'file-transfer',
+        JSON.stringify({
+          type: 'FILE_ACCEPT',
+          payload: { transferId: payload.transferId, files: payload.files }
+        })
+      )
+      return
     }
 
-    console.info(LOG, 'clipboard receive → FILE_ACCEPT', {
-      transferId: payload.transferId,
-      files: payload.files
-    })
-
-    webRtcService.sendData(
-      'file-transfer',
-      JSON.stringify({
-        type: 'FILE_ACCEPT',
-        payload: { transferId: payload.transferId, files: payload.files }
-      })
-    )
-    return
+    // Dla Windows: dalej wykonujemy "disk branch" poniżej (zapis plików + `setSyncFiles`).
   }
 
   const baseDir = await ensureDownloadDir()
@@ -456,7 +476,8 @@ async function handleIncomingOffer(payload: {
     outputPaths,
     currentFileIndex: 0,
     nextChunkIndex: 0,
-    bytesInCurrentFile: 0
+    bytesInCurrentFile: 0,
+    clipboardStorage: payload.source === 'clipboard' ? 'disk' : undefined
   }
 
   console.info(LOG, 'disk receive → FILE_ACCEPT', {
@@ -596,12 +617,16 @@ function handleControlJson(obj: { type: string; payload: Record<string, unknown>
     if (recv.source === 'clipboard') {
       const cur = recv.files[recv.currentFileIndex]
       if (cur && recv.bytesInCurrentFile < cur.size) {
-        console.warn(LOG, 'FILE_COMPLETE (clipboard) przy niepełnym odbiorze — brak setSyncFilesRemote', {
-          transferId,
-          fileIndex: recv.currentFileIndex,
-          bytesInCurrentFile: recv.bytesInCurrentFile,
-          expectedSize: cur.size
-        })
+        console.warn(
+          LOG,
+          'FILE_COMPLETE (clipboard) przy niepełnym odbiorze — brak setSyncFilesRemote',
+          {
+            transferId,
+            fileIndex: recv.currentFileIndex,
+            bytesInCurrentFile: recv.bytesInCurrentFile,
+            expectedSize: cur.size
+          }
+        )
       }
       console.info(LOG, 'FILE_COMPLETE (clipboard) — completion in binary path', transferId)
       return
@@ -684,7 +709,7 @@ export async function dispatchFileTransferBinary(buf: ArrayBuffer): Promise<void
     return
   }
 
-  if (recv.source === 'clipboard') {
+  if (recv.source === 'clipboard' && recv.clipboardStorage !== 'disk') {
     if (!recv.clipboardCurrentChunks) recv.clipboardCurrentChunks = []
     if (!recv.clipboardDoneFiles) recv.clipboardDoneFiles = []
 
@@ -752,7 +777,8 @@ export async function dispatchFileTransferBinary(buf: ArrayBuffer): Promise<void
     recv.nextChunkIndex = 0
     recv.bytesInCurrentFile = 0
     if (recv.currentFileIndex >= recv.files.length) {
-      const pathsForClipboard = recv.outputPaths && recv.outputPaths.length > 0 ? recv.outputPaths : null
+      const pathsForClipboard =
+        recv.outputPaths && recv.outputPaths.length > 0 ? recv.outputPaths : null
       void window.api.fileTransfer.unregisterReceive(recv.transferId)
       activeReceive = null
       if (pathsForClipboard?.length) {
