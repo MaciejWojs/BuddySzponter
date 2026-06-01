@@ -66,8 +66,8 @@ export const useSocketStore = defineStore('socket', () => {
     if (isInitialized.value) return
     isInitialized.value = true
 
-    const rtcStore = useWebRtcStore()
     const connectionStore = useConnectionStore()
+    const rtcStore = useWebRtcStore()
     const signalingStore = useSignalingStore()
 
     if (!relayChannel) {
@@ -154,11 +154,14 @@ export const useSocketStore = defineStore('socket', () => {
       },
       onAccepted: (data) => {
         console.log('[SocketStore] Żądanie dostępu zaakceptowane:', data)
-        isAcknowledged.value = true
         incomingRequest.value = null
 
-        if (!connectionStore.isHost && window.api?.app?.openGuestWindow) {
-          window.api.app.openGuestWindow(data.sessionId)
+        // Host czeka na connection:acknowledged od gościa — nie ustawiaj isAcknowledged tutaj.
+        if (!connectionStore.isHost) {
+          isAcknowledged.value = true
+          if (window.api?.app?.openGuestWindow) {
+            window.api.app.openGuestWindow(data.sessionId)
+          }
         }
       },
       onRejected: () => {
@@ -173,9 +176,6 @@ export const useSocketStore = defineStore('socket', () => {
       onAcknowledged: () => {
         isAcknowledged.value = true
         incomingRequest.value = null
-        if (connectionStore.isHost && rtcStore.localStream) {
-          signalingStore.startConnectionAsHost()
-        }
       }
     })
 

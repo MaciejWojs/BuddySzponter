@@ -53,9 +53,10 @@ watch(
   { immediate: true }
 )
 
-function onUserRespond(accept: boolean): void {
+async function onUserRespond(accept: boolean): Promise<void> {
+  if (sessionStore.isResponding) return
   clearTick()
-  void sessionStore.handleRespond(accept)
+  await sessionStore.handleRespond(accept)
 }
 
 onUnmounted(() => {
@@ -88,7 +89,12 @@ onUnmounted(() => {
     </div>
 
     <div class="incoming-actions">
-      <button type="button" class="incoming-actions__accept" @click="onUserRespond(true)">
+      <button
+        type="button"
+        class="incoming-actions__accept"
+        :disabled="sessionStore.isResponding"
+        @click="onUserRespond(true)"
+      >
         <span>Akceptuj</span>
         <UIcon
           name="i-lucide-arrow-right"
@@ -100,6 +106,7 @@ onUnmounted(() => {
         type="button"
         class="incoming-actions__reject"
         aria-label="Odrzuć"
+        :disabled="sessionStore.isResponding"
         @click="onUserRespond(false)"
       >
         <UIcon name="i-lucide-x" class="incoming-actions__reject-icon" aria-hidden="true" />
@@ -149,6 +156,13 @@ onUnmounted(() => {
   align-items: center;
   gap: 10px;
   margin-top: 6px;
+}
+
+.incoming-actions__accept:disabled,
+.incoming-actions__reject:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 .incoming-actions__accept {

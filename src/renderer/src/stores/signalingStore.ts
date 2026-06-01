@@ -15,7 +15,6 @@ export const useSignalingStore = defineStore('signaling', () => {
 
   const startConnectionAsHost = async (): Promise<void> => {
     const audioStore = useAudioSettingsStore()
-    audioStore.microphoneMuted = true
 
     webRtcStore.setLocalPublishProfile('host')
     webRtcService.cleanup(true)
@@ -33,6 +32,7 @@ export const useSignalingStore = defineStore('signaling', () => {
     try {
       const offer = await webRtcService.createOffer()
       await socketStore.wsService.sendOffer({ sdp: JSON.stringify(offer) })
+      audioStore.microphoneMuted = true
     } catch (e) {
       console.error('[Signaling] Błąd tworzenia oferty:', e)
       webRtcStore.forceDisconnect()

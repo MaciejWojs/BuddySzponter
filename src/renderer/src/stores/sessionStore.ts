@@ -1,5 +1,5 @@
 import { defineStore, storeToRefs } from 'pinia'
-import { computed, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 
 import { useConnectionStore } from './connectionStore'
 import { useSocketStore } from './socketStore'
@@ -15,7 +15,6 @@ import { useHidChannel } from '@renderer/composables/channels/HidChannel'
 import { recordingService } from '@renderer/services/video/RecordingService'
 
 export const useSessionStore = defineStore('session', () => {
-  // Podstawowe story
   const connectionStore = useConnectionStore()
   const socketStore = useSocketStore()
   const webRtcStore = useWebRtcStore()
@@ -27,9 +26,28 @@ export const useSessionStore = defineStore('session', () => {
   const audioStore = useAudioSettingsStore()
   const captureStore = useCaptureStore()
 
-  // ==========================================
-  // ORCHESTRATION
-  // ==========================================
+  const isResponding = ref(false)
+  let hostSessionBootstrap: Promise<void> | null = null
+
+  const shouldSyncAudioTracks = (): boolean =>
+    socketStore.isAcknowledged && captureStore.isCapturing
+
+  const bootstrapHostSession = async (): Promise<void> => {
+    if (!captureStore.isCapturing) {
+      await captureStore.startHostCapture({ lite: true })
+      if (!captureStore.isCapturing) {
+        await captureStore.startHostCapture()
+      }
+    }
+
+    if (webRtcStore.rtcStatus === 'disconnected' && webRtcStore.localStream) {
+      await signalingStore.startConnectionAsHost()
+    }
+
+    if (captureStore.isCapturing) {
+      captureStore.completeHostCaptureSetup()
+    }
+  }
 
   watch(
     () => connectionStore.isHost,
@@ -57,46 +75,46 @@ export const useSessionStore = defineStore('session', () => {
 
   watch(
     () => socketStore.isAcknowledged,
-    async (ack): Promise<void> => {
-      if (!ack) return
+    (ack): void => {
+      if (!ack || !connectionStore.isHost) return
       logStore.addLog('WS_ACK_RECEIVED', 'Handshake zakończony!', 'socket')
+      if (hostSessionBootstrap) return
 
-      if (!captureStore.isCapturing) {
-        if (connectionStore.isHost) {
-          await captureStore.startHostCapture()
-        }
-      }
+      hostSessionBootstrap = (async () => {
+        await nextTick()
+        await bootstrapHostSession()
+      })().finally(() => {
+        hostSessionBootstrap = null
+      })
+    }
+  )
 
-      if (
-        connectionStore.isHost &&
-        webRtcStore.rtcStatus === 'disconnected' &&
-        webRtcStore.localStream
-      ) {
-        await signalingStore.startConnectionAsHost()
-      }
+  // Bez localStream w deps — unika pętli toggleTrack podczas budowy strumienia (regresja po cleanup).
+  watch(
+    () => audioStore.microphoneMuted,
+    (): void => {
+      if (!shouldSyncAudioTracks()) return
+      webRtcStore.toggleTrackByHint('audio', 'speech', !audioStore.microphoneMuted)
     }
   )
 
   watch(
-    () => [audioStore.microphoneMuted, webRtcStore.localStream] as const,
-    (): void => {
-      webRtcStore.toggleTrackByHint('audio', 'speech', !audioStore.microphoneMuted)
-    },
-    { immediate: true, deep: true }
-  )
-
-  watch(
-    () => [audioStore.includeSystemAudio, webRtcStore.localStream] as const,
-    (): void => {
-      webRtcStore.toggleTrackByHint('audio', 'music', audioStore.includeSystemAudio)
-    },
-    { immediate: true, deep: true }
+    () => audioStore.includeSystemAudio,
+    (isEnabled): void => {
+      if (!shouldSyncAudioTracks()) return
+      webRtcStore.toggleTrackByHint('audio', 'music', isEnabled)
+    }
   )
 
   const handleRespond = async (accept: boolean): Promise<void> => {
-    logStore.addLog('WS_SENDING_RESPONSE', `Odpowiedź: ${accept}`, 'socket')
-    if (accept) await captureStore.startHostCapture()
-    await socketStore.respondToRequest(accept)
+    if (isResponding.value) return
+    isResponding.value = true
+    try {
+      logStore.addLog('WS_SENDING_RESPONSE', `Odpowiedź: ${accept}`, 'socket')
+      await socketStore.respondToRequest(accept)
+    } finally {
+      isResponding.value = false
+    }
   }
 
   void deviceStore.refreshMicrophones()
@@ -105,6 +123,8 @@ export const useSessionStore = defineStore('session', () => {
     ...storeToRefs(audioStore),
     ...storeToRefs(deviceStore),
     ...storeToRefs(captureStore),
+
+    isResponding,
 
     toggleMicrophone: audioStore.toggleMicrophone,
     toggleSystemAudio: audioStore.toggleSystemAudio,

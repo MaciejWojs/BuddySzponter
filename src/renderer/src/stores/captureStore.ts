@@ -15,6 +15,11 @@ import type { VideoQualityPreset } from '@shared/schemas/appPreferences'
 
 export type { VideoQualityPreset }
 
+export type StartHostCaptureOptions = {
+  /** Wideo bez capture:start / getUserMedia — uzupełnienie w completeHostCaptureSetup(). */
+  lite?: boolean
+}
+
 export const useCaptureStore = defineStore('capture', () => {
   const webRtcStore = useWebRtcStore()
   const deviceStore = useDeviceStore()
@@ -26,8 +31,10 @@ export const useCaptureStore = defineStore('capture', () => {
   const isCapturing = computed((): boolean => currentCaptureMode.value !== null)
 
   const sharedTextureCaptureFps = 60
-
   const activeVideoQuality = ref<VideoQualityPreset>('high')
+
+  let hostCaptureInFlight: Promise<void> | null = null
+  let hostCaptureSetupInFlight: Promise<void> | null = null
 
   const applyQualityPreset = async (preset: VideoQualityPreset): Promise<void> => {
     activeVideoQuality.value = preset
@@ -70,12 +77,9 @@ export const useCaptureStore = defineStore('capture', () => {
     )
   }
 
-  const startHostCapture = async (): Promise<void> => {
-    if (
-      isCapturing.value &&
-      (currentCaptureMode.value === 'host-shared' || currentCaptureMode.value === 'host-native')
-    )
-      return
+  const startHostCaptureInternal = async (options: StartHostCaptureOptions = {}): Promise<void> => {
+    const lite = options.lite === true
+
     if (isCapturing.value) await stopCapture()
 
     webRtcStore.setLocalPublishProfile('host')
@@ -83,34 +87,29 @@ export const useCaptureStore = defineStore('capture', () => {
 
     if (window.screenCapture) {
       try {
-        const micTrack = await prepareExternalMicTrack()
+        const micTrack = lite ? null : await prepareExternalMicTrack()
         const stream = await screenCaptureService.startSharedTextureCapture(
           sharedTextureCaptureFps,
-          audioStore.includeSystemAudio,
+          lite ? false : audioStore.includeSystemAudio,
           audioStore.localSystemAudioVolume,
-          micTrack
+          micTrack,
+          { deferNativeStart: lite }
         )
 
         if (stream) {
           currentCaptureMode.value = 'host-shared'
           await assignLocalStream(stream)
           return
-        } else {
-          console.warn(
-            '[CaptureStore] Shared Texture Capture zwróciło null, przechodzenie do fallbacku.'
-          )
         }
       } catch (e) {
-        console.log('error w Shared Texture Capture:', e)
+        console.warn('[CaptureStore] Shared texture:', e)
       }
     }
 
-    try {
-      console.warn(
-        '[CaptureStore] Shared Texture Capture niedostępne, przechodzenie do fallbacku (getDisplayMedia + VideoService)'
-      )
-      const micTrack = await prepareExternalMicTrack()
+    if (lite) return
 
+    try {
+      const micTrack = await prepareExternalMicTrack()
       const displayStream = await navigator.mediaDevices.getDisplayMedia({
         video: true,
         audio: false
@@ -126,11 +125,53 @@ export const useCaptureStore = defineStore('capture', () => {
 
       currentCaptureMode.value = 'host-native'
       await assignLocalStream(stream)
-
       videoTrack.onended = () => stopCapture()
     } catch (err) {
       logStore.addLog('ERROR', `Błąd przechwytywania natywnego: ${err}`, 'api')
     }
+  }
+
+  const startHostCapture = async (options: StartHostCaptureOptions = {}): Promise<void> => {
+    if (
+      isCapturing.value &&
+      (currentCaptureMode.value === 'host-shared' || currentCaptureMode.value === 'host-native')
+    ) {
+      return
+    }
+    if (hostCaptureInFlight) return hostCaptureInFlight
+
+    hostCaptureInFlight = startHostCaptureInternal(options).finally(() => {
+      hostCaptureInFlight = null
+    })
+    return hostCaptureInFlight
+  }
+
+  const completeHostCaptureSetup = (): void => {
+    if (currentCaptureMode.value !== 'host-shared') return
+    if (hostCaptureSetupInFlight) return
+
+    hostCaptureSetupInFlight = (async (): Promise<void> => {
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, 0)
+      })
+
+      screenCaptureService.startNativeFrameDelivery()
+
+      if (!audioStore.includeMicrophone) return
+
+      const micTrack = await prepareExternalMicTrack()
+      const stream = webRtcStore.localStream
+      if (!micTrack || !stream) return
+
+      micTrack.contentHint = 'speech'
+      stream.addTrack(micTrack)
+      await assignLocalStream(stream)
+      webRtcStore.toggleTrackByHint('audio', 'speech', !audioStore.microphoneMuted)
+    })()
+      .catch((e) => console.warn('[CaptureStore] completeHostCaptureSetup:', e))
+      .finally(() => {
+        hostCaptureSetupInFlight = null
+      })
   }
 
   const startGuestCapture = async (): Promise<void> => {
@@ -142,12 +183,8 @@ export const useCaptureStore = defineStore('capture', () => {
 
     try {
       const micTrack = await prepareExternalMicTrack()
-
-      // Gość nie potrzebuje Miksera (videoService) ani wideo. Po prostu tworzymy strumień z mikrofonem.
       const stream = new MediaStream()
-      if (micTrack) {
-        stream.addTrack(micTrack)
-      }
+      if (micTrack) stream.addTrack(micTrack)
 
       currentCaptureMode.value = 'guest-mic'
       await assignLocalStream(stream)
@@ -163,7 +200,6 @@ export const useCaptureStore = defineStore('capture', () => {
 
     if (recordingService.isRecording) recordingService.stopRecording()
 
-    // Zatrzymujemy wszystkie serwisy
     screenCaptureService.stop()
     microphoneService.stop()
     await videoService.stop()
@@ -212,6 +248,7 @@ export const useCaptureStore = defineStore('capture', () => {
     activeVideoQuality,
     toggleScreenVideo,
     startHostCapture,
+    completeHostCaptureSetup,
     startGuestCapture,
     stopCapture,
     applySelectedMicrophone,

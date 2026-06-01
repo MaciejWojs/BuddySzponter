@@ -13,11 +13,18 @@ export class ScreenCaptureService {
   private lastFrameTime = 0
   private frameInterval = 0
 
+  public startNativeFrameDelivery(): void {
+    if (window.screenCapture && typeof window.screenCapture.requestStream === 'function') {
+      window.screenCapture.requestStream()
+    }
+  }
+
   public async startSharedTextureCapture(
     captureFps: number,
     includeSystemAudio: boolean,
     systemAudioVolume: number,
-    micTrack: MediaStreamTrack | null
+    micTrack: MediaStreamTrack | null,
+    options: { deferNativeStart?: boolean } = {}
   ): Promise<MediaStream | null> {
     try {
       if (typeof window.screenCapture.registerReceiver === 'function') {
@@ -50,15 +57,18 @@ export class ScreenCaptureService {
       })
 
       this.sharedTextureStream = await videoService.startWithExternalVideoTrack(generator, {
-        includeSystemAudio: includeSystemAudio,
+        includeSystemAudio,
+        skipSystemAudioPicker: true,
         externalMicTrack: micTrack ?? undefined,
-        systemAudioVolume: systemAudioVolume
+        systemAudioVolume
       })
 
       const videoTrack = this.sharedTextureStream.getVideoTracks()[0]
       if (videoTrack) videoTrack.enabled = true
 
-      window.screenCapture.requestStream()
+      if (!options.deferNativeStart) {
+        this.startNativeFrameDelivery()
+      }
       return this.sharedTextureStream
     } catch (e) {
       console.error('[ScreenCaptureService] Błąd inicjalizacji capture:', e)

@@ -299,7 +299,7 @@ if (!gotTheLock) {
           callback({ video: sources[0], audio: 'loopback' })
         })
       },
-      { useSystemPicker: true }
+      { useSystemPicker: false }
     )
 
     app.on('activate', function () {
