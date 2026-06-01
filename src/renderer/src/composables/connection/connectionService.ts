@@ -2,6 +2,7 @@
 
 import { CreateConnectionRequestSchema } from '@shared/schemas/connection'
 import { CreateConnectionResponse, JoinConnectionResponse } from '@shared/schemas/ipc'
+import { JOIN_RENDERER_NETWORK_MESSAGE } from '@shared/constants/joinFailureMessages'
 
 export class ConnectionService {
   private connectionCode: string | null = null
@@ -49,7 +50,7 @@ export class ConnectionService {
       return response
     } catch (error) {
       console.error('[ConnectionService] Error during connection creation:', error)
-      return { success: false, message: 'network error' }
+      return { success: false, message: JOIN_RENDERER_NETWORK_MESSAGE }
     }
   }
 
@@ -66,12 +67,12 @@ export class ConnectionService {
 
         console.log('[ConnectionService] Joined connection successfully')
       } else {
-        console.error('[ConnectionService] Failed to join connection:', response.message)
+        console.warn('[ConnectionService] Failed to join connection:', response.message)
       }
       return response
     } catch (error) {
       console.error('[ConnectionService] Error during joining connection:', error)
-      return { success: false, message: 'network error' }
+      return { success: false, message: JOIN_RENDERER_NETWORK_MESSAGE }
     }
   }
 }

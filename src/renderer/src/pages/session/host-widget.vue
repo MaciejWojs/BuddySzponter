@@ -3,6 +3,7 @@
     <HostWidgetNormal
       v-if="widgetMode === 'normal'"
       :state="state"
+      :guest-name="guestName"
       @send-command="sendCommand"
       @go-to-next-monitor="goToNextMonitor"
       @set-widget-mode="setWidgetMode"
@@ -22,16 +23,22 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 
+const guestName = ref<string>('')
+
 const state = ref({
   micActive: true,
   sysActive: true,
   guestMicActive: true,
   controlGranted: false,
   clipboardSyncEnabled: false,
-  chatHasUnread: false
+  chatHasUnread: false,
+  chatVisible: false,
+  currentMonitorIndex: 0,
+  monitorCount: 0
 })
 
 let syncChannel: BroadcastChannel | null = null
+let monitorStateRetryTimer: ReturnType<typeof setInterval> | null = null
 
 const widgetMode = ref<'normal' | 'compact' | 'hidden' | 'peek'>('normal')
 
@@ -40,25 +47,55 @@ onMounted(() => {
 
   syncChannel.onmessage = (event) => {
     if (event.data.type === 'STATE_UPDATE') {
-      state.value = { ...state.value, ...event.data.payload }
+      const { guestName: name, ...rest } = event.data.payload ?? {}
+      if (name !== undefined) guestName.value = name
+      state.value = { ...state.value, ...rest }
     }
   }
 
   syncChannel.postMessage({ type: 'REQUEST_STATE' })
+  void refreshMonitorState()
+  monitorStateRetryTimer = setInterval(() => {
+    if (state.value.monitorCount > 0) {
+      if (monitorStateRetryTimer) {
+        clearInterval(monitorStateRetryTimer)
+        monitorStateRetryTimer = null
+      }
+      return
+    }
+    void refreshMonitorState()
+  }, 800)
 })
 
 onUnmounted(() => {
   if (syncChannel) syncChannel.close()
+  if (monitorStateRetryTimer) {
+    clearInterval(monitorStateRetryTimer)
+    monitorStateRetryTimer = null
+  }
 })
+
+const refreshMonitorState = async (): Promise<void> => {
+  if (typeof window.capture?.getMonitorState !== 'function') return
+  const monitorState = await window.capture.getMonitorState().catch(() => null)
+  if (!monitorState) return
+
+  const count = Number(monitorState.count ?? 0)
+  const currentIndex = Number(monitorState.currentIndex ?? 0)
+  state.value.monitorCount = Number.isFinite(count) ? Math.max(0, count) : 0
+  state.value.currentMonitorIndex = Number.isFinite(currentIndex) ? Math.max(0, currentIndex) : 0
+}
 
 const goToNextMonitor = async (): Promise<void> => {
   if (typeof window.screenCapture?.nextMonitor === 'function') {
     await window.screenCapture.nextMonitor()
+    await refreshMonitorState()
     return
   }
 
   if (typeof window.capture?.nextMonitor === 'function') {
     await window.capture.nextMonitor()
+    await refreshMonitorState()
     return
   }
 
@@ -76,7 +113,10 @@ const setWidgetMode = (mode: 'normal' | 'compact' | 'hidden' | 'peek'): void => 
 
 const toggleChat = async (): Promise<void> => {
   if (window.api?.app?.showHostChatWindow) {
-    await window.api.app.showHostChatWindow().catch(() => undefined)
+    const isVisible = await window.api.app.showHostChatWindow().catch(() => undefined)
+    if (typeof isVisible === 'boolean') {
+      state.value.chatVisible = isVisible
+    }
   }
 }
 

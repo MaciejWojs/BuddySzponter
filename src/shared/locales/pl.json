@@ -67,7 +67,8 @@
     "description": "Wprowadź kod sesji, aby przekazać kontrolę nad swoim urządzeniem innemu użytkownikowi.",
     "sessionCode": "Kod sesji",
     "sessionPassword": "Hasło sesji",
-    "timeToJoin": "Pozostały czas:"
+    "timeToJoin": "Pozostały czas:",
+    "copySessionSharePopover": "Skopiowano kod i hasło"
   },
   "guestForm": {
     "title": "Dołącz do sesji",
@@ -75,7 +76,30 @@
     "sessionCode": "Kod sesji",
     "sessionPassword": "Hasło sesji",
     "joinButton": "Dołącz",
-    "timeToJoin": "Pozostały czas:"
+    "timeToJoin": "Pozostały czas:",
+    "clipboardShareDetected": "Wykryto kod i hasło ze schowka hosta.",
+    "applyClipboardShare": "Wypełnij pola",
+    "clipboardShareCancel": "Anuluj",
+    "pasteFromClipboard": "Wklej ze schowka",
+    "clipboardReadFailedTitle": "Brak dostępu do schowka",
+    "clipboardReadFailedDescription": "System nie pozwolił odczytać schowka. Spróbuj ponownie albo wklej dane w polach (Ctrl+V).",
+    "clipboardFormatNotRecognized": "nie rozpoznano formatu",
+    "joinErrorInvalidResponse": "Serwer zwrócił nieprawidłową odpowiedź.",
+    "joinErrorHandlerCatch": "Nie udało się dołączyć do połączenia. Spróbuj ponownie.",
+    "joinErrorWsAfterJoin": "Błąd WebSocket po dołączeniu do sesji.",
+    "joinErrorIncorrectPassword": "Nieprawidłowe hasło sesji.",
+    "joinErrorIncorrectSessionCode": "Nieprawidłowy kod sesji.",
+    "joinErrorFailedConnection": "Nie udało się nawiązać połączenia z serwerem.",
+    "joinErrorNetwork": "Błąd sieci — sprawdź połączenie.",
+    "joinErrorGeneric": "Nie udało się dołączyć do sesji.",
+    "joinErrorCritical": "Krytyczny błąd połączenia z serwerem.",
+    "joinErrorDisconnected": "Połączenie z sesją zostało zerwane.",
+    "joinErrorUnknownWithDetail": "Nie udało się dołączyć: {detail}"
+  },
+  "hostConnecting": {
+    "title": "Trwa łączenie…",
+    "hint": "Nawiązywane jest połączenie peer-to-peer. Po niepowodzeniu lub po upływie minuty sesja zostanie zakończona automatycznie.",
+    "disconnect": "Rozłącz"
   },
   "menuNav": {
     "settingsTitle": "Ustawienia",
@@ -368,5 +392,18 @@
       "pictures": "Obrazy",
       "music": "Muzyka"
     }
+  },
+  "boot": {
+    "loading": "Uruchamianie…",
+    "loadingSettings": "Ładowanie ustawień i wersji…",
+    "loadingSocket": "Inicjalizacja połączenia…",
+    "loadingSession": "Przywracanie sesji…",
+    "loadingDevices": "Wykrywanie urządzeń audio…",
+    "preparingViews": "Przygotowywanie widoków…",
+    "preparingChatWindow": "Przygotowywanie okna czatu…",
+    "preparingGuestWindow": "Przygotowywanie okna gościa…",
+    "preparingHostWidget": "Przygotowywanie widgetu hosta…",
+    "preparingHostWidgetPopup": "Przygotowywanie menu widgetu…",
+    "checkingUpdates": "Sprawdzanie aktualizacji…"
   }
 }

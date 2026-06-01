@@ -1,20 +1,67 @@
 import { BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
+import icon from '../../resources/icon.png?asset'
+
+/** Placeholder URL — tylko ładuje bundle widoku; przy `open-guest-window` okno przeładuje się na prawdziwy `sessionId`. */
+export const GUEST_PREWARM_SESSION_ID = '__buddy_prewarm__'
 
 let guestWindow: BrowserWindow | null = null
+let lastGuestSessionId: string | null = null
 
-export function createGuestWindow(sessionId: string): void {
+export type GuestWindowVisibility = 'visible' | 'hidden'
+
+function guestRouteHash(sessionId: string): string {
+  return `#/session/guest-view?sessionId=${encodeURIComponent(sessionId)}`
+}
+
+function loadGuestWindowContent(win: BrowserWindow, sessionId: string): void {
+  const route = guestRouteHash(sessionId)
+
+  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
+    void win.loadURL(`${process.env['ELECTRON_RENDERER_URL']}${route}`)
+  } else {
+    void win.loadFile(join(__dirname, '../renderer/index.html'), {
+      hash: route
+    })
+  }
+}
+
+function attachGuestShowOnce(win: BrowserWindow, showAfter: boolean): void {
+  win.once('ready-to-show', () => {
+    if (showAfter) {
+      win.show()
+      win.focus()
+    }
+  })
+}
+
+export function createGuestWindow(
+  sessionId: string,
+  visibility: GuestWindowVisibility = 'visible'
+): void {
+  const showAfter = visibility === 'visible'
+
   if (guestWindow && !guestWindow.isDestroyed()) {
-    guestWindow.focus()
+    if (lastGuestSessionId !== sessionId) {
+      lastGuestSessionId = sessionId
+      attachGuestShowOnce(guestWindow, showAfter)
+      loadGuestWindowContent(guestWindow, sessionId)
+    } else if (showAfter) {
+      guestWindow.show()
+      guestWindow.focus()
+    }
     return
   }
+
+  lastGuestSessionId = sessionId
 
   guestWindow = new BrowserWindow({
     width: 1280,
     height: 720,
     minWidth: 640,
     minHeight: 480,
+    icon,
     show: false,
     autoHideMenuBar: true,
     backgroundColor: '#000000',
@@ -26,19 +73,20 @@ export function createGuestWindow(sessionId: string): void {
     }
   })
 
-  guestWindow.on('ready-to-show', () => {
-    guestWindow?.show()
+  guestWindow.on('closed', () => {
+    guestWindow = null
+    lastGuestSessionId = null
   })
 
-  const route = `#/session/guest-view?sessionId=${sessionId}`
+  attachGuestShowOnce(guestWindow, showAfter)
+  loadGuestWindowContent(guestWindow, sessionId)
+}
 
-  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-    guestWindow.loadURL(`${process.env['ELECTRON_RENDERER_URL']}${route}`)
-  } else {
-    guestWindow.loadFile(join(__dirname, '../renderer/index.html'), {
-      hash: route
-    })
+export function prewarmGuestWindow(): void {
+  if (guestWindow && !guestWindow.isDestroyed()) {
+    return
   }
+  createGuestWindow(GUEST_PREWARM_SESSION_ID, 'hidden')
 }
 
 export function closeGuestWindow(): void {

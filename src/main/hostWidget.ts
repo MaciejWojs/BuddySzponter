@@ -1,13 +1,20 @@
 import { BrowserWindow, screen, ipcMain } from 'electron'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
+import icon from '../../resources/icon.png?asset'
 
 let hostWidgetWindow: BrowserWindow | null = null
 let isModeHandlerRegistered = false
 
-export function createHostWidget(): void {
+export type HostWidgetCreateMode = 'visible' | 'hidden'
+
+export function createHostWidget(mode: HostWidgetCreateMode = 'visible'): void {
+  const startHidden = mode === 'hidden'
+
   if (hostWidgetWindow && !hostWidgetWindow.isDestroyed()) {
-    hostWidgetWindow.showInactive()
+    if (!startHidden) {
+      hostWidgetWindow.showInactive()
+    }
     return
   }
 
@@ -22,6 +29,7 @@ export function createHostWidget(): void {
     height: WIDGET_HEIGHT,
     x: Math.round(width / 2 - WIDGET_WIDTH / 2),
     y: 20,
+    icon,
     show: false,
     frame: false,
     transparent: true,
@@ -75,8 +83,10 @@ export function createHostWidget(): void {
     event.preventDefault()
   })
 
-  hostWidgetWindow.on('ready-to-show', () => {
-    hostWidgetWindow?.showInactive()
+  hostWidgetWindow.once('ready-to-show', () => {
+    if (!startHidden) {
+      hostWidgetWindow?.showInactive()
+    }
   })
 
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
@@ -91,6 +101,9 @@ export function createHostWidget(): void {
     ipcMain.handle('set-host-widget-mode', (_, mode: 'normal' | 'compact' | 'hidden' | 'peek') => {
       setHostWidgetMode(mode)
     })
+    ipcMain.handle('set-host-widget-height', (_, height: number) => {
+      setHostWidgetHeight(height)
+    })
     ipcMain.on('move-host-widget', (event, { x, y }) => {
       const win = BrowserWindow.fromWebContents(event.sender)
       if (!win || win.isDestroyed()) return
@@ -99,6 +112,13 @@ export function createHostWidget(): void {
     })
     isModeHandlerRegistered = true
   }
+}
+
+export function prewarmHostWidget(): void {
+  if (hostWidgetWindow && !hostWidgetWindow.isDestroyed()) {
+    return
+  }
+  createHostWidget('hidden')
 }
 
 export function showHostWidget(): void {
@@ -117,6 +137,16 @@ export function broadcastLockoutToWidget(payload: { active: boolean; until: numb
   if (hostWidgetWindow && !hostWidgetWindow.isDestroyed()) {
     hostWidgetWindow.webContents.send('input:host-lockout', payload)
   }
+}
+
+export function setHostWidgetHeight(height: number): void {
+  if (!hostWidgetWindow || hostWidgetWindow.isDestroyed()) return
+  const bounds = hostWidgetWindow.getBounds()
+  hostWidgetWindow.setMinimumSize(1, 1)
+  hostWidgetWindow.setMaximumSize(10000, 10000)
+  hostWidgetWindow.setBounds({ ...bounds, height })
+  hostWidgetWindow.setMinimumSize(bounds.width, height)
+  hostWidgetWindow.setMaximumSize(bounds.width, height)
 }
 
 export function setHostWidgetMode(mode: 'normal' | 'compact' | 'hidden' | 'peek'): void {

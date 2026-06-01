@@ -1,6 +1,6 @@
 // renderer/src/stores/webRtcStore.ts
 import { defineStore } from 'pinia'
-import { ref, shallowRef, triggerRef } from 'vue'
+import { ref, shallowRef, triggerRef, watch } from 'vue'
 import {
   guestTrackPolicy,
   hostTrackPolicy,
@@ -19,12 +19,23 @@ import {
 import { chatService } from '@renderer/services/chatService'
 import { useSocketStore } from './socketStore'
 
+const HOST_P2P_CONNECT_TIMEOUT_MS = 60_000
+
 export const useWebRtcStore = defineStore('webrtc', () => {
   // --- STAN POŁĄCZENIA ---
   const rtcStatus = ref<'disconnected' | 'connecting' | 'connected'>('disconnected')
   const localStream = shallowRef<MediaStream | null>(null)
   const remoteStream = shallowRef<MediaStream | null>(null)
   const localPublishProfile = ref<'host' | 'guest'>('host')
+
+  let hostConnectingDeadlineTimer: ReturnType<typeof setTimeout> | null = null
+
+  const clearHostConnectingDeadline = (): void => {
+    if (hostConnectingDeadlineTimer != null) {
+      clearTimeout(hostConnectingDeadlineTimer)
+      hostConnectingDeadlineTimer = null
+    }
+  }
 
   const hid = useHidChannel()
 
@@ -71,6 +82,31 @@ export const useWebRtcStore = defineStore('webrtc', () => {
   webRtcService.onRemoteStreamReceived = (stream): void => {
     remoteStream.value = stream
   }
+
+  webRtcService.onConnectionFailed = (): void => {
+    if (localPublishProfile.value !== 'host' || rtcStatus.value !== 'connecting') return
+    console.log('[WebRtcStore] WebRTC failed while host connecting; full disconnect')
+    void useSocketStore().disconnect(true)
+  }
+
+  watch(
+    () => [rtcStatus.value, localPublishProfile.value] as const,
+    ([status, profile]) => {
+      if (status === 'connecting' && profile === 'host') {
+        clearHostConnectingDeadline()
+        hostConnectingDeadlineTimer = setTimeout(() => {
+          hostConnectingDeadlineTimer = null
+          if (rtcStatus.value === 'connecting' && localPublishProfile.value === 'host') {
+            console.log('[WebRtcStore] Host P2P connect timeout; full disconnect')
+            void useSocketStore().disconnect(true)
+          }
+        }, HOST_P2P_CONNECT_TIMEOUT_MS)
+      } else {
+        clearHostConnectingDeadline()
+      }
+    },
+    { immediate: true }
+  )
 
   webRtcService.onDataChannelOpened = (): void => {
     rtcStatus.value = 'connected'
@@ -129,6 +165,7 @@ export const useWebRtcStore = defineStore('webrtc', () => {
   }
 
   const forceDisconnect = (): void => {
+    clearHostConnectingDeadline()
     rtcStatus.value = 'disconnected'
     resetFileTransferState()
     webRtcService.cleanup()

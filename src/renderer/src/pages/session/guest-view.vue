@@ -7,10 +7,11 @@ import { webRtcService } from '@renderer/composables/connection/webRTCService'
 import { useWebRtcStore } from '@renderer/stores/webRtcStore'
 import { useAudioSettingsStore } from '@renderer/stores/audioSettingsStore'
 import { useHidChannel } from '@renderer/composables/channels/HidChannel'
+import { useRemoteAudioTracks } from '@renderer/composables/audio/useRemoteAudioTracks'
 import { chatService, type ChatPayload } from '@renderer/services/chatService'
 import { completeRelayOutgoingFileTransfer } from '@renderer/composables/channels/FileTransferChannel'
-import GuestFloatingPanel from '@renderer/components/session/guest/GuestFloatingPanel.vue'
 import GuestControlsToolbar from '@renderer/components/session/guest/GuestControlsToolbar.vue'
+import GuestFloatingPanel from '@renderer/components/session/guest/GuestFloatingPanel.vue'
 import ChatPanel from '@renderer/components/chat/ChatPanel.vue'
 
 const signalingStore = useSignalingStore()
@@ -18,14 +19,22 @@ const { sendCommand } = useGuestSync()
 const webRtcStore = useWebRtcStore()
 const audioStore = useAudioSettingsStore()
 const hidChannel = useHidChannel()
+const { micTrack: remoteMicTrack, systemTrack: remoteSystemTrack } = useRemoteAudioTracks()
 
 const isVideoReady = ref(false)
 const chatVisible = ref(false)
+const toolbarMode = ref<'normal' | 'compact' | 'hidden'>('normal')
+
+const handleSetMode = (mode: 'compact' | 'hidden'): void => {
+  toolbarMode.value = mode
+}
 
 const state = ref({
   microphoneMuted: true,
+  guestMicVolume: 1,
   localMicrophoneVolume: 1,
-  remoteSystemVolume: 1
+  remoteSystemVolume: 1,
+  hostName: ''
 })
 
 const handleVideoReady = (width: number, height: number): void => {
@@ -43,13 +52,24 @@ const handleMicToggle = (): void => {
   sendCommand('COMMAND_TOGGLE_MIC', muted)
 }
 
+const handleGuestMicVolumeChange = (value: number): void => {
+  state.value.guestMicVolume = value
+  audioStore.localMicrophoneVolume = value
+}
+
 const handleMicVolumeChange = (value: number): void => {
   state.value.localMicrophoneVolume = value
+  if (remoteMicTrack.value) {
+    remoteMicTrack.value.enabled = value > 0
+  }
   sendCommand('COMMAND_SET_MIC_VOL', value)
 }
 
 const handleSysVolumeChange = (value: number): void => {
   state.value.remoteSystemVolume = value
+  if (remoteSystemTrack.value) {
+    remoteSystemTrack.value.enabled = value > 0
+  }
   sendCommand('COMMAND_SET_SYS_VOL', value)
 }
 
@@ -90,8 +110,15 @@ onMounted(() => {
       state.value.microphoneMuted = payload.microphoneMuted
       state.value.localMicrophoneVolume = payload.localMicrophoneVolume
       state.value.remoteSystemVolume = payload.remoteSystemVolume
+      if (payload.hostName) state.value.hostName = payload.hostName
       audioStore.microphoneMuted = payload.microphoneMuted
       webRtcStore.toggleTrackByHint('audio', 'speech', !payload.microphoneMuted)
+      if (remoteMicTrack.value) {
+        remoteMicTrack.value.enabled = state.value.localMicrophoneVolume > 0
+      }
+      if (remoteSystemTrack.value) {
+        remoteSystemTrack.value.enabled = state.value.remoteSystemVolume > 0
+      }
     } else if (type === 'RELAY_OFFER') {
       try {
         const answerStr = await signalingStore.createAnswerForRelay(payload)
@@ -119,6 +146,19 @@ onMounted(() => {
   }
 })
 
+watch(
+  () => [remoteMicTrack.value, remoteSystemTrack.value] as const,
+  () => {
+    if (remoteMicTrack.value) {
+      remoteMicTrack.value.enabled = state.value.localMicrophoneVolume > 0
+    }
+    if (remoteSystemTrack.value) {
+      remoteSystemTrack.value.enabled = state.value.remoteSystemVolume > 0
+    }
+  },
+  { immediate: true }
+)
+
 onUnmounted(() => {
   if (localRelay) localRelay.close()
   if (window.api?.app?.resetAspectRatio) {
@@ -143,23 +183,40 @@ onUnmounted(() => {
     <BuGuestVideo class="w-full h-full" @video-ready="handleVideoReady" />
 
     <template v-if="isVideoReady">
-      <GuestFloatingPanel title="Sterowanie" :initial-x="32" :initial-y="32">
-        <GuestControlsToolbar
-          :microphone-muted="state.microphoneMuted"
-          :local-microphone-volume="state.localMicrophoneVolume"
-          :remote-system-volume="state.remoteSystemVolume"
-          :chat-visible="chatVisible"
-          :chat-has-unread="chatService.hasUnread.value"
-          :control-granted="hidChannel.isControlGranted.value"
-          :clipboard-sync-enabled="hidChannel.clipboardSyncEnabled.value"
-          @toggle-mic="handleMicToggle"
-          @update-mic-volume="handleMicVolumeChange"
-          @update-sys-volume="handleSysVolumeChange"
-          @toggle-chat="toggleChat"
-          @toggle-clipboard-sync="handleToggleClipboardSync"
-          @disconnect="handleDisconnect"
-        />
-      </GuestFloatingPanel>
+      <GuestControlsToolbar
+        v-if="toolbarMode === 'normal'"
+        :microphone-muted="state.microphoneMuted"
+        :local-microphone-volume="state.localMicrophoneVolume"
+        :remote-system-volume="state.remoteSystemVolume"
+        :chat-visible="chatVisible"
+        :chat-has-unread="chatService.hasUnread.value"
+        :control-granted="hidChannel.isControlGranted.value"
+        :clipboard-sync-enabled="hidChannel.clipboardSyncEnabled.value"
+        :host-name="state.hostName"
+        :guest-mic-volume="state.guestMicVolume"
+        :initial-x="32"
+        :initial-y="32"
+        @toggle-mic="handleMicToggle"
+        @update-guest-mic-volume="handleGuestMicVolumeChange"
+        @update-mic-volume="handleMicVolumeChange"
+        @update-sys-volume="handleSysVolumeChange"
+        @toggle-chat="toggleChat"
+        @toggle-clipboard-sync="handleToggleClipboardSync"
+        @disconnect="handleDisconnect"
+        @set-mode="handleSetMode"
+      />
+
+      <!-- Restore button shown when toolbar is hidden/compact -->
+      <button
+        v-if="toolbarMode !== 'normal'"
+        class="absolute top-2 left-2 z-50 flex items-center justify-center w-7 h-7 rounded-lg bg-[#090909]/90 border border-[#1c1c1c] text-violet-500 hover:text-violet-300 transition-colors"
+        title="Pokaż pasek sterowania"
+        @click="toolbarMode = 'normal'"
+      >
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </button>
 
       <GuestFloatingPanel v-show="chatVisible" title="Czat" :initial-x="32" :initial-y="120">
         <div class="h-[420px] w-[320px] p-2">

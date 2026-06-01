@@ -50,7 +50,8 @@
     "description": "Introduce el código de sesión para transferir el control de tu dispositivo a otro usuario.",
     "sessionCode": "Código de sesión",
     "sessionPassword": "Contraseña de sesión",
-    "timeToJoin": "Tiempo restante:"
+    "timeToJoin": "Tiempo restante:",
+    "copySessionSharePopover": "Código y contraseña copiados"
   },
   "guestForm": {
     "title": "Unirse a la sesión",
@@ -58,7 +59,30 @@
     "sessionCode": "Código de sesión",
     "sessionPassword": "Contraseña de sesión",
     "joinButton": "Unirse",
-    "timeToJoin": "Tiempo restante:"
+    "timeToJoin": "Tiempo restante:",
+    "clipboardShareDetected": "Se detectó código y contraseña del portapapeles del anfitrión.",
+    "applyClipboardShare": "Rellenar campos",
+    "clipboardShareCancel": "Cancelar",
+    "pasteFromClipboard": "Pegar desde el portapapeles",
+    "clipboardReadFailedTitle": "No se pudo leer el portapapeles",
+    "clipboardReadFailedDescription": "El sistema bloqueó el acceso. Inténtalo de nuevo o pega en los campos (Ctrl+V).",
+    "clipboardFormatNotRecognized": "Formato no reconocido",
+    "joinErrorInvalidResponse": "El servidor devolvió una respuesta no válida.",
+    "joinErrorHandlerCatch": "No se pudo unir a la conexión. Inténtalo de nuevo.",
+    "joinErrorWsAfterJoin": "Error de WebSocket tras unirse a la sesión.",
+    "joinErrorIncorrectPassword": "Contraseña de sesión incorrecta.",
+    "joinErrorIncorrectSessionCode": "Código de sesión incorrecto.",
+    "joinErrorFailedConnection": "No se pudo contactar con el servidor.",
+    "joinErrorNetwork": "Error de red — comprueba tu conexión.",
+    "joinErrorGeneric": "No se pudo unir a la sesión.",
+    "joinErrorCritical": "Error grave al contactar con el servidor.",
+    "joinErrorDisconnected": "Se perdió la conexión con la sesión.",
+    "joinErrorUnknownWithDetail": "No se pudo unir: {detail}"
+  },
+  "hostConnecting": {
+    "title": "Conectando…",
+    "hint": "Estableciendo conexión entre pares. La sesión finalizará automáticamente tras un minuto o si falla la conexión.",
+    "disconnect": "Desconectar"
   },
   "menuNav": {
     "settingsTitle": "Ajustes",

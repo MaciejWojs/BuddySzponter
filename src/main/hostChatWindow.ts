@@ -1,6 +1,7 @@
 import { BrowserWindow, screen, ipcMain } from 'electron'
 import { join } from 'path'
 import { is } from '@electron-toolkit/utils'
+import icon from '../../resources/icon.png?asset'
 
 let hostChatWindow: BrowserWindow | null = null
 let isMoveHandlerRegistered = false
@@ -8,9 +9,15 @@ let isMoveHandlerRegistered = false
 const WINDOW_WIDTH = 360
 const WINDOW_HEIGHT = 480
 
-export function createHostChatWindow(): void {
+export type HostChatCreateMode = 'visible' | 'hidden'
+
+export function createHostChatWindow(mode: HostChatCreateMode = 'visible'): void {
+  const startHidden = mode === 'hidden'
+
   if (hostChatWindow && !hostChatWindow.isDestroyed()) {
-    hostChatWindow.showInactive()
+    if (!startHidden) {
+      hostChatWindow.showInactive()
+    }
     return
   }
 
@@ -22,6 +29,7 @@ export function createHostChatWindow(): void {
     height: WINDOW_HEIGHT,
     x: Math.round(width - WINDOW_WIDTH - 40),
     y: Math.round(height - WINDOW_HEIGHT - 40),
+    icon,
     show: false,
     frame: false,
     transparent: true,
@@ -51,8 +59,10 @@ export function createHostChatWindow(): void {
     hostChatWindow?.hide()
   })
 
-  hostChatWindow.on('ready-to-show', () => {
-    hostChatWindow?.showInactive()
+  hostChatWindow.once('ready-to-show', () => {
+    if (!startHidden) {
+      hostChatWindow?.showInactive()
+    }
   })
 
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
@@ -74,12 +84,19 @@ export function createHostChatWindow(): void {
   }
 }
 
+export function prewarmHostChatWindow(): void {
+  if (hostChatWindow && !hostChatWindow.isDestroyed()) {
+    return
+  }
+  createHostChatWindow('hidden')
+}
+
 export function showHostChatWindow(): void {
   if (hostChatWindow && !hostChatWindow.isDestroyed()) {
     hostChatWindow.showInactive()
     return
   }
-  createHostChatWindow()
+  createHostChatWindow('visible')
 }
 
 export function hideHostChatWindow(): void {

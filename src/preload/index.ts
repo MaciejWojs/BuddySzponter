@@ -168,9 +168,18 @@ const api = {
     hideHostWidget: (): Promise<void> => ipcRenderer.invoke('hide-host-widget'),
     setHostWidgetMode: (mode: 'normal' | 'compact' | 'hidden' | 'peek'): Promise<void> =>
       ipcRenderer.invoke('set-host-widget-mode', mode),
+    setHostWidgetHeight: (height: number): Promise<void> =>
+      ipcRenderer.invoke('set-host-widget-height', height),
+    showHostWidgetPopup: (x: number, y: number): Promise<void> =>
+      ipcRenderer.invoke('show-host-widget-popup', { x, y }),
+    hideHostWidgetPopup: (): Promise<void> => ipcRenderer.invoke('hide-host-widget-popup'),
     moveHostWidget: (x: number, y: number): void => ipcRenderer.send('move-host-widget', { x, y }),
     showHostChatWindow: (): Promise<boolean> => ipcRenderer.invoke('show-host-chat-window'),
     hideHostChatWindow: (): Promise<void> => ipcRenderer.invoke('hide-host-chat-window'),
+    prewarmHostChatWindow: (): Promise<void> => ipcRenderer.invoke('prewarm-host-chat-window'),
+    prewarmGuestWindow: (): Promise<void> => ipcRenderer.invoke('prewarm-guest-window'),
+    prewarmHostWidgetWindow: (): Promise<void> => ipcRenderer.invoke('prewarm-host-widget-window'),
+    prewarmHostWidgetPopup: (): Promise<void> => ipcRenderer.invoke('prewarm-host-widget-popup'),
     moveHostChatWindow: (x: number, y: number): void =>
       ipcRenderer.send('move-host-chat-window', { x, y }),
     openGuestWindow: (sessionId: string) => ipcRenderer.invoke('app:open-guest-window', sessionId),

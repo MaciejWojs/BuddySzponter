@@ -20,16 +20,23 @@ import { screenService } from './services/screenService'
 import { wsService } from './services/ws/WsService'
 
 // --- ODBLOKOWANE: Importy hostWidget ---
-import { closeHostWidget, createHostWidget } from './hostWidget'
+import { closeHostWidget, createHostWidget, prewarmHostWidget } from './hostWidget'
+import { createHostWidgetPopup, hideHostWidgetPopup } from './hostWidgetPopup'
 import {
   createHostChatWindow,
   hideHostChatWindow,
   isHostChatWindowVisible,
+  prewarmHostChatWindow,
   showHostChatWindow
 } from './hostChatWindow'
 import { inputService } from './services/inputService'
 import { registerFileTransferHandlers } from './services/fileTransferService'
-import { closeGuestWindow, createGuestWindow, registerGuestWindowHandlers } from './guestWindow'
+import {
+  closeGuestWindow,
+  createGuestWindow,
+  prewarmGuestWindow,
+  registerGuestWindowHandlers
+} from './guestWindow'
 import trayIconDefault from '../../resources/tray/default.png?asset'
 import { trayService } from './services/trayService'
 
@@ -39,6 +46,10 @@ let isQuitting = false
 export function quitApp(): void {
   isQuitting = true
   app.quit()
+  // Some auxiliary windows prevent close() by design; force process exit as a fallback.
+  setTimeout(() => {
+    app.exit(0)
+  }, 800)
 }
 
 export let previousBounds: Electron.Rectangle | null = null
@@ -77,7 +88,7 @@ function createWindow(): void {
     height: 670,
     show: false,
     autoHideMenuBar: true,
-    ...(process.platform === 'linux' ? { icon } : {}),
+    icon,
     webPreferences: {
       autoplayPolicy: 'no-user-gesture-required',
       preload: join(__dirname, '../preload/index.js'),
@@ -129,7 +140,7 @@ if (!gotTheLock) {
   }
 
   app.whenReady().then(async () => {
-    electronApp.setAppUserModelId('com.electron')
+    electronApp.setAppUserModelId('com.buddyszponter.app')
 
     app.commandLine.appendSwitch('disable-renderer-backgrounding')
     app.commandLine.appendSwitch('disable-background-timer-throttling')
@@ -186,12 +197,14 @@ if (!gotTheLock) {
     // --- IPC MAIN HANDLERY DLA WIDGETU ---
     ipcMain.handle('show-host-widget', () => {
       createHostWidget()
+      createHostWidgetPopup()
       hideWindowSafely(mainWindow)
     })
 
     ipcMain.handle('hide-host-widget', () => {
       closeHostWidget()
       hideHostChatWindow()
+      hideHostWidgetPopup()
       showWindowSafely(mainWindow)
     })
 
@@ -207,6 +220,22 @@ if (!gotTheLock) {
 
     ipcMain.handle('hide-host-chat-window', () => {
       hideHostChatWindow()
+    })
+
+    ipcMain.handle('prewarm-host-chat-window', () => {
+      prewarmHostChatWindow()
+    })
+
+    ipcMain.handle('prewarm-guest-window', () => {
+      prewarmGuestWindow()
+    })
+
+    ipcMain.handle('prewarm-host-widget-window', () => {
+      prewarmHostWidget()
+    })
+
+    ipcMain.handle('prewarm-host-widget-popup', () => {
+      createHostWidgetPopup()
     })
 
     ipcMain.handle('app:open-guest-window', (_, sessionId: string) => {
@@ -293,13 +322,27 @@ if (!gotTheLock) {
     //   fs.writeFileSync(filePath, Buffer.from(buffer))
     // })
 
-    session.defaultSession.setDisplayMediaRequestHandler(
-      (_request, callback) => {
-        desktopCapturer.getSources({ types: ['screen'] }).then((sources) => {
+    // Uwaga: `useSystemPicker: true` w produkcji potrafi powodować zawieszenie
+    // `getDisplayMedia` na Windowsie (picker nie pojawia się, Promise nie resolvuje),
+    // co blokuje cały `startHostCapture` i w efekcie akceptację sesji.
+    // Używamy własnego callbacku, który deterministycznie zwraca pierwszy ekran.
+    session.defaultSession.setDisplayMediaRequestHandler((_request, callback) => {
+      desktopCapturer
+        .getSources({ types: ['screen'] })
+        .then((sources) => {
+          if (!sources || sources.length === 0) {
+            console.warn('[DisplayMedia] Brak źródeł ekranu, anulowanie żądania.')
+            callback({})
+            return
+          }
           callback({ video: sources[0], audio: 'loopback' })
         })
-      },
-      { useSystemPicker: false }
+        .catch((err) => {
+          console.error('[DisplayMedia] Błąd pobierania źródeł:', err)
+          callback({})
+        })
+    },
+    { useSystemPicker: false }
     )
 
     app.on('activate', function () {
