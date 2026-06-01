@@ -13,11 +13,14 @@ import {
   dispatchFileTransferBinary,
   dispatchFileTransferControl,
   resetFileTransferState,
+  shouldIgnoreClipboardBridgeFilesEcho,
   shouldIgnoreOutgoingClipboardPaths,
   startOutgoingFileTransfer
 } from '@renderer/composables/channels/FileTransferChannel'
 import { chatService } from '@renderer/services/chatService'
 import { useSocketStore } from './socketStore'
+
+const CLIPBOARD_P2P_LOG = '[ClipboardP2P]'
 
 const HOST_P2P_CONNECT_TIMEOUT_MS = 60_000
 
@@ -48,7 +51,9 @@ export const useWebRtcStore = defineStore('webrtc', () => {
       if (typeof data === 'string') {
         dispatchFileTransferControl(data)
       } else {
-        void dispatchFileTransferBinary(data)
+        void dispatchFileTransferBinary(data).catch((err) => {
+          console.error('[ClipboardP2P]', 'dispatchFileTransferBinary', err)
+        })
       }
       return
     }
@@ -138,8 +143,24 @@ export const useWebRtcStore = defineStore('webrtc', () => {
 
   if (window.api?.clipboard?.onBridgeFiles) {
     window.api.clipboard.onBridgeFiles((paths) => {
-      if (rtcStatus.value !== 'connected') return
-      if (shouldIgnoreOutgoingClipboardPaths(paths)) return
+      if (rtcStatus.value !== 'connected') {
+        console.info(CLIPBOARD_P2P_LOG, 'onBridgeFiles skip: not connected', {
+          rtcStatus: rtcStatus.value,
+          pathCount: paths.length
+        })
+        return
+      }
+      if (shouldIgnoreClipboardBridgeFilesEcho()) {
+        console.info(CLIPBOARD_P2P_LOG, 'onBridgeFiles skip: echo mute')
+        return
+      }
+      if (shouldIgnoreOutgoingClipboardPaths(paths)) {
+        console.info(CLIPBOARD_P2P_LOG, 'onBridgeFiles skip: path fingerprint (post-receive)')
+        return
+      }
+      console.info(CLIPBOARD_P2P_LOG, 'onBridgeFiles → startOutgoingFileTransfer', {
+        pathCount: paths.length
+      })
       void startOutgoingFileTransfer(paths, 'clipboard')
     })
   }

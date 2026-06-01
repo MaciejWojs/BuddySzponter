@@ -30,7 +30,7 @@ export class ScreenService {
   private lastSharedTextureWarning: 'noInfo' | 'noHandle' | null = null
   private useCpuPath = false
   private cachedSharedTexture: ReturnType<typeof sharedTexture.importSharedTexture> | null = null
-  private logLevel: LogLevel = LogLevel.WARN
+  private logLevel: LogLevel = LogLevel.ERROR
   private monitorsInfo: MonitorMetadata[] = []
   // private currentMonitor: MonitorMetadata | null = null
 

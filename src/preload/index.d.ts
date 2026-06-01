@@ -38,6 +38,16 @@ import {
 import { UserInputSchema } from '@shared/schemas/user'
 import type { AppStoredPreferences } from '../shared/schemas/appPreferences'
 
+/**
+ * One file for `setSyncFilesRemote()` (in-memory; no local path required).
+ */
+export interface ClipboardRemoteFile {
+  /** Suggested file name; only the base name is used (path segments stripped). */
+  fileName: string
+  /** File contents. */
+  data: Buffer | Uint8Array
+}
+
 interface WsAccessListeners {
   onRequest: (data: WsRequestAccess) => void
   onAccepted: (data: WsConnectionAccepted) => void
@@ -170,6 +180,8 @@ declare global {
       clipboard: {
         setSyncText: (text: string) => Promise<boolean>
         setSyncFiles: (paths: string[]) => Promise<boolean>
+        setSyncFilesRemote: (files: ClipboardRemoteFile[]) => Promise<boolean>
+        getSyncFilesRemote: () => Promise<string[] | null>
         onBridgeText: (callback: (text: string) => void) => () => void
         onBridgeFiles: (callback: (paths: string[]) => void) => () => void
       }

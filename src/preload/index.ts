@@ -236,6 +236,11 @@ const api = {
       ipcRenderer.invoke('clipboard:set-text-from-sync', text),
     setSyncFiles: (paths: string[]): Promise<boolean> =>
       ipcRenderer.invoke('clipboard:set-files-from-sync', paths),
+    setSyncFilesRemote: (
+      files: { fileName: string; data: Buffer | Uint8Array }[]
+    ): Promise<boolean> => ipcRenderer.invoke('clipboard:set-files-remote-from-sync', files),
+    getSyncFilesRemote: (): Promise<string[] | null> =>
+      ipcRenderer.invoke('clipboard:get-files-remote-from-sync'),
     onBridgeText: (callback: (text: string) => void) => {
       const listener = (_: unknown, payload: { text: string }): void => {
         if (typeof payload?.text === 'string') callback(payload.text)
@@ -247,7 +252,14 @@ const api = {
     },
     onBridgeFiles: (callback: (paths: string[]) => void) => {
       const listener = (_: unknown, payload: { paths: string[] }): void => {
-        if (Array.isArray(payload?.paths)) callback(payload.paths)
+        if (Array.isArray(payload?.paths)) {
+          console.info('[ClipboardP2P]', 'IPC clipboard:bridge-files-change', {
+            count: payload.paths.length
+          })
+          callback(payload.paths)
+        } else {
+          console.warn('[ClipboardP2P]', 'IPC clipboard:bridge-files-change invalid payload', payload)
+        }
       }
       ipcRenderer.on('clipboard:bridge-files-change', listener)
       return () => {
