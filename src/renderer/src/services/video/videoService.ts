@@ -4,7 +4,7 @@ import { getDisplayMediaLoopback } from '@renderer/services/audio/displayMediaLo
 
 export interface VideoCaptureOptions {
   includeSystemAudio?: boolean
-  /** Shared texture — bez drugiego getDisplayMedia w rendererze. */
+  /** Shared texture — pomija przechwytywanie dźwięku systemu (brak drugiego getDisplayMedia w rendererze). */
   skipSystemAudioPicker?: boolean
   externalMicTrack?: MediaStreamTrack
   systemAudioVolume?: number
