@@ -1,8 +1,11 @@
 // src/renderer/services/video/videoService.ts
 import { getAudioContext, resumeAudioContext } from '@renderer/composables/useSharedAudioContext'
+import { getDisplayMediaLoopback } from '@renderer/services/audio/displayMediaLoopback'
 
 export interface VideoCaptureOptions {
   includeSystemAudio?: boolean
+  /** Shared texture — pomija przechwytywanie dźwięku systemu (brak drugiego getDisplayMedia w rendererze). */
+  skipSystemAudioPicker?: boolean
   externalMicTrack?: MediaStreamTrack
   systemAudioVolume?: number
 }
@@ -33,35 +36,23 @@ class VideoService {
     externalVideoTrack.contentHint = 'detail'
     this.activeStream.addTrack(externalVideoTrack)
 
-    /** Mikrofon przed dźwiękiem systemu — stabilna kolejność ścieżek i bezpieczniejsze fallbacki w WebRTC. */
     if (options.externalMicTrack) {
+      options.externalMicTrack.contentHint = 'speech'
       this.activeStream.addTrack(options.externalMicTrack)
     }
 
     const wantsSystemAudio = options.includeSystemAudio ?? true
-    if (wantsSystemAudio) {
+    if (wantsSystemAudio && !options.skipSystemAudioPicker) {
       const vol = options.systemAudioVolume ?? 1
       await this.addSystemAudioTrack(vol)
     }
 
     return this.activeStream
   }
+
   private async addSystemAudioTrack(volume: number): Promise<void> {
     try {
-      let systemStream: MediaStream
-      try {
-        systemStream = await navigator.mediaDevices.getDisplayMedia({
-          video: true,
-          audio: {
-            suppressLocalAudioPlayback: true
-          } as MediaTrackConstraints
-        })
-      } catch {
-        systemStream = await navigator.mediaDevices.getDisplayMedia({
-          video: true,
-          audio: true
-        })
-      }
+      const systemStream = await getDisplayMediaLoopback()
 
       this.allStreamsToCleanUp.push(systemStream)
 

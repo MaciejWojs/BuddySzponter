@@ -341,7 +341,9 @@ if (!gotTheLock) {
           console.error('[DisplayMedia] Błąd pobierania źródeł:', err)
           callback({})
         })
-    })
+    },
+    { useSystemPicker: false }
+    )
 
     app.on('activate', function () {
       if (BrowserWindow.getAllWindows().length === 0) createWindow()

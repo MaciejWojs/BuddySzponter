@@ -1,20 +1,9 @@
+import { getDisplayMediaLoopback } from '@renderer/services/audio/displayMediaLoopback'
+
 export class SystemAudioService {
   async capture(): Promise<MediaStream | null> {
     try {
-      let stream: MediaStream
-      try {
-        stream = await navigator.mediaDevices.getDisplayMedia({
-          video: true,
-          audio: {
-            suppressLocalAudioPlayback: true
-          } as MediaTrackConstraints
-        })
-      } catch {
-        stream = await navigator.mediaDevices.getDisplayMedia({
-          video: true,
-          audio: true
-        })
-      }
+      const stream = await getDisplayMediaLoopback()
 
       stream.getVideoTracks().forEach((t) => t.stop())
 
