@@ -25,6 +25,10 @@ export class WebSocketService {
     return await window.api.ws.disconnect()
   }
 
+  public async terminate(reason?: string): Promise<WsActionResponse> {
+    return await window.api.ws.terminate(reason)
+  }
+
   public async requestAccess(sessionId: string): Promise<WsActionResponse> {
     return await window.api.ws.requestAccess(sessionId)
   }

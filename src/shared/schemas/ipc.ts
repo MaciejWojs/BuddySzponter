@@ -11,7 +11,8 @@ import {
   WsWebRTCAnswer,
   WsWebRTCIceCandidate,
   WsWebRTCReady,
-  WsConnectionDisconnected
+  WsConnectionDisconnected,
+  WsTerminateConnection
 } from './ws'
 
 export type ValidationErrorCause = { field: string; error: string }
@@ -69,6 +70,8 @@ export type WsConnectionEvent =
   | WsEvent<'connected', { socketId: string }>
   | WsEvent<'disconnected', WsConnectionDisconnected>
   | WsEvent<'manual-disconnected', WsConnectionDisconnected>
+  | WsEvent<'peer-disconnected', WsConnectionDisconnected>
+  | WsEvent<'terminated', WsTerminateConnection>
   | WsEvent<'connect_error', { message: string }>
 
 // --- 2. KATEGORIA: ACCESS ---
@@ -111,6 +114,8 @@ export interface WsConnectionListeners {
   onDisconnected: (data: WsConnectionDisconnected) => void
   onManualDisconnected: (data: WsConnectionDisconnected) => void
   onConnectError: (data: { message: string }) => void
+  onPeerDisconnected?: (data: WsConnectionDisconnected) => void
+  onTerminated?: (data: WsTerminateConnection) => void
 }
 
 export interface WsAccessListeners {

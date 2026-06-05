@@ -141,7 +141,9 @@ export const useSocketStore = defineStore('socket', () => {
 
         await disconnect(true, true)
       },
-      onConnectError: (err) => console.error('[SocketStore]', err.message)
+      onConnectError: (err) => console.error('[SocketStore]', err.message),
+      onPeerDisconnected: (data) => console.log('[SocketStore] Peer disconnected (no-op):', data),
+      onTerminated: (data) => console.log('[SocketStore] Connection terminated (no-op):', data)
     })
 
     wsService.setupAccess({

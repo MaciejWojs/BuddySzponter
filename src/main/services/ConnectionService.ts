@@ -31,7 +31,7 @@ export class ConnectionService {
         const response = await createConnection(params)
 
         if (response.success && response.data) {
-          const wsResult = await wsService.initConnection(response.data.token)
+          const wsResult = await wsService.initConnection(response.data.token, 'host')
 
           if (!wsResult.success) {
             return { success: false, message: 'Błąd połączenia WebSocket: ' + wsResult.message }
@@ -46,7 +46,7 @@ export class ConnectionService {
       const response = await joinConnection(params)
 
       if (response.success && response.data) {
-        const wsResult = await wsService.initConnection(response.data.token)
+        const wsResult = await wsService.initConnection(response.data.token, 'guest')
 
         if (!wsResult.success) {
           return { success: false, message: JOIN_WS_AFTER_JOIN_MESSAGE }

@@ -94,6 +94,9 @@ const api = {
 
     disconnect: (): Promise<WsActionResponse> => ipcRenderer.invoke('ws:disconnect'),
 
+    terminate: (reason?: string): Promise<WsActionResponse> =>
+      ipcRenderer.invoke('ws:terminate', { reason }),
+
     respondAccept: (): Promise<WsActionResponse> => ipcRenderer.invoke('ws:respond-accept'),
     respondReject: (): Promise<WsActionResponse> => ipcRenderer.invoke('ws:respond-reject'),
 
@@ -118,6 +121,8 @@ const api = {
         if (type === 'disconnected') callbacks.onDisconnected(data)
         if (type === 'manual-disconnected') callbacks.onManualDisconnected(data)
         if (type === 'connect_error') callbacks.onConnectError(data)
+        if (type === 'peer-disconnected') callbacks.onPeerDisconnected?.(data)
+        if (type === 'terminated') callbacks.onTerminated?.(data)
       })
     },
 
@@ -258,7 +263,11 @@ const api = {
           })
           callback(payload.paths)
         } else {
-          console.warn('[ClipboardP2P]', 'IPC clipboard:bridge-files-change invalid payload', payload)
+          console.warn(
+            '[ClipboardP2P]',
+            'IPC clipboard:bridge-files-change invalid payload',
+            payload
+          )
         }
       }
       ipcRenderer.on('clipboard:bridge-files-change', listener)

@@ -29,7 +29,8 @@ import {
   WsWebRTCAnswer,
   WsWebRTCIceCandidate,
   WsWebRTCReady,
-  WsConnectionDisconnected
+  WsConnectionDisconnected,
+  WsTerminateConnection
 } from '../shared/schemas/ws'
 import {
   CreateConnectionRequestSchema,
@@ -112,6 +113,7 @@ declare global {
       ws: {
         connect: (token: string) => Promise<WsConnectResponse>
         disconnect: () => Promise<WsActionResponse>
+        terminate: (reason?: string) => Promise<WsActionResponse>
 
         respondAccept: () => Promise<WsActionResponse>
         respondReject: () => Promise<WsActionResponse>

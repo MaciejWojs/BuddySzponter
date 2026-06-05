@@ -1,56 +1,34 @@
-// main/services/ws/WsService.ts
-
-import { Socket } from 'socket.io-client'
 import { ipcMain } from 'electron'
+import { WsCategory, WsConnectResponse, WsServerEvents } from '../../../shared/schemas/ipc'
 import {
-  WsActionResponse,
-  WsConnectResponse,
-  WsServerEvents,
-  WsCategory
-} from '../../../shared/schemas/ipc'
-import {
-  WsRequestAccess,
-  WsConnectionAccepted,
-  WsConnectionRejected,
-  WsConnectionError,
-  WsAcknowledged,
-  WsWebRTCOffer,
+  WsRole,
   WsWebRTCAnswer,
   WsWebRTCIceCandidate,
+  WsWebRTCOffer,
   WsWebRTCReady
 } from '../../../shared/schemas/ws'
-
-import { setupConnectionListeners, connect } from '../../handlers/socket/connection'
-import {
-  sendGuestAcknowledge,
-  sendHostAcknowledge,
-  setupHandshakeListeners
-} from '../../handlers/socket/handshake'
-import {
-  sendRequestAccess,
-  sendRespondAccept,
-  sendRespondReject,
-  setupAccessListeners
-} from '../../handlers/socket/access'
-import {
-  sendWebRTCAnswer,
-  sendWebRTCIceCandidate,
-  sendWebRTCOffer,
-  sendWebRTCReady,
-  setupWebRtcListeners
-} from '../../handlers/socket/webrtc'
 import { notifyFrontend } from '../../utils/notify'
-import { showAccessRequestNotification } from '../../utils/systemNotification'
+import { AccessHandler } from './handlers/AccessHandler'
+import { ConnectionHandler } from './handlers/ConnectionHandler'
+import { HandshakeHandler } from './handlers/HandshakeHandler'
+import { WebRtcHandler } from './handlers/WebRtcHandler'
+import { createSocket } from './SocketFactory'
+import { SignalingSocket } from './SignalingSocket'
 
 export class WsService {
   private static instance: WsService
 
-  public socket: Socket | null = null
+  private signalingSocket: SignalingSocket | null = null
+  private connectionHandler: ConnectionHandler | null = null
+  private accessHandler: AccessHandler | null = null
+  private handshakeHandler: HandshakeHandler | null = null
+  private webRtcHandler: WebRtcHandler | null = null
+
   public currentSessionId: string | null = null
-  private suppressNextDisconnected = false
+  public role: WsRole | null = null
 
   private constructor() {
-    console.log('[WsService] Serwis zainicjalizowany.')
+    console.log('[WsService] Initialized.')
   }
 
   public static getInstance(): WsService {
@@ -67,11 +45,15 @@ export class WsService {
     )
   }
 
-  // --- HANDLERS INITIALIZATION ---
-
   public registerWsHandlers(): void {
     ipcMain.handle('ws:connect', async (_, { connectionToken }) => {
-      return await this.initConnection(connectionToken)
+      if (!this.role) {
+        return {
+          success: false,
+          message: 'No role set. Use connection:create or connection:join first.'
+        }
+      }
+      return await this.initConnection(connectionToken, this.role)
     })
 
     ipcMain.handle('ws:disconnect', async () => {
@@ -79,231 +61,144 @@ export class WsService {
       return { success: true }
     })
 
-    // --- ACCESS ---
-    ipcMain.handle('ws:respond-accept', async () => {
-      return this.respondAccept()
-    })
+    ipcMain.handle('ws:respond-accept', async () => ({ success: this.respondAccept() }))
+    ipcMain.handle('ws:respond-reject', async () => ({ success: this.respondReject() }))
+    ipcMain.handle('ws:request-access', async (_, { sessionId }) => ({
+      success: this.requestAccess(sessionId)
+    }))
+    ipcMain.handle('ws:acknowledge', async () => ({ success: this.guestAcknowledge() }))
+    ipcMain.handle('ws:acknowledged', async () => ({ success: this.hostAcknowledge() }))
+    ipcMain.handle('ws:terminate', async (_, { reason } = {}) => ({
+      success: this.terminate(reason)
+    }))
 
-    ipcMain.handle('ws:respond-reject', async () => {
-      return this.respondReject()
-    })
-
-    ipcMain.handle('ws:request-access', async (_, { sessionId }) => {
-      return this.requestAccess(sessionId)
-    })
-
-    // --- HANDSHAKE ---
-    ipcMain.handle('ws:acknowledge', async () => {
-      return this.guestAcknowledge()
-    })
-
-    ipcMain.handle('ws:acknowledged', async () => {
-      return this.hostAcknowledge()
-    })
-
-    // --- WEBRTC ---
-    ipcMain.handle('ws:webrtc-offer', async (_, data) => {
-      return this.webrtcOffer(data)
-    })
-
-    ipcMain.handle('ws:webrtc-answer', async (_, data) => {
-      return this.webrtcAnswer(data)
-    })
-
-    ipcMain.handle('ws:webrtc-ice-candidate', async (_, data) => {
-      return this.webrtcIceCandidate(data)
-    })
-
-    ipcMain.handle('ws:webrtc-ready', async (_, data) => {
-      return this.webrtcReady(data)
-    })
+    ipcMain.handle('ws:webrtc-offer', async (_, data: WsWebRTCOffer) => ({
+      success: this.webrtcOffer(data)
+    }))
+    ipcMain.handle('ws:webrtc-answer', async (_, data: WsWebRTCAnswer) => ({
+      success: this.webrtcAnswer(data)
+    }))
+    ipcMain.handle('ws:webrtc-ice-candidate', async (_, data: WsWebRTCIceCandidate) => ({
+      success: this.webrtcIceCandidate(data)
+    }))
+    ipcMain.handle('ws:webrtc-ready', async (_, data: WsWebRTCReady) => ({
+      success: this.webrtcReady(data)
+    }))
   }
 
-  // --- INITIALIZATION ---
-
-  public async initConnection(token: string): Promise<WsConnectResponse> {
+  public async initConnection(token: string, role: WsRole): Promise<WsConnectResponse> {
     try {
-      if (this.socket) {
+      if (this.signalingSocket) {
         this.closeConnection()
       }
 
-      this.socket = await connect(token)
+      this.role = role
+      const rawSocket = await createSocket(token)
+      this.signalingSocket = new SignalingSocket(rawSocket, role)
 
-      setupConnectionListeners(this.socket, this)
-      setupAccessListeners(this.socket, this)
-      setupHandshakeListeners(this.socket, this)
-      setupWebRtcListeners(this.socket, this)
+      const sessionCallbacks = {
+        getSessionId: () => this.currentSessionId,
+        setSessionId: (id: string | null) => {
+          this.currentSessionId = id
+        }
+      }
+
+      this.connectionHandler = new ConnectionHandler(this.signalingSocket, this.notify.bind(this), {
+        onManualDisconnect: () => this.clearState(),
+        onSocketDisconnect: () => this.clearState()
+      })
+
+      this.accessHandler = new AccessHandler(this.signalingSocket, this.notify.bind(this), {
+        ...sessionCallbacks,
+        onGuestAcknowledge: () => this.guestAcknowledge(),
+        onHostAcknowledge: () => this.hostAcknowledge()
+      })
+
+      this.handshakeHandler = new HandshakeHandler(
+        this.signalingSocket,
+        this.notify.bind(this),
+        sessionCallbacks
+      )
+
+      this.webRtcHandler = new WebRtcHandler(this.signalingSocket, this.notify.bind(this))
+
+      this.connectionHandler.registerListeners()
+      this.accessHandler.registerListeners()
+      this.handshakeHandler.registerListeners()
+      this.webRtcHandler.registerListeners()
 
       return { success: true }
     } catch (error: unknown) {
-      console.error('[WsService] Błąd podczas łączenia:', error)
-      return { success: false, message: (error as Error).message || 'Błąd połączenia' }
+      console.error('[WsService] Connection error:', error)
+      return { success: false, message: (error as Error).message || 'Connection failed' }
     }
   }
 
   public closeConnection(): void {
-    if (this.socket) {
-      console.log('[WsService][manual-disconnect] Start closeConnection()')
-      this.suppressNextDisconnected = true
-      this.notify('ws:connection', 'manual-disconnected', { reason: 'manual disconnect' })
-      console.log(
-        '[WsService][manual-disconnect] Sent IPC event: ws:connection/manual-disconnected'
-      )
-      this.socket.emit('connection:disconnect')
-      console.log('[WsService][manual-disconnect] Emitted socket event: connection:disconnect')
-      this.socket.disconnect()
-      console.log('[WsService][manual-disconnect] Local socket.disconnect() called')
-
-      this.socket = null
-      this.currentSessionId = null
-      console.log('[WsService] Połączenie zamknięte i stan wyczyszczony.')
+    if (this.connectionHandler) {
+      this.connectionHandler.emitDisconnect()
     }
+    this.clearState()
+    console.log('[WsService] Connection closed and state cleared.')
   }
 
-  // --- ACTIONS ---
-
-  public requestAccess(sessionId: string): WsActionResponse {
-    if (!this.socket) return { success: false, message: 'Brak gniazdka' }
-    this.currentSessionId = sessionId
-    sendRequestAccess(this.socket, sessionId)
-    return { success: true }
-  }
-
-  public respondAccept(): WsActionResponse {
-    if (!this.socket || !this.currentSessionId) return { success: false }
-    sendRespondAccept(this.socket, this.currentSessionId)
-    return { success: true }
-  }
-
-  public respondReject(): WsActionResponse {
-    if (!this.socket || !this.currentSessionId) return { success: false }
-    sendRespondReject(this.socket, this.currentSessionId)
+  private clearState(): void {
+    this.signalingSocket = null
+    this.connectionHandler = null
+    this.accessHandler = null
+    this.handshakeHandler = null
+    this.webRtcHandler = null
     this.currentSessionId = null
-    return { success: true }
   }
 
-  public guestAcknowledge(): WsActionResponse {
-    if (!this.socket || !this.currentSessionId) return { success: false }
-    sendGuestAcknowledge(this.socket, this.currentSessionId)
-    return { success: true }
+  public requestAccess(sessionId: string): boolean {
+    if (!this.accessHandler) return false
+    return this.accessHandler.requestAccess(sessionId)
   }
 
-  public hostAcknowledge(): WsActionResponse {
-    if (!this.socket || !this.currentSessionId) return { success: false }
-    sendHostAcknowledge(this.socket, this.currentSessionId)
-    return { success: true }
+  public respondAccept(): boolean {
+    if (!this.accessHandler) return false
+    return this.accessHandler.respondAccept()
   }
 
-  public webrtcOffer(data: WsWebRTCOffer): WsActionResponse {
-    if (!this.socket) return { success: false }
-    sendWebRTCOffer(this.socket, data)
-    return { success: true }
+  public respondReject(): boolean {
+    if (!this.accessHandler) return false
+    return this.accessHandler.respondReject()
   }
 
-  public webrtcAnswer(data: WsWebRTCAnswer): WsActionResponse {
-    if (!this.socket) return { success: false }
-    sendWebRTCAnswer(this.socket, data)
-    return { success: true }
+  public guestAcknowledge(): boolean {
+    if (!this.handshakeHandler) return false
+    return this.handshakeHandler.guestAcknowledge()
   }
 
-  public webrtcIceCandidate(data: WsWebRTCIceCandidate): WsActionResponse {
-    if (!this.socket) return { success: false }
-    sendWebRTCIceCandidate(this.socket, data)
-    return { success: true }
+  public hostAcknowledge(): boolean {
+    if (!this.handshakeHandler) return false
+    return this.handshakeHandler.hostAcknowledge()
   }
 
-  public webrtcReady(data: WsWebRTCReady): WsActionResponse {
-    if (!this.socket) return { success: false }
-    sendWebRTCReady(this.socket, data)
-    return { success: true }
+  public terminate(reason?: string): boolean {
+    if (!this.connectionHandler) return false
+    return this.connectionHandler.emitTerminate(reason)
   }
 
-  // --- HANDLERS ---
-
-  public handleConnected(socketId: string): void {
-    this.notify('ws:connection', 'connected', { socketId })
+  public webrtcOffer(data: WsWebRTCOffer): boolean {
+    if (!this.webRtcHandler) return false
+    return this.webRtcHandler.sendOffer(data)
   }
 
-  public handleConnectError(message: string): void {
-    this.notify('ws:connection', 'connect_error', { message })
+  public webrtcAnswer(data: WsWebRTCAnswer): boolean {
+    if (!this.webRtcHandler) return false
+    return this.webRtcHandler.sendAnswer(data)
   }
 
-  public handleManualDisconnected(reason: string): void {
-    this.suppressNextDisconnected = true
-    this.notify('ws:connection', 'manual-disconnected', { reason })
-    this.socket = null
-    this.currentSessionId = null
-    console.log(`[WsService][manual-disconnect] Remote manual disconnect handled: ${reason}`)
+  public webrtcIceCandidate(data: WsWebRTCIceCandidate): boolean {
+    if (!this.webRtcHandler) return false
+    return this.webRtcHandler.sendIceCandidate(data)
   }
 
-  public handleDisconnected(reason: string): void {
-    if (this.suppressNextDisconnected) {
-      this.suppressNextDisconnected = false
-      return
-    }
-
-    this.socket = null
-    this.currentSessionId = null
-    this.notify('ws:connection', 'disconnected', { reason })
-  }
-
-  public handleRequestAccess(payload: WsRequestAccess): void {
-    this.currentSessionId = payload.sessionId
-    console.log('[WsService] Otrzymano żądanie dostępu dla sesji:', payload.sessionId)
-
-    this.notify('ws:access', 'request-access', payload)
-
-    showAccessRequestNotification({
-      onAccept: () => {
-        console.log('[WsService] Zaakceptowano z poziomu powiadomienia OS')
-        this.respondAccept()
-        this.hostAcknowledge()
-      },
-      onReject: () => {
-        console.log('[WsService] Odrzucono z poziomu powiadomienia OS')
-        const sessionId = this.currentSessionId
-        this.respondReject()
-
-        if (sessionId) {
-          this.handleAccessRejected({ sessionId })
-        }
-      }
-    })
-  }
-
-  public handleAccessAccepted(payload: WsConnectionAccepted): void {
-    this.currentSessionId = payload.sessionId
-    this.notify('ws:access', 'accepted', payload)
-    this.guestAcknowledge()
-  }
-
-  public handleAccessRejected(payload: WsConnectionRejected): void {
-    this.currentSessionId = null
-    this.notify('ws:access', 'rejected', payload)
-  }
-
-  public handleServerError(payload: WsConnectionError): void {
-    this.notify('ws:access', 'server-error', payload)
-  }
-
-  public handleAcknowledged(payload: WsAcknowledged): void {
-    this.notify('ws:handshake', 'acknowledged', payload)
-  }
-
-  public handleWebRTCOffer(payload: WsWebRTCOffer): void {
-    this.notify('ws:webrtc', 'offer', payload)
-  }
-
-  public handleWebRTCAnswer(payload: WsWebRTCAnswer): void {
-    this.notify('ws:webrtc', 'answer', payload)
-  }
-
-  public handleWebRTCIceCandidate(payload: WsWebRTCIceCandidate): void {
-    this.notify('ws:webrtc', 'ice-candidate', payload)
-  }
-
-  public handleWebRTCReady(payload: WsWebRTCReady): void {
-    this.notify('ws:webrtc', 'ready', payload)
+  public webrtcReady(data: WsWebRTCReady = {}): boolean {
+    if (!this.webRtcHandler) return false
+    return this.webRtcHandler.sendReady(data)
   }
 }
 
