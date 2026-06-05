@@ -1,8 +1,11 @@
-import { webRtcService } from '@renderer/composables/connection/webRTCService'
-import { P2PMessage } from '@renderer/schemas/p2pProtocol'
-import { messageRouter } from '@renderer/composables/webrtc/MessageRouter'
+import { dataChannelManager } from '@renderer/composables/webrtc/datachannel/DataChannelManager'
+import {
+  registerSystemEventsDisconnectListener,
+  type ControlAction,
+  type SystemEventsDataChannel
+} from '@renderer/composables/webrtc/datachannel/SystemEventsDataChannel'
 
-export type ControlAction = Extract<P2PMessage, { type: 'CONTROL' }>['payload']['action']
+export type { ControlAction }
 
 export interface SystemEventsChannelApi {
   sendVideoCommand: (action: ControlAction) => void
@@ -10,26 +13,17 @@ export interface SystemEventsChannelApi {
 }
 
 export function SystemEventsChannel(onForceDisconnect: () => void): SystemEventsChannelApi {
-  // --- AUTONOMICZNY NASŁUCH ---
-  messageRouter.subscribe('system-events', (msg: P2PMessage) => {
-    if (msg.type === 'DISCONNECT') {
-      onForceDisconnect()
-    } else if (msg.type === 'CONTROL') {
-      console.log('[SystemEvents] Otrzymano CONTROL:', msg.payload.action)
-    }
-  })
+  registerSystemEventsDisconnectListener(onForceDisconnect)
+
+  const getChannel = (): SystemEventsDataChannel | null => dataChannelManager.getSystemEvents()
 
   const sendVideoCommand = (action: ControlAction): void => {
-    webRtcService.sendData(
-      'system-events',
-      JSON.stringify({ type: 'CONTROL', payload: { action } })
-    )
+    getChannel()?.sendVideoCommand(action)
   }
 
   const sendDisconnectEvent = (): void => {
-    webRtcService.sendData('system-events', JSON.stringify({ type: 'DISCONNECT', payload: {} }))
+    getChannel()?.sendDisconnectEvent()
   }
 
-  // Nie zwracamy już handleIncomingMessage!
   return { sendVideoCommand, sendDisconnectEvent }
 }

@@ -6,8 +6,10 @@ import {
   hostTrackPolicy,
   webRtcService
 } from '@renderer/composables/connection/webRTCService'
-import { messageRouter } from '@renderer/composables/webrtc/MessageRouter'
 import { useHidChannel } from '@renderer/composables/channels/HidChannel'
+import { configureSystemEventsHandlers } from '@renderer/composables/webrtc/datachannel/systemEventsConfig'
+import { dataChannelManager } from '@renderer/composables/webrtc/datachannel/DataChannelManager'
+import { resetRemoteMetrics } from '@renderer/composables/webrtc/datachannel/MetricsDataChannel'
 import '@renderer/composables/channels/ChatChannel'
 import {
   dispatchFileTransferBinary,
@@ -42,46 +44,30 @@ export const useWebRtcStore = defineStore('webrtc', () => {
 
   const hid = useHidChannel()
 
+  configureSystemEventsHandlers({
+    getLocalPublishProfile: () => localPublishProfile.value,
+    onHostDisconnect: () => {
+      void useSocketStore().disconnect(true)
+    }
+  })
+
   const getCurrentTrackPolicy = (): typeof guestTrackPolicy | typeof hostTrackPolicy => {
     return localPublishProfile.value === 'guest' ? guestTrackPolicy : hostTrackPolicy
   }
 
   webRtcService.onMessageReceived = (data: string | ArrayBuffer, channelLabel: string): void => {
-    if (channelLabel === 'file-transfer') {
-      if (typeof data === 'string') {
-        dispatchFileTransferControl(data)
-      } else {
-        void dispatchFileTransferBinary(data).catch((err) => {
-          console.error('[ClipboardP2P]', 'dispatchFileTransferBinary', err)
-        })
-      }
+    if (channelLabel !== 'file-transfer') {
       return
     }
 
-    if (typeof data !== 'string') {
+    if (typeof data === 'string') {
+      dispatchFileTransferControl(data)
       return
     }
 
-    if (channelLabel === 'system-events') {
-      try {
-        const parsed = JSON.parse(data)
-        if (parsed.type === 'DISCONNECT') {
-          console.log('[WebRtcStore] Otrzymano sygnał DISCONNECT (P2P)')
-          if (localPublishProfile.value === 'guest') {
-            const relay = new BroadcastChannel('guest-sync-channel')
-            relay.postMessage({ type: 'COMMAND_DISCONNECT' })
-            relay.close()
-          } else {
-            const socketStore = useSocketStore()
-            socketStore.disconnect(true)
-          }
-          return
-        }
-      } catch (e) {
-        console.warn('[WebRtcStore] Błąd parsowania system-events:', e)
-      }
-    }
-    messageRouter.route(channelLabel, data)
+    void dispatchFileTransferBinary(data).catch((err) => {
+      console.error('[ClipboardP2P]', 'dispatchFileTransferBinary', err)
+    })
   }
 
   webRtcService.onRemoteStreamReceived = (stream): void => {
@@ -189,6 +175,8 @@ export const useWebRtcStore = defineStore('webrtc', () => {
     clearHostConnectingDeadline()
     rtcStatus.value = 'disconnected'
     resetFileTransferState()
+    resetRemoteMetrics()
+    dataChannelManager.destroyAll()
     webRtcService.cleanup()
     remoteStream.value = null
     if (localPublishProfile.value === 'host') {
@@ -204,7 +192,7 @@ export const useWebRtcStore = defineStore('webrtc', () => {
     if (rtcStatus.value === 'disconnected') return
 
     try {
-      webRtcService.sendData('system-events', JSON.stringify({ type: 'DISCONNECT', payload: {} }))
+      dataChannelManager.getSystemEvents()?.sendDisconnectEvent()
     } catch (e) {
       console.warn('[WebRtcStore] Nie udało się wysłać sygnału DISCONNECT (kanał zamknięty?):', e)
     }

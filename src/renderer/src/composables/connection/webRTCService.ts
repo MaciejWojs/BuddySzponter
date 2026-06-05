@@ -1,5 +1,6 @@
 // composables/webrtc/webRtcService.ts
 import { getAudioContext, resumeAudioContext } from '@renderer/composables/useSharedAudioContext'
+import { dataChannelManager } from '@renderer/composables/webrtc/datachannel/DataChannelManager'
 
 interface CustomRTCCodecStats {
   id: string
@@ -342,43 +343,31 @@ export class WebRTCService {
   }
 
   private setupChannel(channel: RTCDataChannel): void {
-    const handleOpen = (): void => {
-      if (channel.label === 'system-events' && this.onDataChannelOpened) {
-        this.onDataChannelOpened()
-      }
-    }
-
-    if (channel.readyState === 'open') {
-      handleOpen()
-    } else {
-      channel.onopen = handleOpen
-    }
-
-    // Domyślnie część przeglądarek podaje binaria jako Blob → async arrayBuffer()
-    // miesza kolejność względem stringów (JSON). Wymuszamy ArrayBuffer.
     if (channel.label === 'file-transfer') {
       channel.binaryType = 'arraybuffer'
+      channel.onmessage = (e): void => {
+        if (!this.onMessageReceived) return
+        const raw = e.data
+        if (typeof raw === 'string' || raw instanceof ArrayBuffer) {
+          this.onMessageReceived(raw, channel.label)
+          return
+        }
+        if (raw instanceof Blob) {
+          void raw.arrayBuffer().then((buf) => {
+            this.onMessageReceived?.(buf, channel.label)
+          })
+        }
+      }
+      this.fileTransferChannel = channel
+      return
     }
 
-    channel.onmessage = (e): void => {
-      if (!this.onMessageReceived) return
-      const raw = e.data
-      if (typeof raw === 'string' || raw instanceof ArrayBuffer) {
-        this.onMessageReceived(raw, channel.label)
-        return
-      }
-      if (raw instanceof Blob) {
-        void raw.arrayBuffer().then((buf) => {
-          this.onMessageReceived?.(buf, channel.label)
-        })
-        return
-      }
-    }
+    dataChannelManager.attach(channel)
+
     if (channel.label === 'chat-channel') this.chatChannel = channel
     else if (channel.label === 'hid-control') this.hidControlChannel = channel
     else if (channel.label === 'system-events') this.systemEventsChannel = channel
     else if (channel.label === 'metrics') this.metricsChannel = channel
-    else if (channel.label === 'file-transfer') this.fileTransferChannel = channel
   }
 
   /**
@@ -684,6 +673,7 @@ export class WebRTCService {
   public cleanup(preserveIceQueue: boolean = false): void {
     const currentPeerConnection = this.peerConnection
 
+    dataChannelManager.destroyAll()
     this.isIntentionallyClosing = true
     this.recordingStream?.getTracks().forEach((t) => t.stop())
     this.recordingStream = null
