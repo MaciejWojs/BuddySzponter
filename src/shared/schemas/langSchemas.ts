@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-export const AppLanguageSchema = z.enum([
+const appLanguageSchema = z.enum([
   'pl',
   'en',
   'plX67',
@@ -18,28 +18,9 @@ export const AppLanguageSchema = z.enum([
   'br',
   'us'
 ])
-export type AppLanguage = z.infer<typeof AppLanguageSchema>
+export type AppLanguage = z.infer<typeof appLanguageSchema>
 
-export const LanguagesResponseSchema = z.array(
-  z.enum([
-    'en',
-    'pl',
-    'plX67',
-    'it',
-    'er',
-    'de',
-    'fr',
-    'es',
-    'cn',
-    'jp',
-    'kr',
-    'id',
-    'sa',
-    'bd',
-    'br',
-    'us'
-  ])
-)
+export const LanguagesResponseSchema = z.array(appLanguageSchema)
 export type LanguagesResponse = z.infer<typeof LanguagesResponseSchema>
 
 const JSONValueSchema: z.ZodType<unknown> = z.lazy(() =>

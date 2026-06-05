@@ -52,9 +52,6 @@ export type GetCurrentUserResponse = IpcResponse<UserResponseSchema>
 export type CreateConnectionResponse = IpcResponse<CreateConnectionResponseSchema>
 export type JoinConnectionResponse = IpcResponse<JoinConnectionResponseSchema>
 
-// --- DESKTOP ---
-export type GetDesktopSourcesResponse = IpcResponse<DesktopSource[]>
-
 export type WsCategory = 'ws:connection' | 'ws:access' | 'ws:handshake' | 'ws:webrtc'
 
 /**

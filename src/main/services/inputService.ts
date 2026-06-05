@@ -1,5 +1,10 @@
 import { ipcMain, screen, BrowserWindow, app } from 'electron'
-import { InputBridge, getCursorType, type InputEvent, type ClipboardRemoteFile } from '@maciejwojs/input-bridge'
+import { InputBridge, getCursorType, type InputEvent } from '@maciejwojs/input-bridge'
+
+interface ClipboardRemoteFile {
+  fileName: string
+  data: Buffer | Uint8Array
+}
 import { broadcastLockoutToWidget } from '../hostWidget'
 import { MonitorMetadata } from '@maciejwojs/screen-capture'
 
@@ -41,6 +46,7 @@ type InputType = 'move' | 'click' | 'key'
 
 interface QueuedInput {
   type: InputType
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   payload: any
   timestamp: number
 }
@@ -194,7 +200,9 @@ class InputController {
       console.info(CLIPBOARD_P2P_LOG, 'Ctrl+V paste: getClipboardFiles returned no paths')
       return
     }
-    console.info(CLIPBOARD_P2P_LOG, 'Ctrl+V paste → broadcastClipboardFiles', { count: paths.length })
+    console.info(CLIPBOARD_P2P_LOG, 'Ctrl+V paste → broadcastClipboardFiles', {
+      count: paths.length
+    })
     inputService.broadcastClipboardFiles(paths)
   }
 
@@ -210,7 +218,11 @@ class InputController {
 
   setClipboardFilesRemote(files: ClipboardRemoteFile[]): boolean {
     if (!this.bridge) return false
-    return this.bridge.setClipboardFilesRemote(files)
+    return (
+      this.bridge as unknown as {
+        setClipboardFilesRemote(remoteFiles: ClipboardRemoteFile[]): boolean
+      }
+    ).setClipboardFilesRemote(files)
   }
 
   getClipboardFilesRemote(): string[] | null {

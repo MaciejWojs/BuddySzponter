@@ -1,5 +1,5 @@
 import { computed, ref, watch, type ComputedRef } from 'vue'
-import type { P2PMessage } from '@renderer/schemas/p2pProtocol'
+import type { P2PMessage } from '@renderer/composables/webrtc/datachannel/schemas/channelSchemas'
 import { useUserStore } from '@renderer/stores/userStore'
 import { requestOutgoingFileTransferFromPaths } from '@renderer/composables/channels/FileTransferChannel'
 

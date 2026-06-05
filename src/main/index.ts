@@ -39,46 +39,23 @@ import {
 } from './guestWindow'
 import trayIconDefault from '../../resources/tray/default.png?asset'
 import { trayService } from './services/trayService'
+import {
+  hideWindowSafely,
+  isAppQuitting,
+  markAppQuitting,
+  quitApp,
+  showWindowSafely
+} from './windowManager'
 
 let mainWindow: BrowserWindow | null = null
-let isQuitting = false
 
-export function quitApp(): void {
-  isQuitting = true
-  app.quit()
-  // Some auxiliary windows prevent close() by design; force process exit as a fallback.
-  setTimeout(() => {
-    app.exit(0)
-  }, 800)
-}
-
-export let previousBounds: Electron.Rectangle | null = null
-
-// Funkcja bezpiecznego ukrywania bez zabijania WebRTC (off-screen trick)
-export function hideWindowSafely(win: BrowserWindow | null): void {
-  if (win && !win.isDestroyed()) {
-    const currentBounds = win.getBounds()
-    // Zapisujemy pozycję tylko jeśli nie jesteśmy już poza ekranem
-    if (currentBounds.x !== -10000 && currentBounds.y !== -10000) {
-      previousBounds = currentBounds
-    }
-    win.setPosition(-10000, -10000)
-    win.setSkipTaskbar(true)
-  }
+function hideMainWindow(): void {
+  hideWindowSafely(mainWindow)
   trayService.showTrayIcon()
 }
 
-export function showWindowSafely(win: BrowserWindow | null): void {
-  if (win && !win.isDestroyed()) {
-    if (previousBounds) {
-      win.setBounds(previousBounds)
-      previousBounds = null
-    }
-    win.setSkipTaskbar(false)
-    win.show()
-    if (win.isMinimized()) win.restore()
-    win.focus()
-  }
+function showMainWindow(): void {
+  showWindowSafely(mainWindow)
   trayService.hideTrayIcon()
 }
 
@@ -102,11 +79,11 @@ function createWindow(): void {
   })
 
   mainWindow.on('close', (event) => {
-    if (!isQuitting) {
+    if (!isAppQuitting()) {
       const closeToTray = localStore.get('closeToTray')
       if (closeToTray !== false) {
         event.preventDefault()
-        hideWindowSafely(mainWindow)
+        hideMainWindow()
       }
     }
   })
@@ -127,7 +104,7 @@ const useSingleInstanceLock = !import.meta.env.DEV
 const gotTheLock = useSingleInstanceLock ? app.requestSingleInstanceLock() : true
 
 app.on('before-quit', () => {
-  isQuitting = true
+  markAppQuitting()
 })
 
 if (!gotTheLock) {
@@ -135,7 +112,7 @@ if (!gotTheLock) {
 } else {
   if (useSingleInstanceLock) {
     app.on('second-instance', () => {
-      showWindowSafely(mainWindow)
+      showMainWindow()
     })
   }
 
@@ -198,14 +175,14 @@ if (!gotTheLock) {
     ipcMain.handle('show-host-widget', () => {
       createHostWidget()
       createHostWidgetPopup()
-      hideWindowSafely(mainWindow)
+      hideMainWindow()
     })
 
     ipcMain.handle('hide-host-widget', () => {
       closeHostWidget()
       hideHostChatWindow()
       hideHostWidgetPopup()
-      showWindowSafely(mainWindow)
+      showMainWindow()
     })
 
     ipcMain.handle('show-host-chat-window', () => {
@@ -240,16 +217,16 @@ if (!gotTheLock) {
 
     ipcMain.handle('app:open-guest-window', (_, sessionId: string) => {
       createGuestWindow(sessionId)
-      hideWindowSafely(mainWindow)
+      hideMainWindow()
     })
 
     ipcMain.handle('app:close-guest-window', () => {
       closeGuestWindow()
-      showWindowSafely(mainWindow)
+      showMainWindow()
     })
 
     ipcMain.handle('hide-to-tray', () => {
-      hideWindowSafely(mainWindow)
+      hideMainWindow()
     })
 
     ipcMain.handle('app:get-preferences', () => ({
@@ -309,7 +286,7 @@ if (!gotTheLock) {
     })
 
     ipcMain.handle('show-main-window', () => {
-      showWindowSafely(mainWindow)
+      showMainWindow()
     })
 
     ipcMain.handle('quit-app', () => {
@@ -326,23 +303,24 @@ if (!gotTheLock) {
     // `getDisplayMedia` na Windowsie (picker nie pojawia się, Promise nie resolvuje),
     // co blokuje cały `startHostCapture` i w efekcie akceptację sesji.
     // Używamy własnego callbacku, który deterministycznie zwraca pierwszy ekran.
-    session.defaultSession.setDisplayMediaRequestHandler((_request, callback) => {
-      desktopCapturer
-        .getSources({ types: ['screen'] })
-        .then((sources) => {
-          if (!sources || sources.length === 0) {
-            console.warn('[DisplayMedia] Brak źródeł ekranu, anulowanie żądania.')
+    session.defaultSession.setDisplayMediaRequestHandler(
+      (_request, callback) => {
+        desktopCapturer
+          .getSources({ types: ['screen'] })
+          .then((sources) => {
+            if (!sources || sources.length === 0) {
+              console.warn('[DisplayMedia] Brak źródeł ekranu, anulowanie żądania.')
+              callback({})
+              return
+            }
+            callback({ video: sources[0], audio: 'loopback' })
+          })
+          .catch((err) => {
+            console.error('[DisplayMedia] Błąd pobierania źródeł:', err)
             callback({})
-            return
-          }
-          callback({ video: sources[0], audio: 'loopback' })
-        })
-        .catch((err) => {
-          console.error('[DisplayMedia] Błąd pobierania źródeł:', err)
-          callback({})
-        })
-    },
-    { useSystemPicker: false }
+          })
+      },
+      { useSystemPicker: false }
     )
 
     app.on('activate', function () {

@@ -34,69 +34,65 @@ export type WsEventName = (typeof WS_EVENT)[keyof typeof WS_EVENT]
 // Payload schemas
 // ---------------------------------------------------------------------------
 
-export const ConnectionAcceptedEventSchema = z.object({
+const ConnectionAcceptedEventSchema = z.object({
   sessionId: z.uuid()
 })
 
-export const ConnectionRejectedEventSchema = z.object({
+const ConnectionRejectedEventSchema = z.object({
   sessionId: z.uuid()
 })
 
-export const ConnectionDisconnectedEventSchema = z.object({
+const ConnectionDisconnectedEventSchema = z.object({
   reason: z.string().optional()
 })
 
-export const TerminateConnectionEventSchema = z.object({
+const TerminateConnectionEventSchema = z.object({
   reason: z.string().optional()
 })
 
-export const KickFromConnectionEventSchema = z.object({
-  reason: z.string().optional()
-})
-
-export const ConnectionErrorEventSchema = z.object({
+const ConnectionErrorEventSchema = z.object({
   message: z.string(),
   code: z.number().optional()
 })
 
-export const RequestAccessEventSchema = z.object({
+const RequestAccessEventSchema = z.object({
   sessionId: z.uuid()
 })
 
-export const acknowledgedSchema = z.object({
+const acknowledgedSchema = z.object({
   sessionId: z.uuid()
 })
 
-export const AcceptEventSchema = z.object({
+const AcceptEventSchema = z.object({
   sessionId: z.uuid()
 })
 
-export const RejectEventSchema = z.object({
+const RejectEventSchema = z.object({
   sessionId: z.uuid()
 })
 
-export const AcknowledgeEventSchema = z.object({
+const AcknowledgeEventSchema = z.object({
   sessionId: z.uuid()
 })
 
-export const EmptyPayloadSchema = z.object({}).strict()
+const EmptyPayloadSchema = z.object({}).strict()
 
 /** Server may send a plain string reason or an object. */
-export const ManualDisconnectListenSchema = z.union([z.string(), ConnectionDisconnectedEventSchema])
+const ManualDisconnectListenSchema = z.union([z.string(), ConnectionDisconnectedEventSchema])
 
-export const WebRTCOfferEventSchema = z.object({
+const WebRTCOfferEventSchema = z.object({
   sdp: z.string()
 })
 
-export const WebRTCAnswerEventSchema = z.object({
+const WebRTCAnswerEventSchema = z.object({
   sdp: z.string()
 })
 
-export const WebRTCIceCandidateEventSchema = z.object({
+const WebRTCIceCandidateEventSchema = z.object({
   candidate: z.any()
 })
 
-export const WebRTCReadyEventSchema = z.object({})
+const WebRTCReadyEventSchema = z.object({})
 
 // ---------------------------------------------------------------------------
 // Inferred payload types (kept for backward compatibility)
@@ -106,7 +102,6 @@ export type WsConnectionAccepted = z.infer<typeof ConnectionAcceptedEventSchema>
 export type WsConnectionRejected = z.infer<typeof ConnectionRejectedEventSchema>
 export type WsConnectionDisconnected = z.infer<typeof ConnectionDisconnectedEventSchema>
 export type WsTerminateConnection = z.infer<typeof TerminateConnectionEventSchema>
-export type WsKickFromConnection = z.infer<typeof KickFromConnectionEventSchema>
 export type WsConnectionError = z.infer<typeof ConnectionErrorEventSchema>
 export type WsRequestAccess = z.infer<typeof RequestAccessEventSchema>
 export type WsAcknowledged = z.infer<typeof acknowledgedSchema>
@@ -156,9 +151,6 @@ export const LISTEN_EVENT_SCHEMAS: Record<WsEventName, z.ZodType> = {
   [WS_EVENT.WEBRTC_READY]: WebRTCReadyEventSchema
 }
 
-/** @deprecated Use EMIT_EVENT_SCHEMAS / LISTEN_EVENT_SCHEMAS */
-export const EVENT_SCHEMAS = EMIT_EVENT_SCHEMAS
-
 // ---------------------------------------------------------------------------
 // Role direction maps
 // ---------------------------------------------------------------------------
@@ -184,12 +176,12 @@ const COMMON_LISTEN: readonly WsEventName[] = [
   WS_EVENT.DISCONNECT
 ]
 
-export const ROLE_EMIT: Record<WsRole, readonly WsEventName[]> = {
+const ROLE_EMIT: Record<WsRole, readonly WsEventName[]> = {
   host: [...COMMON_EMIT, WS_EVENT.ACCEPT, WS_EVENT.REJECT, WS_EVENT.ACKNOWLEDGED],
   guest: [...COMMON_EMIT, WS_EVENT.REQUEST_ACCESS, WS_EVENT.ACKNOWLEDGE]
 }
 
-export const ROLE_LISTEN: Record<WsRole, readonly WsEventName[]> = {
+const ROLE_LISTEN: Record<WsRole, readonly WsEventName[]> = {
   host: [...COMMON_LISTEN, WS_EVENT.REQUEST_ACCESS],
   guest: [...COMMON_LISTEN, WS_EVENT.ACCEPTED, WS_EVENT.REJECTED]
 }

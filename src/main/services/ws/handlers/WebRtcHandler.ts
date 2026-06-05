@@ -8,6 +8,13 @@ import {
 import { SignalingSocket } from '../SignalingSocket'
 import { WsNotifyFn } from './ConnectionHandler'
 
+const WEBRTC_RELAY_EVENTS = [
+  { event: WS_EVENT.WEBRTC_OFFER, notifyType: 'offer' as const },
+  { event: WS_EVENT.WEBRTC_ANSWER, notifyType: 'answer' as const },
+  { event: WS_EVENT.WEBRTC_ICE_CANDIDATE, notifyType: 'ice-candidate' as const },
+  { event: WS_EVENT.WEBRTC_READY, notifyType: 'ready' as const }
+] as const
+
 export class WebRtcHandler {
   constructor(
     private readonly socket: SignalingSocket,
@@ -15,21 +22,11 @@ export class WebRtcHandler {
   ) {}
 
   registerListeners(): void {
-    this.socket.on<WsWebRTCOffer>(WS_EVENT.WEBRTC_OFFER, (payload) => {
-      this.notify('ws:webrtc', 'offer', payload)
-    })
-
-    this.socket.on<WsWebRTCAnswer>(WS_EVENT.WEBRTC_ANSWER, (payload) => {
-      this.notify('ws:webrtc', 'answer', payload)
-    })
-
-    this.socket.on<WsWebRTCIceCandidate>(WS_EVENT.WEBRTC_ICE_CANDIDATE, (payload) => {
-      this.notify('ws:webrtc', 'ice-candidate', payload)
-    })
-
-    this.socket.on<WsWebRTCReady>(WS_EVENT.WEBRTC_READY, (payload) => {
-      this.notify('ws:webrtc', 'ready', payload)
-    })
+    for (const { event, notifyType } of WEBRTC_RELAY_EVENTS) {
+      this.socket.on(event, (payload) => {
+        this.notify('ws:webrtc', notifyType, payload)
+      })
+    }
   }
 
   sendOffer(data: WsWebRTCOffer): boolean {

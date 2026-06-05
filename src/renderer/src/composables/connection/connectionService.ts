@@ -5,26 +5,7 @@ import { CreateConnectionResponse, JoinConnectionResponse } from '@shared/schema
 import { JOIN_RENDERER_NETWORK_MESSAGE } from '@shared/constants/joinFailureMessages'
 
 export class ConnectionService {
-  private connectionCode: string | null = null
-  private connectionUUID: string | null = null
-  private connectionToken: string | null = null
   private expiresDate: Date | null = null
-
-  // ==========================================
-  // --- GETTERS ---
-  // ==========================================
-
-  public get currentConnectionCode(): string | null {
-    return this.connectionCode
-  }
-
-  public get currentConnectionUUID(): string | null {
-    return this.connectionUUID
-  }
-
-  public get currentConnectionToken(): string | null {
-    return this.connectionToken
-  }
 
   public get connectionExpiresDate(): Date | null {
     return this.expiresDate
@@ -39,9 +20,6 @@ export class ConnectionService {
       const response = await window.api.connection.create(data)
 
       if (response.success && response.data) {
-        this.connectionCode = response.data.code
-        this.connectionUUID = response.data.connectionUUID
-        this.connectionToken = response.data.token
         this.expiresDate = new Date(response.data.expiresAt)
         console.log('[ConnectionService] Connection created successfully')
       } else {
@@ -59,10 +37,6 @@ export class ConnectionService {
       const response = await window.api.connection.join({ connectionCode: code, password })
 
       if (response.success && response.data) {
-        this.connectionCode = code
-        this.connectionUUID = response.data.connectionUUID
-        this.connectionToken = response.data.token
-
         this.expiresDate = null
 
         console.log('[ConnectionService] Joined connection successfully')

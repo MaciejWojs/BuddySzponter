@@ -183,10 +183,8 @@ export const useSocketStore = defineStore('socket', () => {
 
     wsService.setupWebRtc({
       onOffer: (data) => {
-        if (connectionStore.isHost) {
-          signalingStore.handleOffer()
-        } else {
-          signalingStore.handleOffer()
+        signalingStore.handleOffer()
+        if (!connectionStore.isHost) {
           if (isGuestWindowReady) {
             console.log('[SocketStore] Oferta od Hosta dotarła, Okno Gościa czeka. Przesyłam!')
             relayChannel?.postMessage({ type: 'RELAY_OFFER', payload: data.sdp })

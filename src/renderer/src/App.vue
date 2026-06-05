@@ -14,6 +14,7 @@ import { useHostChatPortalSync } from '@renderer/composables/syncWindow/useHostC
 import { useCaptureStore } from '@renderer/stores/captureStore'
 import { isVideoQualityPreset } from '@shared/schemas/appPreferences'
 import { applyDocumentTheme } from '@renderer/utils/themeDocument'
+import { getWindowRole } from '@renderer/utils/windowRole'
 import GuestFixedSessionToast from '@renderer/components/toasts/GuestFixedSessionToast.vue'
 import AppBootOverlay from '@renderer/components/AppBootOverlay.vue'
 
@@ -33,12 +34,9 @@ const bootStore = useBootStore()
 const { isBootComplete } = storeToRefs(bootStore)
 
 // Ustawienia i stan inicjalizujemy w zależności od typu okna
-const isHostChatWindow = window.location.hash.includes('host-chat')
-const isMainWindow =
-  !window.location.hash.includes('guest') &&
-  !window.location.hash.includes('widget') &&
-  !window.location.hash.includes('tray-menu') &&
-  !isHostChatWindow
+const windowRole = getWindowRole()
+const isHostChatWindow = windowRole === 'host-chat'
+const isMainWindow = windowRole === 'main'
 
 if (isMainWindow) {
   void (async (): Promise<void> => {
@@ -57,7 +55,7 @@ if (isMainWindow) {
   useAudioMixer()
   useWidgetSync()
   useHostChatPortalSync('main')
-} else if (window.location.hash.includes('guest')) {
+} else if (windowRole === 'guest') {
   useGuestSync()
 } else if (isHostChatWindow) {
   useHostChatPortalSync('portal')

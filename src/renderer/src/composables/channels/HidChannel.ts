@@ -40,7 +40,6 @@ export interface HidChannelApi {
   sendMouseScroll: (deltaY: number) => void
   setClipboardSyncEnabled: (enabled: boolean) => void
   sendClipboardText: (text: string) => void
-  sendClipboardFiles: (paths: string[]) => void
   resetState: () => void
 }
 
@@ -76,9 +75,6 @@ export function useHidChannel(): HidChannelApi {
     sendMouseScroll: (deltaY) => getHidChannel()?.sendMouseScroll(deltaY),
     setClipboardSyncEnabled: (enabled) => getHidChannel()?.setClipboardSyncEnabled(enabled),
     sendClipboardText: (text) => getHidChannel()?.sendClipboardText(text),
-    sendClipboardFiles: (paths) => {
-      void paths
-    },
     resetState: resetHidChannelState
   }
 }

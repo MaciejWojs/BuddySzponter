@@ -2,12 +2,9 @@
 import { ipcMain } from 'electron'
 import { coreService } from './CoreService'
 import { uploadAvatar, uploadAvatarByBuffer } from '../handlers/user/avatar'
+import { APP_ERRORS } from '../../shared/constants/errors'
 
-// Odpowiedź zwracana, gdy wersja aplikacji jest nieobsługiwana.
-const updateBlockedResponse = {
-  success: false as const,
-  message: 'Ta wersja aplikacji nie jest wspierana. Zaktualizuj aplikacje, aby kontynuowac.'
-}
+const updateBlockedResponse = APP_ERRORS.SYSTEM.UPDATE_REQUIRED
 
 // Klasa singleton obsługująca rejestrację handlerów IPC dla operacji użytkownika (avatar, profil).
 export class UserService {

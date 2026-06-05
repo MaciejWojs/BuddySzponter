@@ -1,7 +1,7 @@
 import { Tray, BrowserWindow, nativeImage, screen, ipcMain, Menu } from 'electron'
 import { isAbsolute, join } from 'path'
 import { is } from '@electron-toolkit/utils'
-import { quitApp, showWindowSafely } from '../index'
+import { quitApp, showWindowSafely } from '../windowManager'
 
 let tray: Tray | null = null
 let trayWindow: BrowserWindow | null = null
@@ -77,6 +77,7 @@ export const trayService = {
   restoreMainWindow() {
     if (mainWindowRef && !mainWindowRef.isDestroyed()) {
       showWindowSafely(mainWindowRef)
+      this.hideTrayIcon()
     }
   },
 

@@ -25,10 +25,6 @@ export class WebSocketService {
     return await window.api.ws.disconnect()
   }
 
-  public async terminate(reason?: string): Promise<WsActionResponse> {
-    return await window.api.ws.terminate(reason)
-  }
-
   public async requestAccess(sessionId: string): Promise<WsActionResponse> {
     return await window.api.ws.requestAccess(sessionId)
   }
@@ -39,14 +35,6 @@ export class WebSocketService {
 
   public async respondReject(): Promise<WsActionResponse> {
     return await window.api.ws.respondReject()
-  }
-
-  public async guestAcknowledge(): Promise<WsActionResponse> {
-    return await window.api.ws.guestAcknowledge()
-  }
-
-  public async hostAcknowledge(): Promise<WsActionResponse> {
-    return await window.api.ws.hostAcknowledge()
   }
 
   // --- WebRTC Actions ---
@@ -79,10 +67,6 @@ export class WebSocketService {
 
   public setupWebRtc(callbacks: WsWebRtcListeners): void {
     window.api.ws.webrtc(callbacks)
-  }
-
-  public cleanup(): void {
-    window.api.ws.removeAllListeners()
   }
 }
 

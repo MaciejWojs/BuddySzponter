@@ -12,7 +12,11 @@ export const APP_ERRORS = {
   },
   SYSTEM: {
     UNKNOWN: { success: false as const, message: 'Unknown system error occurred' },
-    NETWORK: { success: false as const, message: 'Network connection failed' }
+    NETWORK: { success: false as const, message: 'Network connection failed' },
+    UPDATE_REQUIRED: {
+      success: false as const,
+      message: 'Ta wersja aplikacji nie jest wspierana. Zaktualizuj aplikacje, aby kontynuowac.'
+    }
   },
   CONNECTION: {
     FAILED: { success: false as const, message: 'Failed to establish connection' },

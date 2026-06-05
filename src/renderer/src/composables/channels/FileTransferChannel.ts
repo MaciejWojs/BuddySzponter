@@ -7,6 +7,7 @@ import {
   decodeFileChunkFrame,
   encodeFileChunkFrame
 } from '@renderer/composables/fileTransfer/binaryFrame'
+import { isGuestWindow } from '@renderer/utils/windowRole'
 
 const LOG = '[ClipboardP2P]'
 
@@ -316,10 +317,10 @@ export async function requestOutgoingFileTransferFromPaths(
   console.info(LOG, 'requestOutgoing: DC not open, trying relay or abort', {
     source: options.source,
     dcReady: ch?.readyState,
-    isGuestHash: window.location.hash.toLowerCase().includes('guest')
+    isGuestHash: isGuestWindow()
   })
 
-  if (window.location.hash.toLowerCase().includes('guest')) {
+  if (isGuestWindow()) {
     return null
   }
 

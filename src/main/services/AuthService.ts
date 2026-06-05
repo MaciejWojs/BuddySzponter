@@ -11,12 +11,9 @@ import { refresh } from '../handlers/auth/refresh'
 import { UserResponseSchema } from '../../shared/schemas/user'
 import { coreService } from './CoreService'
 import { RegisterRequest, LoginRequest } from '../schemas/authSchemas'
+import { APP_ERRORS } from '../../shared/constants/errors'
 
-// Odpowiedź zwracana, gdy wersja aplikacji jest nieobsługiwana.
-const updateBlockedResponse = {
-  success: false as const,
-  message: 'Ta wersja aplikacji nie jest wspierana. Zaktualizuj aplikacje, aby kontynuowac.'
-}
+const updateBlockedResponse = APP_ERRORS.SYSTEM.UPDATE_REQUIRED
 
 // Klasa singleton obsługująca logikę autoryzacji użytkownika (logowanie, rejestracja, wylogowanie, odświeżanie tokenów).
 export class AuthService {

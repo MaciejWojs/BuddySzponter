@@ -73,8 +73,4 @@ export class ConnectionHandler {
   emitTerminate(reason?: string): boolean {
     return this.socket.emit(WS_EVENT.TERMINATE, reason ? { reason } : {})
   }
-
-  setSuppressNextDisconnected(value: boolean): void {
-    this.suppressNextDisconnected = value
-  }
 }

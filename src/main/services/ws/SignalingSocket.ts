@@ -16,10 +16,6 @@ export class SignalingSocket {
     public readonly role: WsRole
   ) {}
 
-  get raw(): Socket {
-    return this.socket
-  }
-
   get id(): string {
     return this.socket.id ?? ''
   }
