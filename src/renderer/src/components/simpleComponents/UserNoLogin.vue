@@ -1,18 +1,44 @@
 <template>
+  <!-- Sekcja widoku komponentu UserNoLogin: definiuje strukturę renderowaną w interfejsie użytkownika. -->
   <div class="user-container" @mouseenter="menuOpen = true" @mouseleave="menuOpen = false">
     <div :class="['dropdown-bg', { 'is-open': menuOpen }]" />
 
     <div class="user-content">
-      <div class="avatar-wrapper">
-        <UserIconSvg class="user-avatar" />
+      <div class="avatar">
+        <UserIconSvg class="avatar-fallback" />
       </div>
 
-      <div class="user-name">Gość</div>
+      <div class="user-name">{{ $t('userMenu.guest') }}</div>
 
       <Transition name="fade-slide">
         <div v-if="menuOpen" class="menu-items">
-          <button class="menu-item" @click="goToLogin">{{ $t('userMenu1.login') }}</button>
-          <button class="menu-item" @click="goToRegister">{{ $t('userMenu1.register') }}</button>
+          <button class="menu-item" @click="goToLogin">{{ $t('login.button') }}</button>
+          <button class="menu-item" @click="goToRegister">{{ $t('login.register') }}</button>
+          <hr style="width: 80%; border: 0; border-top: 1px solid #444; margin: 10px 0" />
+          <button class="menu-item" @click="openVersionModal">{{ $t('userMenu.version') }}</button>
+        </div>
+      </Transition>
+
+      <Transition name="fade-slide">
+        <div v-if="showVersionModal" class="version-modal-overlay" @click.self="closeVersionModal">
+          <div class="version-modal">
+            <button class="close-btn" @click="closeVersionModal">&times;</button>
+            <h2 class="modal-title">{{ t('userVersion.modalTitle') }}</h2>
+            <div class="modal-btns">
+              <button class="menu-item modal-btn" @click="handleCurrentVersion">
+                🔢 {{ t('userVersion.currentVersion') }}
+              </button>
+              <button class="menu-item modal-btn" @click="handleAvailableVersions">
+                📋 {{ t('userVersion.availableVersions') }}
+              </button>
+              <button class="menu-item modal-btn" @click="handleVersionStatus">
+                ✅ {{ t('userVersion.versionStatus') }}
+              </button>
+            </div>
+            <div class="modal-result">
+              <pre v-if="versionResult !== null">{{ versionResult }}</pre>
+            </div>
+          </div>
         </div>
       </Transition>
     </div>
@@ -20,21 +46,163 @@
 </template>
 
 <script setup lang="ts">
+// Sekcja logiki komponentu UserNoLogin: zarządza danymi, zdarzeniami i zachowaniem widoku.
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { storeToRefs } from 'pinia'
+import { useSettingsStore } from '@renderer/stores/settingsStore'
+import { useUserStore } from '@renderer/stores/userStore'
 import UserIconSvg from '@renderer/assets/images/components/Usericon2.svg?component'
+const { t } = useI18n()
 
 const menuOpen = ref(false)
+const showVersionModal = ref(false)
+const versionResult = ref<string | null>(null)
 const router = useRouter()
 
+const settingsStore = useSettingsStore()
+const userStore = useUserStore()
+const { supportedVersions } = storeToRefs(settingsStore)
+const { isAuthenticated } = storeToRefs(userStore)
+// const displayName = computed(() => currentUser.value?.nickname || t('userMenu.guest'))
+
 function goToLogin(): void {
+  if (isAuthenticated.value) {
+    void router.push('/')
+    return
+  }
   router.push('/login')
+  showVersionModal.value = false
 }
 
 function goToRegister(): void {
+  if (isAuthenticated.value) {
+    void router.push('/')
+    return
+  }
   router.push('/register')
+  showVersionModal.value = false
+}
+
+function openVersionModal(): void {
+  showVersionModal.value = true
+  versionResult.value = null
+}
+
+function closeVersionModal(): void {
+  showVersionModal.value = false
+  versionResult.value = null
+}
+
+async function handleCurrentVersion(): Promise<void> {
+  try {
+    const version = await window.api.core.getAppVersion()
+    versionResult.value = `${t('userVersion.currentVersionLabel')}: ${version}`
+  } catch (e) {
+    versionResult.value = `${t('userVersion.fetchError')}: ${e}`
+  }
+}
+
+async function handleAvailableVersions(): Promise<void> {
+  try {
+    await settingsStore.fetchSupportedVersions()
+    console.log('Pobrane wersje:', supportedVersions.value)
+    if (supportedVersions.value && supportedVersions.value.length > 0) {
+      const versions = supportedVersions.value.map((v) => v.version).join(', ')
+      versionResult.value = `${t('userVersion.availableVersionsLabel')}: ${versions}`
+    } else {
+      versionResult.value = t('userVersion.noAvailableVersions')
+    }
+  } catch (e) {
+    versionResult.value = `${t('userVersion.fetchError')}: ${e}`
+  }
+}
+
+async function handleVersionStatus(): Promise<void> {
+  try {
+    const status = await settingsStore.checkVersionStatus()
+    versionResult.value = `${t('userVersion.versionStatusLabel')}: ${status}`
+  } catch (e) {
+    versionResult.value = `${t('userVersion.statusError')}: ${e}`
+  }
 }
 </script>
+
+<style scoped>
+.version-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.version-modal {
+  background: #18122b;
+  border-radius: 18px;
+  box-shadow: 0 8px 40px #000a;
+  padding: 32px 28px 24px 28px;
+  min-width: 340px;
+  max-width: 90vw;
+  min-height: 220px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.close-btn {
+  position: absolute;
+  top: 12px;
+  right: 18px;
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 2rem;
+  cursor: pointer;
+  z-index: 10;
+  transition: color 0.2s;
+}
+.close-btn:hover {
+  color: #b794f4;
+}
+.modal-title {
+  color: #b794f4;
+  font-size: 1.3rem;
+  font-weight: 700;
+  margin-bottom: 18px;
+  text-align: center;
+}
+.modal-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 18px;
+  width: 100%;
+}
+.modal-btn {
+  width: 100%;
+  text-align: left;
+  padding-left: 18px;
+}
+.modal-result {
+  width: 100%;
+  min-height: 32px;
+  background: #221a36;
+  color: #a6e22e;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1rem;
+  margin-top: 6px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  box-sizing: border-box;
+}
+</style>
 
 <style scoped>
 .user-container {
@@ -77,29 +245,28 @@ function goToRegister(): void {
   padding-top: 10px;
 }
 
-.avatar-wrapper {
+.avatar {
   width: 90px;
   height: 90px;
   border-radius: 50%;
-  padding: 6px;
-  background: rgba(30, 16, 60, 0.18);
-  box-shadow: 0 4px 24px 0 rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+  border: 3px solid #8b5cf6;
   display: flex;
-  justify-content: center;
   align-items: center;
+  justify-content: center;
+  background: #1e1533;
+  box-shadow: 0 4px 24px 0 rgba(0, 0, 0, 0.18);
   transition: transform 0.3s ease;
 }
 
-.user-container:hover .avatar-wrapper {
+.user-container:hover .avatar {
   transform: scale(1.05);
 }
 
-.user-avatar {
-  width: 90px;
-  height: 90px;
-  border-radius: 50%;
-  object-fit: cover;
-  background: #1e103c;
+.avatar-fallback {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
 .user-name {

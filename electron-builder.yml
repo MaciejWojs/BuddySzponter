@@ -1,4 +1,4 @@
-appId: com.electron.app
+appId: com.buddyszponter.app
 productName: buddyszponter
 directories:
   buildResources: build
@@ -13,11 +13,21 @@ asarUnpack:
   - resources/**
 win:
   executableName: buddyszponter
+  icon: build/icon.ico
+  target:
+    - nsis
+    - portable
+portable:
+  artifactName: ${name}-${version}-portable.${ext}
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
+  installerIcon: build/icon.ico
+  installerHeaderIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
   shortcutName: ${productName}
   uninstallDisplayName: ${productName}
   createDesktopShortcut: always
+  deleteAppDataOnUninstall: true
 mac:
   entitlementsInherit: build/entitlements.mac.plist
   extendInfo:
@@ -33,6 +43,7 @@ linux:
     - AppImage
     - snap
     - deb
+    - rpm
   maintainer: electronjs.org
   category: Utility
 appImage:

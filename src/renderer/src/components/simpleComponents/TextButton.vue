@@ -1,4 +1,5 @@
 <template>
+  <!-- Sekcja widoku komponentu TextButton: definiuje strukturę renderowaną w interfejsie użytkownika. -->
   <button
     :type="buttonType"
     :disabled="props.disabled || props.loading"
@@ -16,6 +17,7 @@
 </template>
 
 <script setup lang="ts">
+// Sekcja logiki komponentu TextButton: zarządza danymi, zdarzeniami i zachowaniem widoku.
 const buttonType = computed(() => props.type as 'button' | 'submit' | 'reset')
 const emit = defineEmits<{
   (e: 'click', event: MouseEvent): void

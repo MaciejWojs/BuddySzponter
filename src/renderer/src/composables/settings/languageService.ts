@@ -1,6 +1,7 @@
 // composables/LanguageService.ts
 import type { Ref } from 'vue'
-import type { AppLanguage, Translation } from 'src/shared/schemas/langSchemas'
+import type { AppLanguage, Translation } from '@shared/schemas/langSchemas'
+
 import { i18n } from '@renderer/i18n'
 
 export class LanguageService {
@@ -17,11 +18,9 @@ export class LanguageService {
   public async init(): Promise<void> {
     this.isLoadingTranslationsRef.value = true
     try {
-      const [savedLang, availableLangsRes, initialTranslations] = await Promise.all([
-        window.api.settings.getLanguage(),
-        window.api.core.getAvailableLanguages(),
-        window.api.settings.getTranslation()
-      ])
+      const savedLang = await window.api.settings.getLanguage()
+      const availableLangsRes = await window.api.core.getAvailableLanguages()
+      const initialTranslations = await window.api.settings.getTranslation()
 
       this.selectedLanguageRef.value = savedLang
       this.translationsRef.value = initialTranslations
@@ -30,11 +29,14 @@ export class LanguageService {
         this.availableLanguagesRef.value = availableLangsRes.data
       }
 
-      // --- NOWE (vue-i18n) ---
       if (initialTranslations) {
-        i18n.global.setLocaleMessage(savedLang, initialTranslations)
-        i18n.global.locale.value = savedLang as unknown as 'er'
+        type I18nMessageType = Parameters<typeof i18n.global.setLocaleMessage>[1]
+
+        i18n.global.setLocaleMessage(savedLang, initialTranslations as unknown as I18nMessageType)
+        ;(i18n.global.locale as { value: string }).value = savedLang
       }
+
+      i18n.global.locale.value = savedLang as unknown as 'en'
     } catch (error) {
       console.error('[LanguageService] Failed to initialize:', error)
     } finally {
@@ -56,8 +58,12 @@ export class LanguageService {
       this.selectedLanguageRef.value = lang
       this.translationsRef.value = newTranslations
 
-      i18n.global.setLocaleMessage(lang, newTranslations)
-      i18n.global.locale.value = lang as unknown as 'er'
+      if (newTranslations) {
+        type I18nMessageType = Parameters<typeof i18n.global.setLocaleMessage>[1]
+
+        i18n.global.setLocaleMessage(lang, newTranslations as unknown as I18nMessageType)
+        ;(i18n.global.locale as { value: string }).value = lang
+      }
     } catch (error) {
       console.error(`[LanguageService] Error changing language:`, error)
     } finally {

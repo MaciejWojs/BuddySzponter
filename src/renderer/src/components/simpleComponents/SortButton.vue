@@ -1,4 +1,5 @@
 <template>
+  <!-- Sekcja widoku komponentu SortButton: definiuje strukturę renderowaną w interfejsie użytkownika. -->
   <button
     :type="buttonType"
     :disabled="props.disabled || props.loading"
@@ -18,6 +19,7 @@
 </template>
 
 <script setup lang="ts">
+// Sekcja logiki komponentu SortButton: zarządza danymi, zdarzeniami i zachowaniem widoku.
 import SortIcon from '@renderer/assets/images/components/sort.svg?component'
 
 const props = defineProps({

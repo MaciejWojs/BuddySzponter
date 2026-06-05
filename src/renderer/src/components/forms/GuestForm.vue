@@ -1,7 +1,22 @@
 <script lang="ts" setup>
-import { ref } from 'vue'
+import { ref, computed, watch } from 'vue'
+import { useConnectionStore } from '@renderer/stores/connectionStore'
+import { useSocketStore } from '@renderer/stores/socketStore'
+import { useI18n } from 'vue-i18n'
+import { useForm } from 'vee-validate'
+import { toTypedSchema } from '@vee-validate/zod'
+import { useDebounceFn } from '@vueuse/core'
+import * as z from 'zod'
+import { parseHostSessionShareClipboard } from '@renderer/utils/parseHostSessionShareClipboard'
+import { useAppToast } from '@renderer/composables/useAppToast'
+import { useGuestFixedSessionToast } from '@renderer/composables/guestFixedSessionToast'
+import { translatedGuestJoinFailureMessage } from '@renderer/utils/guestJoinFailureMessage'
 
 const { t } = useI18n()
+const { error: toastError } = useAppToast()
+const { showGuestFixedSessionToast } = useGuestFixedSessionToast()
+const connectionStore = useConnectionStore()
+const socketStore = useSocketStore()
 
 const passwordValidator = computed(() =>
   toTypedSchema(
@@ -9,15 +24,15 @@ const passwordValidator = computed(() =>
       sessionCode: z
         .string({ message: t('validation.required') })
         .min(1, { message: t('validation.required') })
-        .refine((value) => value.replace(/\s/g, '').length === 9, {
-          message: t('validation.sessionCodeLength')
+        .refine((value) => value.replace(/\s/g, '').length === 8, {
+          message: t('validation.sessioncodelength')
         }),
       sessionPassword: z.string({ message: t('validation.required') })
     })
   )
 )
 
-const { errors, defineField, validateField, setFieldError } = useForm({
+const { errors, defineField, validateField, setFieldError, handleSubmit } = useForm({
   validationSchema: passwordValidator
 })
 
@@ -40,17 +55,19 @@ const [sessionPassword, sessionPasswordAttrs] = defineField('sessionPassword', {
 })
 
 const show = ref(false)
+const isApiLoading = ref(false)
 
 watch(sessionCode, (value) => {
-  const digitsOnly = (value ?? '').replace(/\D/g, '').slice(0, 9)
-  const formattedValue = digitsOnly.replace(/(\d{3})(?=\d)/g, '$1 ')
+  const charsOnly = (value ?? '').replace(/[^a-zA-Z0-9]/g, '').slice(0, 8)
+
+  const formattedValue = charsOnly.replace(/(.{4})(?=.)/g, '$1 ')
 
   if (formattedValue !== value) {
     sessionCode.value = formattedValue
     return
   }
 
-  if (!digitsOnly.length) {
+  if (!charsOnly.length) {
     setFieldError('sessionCode', undefined)
     return
   }
@@ -62,21 +79,45 @@ watch(sessionPassword, () => {
   validateSessionPasswordDebounced()
 })
 
-async function onCopySessionCode(): Promise<void> {
-  const value = sessionCode.value ?? ''
-  if (!value) return
-
-  try {
-    await navigator.clipboard.writeText(value)
-  } catch {
-    // Clipboard might be unavailable in some environments.
-  }
-}
-
 function onTogglePasswordVisibility(): void {
   show.value = !show.value
   validateSessionPasswordDebounced()
 }
+
+const isConnecting = computed(() => socketStore.isConnected && !connectionStore.isHost)
+
+const onSubmit = handleSubmit(async () => {
+  const rawCode = (sessionCode.value ?? '').replace(/\s/g, '')
+  const rawPassword = sessionPassword.value ?? ''
+
+  isApiLoading.value = true
+
+  try {
+    const res = await connectionStore.joinGuestConnection({
+      connectionCode: rawCode,
+      password: rawPassword
+    })
+
+    if (res && !res.success) {
+      const msg = translatedGuestJoinFailureMessage(res.message, t)
+      showGuestFixedSessionToast(msg)
+    }
+  } catch (error) {
+    console.error('Błąd połączenia:', error)
+    showGuestFixedSessionToast(t('guestForm.joinErrorCritical'))
+  } finally {
+    isApiLoading.value = false
+  }
+})
+
+watch(
+  () => socketStore.isConnected,
+  (connected, wasConnected) => {
+    if (wasConnected && !connected && connectionStore.connectionCode) {
+      showGuestFixedSessionToast(t('guestForm.joinErrorDisconnected'))
+    }
+  }
+)
 
 function onSessionCodeKeydown(event: KeyboardEvent): void {
   const allowedKeys = [
@@ -94,23 +135,65 @@ function onSessionCodeKeydown(event: KeyboardEvent): void {
   if (allowedKeys.includes(event.key)) return
   const hasModifier = event.ctrlKey || event.metaKey
   const isEditShortcut = ['a', 'c', 'v', 'x'].includes(event.key.toLowerCase())
-  const isShortcut = hasModifier && isEditShortcut
-  if (isShortcut) return
-  if (/^\d$/.test(event.key)) return
+  if (hasModifier && isEditShortcut) return
+  if (/^[a-zA-Z0-9]$/.test(event.key)) return
 
   event.preventDefault()
 }
 
-function onSessionCodePaste(event: ClipboardEvent): void {
+/** Wklejony blok „session code / password” (format hosta) → od razu oba pola, bez potwierdzania. */
+function tryApplySharePaste(pastedText: string, event: ClipboardEvent): boolean {
+  const parsed = parseHostSessionShareClipboard(pastedText)
+  if (!parsed) return false
+
   event.preventDefault()
+  sessionCode.value = parsed.codeRaw.replace(/(.{4})(?=.)/g, '$1 ')
+  sessionPassword.value = parsed.password
+  void validateField('sessionCode')
+  void validateField('sessionPassword')
+  return true
+}
 
+function onSessionCodePaste(event: ClipboardEvent): void {
   const pastedText = event.clipboardData?.getData('text') ?? ''
-  const digitsOnly = pastedText.replace(/\D/g, '')
-  if (!digitsOnly) return
+  if (tryApplySharePaste(pastedText, event)) return
 
-  const currentDigits = (sessionCode.value ?? '').replace(/\D/g, '')
-  const nextDigits = `${currentDigits}${digitsOnly}`.slice(0, 9)
-  sessionCode.value = nextDigits.replace(/(\d{3})(?=\d)/g, '$1 ')
+  event.preventDefault()
+  const charsOnly = pastedText.replace(/[^a-zA-Z0-9]/g, '').slice(0, 8)
+  if (!charsOnly) return
+
+  sessionCode.value = charsOnly.replace(/(.{4})(?=.)/g, '$1 ')
+  validateSessionCodeDebounced()
+}
+
+function onPasswordPaste(event: ClipboardEvent): void {
+  const pastedText = event.clipboardData?.getData('text') ?? ''
+  if (tryApplySharePaste(pastedText, event)) return
+
+  event.preventDefault()
+  sessionPassword.value = pastedText.trim()
+  validateSessionPasswordDebounced()
+}
+
+async function onPasteFromClipboardButton(): Promise<void> {
+  let text = ''
+  try {
+    text = await navigator.clipboard.readText()
+  } catch {
+    toastError('guestForm.clipboardReadFailedTitle', 'guestForm.clipboardReadFailedDescription')
+    return
+  }
+
+  const parsed = parseHostSessionShareClipboard(text)
+  if (parsed) {
+    sessionCode.value = parsed.codeRaw.replace(/(.{4})(?=.)/g, '$1 ')
+    sessionPassword.value = parsed.password
+    void validateField('sessionCode')
+    void validateField('sessionPassword')
+    return
+  }
+
+  showGuestFixedSessionToast(t('guestForm.clipboardFormatNotRecognized'))
 }
 
 function onSessionCodeBlur(): void {
@@ -123,37 +206,67 @@ function onPasswordBlur(): void {
 </script>
 
 <template>
-  <div>
+  <form @submit.prevent="onSubmit">
+    <div class="w-full max-w-[320px] mx-auto mb-3 flex justify-center">
+      <UButton
+        type="button"
+        icon="i-lucide-clipboard-paste"
+        color="neutral"
+        variant="outline"
+        size="sm"
+        :disabled="isConnecting || isApiLoading"
+        @click="onPasteFromClipboardButton"
+      >
+        {{ t('guestForm.pasteFromClipboard') }}
+      </UButton>
+    </div>
+
+    <div
+      v-if="(connectionStore.connectionCode || isApiLoading) && !connectionStore.isHost"
+      class="w-full mb-6 text-center max-w-[320px] mx-auto transition-all"
+    >
+      <div
+        v-if="socketStore.isConnected && socketStore.isAcknowledged"
+        class="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg"
+      >
+        <p class="text-xs text-emerald-400 font-bold m-0">
+          Połączono z sesją: {{ connectionStore.connectionCode }}
+        </p>
+      </div>
+
+      <div
+        v-else-if="socketStore.isConnected && !socketStore.isAcknowledged"
+        class="p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg animate-pulse"
+      >
+        <p class="text-xs text-blue-400 font-bold m-0">Pukamy... Oczekiwanie na akceptację Hosta</p>
+      </div>
+
+      <div
+        v-else-if="isApiLoading"
+        class="p-3 bg-gray-500/10 border border-gray-500/30 rounded-lg animate-pulse"
+      >
+        <p class="text-xs text-gray-400 font-bold m-0">Weryfikacja kodu i hasła...</p>
+      </div>
+    </div>
+
     <div id="sessionCode" class="flex flex-col items-center">
       <h3>{{ $t('guestForm.sessionCode') }}</h3>
       <BuInput
         v-model="sessionCode"
         v-bind="sessionCodeAttrs"
         :error="!!errors.sessionCode"
+        :disabled="isConnecting || isApiLoading"
         text-align="center"
         font-family="mono"
         font-size="20px"
-        :copy-on-click="true"
-        :show-copy-popover="true"
-        maxlength="11"
-        inputmode="numeric"
+        maxlength="9"
         @keydown="onSessionCodeKeydown"
         @paste="onSessionCodePaste"
         @blur="onSessionCodeBlur"
-      >
-        <template #suffix>
-          <UButton
-            icon="i-lucide-copy"
-            color="neutral"
-            variant="link"
-            class="text-white opacity-50"
-            aria-label="Copy session code"
-            @click="onCopySessionCode"
-          />
-        </template>
-      </BuInput>
+      />
       <div class="text-red-500 text-sm mt-1 mb-1 min-h-2">{{ errors.sessionCode }}</div>
     </div>
+
     <div id="sessionPassword" class="flex flex-col items-center">
       <h3>{{ $t('guestForm.sessionPassword') }}</h3>
       <BuInput
@@ -161,9 +274,11 @@ function onPasswordBlur(): void {
         v-bind="sessionPasswordAttrs"
         :type="show ? 'text' : 'password'"
         :error="!!errors.sessionPassword"
+        :disabled="isConnecting || isApiLoading"
         text-align="left"
         font-family="mono"
         font-size="20px"
+        @paste="onPasswordPaste"
         @blur="onPasswordBlur"
       >
         <template #suffix>
@@ -173,7 +288,7 @@ function onPasswordBlur(): void {
               color="neutral"
               variant="link"
               class="text-white opacity-50"
-              :aria-label="show ? 'Hide password' : 'Show password'"
+              :aria-label="show ? t('common.hidePassword') : t('common.showPassword')"
               :aria-pressed="show"
               @click="onTogglePasswordVisibility"
             />
@@ -184,9 +299,21 @@ function onPasswordBlur(): void {
     </div>
 
     <div class="flex justify-center" style="margin-top: 44px">
-      <GrayButton>{{ $t('guestForm.joinButton') }}</GrayButton>
+      <GrayButton
+        type="submit"
+        :disabled="
+          isConnecting ||
+          isApiLoading ||
+          !sessionCode ||
+          !sessionPassword ||
+          !!errors.sessionCode ||
+          !!errors.sessionPassword
+        "
+      >
+        {{ isConnecting || isApiLoading ? 'Uwierzytelnianie...' : $t('guestForm.joinButton') }}
+      </GrayButton>
     </div>
-  </div>
+  </form>
 </template>
 
 <style lang="scss" scoped></style>

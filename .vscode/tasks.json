@@ -1,0 +1,185 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "cleanup",
+      "type": "shell",
+      "detail": "Removes dist and out directories",
+      "windows": {
+        "options": {
+          "shell": {
+            "executable": "powershell.exe"
+          }
+        },
+        "command": "Remove-Item -Recurse -Force dist,out -ErrorAction SilentlyContinue; echo 'Cleaned up dist and out directories'"
+      },
+      "linux": {
+        "command": "rm -rf dist out"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "silent",
+        "close": true
+      },
+      "group": {
+        "isDefault": true,
+        "kind": "build"
+      }
+    },
+    {
+      "label": "remove dependencies",
+      "type": "shell",
+      "detail": "Removes node_modules directory",
+      "command": "rm -rf node_modules",
+      "windows": {
+        "options": {
+          "shell": {
+            "executable": "powershell.exe"
+          }
+        },
+        "command": "Remove-Item -Recurse -Force node_modules -ErrorAction SilentlyContinue; echo 'Removed node_modules directory'"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "silent",
+        "close": true
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "install dependencies",
+      "type": "shell",
+      "detail": "installs dependencies based on lockfile",
+      "command": "bun i --frozen-lockfile",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "close": true,
+        "focus": true
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "reinstall dependencies",
+      "type": "shell",
+      "detail": "Removes and reinstalls node_modules directory",
+      "problemMatcher": [],
+      "dependsOn": ["remove dependencies", "install dependencies"],
+      "dependsOrder": "sequence",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "build",
+      "type": "shell",
+      "detail": "Builds the project using Bun. Depends on cleanup and install dependencies tasks.",
+      "windows": {
+        "command": "bun run build:win"
+      },
+      "linux": {
+        "command": "bun run build:linux"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "focus": true
+      },
+      "dependsOn": ["cleanup", "install dependencies"],
+      "dependsOrder": "sequence",
+      "promptOnClose": true,
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "start dev",
+      "type": "shell",
+      "detail": "Runs the Electron app",
+      "command": "bun run dev",
+      "problemMatcher": ["$tsc"],
+      "presentation": {
+        "reveal": "always"
+      },
+      "promptOnClose": false,
+      "runOptions": {
+        "instanceLimit": 2,
+        "instancePolicy": "terminateOldest"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "update dependencies",
+      "type": "shell",
+      "detail": "Updates project dependencies",
+      "command": "bun update -i",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "close": true,
+        "focus": true
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "full remove dependencies",
+      "type": "shell",
+      "detail": "Removes node_modules and lockfile",
+      "dependsOn": ["remove dependencies"],
+      "windows": {
+        "options": {
+          "shell": {
+            "executable": "powershell.exe"
+          }
+        },
+        "command": "Remove-Item -Recurse -Force bun.lock -ErrorAction SilentlyContinue; echo 'Removed node_modules and bun.lock'"
+      },
+      "linux": {
+        "command": "rm -rf bun.lock"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "silent",
+        "close": true
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "buildOnly",
+      "type": "shell",
+      "detail": "Builds the project using Bun",
+      "windows": {
+        "command": "bun run build:win"
+      },
+      "linux": {
+        "command": "bun run build:linux"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "focus": true
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    }
+  ]
+}

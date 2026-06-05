@@ -1,4 +1,5 @@
 <template>
+  <!-- Sekcja widoku komponentu DiceButton: definiuje strukturę renderowaną w interfejsie użytkownika. -->
   <button
     :type="buttonType"
     :disabled="props.disabled || props.loading"
@@ -19,6 +20,7 @@
 </template>
 
 <script setup lang="ts">
+// Sekcja logiki komponentu DiceButton: zarządza danymi, zdarzeniami i zachowaniem widoku.
 import DiceIcon from '@renderer/assets/images/components/dice.svg?component'
 const buttonType = computed(() => props.type as 'button' | 'submit' | 'reset')
 const emit = defineEmits<{

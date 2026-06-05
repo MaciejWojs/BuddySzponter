@@ -1,4 +1,5 @@
 <template>
+  <!-- Sekcja widoku komponentu RoundButton: definiuje strukturę renderowaną w interfejsie użytkownika. -->
   <button
     :type="buttonType"
     :disabled="props.disabled || props.loading"
@@ -12,6 +13,7 @@
 </template>
 
 <script setup lang="ts">
+// Sekcja logiki komponentu RoundButton: zarządza danymi, zdarzeniami i zachowaniem widoku.
 const props = defineProps({
   label: {
     type: String,

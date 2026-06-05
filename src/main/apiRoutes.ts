@@ -19,7 +19,7 @@ export const API_ROUTES = {
     // POST: Handshake to establish secure session
     HANDSHAKE: '/crypto/handshake'
   },
-  CONNECTIONS: {
+  CONNECTION: {
     CREATE: '/connections',
     JOIN: '/connections/join'
   },
@@ -27,5 +27,10 @@ export const API_ROUTES = {
     SUPPORTED_VERSIONS: '/core/supported-versions',
     LOCALE: '/core/locale',
     LANGUAGES: '/core/languages'
+  },
+  USERS: {
+    AVATAR: {
+      ME: '/users/me/avatar'
+    }
   }
 } as const

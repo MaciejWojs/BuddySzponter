@@ -1,10 +1,17 @@
 <script lang="ts" setup>
-import { ref } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import BuTimer from '../simpleComponents/BuTimer.vue'
-import { customAlphabet } from 'nanoid/non-secure'
 import zxcvbn from 'zxcvbn'
+import { useConnectionStore } from '@renderer/stores/connectionStore'
+import { connectionService } from '@renderer/composables/connection/connectionService'
+import { useI18n } from 'vue-i18n'
+import { toTypedSchema } from '@vee-validate/zod'
+import { useForm } from 'vee-validate'
+import { useDebounceFn } from '@vueuse/core'
+import * as z from 'zod'
 
 const { t } = useI18n()
+const connectionStore = useConnectionStore()
 
 const PASSWORD_MIN_LENGTH = 6
 const PASSWORD_MAX_LETTERS = 64
@@ -18,13 +25,33 @@ function hasRequiredPasswordCharacters(value: string): boolean {
   return hasLowercase(value) && hasUppercase(value) && hasDigit(value) && hasSpecialCharacter(value)
 }
 
-const nanoid = customAlphabet('1234567890abcdefghijklmnoprstuvxyzABCDEFGHIJKLMNOPRSTUVXYZ', 8)
-const nanoidPassword = customAlphabet(
-  '1234567890abcdefghijklmnoprstuvxyzABCDEFGHIJKLMNOPRSTUVXYZ#@!$%',
-  12
+const sessionCodeRaw = computed(() =>
+  connectionStore.connectionCode.replace(/\s/g, '').slice(0, 8)
 )
 
-const sessionCode = ref('')
+const displaySessionCode = computed(() => {
+  const alnum = sessionCodeRaw.value
+  if (!alnum.length) return ''
+  const first = alnum.slice(0, 4)
+  const second = alnum.slice(4, 8).toLowerCase()
+  if (!second.length) return first
+  return `${first} ${second}`
+})
+
+const shareClipboardText = computed(() => {
+  const code = connectionStore.connectionCode.replace(/\s/g, '')
+  const pwd = connectionStore.connectionPassword ?? ''
+  if (!code) return ''
+  return `session code: ${code}\npassword: ${pwd}`
+})
+
+// Używamy draftu z store, a nie bezpośredniego czystopisu
+const sessionPassword = computed({
+  get: () => connectionStore.connectionPassword,
+  set: (val) => {
+    connectionStore.connectionPassword = val
+  }
+})
 
 const passwordValidator = computed(() =>
   toTypedSchema(
@@ -61,7 +88,7 @@ const validateSessionPasswordDebounced = useDebounceFn(() => {
   void validateField('sessionPassword')
 }, 150)
 
-const [sessionPassword, sessionPasswordAttrs] = defineField('sessionPassword', {
+const [_sessionPasswordModel, sessionPasswordAttrs] = defineField('sessionPassword', {
   validateOnModelUpdate: false,
   validateOnBlur: false
 })
@@ -73,50 +100,74 @@ const passwordMeetsRequirements = computed(() => {
 
   return hasValidLength && hasValidLettersCount && hasRequiredPasswordCharacters(value)
 })
+
 const strong = computed(() => {
   if (!passwordMeetsRequirements.value) return 0
-
   return zxcvbn(sessionPassword.value ?? '').score
 })
+
 const strongProgressColor = computed(() => {
   if (!passwordMeetsRequirements.value) return 'error'
-
   return strong.value <= 1 ? 'error' : strong.value <= 3 ? 'warning' : 'success'
 })
 
-const refreshTime = 120
 const show = ref(false)
-
 const timer = ref<InstanceType<typeof BuTimer>>()
 const time = ref(0)
+const totalTimeWindow = ref(120)
+
+// Wykrycie zmiany brudnopisu względem czystopisu
+const isPasswordChanged = computed(() => {
+  return connectionStore.connectionPassword !== connectionStore.activePassword
+})
+
+let intervalFrame: number
 
 onMounted(() => {
-  onTimerFinish()
-})
-
-watch(sessionPassword, () => {
-  validateSessionPasswordDebounced()
-})
-
-function onTimerTick(value: number): void {
-  time.value = value
-}
-
-function onTimerFinish(): void {
-  timer.value?.setTime(refreshTime)
-  time.value = refreshTime
-  sessionCode.value = nanoid()
-}
-
-function randomPassword(): void {
-  let generatedPassword = nanoidPassword()
-
-  while (!hasRequiredPasswordCharacters(generatedPassword)) {
-    generatedPassword = nanoidPassword()
+  // Jeśli odświeżamy stronę, uruchom połączenie hosta od zera!
+  if (!connectionStore.isHost) {
+    connectionStore.createHostConnection()
   }
 
-  sessionPassword.value = generatedPassword
-}
+  let lastExpiresTime = 0
+  let localExpiresAt = 0
+
+  intervalFrame = window.setInterval(() => {
+    if (connectionService.connectionExpiresDate) {
+      const serverExpiresAt = connectionService.connectionExpiresDate.getTime()
+
+      if (serverExpiresAt !== lastExpiresTime) {
+        lastExpiresTime = serverExpiresAt
+        totalTimeWindow.value = 120
+        localExpiresAt = Date.now() + 120 * 1000
+      }
+
+      const remainingTotal = localExpiresAt - Date.now()
+
+      if (remainingTotal >= 0) {
+        time.value = Math.max(Math.floor(remainingTotal / 1000), 0)
+        if (timer.value) {
+          timer.value.start(time.value)
+        }
+      } else {
+        time.value = 0
+      }
+    }
+  }, 1000)
+})
+
+onUnmounted(() => {
+  window.clearInterval(intervalFrame)
+})
+
+watch(
+  () => connectionStore.connectionPassword,
+  () => {
+    _sessionPasswordModel.value = connectionStore.connectionPassword
+    validateSessionPasswordDebounced()
+  },
+  { immediate: true }
+)
 
 function onTogglePasswordVisibility(): void {
   show.value = !show.value
@@ -124,36 +175,52 @@ function onTogglePasswordVisibility(): void {
 }
 
 function onRandomPasswordClick(): void {
-  randomPassword()
+  connectionStore.generateRandomPassword()
   validateSessionPasswordDebounced()
 }
 
 function onPasswordBlur(): void {
   validateSessionPasswordDebounced()
 }
+
+async function applyNewPassword(): Promise<void> {
+  if (passwordMeetsRequirements.value) {
+    const res = await connectionStore.createHostConnection()
+
+    if (!res?.success) {
+      console.error('Błąd podczas aktualizacji hasła hosta', res?.message)
+    }
+  }
+}
+
+function revertNewPassword(): void {
+  connectionStore.revertPassword()
+  validateSessionPasswordDebounced()
+}
 </script>
 
 <template>
-  <div>
+  <div class="flex flex-col items-center gap-3">
     <div id="sessionCode" class="flex flex-col items-center">
       <h3>{{ $t('hostForm.sessionCode') }}</h3>
       <BuInput
-        v-model="sessionCode"
+        :model-value="displaySessionCode"
         :readonly="true"
         text-align="center"
         font-family="mono"
         font-size="20px"
         :copy-on-click="true"
         :show-copy-popover="true"
+        :copy-clipboard-text="shareClipboardText"
+        :copy-popover-text="t('hostForm.copySessionSharePopover')"
+        :placeholder="connectionStore.isHost ? '' : 'Łączenie z serwerem...'"
       />
     </div>
-    <div id="progress" class="flex flex-col items-center pt-3 box-content h-fit pl-2 pr-2">
-      <BuProgress type="progress" :model-value="time" :steps="120" />
+
+    <div id="progress" class="w-50">
+      <BuProgress type="progress" :model-value="time" :steps="totalTimeWindow" />
     </div>
-    <div id="timer" class="flex flex-row gap-4 justify-center items-center">
-      <h3>{{ $t('hostForm.timeToJoin') }}</h3>
-      <BuTimer ref="timer" size="1.4rem" class="" @finish="onTimerFinish" @tick="onTimerTick" />
-    </div>
+
     <div id="sessionPassword" class="flex flex-col items-center">
       <h3>{{ $t('hostForm.sessionPassword') }}</h3>
       <BuInput
@@ -164,8 +231,6 @@ function onPasswordBlur(): void {
         text-align="left"
         font-family="mono"
         font-size="20px"
-        :copy-on-click="true"
-        :show-copy-popover="true"
         @blur="onPasswordBlur"
       >
         <template #suffix>
@@ -175,7 +240,7 @@ function onPasswordBlur(): void {
               color="neutral"
               variant="link"
               class="text-white opacity-50"
-              :aria-label="show ? 'Hide password' : 'Show password'"
+              :aria-label="show ? t('common.hidePassword') : t('common.showPassword')"
               :aria-pressed="show"
               @click="onTogglePasswordVisibility"
             />
@@ -184,6 +249,7 @@ function onPasswordBlur(): void {
               color="neutral"
               variant="link"
               class="text-white opacity-50"
+              :aria-label="t('hostForm.generatePassword')"
               @click="onRandomPasswordClick"
             />
           </div>
@@ -191,10 +257,45 @@ function onPasswordBlur(): void {
       </BuInput>
       <div class="text-red-500 text-sm mt-1 mb-1 min-h-2">{{ errors.sessionPassword }}</div>
     </div>
-    <div class="pt-4 pl-6 pr-6">
+
+    <div class="w-50">
       <BuProgress :model-value="strong" type="strong" :color="strongProgressColor" />
+    </div>
+
+    <div class="h-14 mt-4 flex justify-center items-center">
+      <transition name="fade">
+        <div v-if="isPasswordChanged" class="flex items-center gap-3">
+          <button
+            class="flex items-center justify-center w-11 h-11 bg-[#2a2a2a] hover:bg-[#3a3a3a] text-gray-400 hover:text-white rounded-xl border border-[#444] transition-all active:scale-95 shadow-lg"
+            title="Przywróć stare hasło"
+            @click="revertNewPassword"
+          >
+            <span class="text-xl">↩</span>
+          </button>
+
+          <button
+            v-if="passwordMeetsRequirements"
+            class="bg-rose-600 hover:bg-rose-500 text-white font-bold h-11 px-6 rounded-xl shadow-lg shadow-rose-900/20 border border-rose-500/50 transition-all active:scale-95 flex items-center gap-2"
+            @click="applyNewPassword"
+          >
+            <span class="text-lg">↻</span> Zastosuj i odśwież sesję
+          </button>
+        </div>
+      </transition>
     </div>
   </div>
 </template>
 
-<style lang="scss" scoped></style>
+<style scoped>
+.fade-enter-active,
+.fade-leave-active {
+  transition:
+    opacity 0.3s ease,
+    transform 0.3s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+</style>

@@ -9,6 +9,7 @@ import { TranslationSchema } from '../../../shared/schemas/langSchemas'
 import { secureStore } from '../../store/secureStore'
 import { translationStore } from '../../store/localStore'
 import { app } from 'electron'
+import { buildRoute } from '../../utils/api/path'
 
 export async function getLocale(lang: string): Promise<GetLocaleResponse> {
   const version = app.getVersion()
@@ -40,7 +41,7 @@ export async function getLocale(lang: string): Promise<GetLocaleResponse> {
 
   try {
     const response = await execute(() => {
-      const url = `${import.meta.env.VITE_API_BASE_URL}${API_ROUTES.CORE.LOCALE}?lang=${lang}&version=${version}`
+      const url = buildRoute(API_ROUTES.CORE.LOCALE, { lang: lang, version: version })
       const sessionId = secureStore.getSecure('sessionId')
       if (sessionId) {
         requestHeaders['X-session-id'] = sessionId

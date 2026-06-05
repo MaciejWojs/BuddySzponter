@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onBeforeUnmount, computed } from 'vue'
 import gsap from 'gsap'
-import type { AppLanguage } from 'src/shared/schemas/langSchemas'
+import type { AppLanguage } from '@shared/schemas/langSchemas'
 
 const props = withDefaults(
   defineProps<{
@@ -34,10 +34,27 @@ const languageToFlag: Record<string, string> = {
   er: 'gb'
 }
 
+const flagByCode: Record<string, string> = {
+  bd: new URL('../../assets/images/flags/bd.svg', import.meta.url).href,
+  br: new URL('../../assets/images/flags/br.svg', import.meta.url).href,
+  cn: new URL('../../assets/images/flags/cn.svg', import.meta.url).href,
+  de: new URL('../../assets/images/flags/de.svg', import.meta.url).href,
+  es: new URL('../../assets/images/flags/es.svg', import.meta.url).href,
+  fr: new URL('../../assets/images/flags/fr.svg', import.meta.url).href,
+  gb: new URL('../../assets/images/flags/gb.svg', import.meta.url).href,
+  id: new URL('../../assets/images/flags/id.svg', import.meta.url).href,
+  it: new URL('../../assets/images/flags/it.svg', import.meta.url).href,
+  jp: new URL('../../assets/images/flags/jp.svg', import.meta.url).href,
+  kr: new URL('../../assets/images/flags/kr.svg', import.meta.url).href,
+  pl: new URL('../../assets/images/flags/pl.svg', import.meta.url).href,
+  ru: new URL('../../assets/images/flags/ru.svg', import.meta.url).href,
+  sa: new URL('../../assets/images/flags/sa.svg', import.meta.url).href,
+  us: new URL('../../assets/images/flags/us.svg', import.meta.url).href
+}
+
 const flagUrl = computed(() => {
   const code = languageToFlag[props.countryCode] || props.countryCode
-  // Zostawiamy Twoją ścieżkę
-  return `src/assets/images/flags/${code.toLowerCase()}.svg`
+  return flagByCode[code.toLowerCase()] ?? flagByCode.gb ?? ''
 })
 
 const height = computed(() => Math.round(props.size * 0.75))

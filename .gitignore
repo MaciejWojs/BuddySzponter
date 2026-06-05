@@ -13,3 +13,4 @@ auto-imports.d.ts
 components.d.ts
 typed-router.d.ts
 .eslintrc-auto-import.json
+*.tgz

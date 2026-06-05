@@ -1,5 +1,11 @@
 import Store from 'electron-store'
 import { AppLanguage, Translation } from '../../shared/schemas/langSchemas'
+import { UserResponseSchema } from '../../shared/schemas/user'
+import type {
+  AppThemeMode,
+  CaptureBackendMode,
+  VideoQualityPreset
+} from '../../shared/schemas/appPreferences'
 
 type StoreModule = { default: typeof Store }
 
@@ -11,6 +17,10 @@ interface LocalStoreSchema {
   language: AppLanguage
   availableLanguages: AppLanguage[]
   hardwareId: string | null
+  videoQualityPreset: VideoQualityPreset
+  closeToTray: boolean
+  theme: AppThemeMode
+  captureBackend: CaptureBackendMode
 }
 
 export const localStore = new StoreClass<LocalStoreSchema>({
@@ -18,14 +28,22 @@ export const localStore = new StoreClass<LocalStoreSchema>({
   defaults: {
     language: 'en',
     availableLanguages: [],
-    hardwareId: null
+    hardwareId: null,
+    videoQualityPreset: 'high',
+    closeToTray: true,
+    theme: 'dark',
+    captureBackend: 'auto'
   }
 })
 
-export const authStore = new StoreClass<{ accessToken: string | null }>({
+export const authStore = new StoreClass<{
+  accessToken: string | null
+  user: UserResponseSchema | null
+}>({
   name: 'auth',
   defaults: {
-    accessToken: null
+    accessToken: null,
+    user: null
   }
 })
 

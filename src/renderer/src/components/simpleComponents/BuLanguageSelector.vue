@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useSettingsStore } from '@renderer/stores/settingsStore' // Dostosuj ścieżkę
 import BuLanguageFlag from './BuFlagIcon.vue'
 import gsap from 'gsap'
-import { AppLanguage } from 'src/shared/schemas/langSchemas'
+import type { AppLanguage } from '@shared/schemas/langSchemas'
 
 const props = withDefaults(
   defineProps<{

@@ -1,19 +1,21 @@
 // src/renderer/i18n.ts
 import { createI18n } from 'vue-i18n'
-import erTranslations from '../../shared/locales/er.json'
-import { AppLanguage } from 'src/shared/schemas/langSchemas'
+import enTranslations from '../../shared/locales/en.json'
+import plTranslations from '../../shared/locales/pl.json'
+import type { AppLanguage } from '@shared/schemas/langSchemas'
 
 // IMPORTUJEMY TWÓJ TYP
+export type AppMessages = typeof enTranslations
 
 export const i18n = createI18n({
   legacy: false,
   globalInjection: true,
 
   // POPRAWKA: Rzutujemy na AppLanguage, żeby TS wiedział, co tu wolno wrzucać
-  locale: 'er' as AppLanguage,
-  fallbackLocale: 'er' as AppLanguage,
-
+  locale: 'pl' as AppLanguage,
+  fallbackLocale: 'en' as AppLanguage,
   messages: {
-    er: erTranslations
+    en: enTranslations,
+    pl: plTranslations
   }
 })
